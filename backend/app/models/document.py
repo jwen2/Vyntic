@@ -1,0 +1,25 @@
+from pydantic import BaseModel
+
+
+class DocumentMetadata(BaseModel):
+    doc_id: str
+    deal_id: str
+    filename: str
+    page_count: int = 0
+    chunk_count: int = 0
+
+
+class ParsedSection(BaseModel):
+    content: str
+    metadata: dict
+
+
+class Chunk(BaseModel):
+    chunk_id: str
+    deal_id: str
+    doc_id: str
+    chunk_index: int
+    content: str
+    source_file: str
+    page: int = 0
+    section_type: str = "text"  # "text" or "table"
