@@ -28,7 +28,7 @@ export async function createDeal(
   name: string,
   description: string = ""
 ): Promise<Deal> {
-  const res = await fetch(`${API_BASE}/deals/`, {
+  const res = await fetch(`${API_BASE}/deals`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deal_id, name, description }),
@@ -38,7 +38,7 @@ export async function createDeal(
 }
 
 export async function listDeals(): Promise<Deal[]> {
-  const res = await fetch(`${API_BASE}/deals/`);
+  const res = await fetch(`${API_BASE}/deals`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -54,7 +54,7 @@ export async function uploadDocument(
 ): Promise<void> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${API_BASE}/deals/${deal_id}/documents/`, {
+  const res = await fetch(`${API_BASE}/deals/${deal_id}/documents`, {
     method: "POST",
     body: form,
   });

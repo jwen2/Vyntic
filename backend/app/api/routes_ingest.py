@@ -10,7 +10,7 @@ from app.services import deal_store
 router = APIRouter(prefix="/deals/{deal_id}/documents", tags=["ingestion"])
 
 
-@router.post("/", response_model=DocumentMetadata)
+@router.post("", response_model=DocumentMetadata)
 async def ingest_document(deal_id: str, file: UploadFile = File(...)):
     """Upload and ingest a document into a deal's namespace."""
     deal = deal_store.get_deal(deal_id)
