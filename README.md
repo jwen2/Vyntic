@@ -199,7 +199,7 @@ Repeat for additional deals.
 Use the API directly (or via the matrix grid):
 
 ```bash
-curl -X POST http://localhost:8000/deals/acme_saas/query/ \
+curl -X POST http://localhost:8000/deals/acme_saas/query \
   -H "Content-Type: application/json" \
   -d '{"question": "What is the EBITDA and EBITDA margin?"}'
 ```
@@ -234,10 +234,10 @@ curl -X POST http://localhost:8000/matrix/compare \
 
 1. Open **http://localhost:8000/docs**
 2. Use the interactive API explorer to test each endpoint:
-   - `POST /deals/` — Create a deal
-   - `GET /deals/` — List deals
-   - `POST /deals/{deal_id}/documents/` — Upload a file
-   - `POST /deals/{deal_id}/query/` — Ask a question
+   - `POST /deals` — Create a deal
+   - `GET /deals` — List deals
+   - `POST /deals/{deal_id}/documents` — Upload a file
+   - `POST /deals/{deal_id}/query` — Ask a question
    - `POST /matrix/compare` — Compare deals
 
 ---
@@ -247,11 +247,11 @@ curl -X POST http://localhost:8000/matrix/compare \
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Health check |
-| POST | `/deals/` | Create a new deal |
-| GET | `/deals/` | List all deals |
+| POST | `/deals` | Create a new deal |
+| GET | `/deals` | List all deals |
 | DELETE | `/deals/{deal_id}` | Delete a deal and its vectors |
-| POST | `/deals/{deal_id}/documents/` | Upload and index a document |
-| POST | `/deals/{deal_id}/query/` | Query a single deal (RAG) |
+| POST | `/deals/{deal_id}/documents` | Upload and index a document |
+| POST | `/deals/{deal_id}/query` | Query a single deal (RAG) |
 | POST | `/matrix/compare` | Compare multiple deals across queries |
 
 ## Sample Queries to Try
@@ -275,3 +275,5 @@ curl -X POST http://localhost:8000/matrix/compare \
 | Empty query results | Ensure documents were uploaded first (check deal doc count) |
 | Port 8000 in use | Run `lsof -i :8000 -t | xargs kill` then retry |
 | Port 3100 in use | Change the frontend port mapping in `docker-compose.yml` |
+| Matrix query timeout | LLM inference can take 60+ seconds. The proxy timeout is set to 5 minutes |
+| No NVIDIA GPU | Use `--profile cpu` instead of `--profile gpu` when starting services |
