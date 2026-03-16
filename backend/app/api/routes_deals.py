@@ -7,7 +7,7 @@ from app.services import deal_store
 router = APIRouter(prefix="/deals", tags=["deals"])
 
 
-@router.post("/", response_model=Deal)
+@router.post("", response_model=Deal)
 def create_deal(data: DealCreate):
     try:
         return deal_store.create_deal(data)
@@ -15,7 +15,7 @@ def create_deal(data: DealCreate):
         raise HTTPException(status_code=409, detail=str(e))
 
 
-@router.get("/", response_model=list[Deal])
+@router.get("", response_model=list[Deal])
 def list_deals():
     return deal_store.list_deals()
 
