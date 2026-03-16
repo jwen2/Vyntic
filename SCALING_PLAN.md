@@ -1,4 +1,4 @@
-# SpokeMatrix — Production Scaling Plan
+# DealInsights — Production Scaling Plan
 
 ## Executive Summary
 

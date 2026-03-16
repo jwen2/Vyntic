@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# SpokeMatrix Setup Script
+# DealInsights Setup Script
 # Pulls required Ollama models after docker-compose up
 # ==============================================================================
 
@@ -11,7 +11,7 @@ LLM_MODEL="${LLM_MODEL:-deepseek-r1:8b}"
 EMBED_MODEL="${EMBED_MODEL:-nomic-embed-text}"
 
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║           SpokeMatrix — Model Setup                     ║"
+echo "║           DealInsights — Model Setup                     ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -54,7 +54,7 @@ echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║  ✓ Setup complete!                                     ║"
 echo "║                                                         ║"
-echo "║  Frontend:  http://localhost:3000                       ║"
+echo "║  Frontend:  http://localhost:3100                       ║"
 echo "║  Backend:   http://localhost:8000                       ║"
 echo "║  API docs:  http://localhost:8000/docs                  ║"
 echo "║  Ollama:    http://localhost:11434                      ║"
