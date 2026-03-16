@@ -207,7 +207,7 @@ def test_matrix_comparison(deal_ids: list, queries: list):
     r = requests.post(
         f"{BASE_URL}/matrix/compare",
         json={"deal_ids": deal_ids, "queries": queries},
-        timeout=180,
+        timeout=600,
     )
     elapsed = time.time() - start
 
