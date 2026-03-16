@@ -2,7 +2,7 @@
 
 Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired by Hebbia's matrix-based reasoning approach.
 
-**Fully local — no API keys required.** Runs on Ollama (DeepSeek-R1) + ChromaDB + pdfplumber.
+**Fully local — no API keys required.** Runs on Ollama (DeepSeek-R1) + ChromaDB + Docling.
 
 ## Architecture
 
@@ -48,7 +48,7 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 ## Key Design Decisions
 
 - **Collection Isolation**: Each deal uses a separate ChromaDB collection — zero context leak between deals
-- **Structural Parsing**: pdfplumber for PDFs (preserves table structure), openpyxl for Excel
+- **Structural Parsing**: Docling for PDFs (high-quality table + text extraction), openpyxl for Excel
 - **LangGraph Orchestration**: Manager/Worker fan-out pattern for parallel multi-deal queries
 - **Citation Grounding**: Every answer includes source file and page number references
 - **Fully Local**: All components run on your machine — no cloud APIs needed
@@ -61,7 +61,7 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 | **Orchestration** | LangGraph (manager/worker state graph) |
 | **Vector DB** | ChromaDB (embedded, collection-per-deal isolation) |
 | **Embeddings** | nomic-embed-text (via Ollama) |
-| **PDF Parsing** | pdfplumber (local, table-aware) |
+| **PDF Parsing** | Docling (local, table-aware, high-quality extraction) |
 | **Excel Parsing** | openpyxl |
 | **Backend** | FastAPI (Python 3.12) |
 | **Frontend** | Next.js 14, React 18, TailwindCSS |
@@ -80,13 +80,18 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 
 ```bash
 cd spokematrix
-docker-compose up --build -d
+
+# CPU mode (Mac / Linux / Windows without NVIDIA GPU)
+docker compose --profile cpu up --build -d
+
+# GPU mode (Windows / Linux with NVIDIA GPU)
+docker compose --profile gpu up --build -d
 ```
 
 This starts 3 containers:
-- `ollama` — Local LLM server (port 11434)
+- `ollama` / `ollama-gpu` — Local LLM server (port 11434)
 - `backend` — FastAPI API (port 8000)
-- `frontend` — Next.js UI (port 3000)
+- `frontend` — Next.js UI (port 3100)
 
 ### Step 2: Pull the AI models (first time only)
 
@@ -112,7 +117,7 @@ curl http://localhost:11434/api/tags
 
 ### Step 4: Open the UI
 
-Open **http://localhost:3000** in your browser.
+Open **http://localhost:3100** in your browser.
 
 ---
 
@@ -172,7 +177,7 @@ python3 test_e2e.py --base-url http://localhost:8000
 
 #### 1. Create a deal
 
-1. Open http://localhost:3000
+1. Open http://localhost:3100
 2. Click **"+ Add Deal"** in the top-right
 3. Fill in:
    - Deal ID: `acme_saas`
@@ -269,3 +274,4 @@ curl -X POST http://localhost:8000/matrix/compare \
 | Ollama unhealthy | Run `docker-compose restart ollama` |
 | Empty query results | Ensure documents were uploaded first (check deal doc count) |
 | Port 8000 in use | Run `lsof -i :8000 -t | xargs kill` then retry |
+| Port 3100 in use | Change the frontend port mapping in `docker-compose.yml` |
