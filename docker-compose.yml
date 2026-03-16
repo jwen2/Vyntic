@@ -1,6 +1,26 @@
 services:
   ollama:
     image: ollama/ollama:latest
+    profiles: ["cpu"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      default:
+        aliases:
+          - ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  ollama-gpu:
+    image: ollama/ollama:latest
+    profiles: ["gpu"]
     ports:
       - "11434:11434"
     volumes:
@@ -12,6 +32,10 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    networks:
+      default:
+        aliases:
+          - ollama
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ollama list || exit 1"]
@@ -35,6 +59,10 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+        required: false
+      ollama-gpu:
+        condition: service_healthy
+        required: false
     restart: unless-stopped
 
   frontend:
