@@ -31,10 +31,13 @@ export default function Home() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between max-w-[1600px] mx-auto">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">DealInsights</h1>
-            <p className="text-sm text-gray-500">
-              Multi-tenant RAG for PE deal comparison
-            </p>
+            <div className="flex items-center gap-3">
+              <img src="/logo.jpg" alt="Vyntic" className="h-8 w-auto" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Vyntic</h1>
+                <p className="text-sm text-gray-500">AI Asset Analysis</p>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-400">

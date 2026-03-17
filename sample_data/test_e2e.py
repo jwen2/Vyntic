@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DealInsights End-to-End Test Script
+Vyntic End-to-End Test Script
 ===================================
 Tests the full pipeline:
   1. Create deals
@@ -282,7 +282,7 @@ def test_zero_context_leak(cells: dict):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="DealInsights E2E Test")
+    parser = argparse.ArgumentParser(description="Vyntic E2E Test")
     parser.add_argument("--base-url", default="http://localhost:8000")
     parser.add_argument("--skip-upload", action="store_true", help="Skip document upload")
     parser.add_argument("--skip-matrix", action="store_true", help="Skip matrix comparison")
@@ -297,7 +297,7 @@ def main():
 
     print()
     log("╔══════════════════════════════════════════════════════════╗", Colors.BLUE)
-    log("║        DealInsights PoC — End-to-End Test Suite          ║", Colors.BLUE)
+    log("║        Vyntic PoC — End-to-End Test Suite          ║", Colors.BLUE)
     log("╚══════════════════════════════════════════════════════════╝", Colors.BLUE)
 
     # Step 1: Health check
@@ -384,7 +384,7 @@ def main():
     log("╚══════════════════════════════════════════════════════════╝", Colors.BLUE)
 
     if failed == 0:
-        log("\n🎉 All tests passed! DealInsights PoC is working end-to-end.\n", Colors.GREEN)
+        log("\n🎉 All tests passed! Vyntic PoC is working end-to-end.\n", Colors.GREEN)
     else:
         log(f"\n⚠ {failed} test(s) had issues. Check API keys and Pinecone index.\n", Colors.YELLOW)
 
