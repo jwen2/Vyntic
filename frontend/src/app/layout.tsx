@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DealInsights — PE Deal Comparison",
-  description: "Multi-tenant RAG for PE deal comparison in a matrix format",
+  title: "Vyntic — AI Asset Analysis",
+  description: "AI-powered asset analysis for PE deal comparison",
 };
 
 export default function RootLayout({

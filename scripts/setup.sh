@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# DealInsights Setup Script
+# Vyntic Setup Script
 # Pulls required Ollama models after docker-compose up
 # ==============================================================================
 
@@ -11,7 +11,7 @@ LLM_MODEL="${LLM_MODEL:-deepseek-r1:8b}"
 EMBED_MODEL="${EMBED_MODEL:-nomic-embed-text}"
 
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║           DealInsights — Model Setup                     ║"
+echo "║           Vyntic — Model Setup                     ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 

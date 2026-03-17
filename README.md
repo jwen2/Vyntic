@@ -1,4 +1,4 @@
-# DealInsights PoC
+# Vyntic PoC
 
 Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired by Hebbia's matrix-based reasoning approach.
 
@@ -79,7 +79,7 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 ### Step 1: Start the services
 
 ```bash
-cd dealinsights
+cd vyntic
 
 # CPU mode (Mac / Linux / Windows without NVIDIA GPU)
 docker compose --profile cpu up --build -d
@@ -108,7 +108,7 @@ This downloads:
 ```bash
 # Check backend
 curl http://localhost:8000/health
-# → {"status":"ok","service":"dealinsights"}
+# → {"status":"ok","service":"vyntic"}
 
 # Check Ollama has models
 curl http://localhost:11434/api/tags

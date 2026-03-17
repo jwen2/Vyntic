@@ -1,6 +1,6 @@
 """
-DealInsights PoC — FastAPI Application
-Multi-tenant RAG for PE deal comparison in a matrix format.
+Vyntic — FastAPI Application
+AI-powered asset analysis for PE deal comparison.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,8 +11,8 @@ from app.api.routes_query import router as query_router
 from app.api.routes_matrix import router as matrix_router
 
 app = FastAPI(
-    title="DealInsights",
-    description="Multi-tenant RAG application for PE deal comparison",
+    title="Vyntic",
+    description="AI-powered asset analysis for PE deal comparison",
     version="0.1.0",
     redirect_slashes=False,
 )
@@ -39,4 +39,4 @@ async def startup_seed():
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "dealinsights"}
+    return {"status": "ok", "service": "vyntic"}

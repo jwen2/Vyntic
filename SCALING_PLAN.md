@@ -1,4 +1,4 @@
-# DealInsights — Production Scaling Plan
+# Vyntic — Production Scaling Plan
 
 ## Executive Summary
 
