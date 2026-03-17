@@ -2,8 +2,10 @@
 Simple in-memory deal registry. For PoC only — swap to SQLite/Postgres for production.
 """
 from app.models.deal import Deal, DealCreate
+from app.models.document import DocumentMetadata
 
 _deals: dict[str, Deal] = {}
+_documents: dict[str, list[DocumentMetadata]] = {}
 
 
 def create_deal(data: DealCreate) -> Deal:
@@ -32,5 +34,14 @@ def increment_doc_count(deal_id: str, count: int = 1):
         _deals[deal_id].document_count += count
 
 
+def add_document(deal_id: str, doc: DocumentMetadata):
+    _documents.setdefault(deal_id, []).append(doc)
+
+
+def list_documents(deal_id: str) -> list[DocumentMetadata]:
+    return _documents.get(deal_id, [])
+
+
 def delete_deal(deal_id: str) -> bool:
+    _documents.pop(deal_id, None)
     return _deals.pop(deal_id, None) is not None

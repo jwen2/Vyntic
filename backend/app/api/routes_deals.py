@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.models.deal import Deal, DealCreate
+from app.models.document import DocumentMetadata
 from app.services import deal_store
 
 router = APIRouter(prefix="/deals", tags=["deals"])
@@ -26,6 +27,14 @@ def get_deal(deal_id: str):
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
     return deal
+
+
+@router.get("/{deal_id}/documents", response_model=list[DocumentMetadata])
+def list_deal_documents(deal_id: str):
+    deal = deal_store.get_deal(deal_id)
+    if not deal:
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    return deal_store.list_documents(deal_id)
 
 
 @router.delete("/{deal_id}")

@@ -5,6 +5,7 @@ import { useMatrix } from "@/hooks/useMatrix";
 import MatrixGrid from "@/components/MatrixGrid";
 import AddDealDialog from "@/components/AddDealDialog";
 import UploadPanel from "@/components/UploadPanel";
+import DealDetailPanel from "@/components/DealDetailPanel";
 
 export default function Home() {
   const {
@@ -17,6 +18,7 @@ export default function Home() {
   } = useDeals();
   const matrix = useMatrix();
   const [showAddDeal, setShowAddDeal] = useState(false);
+  const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
 
   // Sync deal IDs to matrix when deals change
   useEffect(() => {
@@ -71,24 +73,41 @@ export default function Home() {
                   {deals.map((deal) => (
                     <li
                       key={deal.deal_id}
-                      className="flex items-center justify-between p-2 bg-gray-50 rounded-md group"
+                      className="p-2 bg-gray-50 rounded-md group"
                     >
-                      <div>
-                        <div className="text-sm font-medium text-gray-800">
-                          {deal.name}
+                      <div className="flex items-center justify-between">
+                        <div
+                          className="cursor-pointer flex-1 min-w-0"
+                          onClick={() =>
+                            setExpandedDealId(
+                              expandedDealId === deal.deal_id
+                                ? null
+                                : deal.deal_id
+                            )
+                          }
+                        >
+                          <div className="text-sm font-medium text-gray-800">
+                            {deal.name}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {deal.deal_id} · {deal.document_count} doc
+                            {deal.document_count !== 1 ? "s" : ""}
+                            <span className="ml-1 text-blue-400">
+                              {expandedDealId === deal.deal_id ? "▾" : "▸"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400">
-                          {deal.deal_id} · {deal.document_count} doc
-                          {deal.document_count !== 1 ? "s" : ""}
-                        </div>
+                        <button
+                          onClick={() => removeDeal(deal.deal_id)}
+                          className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-sm ml-2"
+                          title="Delete deal"
+                        >
+                          x
+                        </button>
                       </div>
-                      <button
-                        onClick={() => removeDeal(deal.deal_id)}
-                        className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-sm"
-                        title="Delete deal"
-                      >
-                        x
-                      </button>
+                      {expandedDealId === deal.deal_id && (
+                        <DealDetailPanel deal={deal} />
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -122,8 +141,13 @@ export default function Home() {
               deals={matrix.deals}
               queries={matrix.queries}
               cells={matrix.cells}
-              onAddQuery={matrix.addQuery}
+              onAddQuery={(query) =>
+                matrix.addQuery(query, Array.from(matrix.selectedDeals))
+              }
               loading={matrix.loading}
+              selectedDeals={matrix.selectedDeals}
+              onSelectDeal={matrix.selectDeal}
+              onSelectAll={matrix.selectAllDeals}
             />
           </div>
         </div>
