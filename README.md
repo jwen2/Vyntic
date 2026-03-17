@@ -1,8 +1,8 @@
-# SpokeMatrix PoC
+# DealInsights PoC
 
 Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired by Hebbia's matrix-based reasoning approach.
 
-**Fully local — no API keys required.** Runs on Ollama (DeepSeek-R1) + ChromaDB + pdfplumber.
+**Fully local — no API keys required.** Runs on Ollama (DeepSeek-R1) + ChromaDB + Docling.
 
 ## Architecture
 
@@ -48,7 +48,7 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 ## Key Design Decisions
 
 - **Collection Isolation**: Each deal uses a separate ChromaDB collection — zero context leak between deals
-- **Structural Parsing**: pdfplumber for PDFs (preserves table structure), openpyxl for Excel
+- **Structural Parsing**: Docling for PDFs (high-quality table + text extraction), openpyxl for Excel
 - **LangGraph Orchestration**: Manager/Worker fan-out pattern for parallel multi-deal queries
 - **Citation Grounding**: Every answer includes source file and page number references
 - **Fully Local**: All components run on your machine — no cloud APIs needed
@@ -61,7 +61,7 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 | **Orchestration** | LangGraph (manager/worker state graph) |
 | **Vector DB** | ChromaDB (embedded, collection-per-deal isolation) |
 | **Embeddings** | nomic-embed-text (via Ollama) |
-| **PDF Parsing** | pdfplumber (local, table-aware) |
+| **PDF Parsing** | Docling (local, table-aware, high-quality extraction) |
 | **Excel Parsing** | openpyxl |
 | **Backend** | FastAPI (Python 3.12) |
 | **Frontend** | Next.js 14, React 18, TailwindCSS |
@@ -79,14 +79,19 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 ### Step 1: Start the services
 
 ```bash
-cd spokematrix
-docker-compose up --build -d
+cd dealinsights
+
+# CPU mode (Mac / Linux / Windows without NVIDIA GPU)
+docker compose --profile cpu up --build -d
+
+# GPU mode (Windows / Linux with NVIDIA GPU)
+docker compose --profile gpu up --build -d
 ```
 
 This starts 3 containers:
-- `ollama` — Local LLM server (port 11434)
+- `ollama` / `ollama-gpu` — Local LLM server (port 11434)
 - `backend` — FastAPI API (port 8000)
-- `frontend` — Next.js UI (port 3000)
+- `frontend` — Next.js UI (port 3100)
 
 ### Step 2: Pull the AI models (first time only)
 
@@ -103,7 +108,7 @@ This downloads:
 ```bash
 # Check backend
 curl http://localhost:8000/health
-# → {"status":"ok","service":"spokematrix"}
+# → {"status":"ok","service":"dealinsights"}
 
 # Check Ollama has models
 curl http://localhost:11434/api/tags
@@ -112,7 +117,7 @@ curl http://localhost:11434/api/tags
 
 ### Step 4: Open the UI
 
-Open **http://localhost:3000** in your browser.
+Open **http://localhost:3100** in your browser.
 
 ---
 
@@ -172,7 +177,7 @@ python3 test_e2e.py --base-url http://localhost:8000
 
 #### 1. Create a deal
 
-1. Open http://localhost:3000
+1. Open http://localhost:3100
 2. Click **"+ Add Deal"** in the top-right
 3. Fill in:
    - Deal ID: `acme_saas`
@@ -194,7 +199,7 @@ Repeat for additional deals.
 Use the API directly (or via the matrix grid):
 
 ```bash
-curl -X POST http://localhost:8000/deals/acme_saas/query/ \
+curl -X POST http://localhost:8000/deals/acme_saas/query \
   -H "Content-Type: application/json" \
   -d '{"question": "What is the EBITDA and EBITDA margin?"}'
 ```
@@ -229,10 +234,10 @@ curl -X POST http://localhost:8000/matrix/compare \
 
 1. Open **http://localhost:8000/docs**
 2. Use the interactive API explorer to test each endpoint:
-   - `POST /deals/` — Create a deal
-   - `GET /deals/` — List deals
-   - `POST /deals/{deal_id}/documents/` — Upload a file
-   - `POST /deals/{deal_id}/query/` — Ask a question
+   - `POST /deals` — Create a deal
+   - `GET /deals` — List deals
+   - `POST /deals/{deal_id}/documents` — Upload a file
+   - `POST /deals/{deal_id}/query` — Ask a question
    - `POST /matrix/compare` — Compare deals
 
 ---
@@ -242,11 +247,11 @@ curl -X POST http://localhost:8000/matrix/compare \
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Health check |
-| POST | `/deals/` | Create a new deal |
-| GET | `/deals/` | List all deals |
+| POST | `/deals` | Create a new deal |
+| GET | `/deals` | List all deals |
 | DELETE | `/deals/{deal_id}` | Delete a deal and its vectors |
-| POST | `/deals/{deal_id}/documents/` | Upload and index a document |
-| POST | `/deals/{deal_id}/query/` | Query a single deal (RAG) |
+| POST | `/deals/{deal_id}/documents` | Upload and index a document |
+| POST | `/deals/{deal_id}/query` | Query a single deal (RAG) |
 | POST | `/matrix/compare` | Compare multiple deals across queries |
 
 ## Sample Queries to Try
@@ -269,3 +274,6 @@ curl -X POST http://localhost:8000/matrix/compare \
 | Ollama unhealthy | Run `docker-compose restart ollama` |
 | Empty query results | Ensure documents were uploaded first (check deal doc count) |
 | Port 8000 in use | Run `lsof -i :8000 -t | xargs kill` then retry |
+| Port 3100 in use | Change the frontend port mapping in `docker-compose.yml` |
+| Matrix query timeout | LLM inference can take 60+ seconds. The proxy timeout is set to 5 minutes |
+| No NVIDIA GPU | Use `--profile cpu` instead of `--profile gpu` when starting services |

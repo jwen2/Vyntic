@@ -8,7 +8,7 @@ from app.agents.single_deal_qa import answer_deal_question
 router = APIRouter(prefix="/deals/{deal_id}/query", tags=["query"])
 
 
-@router.post("/", response_model=QueryResponse)
+@router.post("", response_model=QueryResponse)
 async def query_deal(deal_id: str, request: QueryRequest):
     """Ask a question about a specific deal's documents."""
     deal = deal_store.get_deal(deal_id)

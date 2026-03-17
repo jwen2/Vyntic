@@ -1,5 +1,5 @@
 """
-Generate realistic sample deal documents for SpokeMatrix PoC testing.
+Generate realistic sample deal documents for DealInsights PoC testing.
 Creates PDFs and Excel files for 3 fictional PE deal targets,
 inspired by publicly available financial profiles of mid-market companies.
 """
@@ -595,7 +595,7 @@ def generate_financials_xlsx(deal_id: str, deal: dict):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Generating SpokeMatrix Sample Deal Documents")
+    print("Generating DealInsights Sample Deal Documents")
     print("=" * 60)
 
     for deal_id, deal in DEALS.items():

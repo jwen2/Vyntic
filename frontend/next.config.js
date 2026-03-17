@@ -1,11 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  skipTrailingSlashRedirect: true,
+  experimental: {
+    proxyTimeout: 300_000, // 5 minutes — LLM inference can be slow
+  },
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     return [
       {
+        source: "/api/:path*/",
+        destination: `${backendUrl}/:path*/`,
+      },
+      {
         source: "/api/:path*",
-        destination: `${apiUrl}/:path*`,
+        destination: `${backendUrl}/:path*`,
       },
     ];
   },

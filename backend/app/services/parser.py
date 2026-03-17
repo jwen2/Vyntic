@@ -1,53 +1,64 @@
 """
 Document parser: converts PDFs and Excel files into structured Markdown sections.
-Uses pdfplumber for PDFs (preserves table structure locally) and openpyxl for Excel.
+Uses docling for PDFs (high-quality table + text extraction) and openpyxl for Excel.
 """
+import os
 import uuid
+import tempfile
 from pathlib import Path
 
 from app.models.document import ParsedSection, DocumentMetadata
 
 
 async def parse_pdf(file_bytes: bytes, filename: str, deal_id: str) -> tuple[DocumentMetadata, list[ParsedSection]]:
-    """Parse a PDF using pdfplumber, extracting text and tables as Markdown."""
-    import pdfplumber
-    from io import BytesIO
+    """Parse a PDF using docling, extracting text and tables as Markdown."""
+    from docling.document_converter import DocumentConverter
+    from docling_core.types.doc import TableItem, TextItem
 
     doc_id = f"{deal_id}_{uuid.uuid4().hex[:8]}"
     sections = []
 
-    with pdfplumber.open(BytesIO(file_bytes)) as pdf:
-        for page_num, page in enumerate(pdf.pages, 1):
-            page_parts = []
+    # Docling requires a file path, so write bytes to a temp file
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
 
-            # Extract tables first
-            tables = page.extract_tables()
-            table_bboxes = []
+    try:
+        converter = DocumentConverter()
+        result = converter.convert(tmp_path)
+        doc = result.document
 
-            if tables:
-                for tbl_settings in page.find_tables():
-                    table_bboxes.append(tbl_settings.bbox)
+        # Group content by page number
+        pages: dict[int, dict] = {}
+        for item, _level in doc.iterate_items():
+            # Determine page number from provenance
+            if hasattr(item, "prov") and item.prov:
+                page_num = item.prov[0].page_no
+            else:
+                page_num = 1
 
-                for table in tables:
-                    if not table or len(table) < 2:
-                        continue
-                    md_table = _table_to_markdown(table)
-                    if md_table.strip():
-                        page_parts.append(md_table)
+            if page_num not in pages:
+                pages[page_num] = {"text": [], "tables": [], "has_table": False}
 
-            # Extract text (full page text — includes table text but that's ok
-            # for a PoC; production would subtract table regions)
-            text = page.extract_text()
-            if text and text.strip():
-                # If we already have tables, add text separately to preserve structure
-                if tables:
-                    page_parts.insert(0, text.strip())
-                else:
-                    page_parts.append(text.strip())
+            if isinstance(item, TableItem):
+                md_table = item.export_to_markdown()
+                if md_table and md_table.strip():
+                    pages[page_num]["tables"].append(md_table)
+                    pages[page_num]["has_table"] = True
+            elif isinstance(item, TextItem):
+                text = item.text
+                if text and text.strip():
+                    pages[page_num]["text"].append(text.strip())
 
-            content = "\n\n".join(page_parts)
+        # Build sections ordered by page
+        for page_num in sorted(pages.keys()):
+            page_data = pages[page_num]
+            # Text first, then tables (same order as previous pdfplumber approach)
+            parts = page_data["text"] + page_data["tables"]
+            content = "\n\n".join(parts)
+
             if content.strip():
-                section_type = "table" if tables else "text"
+                section_type = "table" if page_data["has_table"] else "text"
                 sections.append(ParsedSection(
                     content=content,
                     metadata={
@@ -58,6 +69,8 @@ async def parse_pdf(file_bytes: bytes, filename: str, deal_id: str) -> tuple[Doc
                         "doc_id": doc_id,
                     }
                 ))
+    finally:
+        os.unlink(tmp_path)
 
     metadata = DocumentMetadata(
         doc_id=doc_id,
@@ -132,32 +145,3 @@ async def parse_document(file_bytes: bytes, filename: str, deal_id: str) -> tupl
         return await parse_excel(file_bytes, filename, deal_id)
     else:
         raise ValueError(f"Unsupported file type: {ext}. Supported: .pdf, .xlsx, .xls")
-
-
-def _table_to_markdown(table: list[list]) -> str:
-    """Convert a pdfplumber table (list of rows) to Markdown."""
-    if not table or len(table) < 1:
-        return ""
-
-    # Clean cells
-    def clean(cell):
-        if cell is None:
-            return ""
-        return str(cell).replace("\n", " ").strip()
-
-    headers = [clean(c) for c in table[0]]
-    if not any(headers):
-        return ""
-
-    lines = []
-    lines.append("| " + " | ".join(headers) + " |")
-    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
-
-    for row in table[1:]:
-        cells = [clean(c) for c in row]
-        # Pad to match headers
-        while len(cells) < len(headers):
-            cells.append("")
-        lines.append("| " + " | ".join(cells[:len(headers)]) + " |")
-
-    return "\n".join(lines)
