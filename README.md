@@ -1,48 +1,52 @@
-# Vyntic PoC
+# Vyntic
 
 Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired by Hebbia's matrix-based reasoning approach.
 
 **Fully local — no API keys required.** Runs on Ollama (DeepSeek-R1) + ChromaDB + Docling.
 
+## Why Vyntic?
+
+Private equity analysts spend hundreds of hours during due diligence manually reading CIMs, quality-of-earnings reports, and financial models — often across multiple competing deals simultaneously. The core challenge isn't access to data; it's the time it takes to extract, compare, and synthesize insights across deal rooms that can contain thousands of pages. Vyntic solves this by letting analysts ask natural-language questions across all active deals at once, returning cited, side-by-side answers in a matrix format. Instead of spending a week building a comparison spreadsheet, an analyst can populate it in minutes — with every claim traceable back to the exact page and document it came from. This applies equally to any finance workflow involving multi-document analysis: M&A due diligence, credit underwriting, equity research, or portfolio monitoring.
+
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    Frontend (Next.js)                │
-│  ┌──────────────────────────────────────────────┐   │
-│  │        Matrix Grid (Deals x Queries)         │   │
-│  │  Deal A  │  EBITDA?  │  Revenue?  │  + col   │   │
-│  │  Deal B  │  $12M     │  $45M      │          │   │
-│  │  Deal C  │  $8M      │  $30M      │          │   │
-│  └──────────────────────────────────────────────┘   │
-└─────────────────┬───────────────────────────────────┘
-                  │ POST /matrix/compare
-┌─────────────────▼───────────────────────────────────┐
-│                 Backend (FastAPI)                     │
-│                                                      │
-│  ┌─────────────────────────────────────────┐        │
-│  │        LangGraph Comparison Engine       │        │
-│  │                                          │        │
-│  │  ┌──────────┐  ┌──────────┐             │        │
-│  │  │ Worker A  │  │ Worker B  │  (parallel) │        │
-│  │  │ col:deal_a│  │ col:deal_b│             │        │
-│  │  └────┬─────┘  └────┬─────┘             │        │
-│  │       └──────┬───────┘                   │        │
-│  │         ┌────▼────┐                      │        │
-│  │         │Synthesis│                      │        │
-│  │         └─────────┘                      │        │
-│  └─────────────────────────────────────────┘        │
-│                                                      │
-│  ChromaDB (collection isolation per deal)            │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐            │
-│  │col:deal_a│ │col:deal_b│ │col:deal_c│            │
-│  └──────────┘ └──────────┘ └──────────┘            │
-│                                                      │
-│  Ollama (local LLM + embeddings)                    │
-│  ┌──────────────────┐ ┌─────────────────┐           │
-│  │ deepseek-r1:8b   │ │ nomic-embed-text│           │
-│  └──────────────────┘ └─────────────────┘           │
-└──────────────────────────────────────────────────────┘
++-----------------------------------------------------+
+|                    Frontend (Next.js)                |
+|  +----------------------------------------------+   |
+|  |        Matrix Grid (Deals x Queries)         |   |
+|  |  Deal A  |  EBITDA?  |  Revenue?  |  + col   |   |
+|  |  Deal B  |  $12M     |  $45M      |          |   |
+|  |  Deal C  |  $8M      |  $30M      |          |   |
+|  +----------------------------------------------+   |
++------------------+------------------------------------+
+                   | SSE /matrix/compare/stream
++------------------v------------------------------------+
+|                 Backend (FastAPI)                      |
+|                                                       |
+|  +------------------------------------------+        |
+|  |        LangGraph Comparison Engine        |        |
+|  |                                           |        |
+|  |  +----------+  +----------+               |        |
+|  |  | Worker A  |  | Worker B  |  (parallel)  |        |
+|  |  | col:deal_a|  | col:deal_b|              |        |
+|  |  +-----+----+  +-----+----+              |        |
+|  |        +-------+------+                   |        |
+|  |          +-----v---+                      |        |
+|  |          |Synthesis|                      |        |
+|  |          +---------+                      |        |
+|  +------------------------------------------+        |
+|                                                       |
+|  ChromaDB (collection isolation per deal)             |
+|  +----------+ +----------+ +----------+               |
+|  |col:deal_a| |col:deal_b| |col:deal_c|               |
+|  +----------+ +----------+ +----------+               |
+|                                                       |
+|  Ollama (local LLM + embeddings)                     |
+|  +------------------+ +-----------------+             |
+|  | deepseek-r1:8b   | | nomic-embed-text|             |
+|  +------------------+ +-----------------+             |
++-------------------------------------------------------+
 ```
 
 ## Key Design Decisions
@@ -50,8 +54,31 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 - **Collection Isolation**: Each deal uses a separate ChromaDB collection — zero context leak between deals
 - **Structural Parsing**: Docling for PDFs (high-quality table + text extraction), openpyxl for Excel
 - **LangGraph Orchestration**: Manager/Worker fan-out pattern for parallel multi-deal queries
+- **Streaming SSE**: Token-by-token LLM output streamed to the frontend for immediate feedback
 - **Citation Grounding**: Every answer includes source file and page number references
 - **Fully Local**: All components run on your machine — no cloud APIs needed
+
+## Features
+
+### Core Analysis
+- **Matrix comparison grid** — Ask questions across multiple deals simultaneously
+- **Streaming responses** — LLM output streams token-by-token with a live cursor
+- **Inline citations** — Clickable blue badges that show source document, page, and snippet
+- **Markdown rendering** — Bold, tables, bullets rendered inline; bar charts for numeric data
+- **Query templates** — Pre-built PE question library (Financials, Risk, Commercial, Deal Thesis)
+- **CSV export** — Download the matrix as a clean spreadsheet for IC distribution
+
+### Deal Management
+- **Drag-and-drop upload** — Drop PDF/Excel files directly onto deal cards
+- **Multi-file upload** — Upload an entire data room in one drop
+- **Pipeline stages** — Track deals through Screening, Due Diligence, IC Review, Closed
+- **Sector tags** — Tag deals by sector (Technology, Healthcare, Industrials, etc.)
+- **Excel-style selection** — Click, Ctrl+click, Shift+click to select which deals to query
+
+### Data Quality
+- **Auto-seed sample data** — Three sample PE deals load automatically on startup
+- **PE-optimized prompts** — LLM instructed to lead with insight, flag red flags, contextualize metrics
+- **Zero context leak** — Verified isolation between deal namespaces
 
 ## Tech Stack
 
@@ -65,6 +92,7 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 | **Excel Parsing** | openpyxl |
 | **Backend** | FastAPI (Python 3.12) |
 | **Frontend** | Next.js 14, React 18, TailwindCSS |
+| **Streaming** | Server-Sent Events (SSE) |
 
 ---
 
@@ -73,7 +101,7 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 ### Prerequisites
 
 - **Docker Desktop** with at least **8 GB memory** allocated
-  - Docker Desktop → Settings → Resources → Memory → 8 GB+
+  - Docker Desktop > Settings > Resources > Memory > 8 GB+
 - **Git** (to clone the repo)
 
 ### Step 1: Start the services
@@ -108,137 +136,95 @@ This downloads:
 ```bash
 # Check backend
 curl http://localhost:8000/health
-# → {"status":"ok","service":"vyntic"}
+# -> {"status":"ok","service":"vyntic"}
 
 # Check Ollama has models
 curl http://localhost:11434/api/tags
-# → lists deepseek-r1:8b and nomic-embed-text
+# -> lists deepseek-r1:8b and nomic-embed-text
 ```
 
 ### Step 4: Open the UI
 
-Open **http://localhost:3100** in your browser.
+Open **http://localhost:3100** in your browser. Three sample deals (Acme Cloud, Pinnacle Healthcare, Summit Manufacturing) auto-load with documents on startup.
 
 ---
 
-## Step-by-Step Testing Guide
+## Testing
 
-### Option A: Automated E2E Test (recommended first run)
+### E2E Test (full pipeline)
 
-The test script creates 3 sample PE deals with realistic financial data, uploads documents, runs queries, and verifies the entire pipeline.
-
-#### 1. Generate sample documents
+The E2E test creates deals, uploads documents, runs queries, and verifies zero context leak across the full pipeline.
 
 ```bash
 cd sample_data
+
+# Generate sample documents (first time)
 python3 generate_samples.py
-```
 
-This creates 6 files:
-| File | Description |
-|------|-------------|
-| `acme_saas_cim.pdf` | CIM for a B2B SaaS ERP company ($42M ARR) |
-| `acme_saas_financials.xlsx` | Income statement + balance sheet |
-| `pinnacle_health_cim.pdf` | CIM for a healthcare services company (78 clinics) |
-| `pinnacle_health_financials.xlsx` | Income statement + balance sheet |
-| `summit_industrial_cim.pdf` | CIM for an aerospace components manufacturer ($142M backlog) |
-| `summit_industrial_financials.xlsx` | Income statement + balance sheet |
-
-#### 2. Run the E2E test
-
-```bash
+# Run the full E2E test
 python3 test_e2e.py
+
+# Options
+python3 test_e2e.py --skip-upload    # Skip document upload (if already done)
+python3 test_e2e.py --skip-matrix    # Skip matrix comparison (faster)
+python3 test_e2e.py --base-url http://localhost:8000  # Custom URL
 ```
 
-The test runs 6 steps:
-1. **Health check** — verifies backend is running
-2. **Create deals** — creates acme_saas, pinnacle_health, summit_industrial
-3. **Upload documents** — parses PDFs/Excel and embeds into ChromaDB
-4. **Single-deal Q&A** — asks deal-specific questions with citation verification
-5. **Matrix comparison** — compares all 3 deals across multiple queries
-6. **Zero context leak** — verifies no cross-deal data contamination
+### Backend Unit Tests (pytest)
 
-#### 3. Flags
+Tests cover the streaming SSE endpoint, deal CRUD with stage/tags, multi-file batch upload, and error handling.
 
 ```bash
-# Skip document upload (if already done)
-python3 test_e2e.py --skip-upload
-
-# Skip matrix comparison (faster test)
-python3 test_e2e.py --skip-matrix
-
-# Custom backend URL
-python3 test_e2e.py --base-url http://localhost:8000
+cd backend
+pip install -r requirements-dev.txt
+pytest -v
 ```
+
+| Test File | What It Covers |
+|-----------|---------------|
+| `tests/test_streaming.py` | SSE event format, token streaming, multi-deal interleaving, error events |
+| `tests/test_deal_management.py` | Deal stage/tag PATCH, batch upload, doc count, partial failure, CRUD regression |
+
+### Frontend Unit Tests (Jest)
+
+Tests cover query template validation, CSV export logic, and SSE event parsing.
+
+```bash
+cd frontend
+npm test
+```
+
+| Test File | What It Covers |
+|-----------|---------------|
+| `src/__tests__/streamingApi.test.ts` | SSE parsing, interleaved events, malformed JSON handling |
+| `src/__tests__/queryTemplates.test.ts` | Template structure, uniqueness, required categories |
+| `src/__tests__/exportMatrix.test.ts` | Markdown stripping, CSV escaping, matrix row generation |
 
 ---
 
-### Option B: Manual Testing via UI
+## Manual Testing via UI
 
-#### 1. Create a deal
+### 1. Create a deal
 
 1. Open http://localhost:3100
 2. Click **"+ Add Deal"** in the top-right
-3. Fill in:
-   - Deal ID: `acme_saas`
-   - Name: `Acme Cloud Solutions`
-   - Description: `B2B SaaS ERP platform`
+3. Fill in Deal ID, Name, and Description
 4. Click **Create**
 
-Repeat for additional deals.
+### 2. Upload documents
 
-#### 2. Upload documents
+Drag PDF/Excel files directly onto any deal card in the sidebar, or click **"Drop files or click to upload"** to browse. Multiple files are supported in a single drop.
 
-1. In the left sidebar under **Upload Documents**, select the deal from the dropdown
-2. Click **Choose File** and select a PDF or Excel file
-3. Wait for the "Parsing and indexing document..." message to complete
-4. The deal's doc count will update in the sidebar
+### 3. Ask questions
 
-#### 3. Ask a single-deal question
+- Type a question in the **"Ask away..."** input and press Enter
+- Or click the template icon (list button) to pick from pre-built PE questions
+- Results stream in token-by-token across all selected deals
+- Click blue citation badges to see the source document and page
 
-Use the API directly (or via the matrix grid):
+### 4. Export results
 
-```bash
-curl -X POST http://localhost:8000/deals/acme_saas/query \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is the EBITDA and EBITDA margin?"}'
-```
-
-The response includes:
-- `answer` — the LLM's response grounded in the documents
-- `citations` — source file, page number, and text snippets
-
-#### 4. Run a matrix comparison
-
-In the UI:
-1. Create 2+ deals and upload their documents
-2. Type a question in the **"Type a question..."** column header
-3. Press **Enter** — the system fans out to each deal in parallel
-4. Results populate the grid cells
-5. Click any cell to see its source citations
-
-Or via API:
-
-```bash
-curl -X POST http://localhost:8000/matrix/compare \
-  -H "Content-Type: application/json" \
-  -d '{
-    "deal_ids": ["acme_saas", "pinnacle_health", "summit_industrial"],
-    "queries": ["What is the EBITDA?", "What are the key risks?"]
-  }'
-```
-
----
-
-### Option C: Manual Testing via Swagger
-
-1. Open **http://localhost:8000/docs**
-2. Use the interactive API explorer to test each endpoint:
-   - `POST /deals` — Create a deal
-   - `GET /deals` — List deals
-   - `POST /deals/{deal_id}/documents` — Upload a file
-   - `POST /deals/{deal_id}/query` — Ask a question
-   - `POST /matrix/compare` — Compare deals
+Click **"Export CSV"** above the matrix to download results as a spreadsheet.
 
 ---
 
@@ -249,10 +235,17 @@ curl -X POST http://localhost:8000/matrix/compare \
 | GET | `/health` | Health check |
 | POST | `/deals` | Create a new deal |
 | GET | `/deals` | List all deals |
+| GET | `/deals/{deal_id}` | Get a single deal |
+| PATCH | `/deals/{deal_id}` | Update deal stage/tags |
 | DELETE | `/deals/{deal_id}` | Delete a deal and its vectors |
 | POST | `/deals/{deal_id}/documents` | Upload and index a document |
+| POST | `/deals/{deal_id}/documents/batch` | Upload multiple documents at once |
+| GET | `/deals/{deal_id}/documents` | List documents for a deal |
 | POST | `/deals/{deal_id}/query` | Query a single deal (RAG) |
-| POST | `/matrix/compare` | Compare multiple deals across queries |
+| POST | `/matrix/compare` | Compare multiple deals (batch) |
+| POST | `/matrix/compare/stream` | Compare deals with SSE streaming |
+| GET | `/deals/metadata/stages` | List valid pipeline stages |
+| GET | `/deals/metadata/tags` | List suggested sector tags |
 
 ## Sample Queries to Try
 
@@ -262,18 +255,21 @@ curl -X POST http://localhost:8000/matrix/compare \
 | "What are the change of control provisions?" | Long-form text comprehension |
 | "What is the customer concentration risk?" | Risk analysis across document sections |
 | "What is the revenue growth trajectory?" | Multi-year trend analysis |
-| "What is the churn rate?" | Specific KPI extraction |
+| "What are the key investment highlights?" | Thesis-level synthesis |
+
+## Roadmap
+
+See [ROADMAP.md](./ROADMAP.md) for the full product roadmap, including completed features, upcoming phases, and prioritization rationale.
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Backend won't start | Check Docker memory is ≥8 GB |
+| Backend won't start | Check Docker memory is >= 8 GB |
 | Model loading slow | First query loads model into RAM (~30s). Subsequent queries are faster |
 | "model requires more memory" | Increase Docker memory, or switch to `deepseek-r1:1.5b` in docker-compose.yml |
-| Ollama unhealthy | Run `docker-compose restart ollama` |
+| Ollama unhealthy | Run `docker compose restart ollama` |
 | Empty query results | Ensure documents were uploaded first (check deal doc count) |
 | Port 8000 in use | Run `lsof -i :8000 -t | xargs kill` then retry |
-| Port 3100 in use | Change the frontend port mapping in `docker-compose.yml` |
 | Matrix query timeout | LLM inference can take 60+ seconds. The proxy timeout is set to 5 minutes |
 | No NVIDIA GPU | Use `--profile cpu` instead of `--profile gpu` when starting services |

@@ -6,6 +6,8 @@ import {
   createDeal as apiCreateDeal,
   deleteDeal as apiDeleteDeal,
   uploadDocument as apiUploadDocument,
+  uploadDocumentsBatch as apiUploadBatch,
+  updateDeal as apiUpdateDeal,
 } from "@/lib/api";
 
 export function useDeals() {
@@ -75,5 +77,53 @@ export function useDeals() {
     [refresh]
   );
 
-  return { deals, loading, error, addDeal, removeDeal, uploadDoc, refresh };
+  const uploadDocs = useCallback(
+    async (deal_id: string, files: File[]) => {
+      setLoading(true);
+      setError(null);
+      try {
+        if (files.length === 1) {
+          await apiUploadDocument(deal_id, files[0]);
+        } else {
+          await apiUploadBatch(deal_id, files);
+        }
+        await refresh();
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to upload documents"
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [refresh]
+  );
+
+  const editDeal = useCallback(
+    async (
+      deal_id: string,
+      data: { name?: string; description?: string; stage?: string; tags?: string[] }
+    ) => {
+      setError(null);
+      try {
+        await apiUpdateDeal(deal_id, data);
+        await refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update deal");
+      }
+    },
+    [refresh]
+  );
+
+  return {
+    deals,
+    loading,
+    error,
+    addDeal,
+    removeDeal,
+    uploadDoc,
+    uploadDocs,
+    editDeal,
+    refresh,
+  };
 }

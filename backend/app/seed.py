@@ -20,18 +20,24 @@ SAMPLE_DEALS = [
         "deal_id": "acme_saas",
         "name": "Acme Cloud Solutions",
         "description": "B2B SaaS ERP platform for mid-market",
+        "stage": "Due Diligence",
+        "tags": ["Technology"],
         "files": ["acme_saas_cim.pdf", "acme_saas_financials.xlsx"],
     },
     {
         "deal_id": "pinnacle_health",
         "name": "Pinnacle Healthcare Services",
         "description": "Outpatient rehabilitation services",
+        "stage": "Screening",
+        "tags": ["Healthcare"],
         "files": ["pinnacle_health_cim.pdf", "pinnacle_health_financials.xlsx"],
     },
     {
         "deal_id": "summit_industrial",
         "name": "Summit Precision Manufacturing",
         "description": "Aerospace & defense components manufacturer",
+        "stage": "IC Review",
+        "tags": ["Industrials"],
         "files": ["summit_industrial_cim.pdf", "summit_industrial_financials.xlsx"],
     },
 ]
@@ -72,6 +78,8 @@ async def seed_sample_data():
                     deal_id=deal_id,
                     name=deal_info["name"],
                     description=deal_info["description"],
+                    stage=deal_info.get("stage", "Screening"),
+                    tags=deal_info.get("tags", []),
                 )
             )
             logger.info(f"  Created deal: {deal_info['name']}")

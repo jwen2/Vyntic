@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { CellData } from "@/lib/api";
 import MatrixCell from "./MatrixCell";
+import { QUERY_TEMPLATES } from "@/lib/queryTemplates";
 
 interface Props {
   deals: string[];
@@ -12,6 +13,7 @@ interface Props {
   selectedDeals: Set<string>;
   onSelectDeal: (dealId: string, opts: { ctrl?: boolean; shift?: boolean }) => void;
   onSelectAll: () => void;
+  onExport?: () => void;
 }
 
 export default function MatrixGrid({
@@ -23,8 +25,11 @@ export default function MatrixGrid({
   selectedDeals,
   onSelectDeal,
   onSelectAll,
+  onExport,
 }: Props) {
   const [newQuery, setNewQuery] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
+  const templateRef = useRef<HTMLDivElement>(null);
 
   const handleAddQuery = () => {
     if (newQuery.trim()) {
@@ -32,6 +37,24 @@ export default function MatrixGrid({
       setNewQuery("");
     }
   };
+
+  const handleTemplateSelect = (query: string) => {
+    onAddQuery(query);
+    setShowTemplates(false);
+  };
+
+  // Close template dropdown on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (templateRef.current && !templateRef.current.contains(e.target as Node)) {
+        setShowTemplates(false);
+      }
+    };
+    if (showTemplates) {
+      document.addEventListener("mousedown", handler);
+      return () => document.removeEventListener("mousedown", handler);
+    }
+  }, [showTemplates]);
 
   const handleRowClick = (dealId: string, e: React.MouseEvent) => {
     onSelectDeal(dealId, {
@@ -56,7 +79,7 @@ export default function MatrixGrid({
 
   return (
     <div className="space-y-2">
-      {/* Selection hint */}
+      {/* Selection hint + export */}
       <div className="flex items-center justify-between text-xs text-gray-400 px-1">
         <span>
           {selectedCount === deals.length
@@ -71,9 +94,23 @@ export default function MatrixGrid({
             </button>
           )}
         </span>
-        <span className="text-gray-300">
-          Click row to select · Ctrl+click to add · Shift+click for range
-        </span>
+        <div className="flex items-center gap-3">
+          {queries.length > 0 && onExport && (
+            <button
+              onClick={onExport}
+              className="text-blue-500 hover:text-blue-700 flex items-center gap-1"
+              title="Export matrix as CSV"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export CSV
+            </button>
+          )}
+          <span className="text-gray-300">
+            Click row to select · Ctrl+click to add · Shift+click for range
+          </span>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -91,14 +128,14 @@ export default function MatrixGrid({
                   <div className="text-sm">{q}</div>
                 </th>
               ))}
-              <th className="p-3 border border-gray-200 min-w-[280px]">
-                <div className="flex gap-2">
+              <th className="p-3 border border-gray-200 min-w-[320px]">
+                <div className="flex gap-2 items-center">
                   <input
                     type="text"
                     value={newQuery}
                     onChange={(e) => setNewQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAddQuery()}
-                    placeholder="Add a question column..."
+                    placeholder="Ask away..."
                     className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     disabled={loading}
                   />
@@ -109,6 +146,51 @@ export default function MatrixGrid({
                   >
                     +
                   </button>
+                  <div className="relative" ref={templateRef}>
+                    <button
+                      onClick={() => setShowTemplates(!showTemplates)}
+                      disabled={loading}
+                      className="px-2 py-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors disabled:opacity-50"
+                      title="Question templates"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                      </svg>
+                    </button>
+
+                    {/* Template dropdown */}
+                    {showTemplates && (
+                      <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[420px] overflow-y-auto">
+                        <div className="p-2 border-b border-gray-100">
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Question Templates
+                          </span>
+                        </div>
+                        {QUERY_TEMPLATES.map((cat) => (
+                          <div key={cat.name}>
+                            <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-gray-50 flex items-center gap-1.5">
+                              <span>{cat.icon}</span>
+                              {cat.name}
+                            </div>
+                            {cat.templates.map((t) => (
+                              <button
+                                key={t.label}
+                                onClick={() => handleTemplateSelect(t.query)}
+                                className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                              >
+                                <div className="text-sm font-medium text-gray-800">
+                                  {t.label}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">
+                                  {t.query}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </th>
             </tr>

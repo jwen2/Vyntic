@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -10,9 +10,37 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { CellData } from "@/lib/api";
+import { CellData, Citation } from "@/lib/api";
 import { extractNumericData } from "@/lib/numericDetector";
 import CitationPopover from "./CitationPopover";
+import InlineCitation from "./InlineCitation";
+
+const SOURCE_RE = /\[Source\s+(\d+)\]/g;
+
+function renderTextWithCitations(
+  text: string,
+  citations: Citation[]
+): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const re = new RegExp(SOURCE_RE);
+
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const idx = parseInt(match[1], 10);
+    parts.push(
+      <InlineCitation key={`src-${match.index}`} index={idx} citation={citations[idx - 1]} />
+    );
+    lastIndex = re.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
+}
 
 interface Props {
   cell: CellData | undefined;
@@ -33,12 +61,26 @@ export default function MatrixCell({ cell }: Props) {
     );
   }
 
+  // Streaming: show partial text with blinking cursor
+  if (cell.status === "loading" && cell.answer.length > 0) {
+    return (
+      <td className="p-3 border border-gray-200 text-sm max-w-xs align-top">
+        <div className="prose prose-sm max-w-none text-gray-800 line-clamp-6">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {cell.answer}
+          </ReactMarkdown>
+        </div>
+        <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
+      </td>
+    );
+  }
+
   if (cell.status === "loading") {
     return (
       <td className="p-3 border border-gray-200">
-        <div className="animate-pulse space-y-2">
-          <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+        <div className="flex items-center gap-2">
+          <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+          <span className="text-xs text-gray-400">Analyzing...</span>
         </div>
       </td>
     );
@@ -81,6 +123,11 @@ export default function MatrixCell({ cell }: Props) {
               p: ({ children }) => (
                 <p className="my-0.5 text-sm leading-snug">{children}</p>
               ),
+              text: ({ children }) => {
+                if (typeof children !== "string") return <>{children}</>;
+                if (!SOURCE_RE.test(children)) return <>{children}</>;
+                return <>{renderTextWithCitations(children, cell.citations)}</>;
+              },
             }}
           >
             {cell.answer}
