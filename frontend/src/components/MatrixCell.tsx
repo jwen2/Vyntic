@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -10,9 +10,37 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { CellData } from "@/lib/api";
+import { CellData, Citation } from "@/lib/api";
 import { extractNumericData } from "@/lib/numericDetector";
 import CitationPopover from "./CitationPopover";
+import InlineCitation from "./InlineCitation";
+
+const SOURCE_RE = /\[Source\s+(\d+)\]/g;
+
+function renderTextWithCitations(
+  text: string,
+  citations: Citation[]
+): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const re = new RegExp(SOURCE_RE);
+
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const idx = parseInt(match[1], 10);
+    parts.push(
+      <InlineCitation key={`src-${match.index}`} index={idx} citation={citations[idx - 1]} />
+    );
+    lastIndex = re.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
+}
 
 interface Props {
   cell: CellData | undefined;
@@ -81,6 +109,11 @@ export default function MatrixCell({ cell }: Props) {
               p: ({ children }) => (
                 <p className="my-0.5 text-sm leading-snug">{children}</p>
               ),
+              text: ({ children }) => {
+                if (typeof children !== "string") return <>{children}</>;
+                if (!SOURCE_RE.test(children)) return <>{children}</>;
+                return <>{renderTextWithCitations(children, cell.citations)}</>;
+              },
             }}
           >
             {cell.answer}
