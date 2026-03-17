@@ -5,6 +5,8 @@ export interface Deal {
   name: string;
   description: string;
   document_count: number;
+  stage: string;
+  tags: string[];
 }
 
 export interface Citation {
@@ -59,6 +61,35 @@ export async function uploadDocument(
     body: form,
   });
   if (!res.ok) throw new Error(await res.text());
+}
+
+export async function uploadDocumentsBatch(
+  deal_id: string,
+  files: File[]
+): Promise<DocumentMetadata[]> {
+  const form = new FormData();
+  for (const file of files) {
+    form.append("files", file);
+  }
+  const res = await fetch(`${API_BASE}/deals/${deal_id}/documents/batch`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function updateDeal(
+  deal_id: string,
+  data: { name?: string; description?: string; stage?: string; tags?: string[] }
+): Promise<Deal> {
+  const res = await fetch(`${API_BASE}/deals/${deal_id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 export interface DocumentMetadata {

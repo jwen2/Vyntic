@@ -1,0 +1,257 @@
+"use client";
+import { useState, useRef, DragEvent } from "react";
+import { Deal } from "@/lib/api";
+import DealDetailPanel from "./DealDetailPanel";
+
+const STAGE_COLORS: Record<string, string> = {
+  Screening: "bg-yellow-100 text-yellow-800",
+  "Due Diligence": "bg-blue-100 text-blue-800",
+  "IC Review": "bg-purple-100 text-purple-800",
+  Closed: "bg-green-100 text-green-800",
+};
+
+const STAGES = ["Screening", "Due Diligence", "IC Review", "Closed"];
+const SECTOR_TAGS = [
+  "Technology", "Healthcare", "Industrials", "Consumer",
+  "Financial Services", "Energy", "Real Estate", "Infrastructure",
+];
+
+interface Props {
+  deal: Deal;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onDelete: () => void;
+  onUploadFiles: (dealId: string, files: File[]) => void;
+  onUpdateDeal: (
+    dealId: string,
+    data: { stage?: string; tags?: string[] }
+  ) => void;
+  uploading: boolean;
+}
+
+export default function DealCard({
+  deal,
+  expanded,
+  onToggleExpand,
+  onDelete,
+  onUploadFiles,
+  onUpdateDeal,
+  uploading,
+}: Props) {
+  const [dragging, setDragging] = useState(false);
+  const [showStageMenu, setShowStageMenu] = useState(false);
+  const [showTagMenu, setShowTagMenu] = useState(false);
+  const dragCounter = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDragEnter = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes("Files")) {
+      setDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+    dragCounter.current = 0;
+
+    const files = Array.from(e.dataTransfer.files).filter(
+      (f) =>
+        f.name.endsWith(".pdf") ||
+        f.name.endsWith(".xlsx") ||
+        f.name.endsWith(".xls")
+    );
+    if (files.length > 0) {
+      onUploadFiles(deal.deal_id, files);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      onUploadFiles(deal.deal_id, files);
+    }
+    e.target.value = "";
+  };
+
+  const stageColor = STAGE_COLORS[deal.stage] || "bg-gray-100 text-gray-800";
+
+  return (
+    <li
+      className={`rounded-lg border transition-all ${
+        dragging
+          ? "border-blue-400 bg-blue-50 shadow-md ring-2 ring-blue-200"
+          : "border-gray-200 bg-white hover:border-gray-300"
+      }`}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <div className="p-3">
+        {/* Header row */}
+        <div className="flex items-start justify-between group">
+          <div
+            className="cursor-pointer flex-1 min-w-0"
+            onClick={onToggleExpand}
+          >
+            <div className="text-sm font-semibold text-gray-900">
+              {deal.name}
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              {deal.deal_id} · {deal.document_count} doc
+              {deal.document_count !== 1 ? "s" : ""}
+              <span className="ml-1 text-blue-400">
+                {expanded ? "▾" : "▸"}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={onDelete}
+            className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-xs ml-2 mt-0.5"
+            title="Delete deal"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Stage + Tags row */}
+        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+          {/* Stage badge */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowStageMenu(!showStageMenu);
+                setShowTagMenu(false);
+              }}
+              className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${stageColor} hover:opacity-80 transition-opacity`}
+            >
+              {deal.stage}
+            </button>
+            {showStageMenu && (
+              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1 w-36">
+                {STAGES.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      onUpdateDeal(deal.deal_id, { stage: s });
+                      setShowStageMenu(false);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${
+                      s === deal.stage ? "font-semibold text-blue-600" : "text-gray-700"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Tags */}
+          {deal.tags.map((tag) => (
+            <span
+              key={tag}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 cursor-pointer hover:bg-red-50 hover:text-red-600 transition-colors"
+              title={`Click to remove "${tag}"`}
+              onClick={() =>
+                onUpdateDeal(deal.deal_id, {
+                  tags: deal.tags.filter((t) => t !== tag),
+                })
+              }
+            >
+              {tag}
+            </span>
+          ))}
+
+          {/* Add tag button */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowTagMenu(!showTagMenu);
+                setShowStageMenu(false);
+              }}
+              className="text-[10px] px-1.5 py-0.5 rounded border border-dashed border-gray-300 text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-colors"
+            >
+              + tag
+            </button>
+            {showTagMenu && (
+              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1 w-40 max-h-48 overflow-y-auto">
+                {SECTOR_TAGS.filter((t) => !deal.tags.includes(t)).map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      onUpdateDeal(deal.deal_id, {
+                        tags: [...deal.tags, tag],
+                      });
+                      setShowTagMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Drop zone hint */}
+        {dragging && (
+          <div className="mt-2 py-3 border-2 border-dashed border-blue-300 rounded-md bg-blue-50 text-center">
+            <span className="text-xs text-blue-600 font-medium">
+              Drop PDF/Excel files here
+            </span>
+          </div>
+        )}
+
+        {/* Upload progress */}
+        {uploading && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
+            <div className="animate-spin h-3 w-3 border-2 border-blue-500 border-t-transparent rounded-full" />
+            Parsing and indexing...
+          </div>
+        )}
+
+        {/* Browse files button */}
+        {!dragging && (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-2 w-full text-[10px] text-gray-400 hover:text-blue-500 py-1 border border-dashed border-gray-200 rounded hover:border-blue-300 transition-colors"
+          >
+            Drop files or click to upload
+          </button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.xlsx,.xls"
+          multiple
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+
+        {/* Expanded detail */}
+        {expanded && <DealDetailPanel deal={deal} />}
+      </div>
+    </li>
+  );
+}

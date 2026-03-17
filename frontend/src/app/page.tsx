@@ -4,8 +4,7 @@ import { useDeals } from "@/hooks/useDeals";
 import { useMatrix } from "@/hooks/useMatrix";
 import MatrixGrid from "@/components/MatrixGrid";
 import AddDealDialog from "@/components/AddDealDialog";
-import UploadPanel from "@/components/UploadPanel";
-import DealDetailPanel from "@/components/DealDetailPanel";
+import DealCard from "@/components/DealCard";
 import { exportMatrixCSV } from "@/lib/exportMatrix";
 
 export default function Home() {
@@ -15,7 +14,8 @@ export default function Home() {
     error: dealsError,
     addDeal,
     removeDeal,
-    uploadDoc,
+    uploadDocs,
+    editDeal,
   } = useDeals();
   const matrix = useMatrix();
   const [showAddDeal, setShowAddDeal] = useState(false);
@@ -75,55 +75,26 @@ export default function Home() {
               ) : (
                 <ul className="space-y-2">
                   {deals.map((deal) => (
-                    <li
+                    <DealCard
                       key={deal.deal_id}
-                      className="p-2 bg-gray-50 rounded-md group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div
-                          className="cursor-pointer flex-1 min-w-0"
-                          onClick={() =>
-                            setExpandedDealId(
-                              expandedDealId === deal.deal_id
-                                ? null
-                                : deal.deal_id
-                            )
-                          }
-                        >
-                          <div className="text-sm font-medium text-gray-800">
-                            {deal.name}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {deal.deal_id} · {deal.document_count} doc
-                            {deal.document_count !== 1 ? "s" : ""}
-                            <span className="ml-1 text-blue-400">
-                              {expandedDealId === deal.deal_id ? "▾" : "▸"}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => removeDeal(deal.deal_id)}
-                          className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-sm ml-2"
-                          title="Delete deal"
-                        >
-                          x
-                        </button>
-                      </div>
-                      {expandedDealId === deal.deal_id && (
-                        <DealDetailPanel deal={deal} />
-                      )}
-                    </li>
+                      deal={deal}
+                      expanded={expandedDealId === deal.deal_id}
+                      onToggleExpand={() =>
+                        setExpandedDealId(
+                          expandedDealId === deal.deal_id
+                            ? null
+                            : deal.deal_id
+                        )
+                      }
+                      onDelete={() => removeDeal(deal.deal_id)}
+                      onUploadFiles={uploadDocs}
+                      onUpdateDeal={editDeal}
+                      uploading={dealsLoading}
+                    />
                   ))}
                 </ul>
               )}
             </div>
-
-            {/* Upload */}
-            <UploadPanel
-              deals={deals}
-              onUpload={uploadDoc}
-              uploading={dealsLoading}
-            />
 
             {/* Architecture info */}
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
