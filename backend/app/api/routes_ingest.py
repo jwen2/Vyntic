@@ -41,7 +41,8 @@ async def ingest_document(deal_id: str, file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Vector storage failed: {str(e)}")
 
-    # Update deal doc count
+    # Update deal doc count and store document metadata
     deal_store.increment_doc_count(deal_id)
+    deal_store.add_document(deal_id, doc_metadata)
 
     return doc_metadata

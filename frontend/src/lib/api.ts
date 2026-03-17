@@ -61,6 +61,22 @@ export async function uploadDocument(
   if (!res.ok) throw new Error(await res.text());
 }
 
+export interface DocumentMetadata {
+  doc_id: string;
+  deal_id: string;
+  filename: string;
+  page_count: number;
+  chunk_count: number;
+}
+
+export async function listDocuments(
+  deal_id: string
+): Promise<DocumentMetadata[]> {
+  const res = await fetch(`${API_BASE}/deals/${deal_id}/documents`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function matrixCompare(
   deal_ids: string[],
   queries: string[]

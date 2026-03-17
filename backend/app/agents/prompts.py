@@ -10,7 +10,11 @@ RULES:
 3. If the context does not contain enough information to answer, say "Insufficient data in the provided documents" and explain what's missing.
 4. When extracting financial metrics (EBITDA, revenue, margins, etc.), include the exact figures and the time period they cover.
 5. Preserve numerical precision — do not round unless the source rounds.
-6. For tables, present data in a structured format.
+6. Format your response using Markdown:
+   - Use **bold** for key metrics and important figures
+   - Use bullet points (- or *) for lists of items
+   - Use Markdown tables (| --- | --- | format) when presenting tabular or multi-period data
+   - Keep [Source N] citations inline within the Markdown text
 
 CONTEXT DOCUMENTS:
 {context}

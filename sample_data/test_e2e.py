@@ -100,7 +100,7 @@ def create_deals():
     """Create all test deals."""
     results = []
     for deal in DEALS:
-        r = requests.post(f"{BASE_URL}/deals/", json={
+        r = requests.post(f"{BASE_URL}/deals", json={
             "deal_id": deal["deal_id"],
             "name": deal["name"],
             "description": deal["description"],
@@ -119,7 +119,7 @@ def create_deals():
 
 def list_deals():
     """List all deals and verify."""
-    r = requests.get(f"{BASE_URL}/deals/")
+    r = requests.get(f"{BASE_URL}/deals")
     r.raise_for_status()
     deals = r.json()
     log(f"  ✓ Found {len(deals)} deals:", Colors.GREEN)
@@ -144,7 +144,7 @@ def upload_documents():
 
             with open(filepath, "rb") as f:
                 r = requests.post(
-                    f"{BASE_URL}/deals/{deal['deal_id']}/documents/",
+                    f"{BASE_URL}/deals/{deal['deal_id']}/documents",
                     files={"file": (filename, f)},
                     timeout=120,
                 )
@@ -170,7 +170,7 @@ def test_single_deal_query(deal_id: str, query: str):
 
     start = time.time()
     r = requests.post(
-        f"{BASE_URL}/deals/{deal_id}/query/",
+        f"{BASE_URL}/deals/{deal_id}/query",
         json={"question": query},
         timeout=600,
     )

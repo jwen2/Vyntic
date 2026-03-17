@@ -19,7 +19,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3100"],
+    allow_origins=["http://localhost:3000", "http://localhost:3100", "http://localhost:3200"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,6 +29,12 @@ app.include_router(deals_router)
 app.include_router(ingest_router)
 app.include_router(query_router)
 app.include_router(matrix_router)
+
+
+@app.on_event("startup")
+async def startup_seed():
+    from app.seed import seed_sample_data
+    await seed_sample_data()
 
 
 @app.get("/health")
