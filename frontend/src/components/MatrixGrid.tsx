@@ -98,7 +98,7 @@ export default function MatrixGrid({
                     value={newQuery}
                     onChange={(e) => setNewQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAddQuery()}
-                    placeholder="Add a question column..."
+                    placeholder="Ask away..."
                     className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     disabled={loading}
                   />
