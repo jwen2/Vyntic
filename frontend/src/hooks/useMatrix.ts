@@ -1,6 +1,10 @@
 "use client";
-import { useState, useCallback, useEffect } from "react";
-import { matrixCompare, CellData } from "@/lib/api";
+import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  matrixCompareStream,
+  StreamEvent,
+  CellData,
+} from "@/lib/api";
 
 export interface MatrixState {
   deals: string[];
@@ -20,12 +24,20 @@ export function useMatrix() {
   });
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
   const [lastClickedDeal, setLastClickedDeal] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Keep selectedDeals in sync when deals change — select all by default
   useEffect(() => {
     setSelectedDeals(new Set(state.deals));
     setLastClickedDeal(null);
   }, [state.deals]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const setDeals = useCallback((deals: string[]) => {
     setState((s) => ({ ...s, deals }));
@@ -36,7 +48,6 @@ export function useMatrix() {
     (dealId: string, opts: { ctrl?: boolean; shift?: boolean } = {}) => {
       setSelectedDeals((prev) => {
         if (opts.shift && lastClickedDeal) {
-          // Range select from lastClicked to dealId
           const startIdx = state.deals.indexOf(lastClickedDeal);
           const endIdx = state.deals.indexOf(dealId);
           if (startIdx !== -1 && endIdx !== -1) {
@@ -51,7 +62,6 @@ export function useMatrix() {
         }
 
         if (opts.ctrl) {
-          // Toggle individual
           const next = new Set(prev);
           if (next.has(dealId)) {
             next.delete(dealId);
@@ -61,7 +71,6 @@ export function useMatrix() {
           return next;
         }
 
-        // Plain click: select only this one
         return new Set([dealId]);
       });
       setLastClickedDeal(dealId);
@@ -80,14 +89,62 @@ export function useMatrix() {
     setSelectedDeals(new Set());
   }, []);
 
+  /** Handle a single streaming event — shared by addQuery and runAllQueries */
+  const handleStreamEvent = useCallback((event: StreamEvent) => {
+    if (event.type === "token") {
+      setState((s) => {
+        const updatedCells = { ...s.cells };
+        const dealCells = { ...updatedCells[event.deal_id] };
+        const cell = dealCells[event.query] || {
+          answer: "",
+          citations: [],
+          status: "loading",
+        };
+        dealCells[event.query] = {
+          ...cell,
+          answer: cell.answer + event.token,
+          status: "loading",
+        };
+        updatedCells[event.deal_id] = dealCells;
+        return { ...s, cells: updatedCells };
+      });
+    } else if (event.type === "done") {
+      setState((s) => {
+        const updatedCells = { ...s.cells };
+        const dealCells = { ...updatedCells[event.deal_id] };
+        dealCells[event.query] = {
+          answer: event.answer,
+          citations: event.citations,
+          status: "complete",
+        };
+        updatedCells[event.deal_id] = dealCells;
+        return { ...s, cells: updatedCells };
+      });
+    } else if (event.type === "error") {
+      setState((s) => {
+        const updatedCells = { ...s.cells };
+        const dealCells = { ...updatedCells[event.deal_id] };
+        dealCells[event.query] = {
+          answer: `Error: ${event.error}`,
+          citations: [],
+          status: "error",
+        };
+        updatedCells[event.deal_id] = dealCells;
+        return { ...s, cells: updatedCells };
+      });
+    }
+  }, []);
+
   const addQuery = useCallback(
-    async (query: string, targetDealIds?: string[]) => {
+    (query: string, targetDealIds?: string[]) => {
       if (!query.trim() || state.deals.length === 0) return;
+
+      abortRef.current?.abort();
 
       const dealsToQuery = targetDealIds ?? state.deals;
       const newQueries = [...state.queries, query];
 
-      // Set loading state for targeted deals, "Not queried" for others
+      // Set loading/streaming state for targeted deals
       setState((s) => {
         const updatedCells = { ...s.cells };
         for (const dealId of s.deals) {
@@ -120,56 +177,68 @@ export function useMatrix() {
         return;
       }
 
-      try {
-        const result = await matrixCompare(dealsToQuery, [query]);
+      const controller = matrixCompareStream(
+        dealsToQuery,
+        [query],
+        handleStreamEvent,
+        () => setState((s) => ({ ...s, loading: false })),
+        (err) =>
+          setState((s) => ({
+            ...s,
+            loading: false,
+            error: err.message || "Streaming failed",
+          }))
+      );
 
-        setState((s) => {
-          const updatedCells = { ...s.cells };
-          for (const dealId of dealsToQuery) {
-            if (!updatedCells[dealId]) updatedCells[dealId] = {};
-            updatedCells[dealId][query] = result.cells[dealId]?.[query] || {
-              answer: "No data",
-              citations: [],
-              status: "error",
-            };
-          }
-          return { ...s, cells: updatedCells, loading: false };
-        });
-      } catch (err) {
-        setState((s) => ({
-          ...s,
-          loading: false,
-          error: err instanceof Error ? err.message : "Query failed",
-        }));
-      }
+      abortRef.current = controller;
     },
-    [state.deals, state.queries]
+    [state.deals, state.queries, handleStreamEvent]
   );
 
   const runAllQueries = useCallback(
-    async (dealIds: string[], queries: string[]) => {
+    (dealIds: string[], queries: string[]) => {
       if (dealIds.length === 0 || queries.length === 0) return;
 
-      setState((s) => ({ ...s, loading: true, error: null }));
+      abortRef.current?.abort();
 
-      try {
-        const result = await matrixCompare(dealIds, queries);
-        setState((s) => ({
+      setState((s) => {
+        const updatedCells: Record<string, Record<string, CellData>> = {};
+        for (const dealId of dealIds) {
+          updatedCells[dealId] = {};
+          for (const query of queries) {
+            updatedCells[dealId][query] = {
+              answer: "",
+              citations: [],
+              status: "loading",
+            };
+          }
+        }
+        return {
           ...s,
           deals: dealIds,
           queries,
-          cells: result.cells,
-          loading: false,
-        }));
-      } catch (err) {
-        setState((s) => ({
-          ...s,
-          loading: false,
-          error: err instanceof Error ? err.message : "Query failed",
-        }));
-      }
+          cells: updatedCells,
+          loading: true,
+          error: null,
+        };
+      });
+
+      const controller = matrixCompareStream(
+        dealIds,
+        queries,
+        handleStreamEvent,
+        () => setState((s) => ({ ...s, loading: false })),
+        (err) =>
+          setState((s) => ({
+            ...s,
+            loading: false,
+            error: err.message || "Streaming failed",
+          }))
+      );
+
+      abortRef.current = controller;
     },
-    []
+    [handleStreamEvent]
   );
 
   return {

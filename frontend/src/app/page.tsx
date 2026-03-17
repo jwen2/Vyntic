@@ -6,6 +6,7 @@ import MatrixGrid from "@/components/MatrixGrid";
 import AddDealDialog from "@/components/AddDealDialog";
 import UploadPanel from "@/components/UploadPanel";
 import DealDetailPanel from "@/components/DealDetailPanel";
+import { exportMatrixCSV } from "@/lib/exportMatrix";
 
 export default function Home() {
   const {
@@ -151,6 +152,13 @@ export default function Home() {
               selectedDeals={matrix.selectedDeals}
               onSelectDeal={matrix.selectDeal}
               onSelectAll={matrix.selectAllDeals}
+              onExport={() =>
+                exportMatrixCSV(
+                  matrix.deals,
+                  matrix.queries,
+                  matrix.cells
+                )
+              }
             />
           </div>
         </div>
