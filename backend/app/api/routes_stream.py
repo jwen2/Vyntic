@@ -164,12 +164,21 @@ async def _stream_synthesis_answer(query: str, deal_answers: dict):
             }
 
         full_answer = _THINK_RE.sub("", full_answer).strip()
+
+        # Collect all citations from individual deal answers, tagged with deal_id
+        all_citations = []
+        for did, ans_data in deal_answers.items():
+            for c in ans_data.get("citations", []):
+                tagged = dict(c)
+                tagged["deal_id"] = did
+                all_citations.append(tagged)
+
         yield {
             "type": "done",
             "deal_id": SYNTHESIS_DEAL_ID,
             "query": query,
             "answer": full_answer,
-            "citations": [],
+            "citations": all_citations,
         }
 
     except Exception as e:
