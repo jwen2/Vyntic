@@ -4,6 +4,7 @@ import {
   matrixCompareStream,
   StreamEvent,
   CellData,
+  SYNTHESIS_DEAL_ID,
 } from "@/lib/api";
 
 export interface MatrixState {
@@ -144,7 +145,7 @@ export function useMatrix() {
       const dealsToQuery = targetDealIds ?? state.deals;
       const newQueries = [...state.queries, query];
 
-      // Set loading/streaming state for targeted deals
+      // Set loading/streaming state for targeted deals + synthesis row
       setState((s) => {
         const updatedCells = { ...s.cells };
         for (const dealId of s.deals) {
@@ -162,6 +163,15 @@ export function useMatrix() {
               status: "complete",
             };
           }
+        }
+        // Initialize synthesis row if comparing multiple deals
+        if (dealsToQuery.length > 1) {
+          if (!updatedCells[SYNTHESIS_DEAL_ID]) updatedCells[SYNTHESIS_DEAL_ID] = {};
+          updatedCells[SYNTHESIS_DEAL_ID][query] = {
+            answer: "",
+            citations: [],
+            status: "loading",
+          };
         }
         return {
           ...s,
@@ -207,6 +217,17 @@ export function useMatrix() {
           updatedCells[dealId] = {};
           for (const query of queries) {
             updatedCells[dealId][query] = {
+              answer: "",
+              citations: [],
+              status: "loading",
+            };
+          }
+        }
+        // Initialize synthesis row if comparing multiple deals
+        if (dealIds.length > 1) {
+          updatedCells[SYNTHESIS_DEAL_ID] = {};
+          for (const query of queries) {
+            updatedCells[SYNTHESIS_DEAL_ID][query] = {
               answer: "",
               citations: [],
               status: "loading",

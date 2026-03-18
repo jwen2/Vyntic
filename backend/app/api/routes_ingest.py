@@ -1,4 +1,6 @@
 """Document ingestion routes — supports single and multi-file upload."""
+import os
+
 from fastapi import APIRouter, HTTPException, UploadFile, File
 
 from app.models.document import DocumentMetadata
@@ -7,7 +9,18 @@ from app.services.chunker import chunk_sections
 from app.services.vector_store import upsert_chunks
 from app.services import deal_store
 
+UPLOADS_DIR = "/app/data/uploads"
+
 router = APIRouter(prefix="/deals/{deal_id}/documents", tags=["ingestion"])
+
+
+def _save_original_file(deal_id: str, filename: str, file_bytes: bytes) -> None:
+    """Persist the original uploaded file to disk for later viewing."""
+    deal_dir = os.path.join(UPLOADS_DIR, deal_id)
+    os.makedirs(deal_dir, exist_ok=True)
+    dest = os.path.join(deal_dir, filename)
+    with open(dest, "wb") as f:
+        f.write(file_bytes)
 
 
 async def _ingest_one(deal_id: str, file: UploadFile) -> DocumentMetadata:
@@ -16,6 +29,9 @@ async def _ingest_one(deal_id: str, file: UploadFile) -> DocumentMetadata:
         raise HTTPException(status_code=400, detail="Filename is required")
 
     file_bytes = await file.read()
+
+    # Save the original file before parsing so it's always available for viewing
+    _save_original_file(deal_id, file.filename, file_bytes)
 
     try:
         doc_metadata, sections = await parse_document(file_bytes, file.filename, deal_id)

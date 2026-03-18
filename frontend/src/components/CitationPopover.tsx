@@ -5,9 +5,10 @@ import { Citation } from "@/lib/api";
 interface Props {
   citations: Citation[];
   children: React.ReactNode;
+  onViewDocument?: (citation: Citation) => void;
 }
 
-export default function CitationPopover({ citations, children }: Props) {
+export default function CitationPopover({ citations, children, onViewDocument }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -23,6 +24,13 @@ export default function CitationPopover({ citations, children }: Props) {
 
   if (citations.length === 0) return <>{children}</>;
 
+  const handleCitationClick = (citation: Citation) => {
+    setOpen(false);
+    if (onViewDocument) {
+      onViewDocument(citation);
+    }
+  };
+
   return (
     <div className="relative" ref={ref}>
       <div onClick={() => setOpen(!open)} className="cursor-pointer">
@@ -36,10 +44,18 @@ export default function CitationPopover({ citations, children }: Props) {
           {citations.map((c, i) => (
             <div
               key={i}
-              className="mb-2 p-2 bg-gray-50 rounded text-xs border border-gray-100"
+              className={`mb-2 p-2 bg-gray-50 rounded text-xs border border-gray-100 ${
+                onViewDocument ? "cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors" : ""
+              }`}
+              onClick={onViewDocument ? () => handleCitationClick(c) : undefined}
             >
-              <div className="font-medium text-blue-700 mb-1">
-                {c.source_file} — Page {c.page}
+              <div className="font-medium text-blue-700 mb-1 flex items-center justify-between">
+                <span>{c.source_file} — Page {c.page}</span>
+                {onViewDocument && (
+                  <span className="text-[10px] text-blue-500 font-normal">
+                    Click to view
+                  </span>
+                )}
               </div>
               <div className="text-gray-600 leading-relaxed">
                 {c.text_snippet}

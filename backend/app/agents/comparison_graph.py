@@ -5,6 +5,7 @@ Enforces zero context leak by ensuring each worker only queries its own collecti
 """
 import asyncio
 import operator
+import re
 from typing import Annotated, TypedDict
 
 from langchain_ollama import ChatOllama
@@ -89,7 +90,8 @@ async def _synthesis_node(state: ComparisonState) -> dict:
         HumanMessage(content=f"Compare the following across all deals: {query}"),
     ])
 
-    return {"synthesis": response.content}
+    _think_re = re.compile(r"<think>[\s\S]*?</think>", re.IGNORECASE)
+    return {"synthesis": _think_re.sub("", response.content).strip()}
 
 
 def build_comparison_graph() -> StateGraph:

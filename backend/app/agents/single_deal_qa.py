@@ -1,6 +1,8 @@
 """
 Single-deal RAG chain: retrieve context from one deal's collection, generate answer with citations.
 """
+import re
+
 from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -8,6 +10,8 @@ from app.config import settings
 from app.models.query import QueryResponse
 from app.services.vector_store import query_deal
 from app.utils.citations import build_context_string, extract_citations
+
+_THINK_RE = re.compile(r"<think>[\s\S]*?</think>", re.IGNORECASE)
 from app.agents.prompts import SINGLE_DEAL_SYSTEM
 
 
@@ -46,7 +50,7 @@ async def answer_deal_question(deal_id: str, question: str) -> QueryResponse:
         HumanMessage(content=question),
     ])
 
-    answer = response.content
+    answer = _THINK_RE.sub("", response.content).strip()
 
     # Step 4: Extract citations
     citations = extract_citations(answer, retrieved)

@@ -34,7 +34,12 @@ app.include_router(stream_router)
 
 
 @app.on_event("startup")
-async def startup_seed():
+async def startup():
+    # Initialize database tables
+    from app.database import init_db
+    init_db()
+
+    # Seed sample data (skips deals that already exist in DB)
     from app.seed import seed_sample_data
     await seed_sample_data()
 

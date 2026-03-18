@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 768
 
+    # Database (SQLite for PoC; swap to postgresql:// for production)
+    database_url: str = "sqlite:////app/data/spokematrix.db"
+
     # ChromaDB
     chroma_persist_dir: str = "/app/data/chroma"
 

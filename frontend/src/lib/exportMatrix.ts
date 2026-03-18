@@ -2,7 +2,7 @@
  * Export the deal comparison matrix as a CSV file.
  * Strips Markdown formatting for clean spreadsheet output.
  */
-import { CellData } from "@/lib/api";
+import { CellData, SYNTHESIS_DEAL_ID } from "@/lib/api";
 
 function stripMarkdown(text: string): string {
   return text
@@ -45,6 +45,17 @@ export function exportMatrixCSV(
     });
     return [escapeCSV(dealId), ...dealCells].join(",");
   });
+
+  // Synthesis row (if present)
+  if (cells[SYNTHESIS_DEAL_ID]) {
+    const synthCells = queries.map((q) => {
+      const cell = cells[SYNTHESIS_DEAL_ID]?.[q];
+      if (!cell || cell.status === "loading") return "";
+      if (cell.status === "error") return escapeCSV(`[Error] ${cell.answer}`);
+      return escapeCSV(cell.answer);
+    });
+    rows.push([escapeCSV("Synthesis"), ...synthCells].join(","));
+  }
 
   const csv = [header, ...rows].join("\n");
 
