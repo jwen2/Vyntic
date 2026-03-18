@@ -1,8 +1,16 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
-import { CellData } from "@/lib/api";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { CellData, Citation, SYNTHESIS_DEAL_ID } from "@/lib/api";
 import MatrixCell from "./MatrixCell";
+import DocumentViewer from "./DocumentViewer";
 import { QUERY_TEMPLATES } from "@/lib/queryTemplates";
+
+interface ViewerState {
+  dealId: string;
+  filename: string;
+  page: number;
+  snippet: string;
+}
 
 interface Props {
   deals: string[];
@@ -29,6 +37,7 @@ export default function MatrixGrid({
 }: Props) {
   const [newQuery, setNewQuery] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
+  const [viewerState, setViewerState] = useState<ViewerState | null>(null);
   const templateRef = useRef<HTMLDivElement>(null);
 
   const handleAddQuery = () => {
@@ -42,6 +51,15 @@ export default function MatrixGrid({
     onAddQuery(query);
     setShowTemplates(false);
   };
+
+  const handleCitationClick = useCallback((citation: Citation, dealId: string) => {
+    setViewerState({
+      dealId,
+      filename: citation.source_file,
+      page: citation.page,
+      snippet: citation.text_snippet,
+    });
+  }, []);
 
   // Close template dropdown on click outside
   useEffect(() => {
@@ -218,15 +236,49 @@ export default function MatrixGrid({
                     <div className="text-sm font-semibold">{dealId}</div>
                   </td>
                   {queries.map((q, i) => (
-                    <MatrixCell key={i} cell={cells[dealId]?.[q]} />
+                    <MatrixCell
+                      key={i}
+                      cell={cells[dealId]?.[q]}
+                      dealId={dealId}
+                      onCitationClick={handleCitationClick}
+                    />
                   ))}
                   <td className="border border-gray-200"></td>
                 </tr>
               );
             })}
+
+            {/* Synthesis row — shown when comparing multiple deals */}
+            {queries.length > 0 && deals.length > 1 && cells[SYNTHESIS_DEAL_ID] && (
+              <tr className="bg-amber-50/70 border-t-2 border-amber-300">
+                <td className="p-3 font-medium border border-gray-200 sticky left-0 z-10 bg-amber-50">
+                  <div className="flex items-center gap-1.5">
+                    <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+                    </svg>
+                    <span className="text-sm font-bold text-amber-900">Synthesis</span>
+                  </div>
+                </td>
+                {queries.map((q, i) => (
+                  <MatrixCell key={`synth-${i}`} cell={cells[SYNTHESIS_DEAL_ID]?.[q]} synthesis />
+                ))}
+                <td className="border border-gray-200 bg-amber-50"></td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Document Viewer slide-over panel */}
+      {viewerState && (
+        <DocumentViewer
+          dealId={viewerState.dealId}
+          filename={viewerState.filename}
+          page={viewerState.page}
+          snippet={viewerState.snippet}
+          onClose={() => setViewerState(null)}
+        />
+      )}
     </div>
   );
 }

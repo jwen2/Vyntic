@@ -6,9 +6,10 @@ import { Citation } from "@/lib/api";
 interface Props {
   index: number;
   citation: Citation | undefined;
+  onViewDocument?: (citation: Citation) => void;
 }
 
-export default function InlineCitation({ index, citation }: Props) {
+export default function InlineCitation({ index, citation, onViewDocument }: Props) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -53,6 +54,14 @@ export default function InlineCitation({ index, citation }: Props) {
     );
   }
 
+  const handleViewClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpen(false);
+    if (onViewDocument) {
+      onViewDocument(citation);
+    }
+  };
+
   return (
     <>
       <button
@@ -86,6 +95,14 @@ export default function InlineCitation({ index, citation }: Props) {
             <div className="text-xs text-gray-600 leading-relaxed max-h-40 overflow-y-auto">
               {citation.text_snippet}
             </div>
+            {onViewDocument && (
+              <button
+                onClick={handleViewClick}
+                className="mt-2 w-full text-xs text-center py-1.5 px-2 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors font-medium"
+              >
+                View document
+              </button>
+            )}
           </div>,
           document.body
         )}

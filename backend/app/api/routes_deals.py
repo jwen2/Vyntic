@@ -1,9 +1,14 @@
 """Deal CRUD routes."""
+import os
+
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 
 from app.models.deal import Deal, DealCreate, DealUpdate, DEAL_STAGES, SECTOR_TAGS
 from app.models.document import DocumentMetadata
 from app.services import deal_store
+
+UPLOADS_DIR = "/app/data/uploads"
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
@@ -70,3 +75,29 @@ async def delete_deal(deal_id: str):
         pass  # Best-effort cleanup of vectors
 
     return {"status": "deleted", "deal_id": deal_id}
+
+
+@router.get("/{deal_id}/documents/{filename}/view")
+async def view_document(deal_id: str, filename: str):
+    """Serve an original uploaded document file for inline viewing."""
+    file_path = os.path.join(UPLOADS_DIR, deal_id, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Document file not found")
+
+    lower = filename.lower()
+    if lower.endswith(".pdf"):
+        media_type = "application/pdf"
+    elif lower.endswith(".xlsx"):
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    elif lower.endswith(".xls"):
+        media_type = "application/vnd.ms-excel"
+    elif lower.endswith(".docx"):
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    elif lower.endswith(".txt"):
+        media_type = "text/plain"
+    elif lower.endswith(".csv"):
+        media_type = "text/csv"
+    else:
+        media_type = "application/octet-stream"
+
+    return FileResponse(file_path, media_type=media_type, filename=filename)

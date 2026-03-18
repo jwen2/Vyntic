@@ -1,5 +1,7 @@
 const API_BASE = "/api";
 
+export const SYNTHESIS_DEAL_ID = "__synthesis__";
+
 export interface Deal {
   deal_id: string;
   name: string;

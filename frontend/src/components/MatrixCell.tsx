@@ -19,7 +19,8 @@ const SOURCE_RE = /\[Source\s+(\d+)\]/g;
 
 function renderTextWithCitations(
   text: string,
-  citations: Citation[]
+  citations: Citation[],
+  onViewDocument?: (citation: Citation) => void
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   let lastIndex = 0;
@@ -32,7 +33,12 @@ function renderTextWithCitations(
     }
     const idx = parseInt(match[1], 10);
     parts.push(
-      <InlineCitation key={`src-${match.index}`} index={idx} citation={citations[idx - 1]} />
+      <InlineCitation
+        key={`src-${match.index}`}
+        index={idx}
+        citation={citations[idx - 1]}
+        onViewDocument={onViewDocument}
+      />
     );
     lastIndex = re.lastIndex;
   }
@@ -42,18 +48,44 @@ function renderTextWithCitations(
   return parts;
 }
 
-interface Props {
-  cell: CellData | undefined;
+/**
+ * Strip DeepSeek-R1 <think>…</think> reasoning blocks so only the
+ * final answer is displayed.  Handles multiline content.
+ */
+function stripThinkTags(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
-export default function MatrixCell({ cell }: Props) {
-  const [expanded, setExpanded] = useState(false);
+interface Props {
+  cell: CellData | undefined;
+  /** Render in synthesis (wide / expanded) mode */
+  synthesis?: boolean;
+  /** Deal ID this cell belongs to (needed for document viewer) */
+  dealId?: string;
+  /** Callback when a citation is clicked to open the document viewer */
+  onCitationClick?: (citation: Citation, dealId: string) => void;
+}
+
+export default function MatrixCell({ cell, synthesis = false, dealId, onCitationClick }: Props) {
+  const [expanded, setExpanded] = useState(synthesis); // synthesis starts expanded
   const [showChart, setShowChart] = useState(false);
 
-  const numericData = useMemo(
-    () => (cell?.answer ? extractNumericData(cell.answer) : null),
+  const cleanAnswer = useMemo(
+    () => (cell?.answer ? stripThinkTags(cell.answer) : ""),
     [cell?.answer]
   );
+
+  const numericData = useMemo(
+    () => (cleanAnswer ? extractNumericData(cleanAnswer) : null),
+    [cleanAnswer]
+  );
+
+  const handleViewDocument = useMemo(() => {
+    if (!onCitationClick || !dealId) return undefined;
+    return (citation: Citation) => {
+      onCitationClick(citation, dealId);
+    };
+  }, [onCitationClick, dealId]);
 
   if (!cell) {
     return (
@@ -63,11 +95,22 @@ export default function MatrixCell({ cell }: Props) {
 
   // Streaming: show partial text with blinking cursor
   if (cell.status === "loading" && cell.answer.length > 0) {
+    const streamingText = stripThinkTags(cell.answer);
+    // If only <think> content so far, show a thinking indicator
+    if (!streamingText) {
+      return (
+        <td className={`p-3 border border-gray-200 text-sm align-top ${synthesis ? "min-w-[350px]" : "max-w-xs"}`}>
+          <div className="flex items-center gap-2 text-amber-600">
+            <div className="animate-pulse text-xs">Reasoning...</div>
+          </div>
+        </td>
+      );
+    }
     return (
-      <td className="p-3 border border-gray-200 text-sm max-w-xs align-top">
-        <div className="prose prose-sm max-w-none text-gray-800 line-clamp-6">
+      <td className={`p-3 border border-gray-200 text-sm align-top ${synthesis ? "min-w-[350px]" : "max-w-xs"}`}>
+        <div className={`prose prose-sm max-w-none text-gray-800 ${synthesis ? "" : "line-clamp-6"}`}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {cell.answer}
+            {streamingText}
           </ReactMarkdown>
         </div>
         <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
@@ -94,19 +137,27 @@ export default function MatrixCell({ cell }: Props) {
     );
   }
 
+  const tdClass = synthesis
+    ? "p-4 border border-gray-200 text-sm min-w-[350px] align-top"
+    : "p-3 border border-gray-200 text-sm max-w-xs align-top";
+
+  const clampClass = synthesis
+    ? "" // synthesis always starts expanded
+    : expanded
+    ? ""
+    : "line-clamp-4";
+
   return (
-    <td className="p-3 border border-gray-200 text-sm max-w-xs align-top">
-      <CitationPopover citations={cell.citations}>
+    <td className={tdClass}>
+      <CitationPopover citations={cell.citations} onViewDocument={handleViewDocument}>
         <div
-          className={`prose prose-sm max-w-none text-gray-800 hover:text-blue-700 transition-colors ${
-            expanded ? "" : "line-clamp-4"
-          }`}
+          className={`prose prose-sm max-w-none text-gray-800 hover:text-blue-700 transition-colors ${clampClass}`}
         >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               table: ({ children }) => (
-                <table className="text-xs border-collapse w-full my-1">
+                <table className="text-xs border-collapse w-full my-2">
                   {children}
                 </table>
               ),
@@ -121,16 +172,37 @@ export default function MatrixCell({ cell }: Props) {
                 </td>
               ),
               p: ({ children }) => (
-                <p className="my-0.5 text-sm leading-snug">{children}</p>
+                <p className="my-1 text-sm leading-relaxed">{children}</p>
+              ),
+              ul: ({ children }) => (
+                <ul className="my-1 ml-4 list-disc space-y-0.5 text-sm">{children}</ul>
+              ),
+              ol: ({ children }) => (
+                <ol className="my-1 ml-4 list-decimal space-y-0.5 text-sm">{children}</ol>
+              ),
+              li: ({ children }) => (
+                <li className="text-sm leading-snug">{children}</li>
+              ),
+              h1: ({ children }) => (
+                <h3 className="text-base font-bold mt-2 mb-1">{children}</h3>
+              ),
+              h2: ({ children }) => (
+                <h4 className="text-sm font-bold mt-2 mb-1">{children}</h4>
+              ),
+              h3: ({ children }) => (
+                <h5 className="text-sm font-semibold mt-1.5 mb-0.5">{children}</h5>
+              ),
+              strong: ({ children }) => (
+                <strong className="font-semibold text-gray-900">{children}</strong>
               ),
               text: ({ children }) => {
                 if (typeof children !== "string") return <>{children}</>;
                 if (!SOURCE_RE.test(children)) return <>{children}</>;
-                return <>{renderTextWithCitations(children, cell.citations)}</>;
+                return <>{renderTextWithCitations(children, cell.citations, handleViewDocument)}</>;
               },
             }}
           >
-            {cell.answer}
+            {cleanAnswer}
           </ReactMarkdown>
         </div>
         {cell.citations.length > 0 && (
@@ -143,12 +215,20 @@ export default function MatrixCell({ cell }: Props) {
 
       {/* Controls row */}
       <div className="flex items-center gap-2 mt-1">
-        {cell.answer.length > 200 && (
+        {!synthesis && cleanAnswer.length > 200 && (
           <button
             onClick={() => setExpanded(!expanded)}
             className="text-[10px] text-blue-500 hover:text-blue-700"
           >
             {expanded ? "Show less" : "Show more"}
+          </button>
+        )}
+        {synthesis && cleanAnswer.length > 500 && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-[10px] text-amber-600 hover:text-amber-800 font-medium"
+          >
+            {expanded ? "Collapse synthesis" : "Expand synthesis"}
           </button>
         )}
         {numericData && (
@@ -181,7 +261,7 @@ export default function MatrixCell({ cell }: Props) {
               <YAxis tick={{ fontSize: 9 }} width={40} />
               <Tooltip
                 contentStyle={{ fontSize: 11 }}
-                formatter={(value: number) => [value.toFixed(1), "Value"]}
+                formatter={(value) => [Number(value).toFixed(1), "Value"]}
               />
               <Bar dataKey="value" fill="#3b82f6" radius={[3, 3, 0, 0]} />
             </BarChart>
