@@ -81,11 +81,17 @@ export default function MatrixCell({ cell, synthesis = false, dealId, onCitation
   );
 
   const handleViewDocument = useMemo(() => {
-    if (!onCitationClick || !dealId) return undefined;
+    if (!onCitationClick) return undefined;
+    // For synthesis cells, each citation carries its own deal_id
+    // For regular cells, use the dealId prop
+    if (!dealId && !synthesis) return undefined;
     return (citation: Citation) => {
-      onCitationClick(citation, dealId);
+      const targetDealId = citation.deal_id || dealId;
+      if (targetDealId) {
+        onCitationClick(citation, targetDealId);
+      }
     };
-  }, [onCitationClick, dealId]);
+  }, [onCitationClick, dealId, synthesis]);
 
   if (!cell) {
     return (

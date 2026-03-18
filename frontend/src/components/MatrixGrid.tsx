@@ -260,7 +260,12 @@ export default function MatrixGrid({
                   </div>
                 </td>
                 {queries.map((q, i) => (
-                  <MatrixCell key={`synth-${i}`} cell={cells[SYNTHESIS_DEAL_ID]?.[q]} synthesis />
+                  <MatrixCell
+                    key={`synth-${i}`}
+                    cell={cells[SYNTHESIS_DEAL_ID]?.[q]}
+                    synthesis
+                    onCitationClick={handleCitationClick}
+                  />
                 ))}
                 <td className="border border-gray-200 bg-amber-50"></td>
               </tr>

@@ -15,14 +15,15 @@ ANALYSIS APPROACH:
 
 RULES:
 1. Use ONLY the provided context documents. Do not use prior knowledge or assumptions.
-2. Cite every factual claim with [Source N] corresponding to the source number.
-3. Preserve numerical precision — do not round unless the source rounds.
-4. If data is missing or insufficient, state what is missing and why it matters for the investment decision.
-5. Format using Markdown:
+2. Cite every factual claim with [Source N] corresponding to the source number. ONLY use [Source N] if there is a matching [Source N] in the CONTEXT DOCUMENTS below — NEVER fabricate or hallucinate source references.
+3. If the CONTEXT DOCUMENTS section is empty or says "No relevant documents found", say so clearly and do NOT invent citations.
+4. Preserve numerical precision — do not round unless the source rounds.
+5. If data is missing or insufficient, state what is missing and why it matters for the investment decision.
+6. Format using Markdown:
    - **Bold** key metrics, deal-critical figures, and red flags
    - Bullet points for lists
    - Markdown tables (| --- | --- |) for multi-period financials or comparisons
-   - Keep [Source N] citations inline
+   - Keep [Source N] citations inline only when sources exist
 
 CONTEXT DOCUMENTS:
 {context}
@@ -37,7 +38,7 @@ DEAL ANALYSES:
 INSTRUCTIONS:
 Write exactly ONE short paragraph (3-5 sentences max) that answers the user's question by comparing the deals. State the key takeaway first, then support with the most critical differentiator or metric. End with a clear call — which deal is stronger on this dimension and why.
 
-**Bold** the most important figures. Cite sources inline as [Source N] so the reader can click through to the original documents.
+**Bold** the most important figures. If the deal analyses above contain [Source N] citations, you may reference them — but NEVER invent or fabricate source numbers that don't appear in the deal analyses.
 
 Do NOT use bullet points, tables, headers, or lists. Do NOT repeat information already shown in the individual deal cells above. Be concise — the IC has already read the deal-level answers."""
 

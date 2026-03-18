@@ -15,6 +15,8 @@ export interface Citation {
   source_file: string;
   page: number;
   text_snippet: string;
+  /** Present on synthesis citations — the deal this source belongs to */
+  deal_id?: string;
 }
 
 export interface CellData {
