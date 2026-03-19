@@ -1,140 +1,74 @@
 """
-Deal registry backed by SQLite via SQLAlchemy.
-Same public API as the previous in-memory version — all callers are unchanged.
-Swap database_url to PostgreSQL for production.
+Simple in-memory deal registry. For PoC only — swap to SQLite/Postgres for production.
 """
 from app.models.deal import Deal, DealCreate, DealUpdate
 from app.models.document import DocumentMetadata
-from app.database import get_db, DealRow, DocumentRow
+
+_deals: dict[str, Deal] = {}
+_documents: dict[str, list[DocumentMetadata]] = {}
 
 
 def create_deal(data: DealCreate) -> Deal:
-    db = get_db()
-    try:
-        existing = db.query(DealRow).filter(DealRow.deal_id == data.deal_id).first()
-        if existing:
-            raise ValueError(f"Deal '{data.deal_id}' already exists")
-
-        row = DealRow(
-            deal_id=data.deal_id,
-            name=data.name,
-            description=data.description,
-            document_count=0,
-            stage=data.stage,
-        )
-        row.tags = data.tags
-        db.add(row)
-        db.commit()
-        db.refresh(row)
-        return _row_to_deal(row)
-    finally:
-        db.close()
+    if data.deal_id in _deals:
+        raise ValueError(f"Deal '{data.deal_id}' already exists")
+    deal = Deal(
+        deal_id=data.deal_id,
+        name=data.name,
+        description=data.description,
+        document_count=0,
+        stage=data.stage,
+        tags=data.tags,
+    )
+    _deals[data.deal_id] = deal
+    return deal
 
 
 def get_deal(deal_id: str) -> Deal | None:
-    db = get_db()
-    try:
-        row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
-        return _row_to_deal(row) if row else None
-    finally:
-        db.close()
+    return _deals.get(deal_id)
 
 
 def list_deals() -> list[Deal]:
-    db = get_db()
-    try:
-        rows = db.query(DealRow).all()
-        return [_row_to_deal(r) for r in rows]
-    finally:
-        db.close()
+    return list(_deals.values())
 
 
 def update_deal(deal_id: str, data: DealUpdate) -> Deal | None:
-    db = get_db()
-    try:
-        row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
-        if not row:
-            return None
-        if data.name is not None:
-            row.name = data.name
-        if data.description is not None:
-            row.description = data.description
-        if data.stage is not None:
-            row.stage = data.stage
-        if data.tags is not None:
-            row.tags = data.tags
-        db.commit()
-        db.refresh(row)
-        return _row_to_deal(row)
-    finally:
-        db.close()
+    deal = _deals.get(deal_id)
+    if not deal:
+        return None
+    if data.name is not None:
+        deal.name = data.name
+    if data.description is not None:
+        deal.description = data.description
+    if data.stage is not None:
+        deal.stage = data.stage
+    if data.tags is not None:
+        deal.tags = data.tags
+    return deal
 
 
 def increment_doc_count(deal_id: str, count: int = 1):
-    db = get_db()
-    try:
-        row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
-        if row:
-            row.document_count += count
-            db.commit()
-    finally:
-        db.close()
+    if deal_id in _deals:
+        _deals[deal_id].document_count += count
 
 
 def add_document(deal_id: str, doc: DocumentMetadata):
-    db = get_db()
-    try:
-        row = DocumentRow(
-            doc_id=doc.doc_id,
-            deal_id=deal_id,
-            filename=doc.filename,
-            page_count=doc.page_count,
-            chunk_count=doc.chunk_count,
-        )
-        db.add(row)
-        db.commit()
-    finally:
-        db.close()
+    _documents.setdefault(deal_id, []).append(doc)
 
 
 def list_documents(deal_id: str) -> list[DocumentMetadata]:
-    db = get_db()
-    try:
-        rows = db.query(DocumentRow).filter(DocumentRow.deal_id == deal_id).all()
-        return [
-            DocumentMetadata(
-                doc_id=r.doc_id,
-                deal_id=r.deal_id,
-                filename=r.filename,
-                page_count=r.page_count,
-                chunk_count=r.chunk_count,
-            )
-            for r in rows
-        ]
-    finally:
-        db.close()
+    return _documents.get(deal_id, [])
+
+
+def delete_document(deal_id: str, doc_id: str) -> bool:
+    docs = _documents.get(deal_id, [])
+    before = len(docs)
+    _documents[deal_id] = [d for d in docs if d.doc_id != doc_id]
+    removed = len(_documents[deal_id]) < before
+    if removed and deal_id in _deals:
+        _deals[deal_id].document_count = max(0, _deals[deal_id].document_count - 1)
+    return removed
 
 
 def delete_deal(deal_id: str) -> bool:
-    db = get_db()
-    try:
-        row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
-        if not row:
-            return False
-        db.delete(row)  # Cascade deletes documents
-        db.commit()
-        return True
-    finally:
-        db.close()
-
-
-def _row_to_deal(row: DealRow) -> Deal:
-    """Convert a SQLAlchemy row to a Pydantic Deal model."""
-    return Deal(
-        deal_id=row.deal_id,
-        name=row.name,
-        description=row.description or "",
-        document_count=row.document_count or 0,
-        stage=row.stage or "Screening",
-        tags=row.tags,
-    )
+    _documents.pop(deal_id, None)
+    return _deals.pop(deal_id, None) is not None

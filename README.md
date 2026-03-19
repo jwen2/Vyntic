@@ -2,7 +2,7 @@
 
 Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired by Hebbia's matrix-based reasoning approach.
 
-**Fully local — no API keys required.** Runs on Ollama (DeepSeek-R1) + ChromaDB + Docling.
+**Powered by Google Gemini AI Studio** — uses Gemini 2.0 Flash Lite for fast inference with Gemma 3 27B as automatic fallback.
 
 ## Why Vyntic?
 
@@ -42,10 +42,10 @@ Private equity analysts spend hundreds of hours during due diligence manually re
 |  |col:deal_a| |col:deal_b| |col:deal_c|               |
 |  +----------+ +----------+ +----------+               |
 |                                                       |
-|  Ollama (local LLM + embeddings)                     |
-|  +------------------+ +-----------------+             |
-|  | deepseek-r1:8b   | | nomic-embed-text|             |
-|  +------------------+ +-----------------+             |
+|  Google Gemini AI Studio                              |
+|  +----------------------+ +---------------------+     |
+|  | gemini-2.0-flash-lite| | gemini-embedding-001|     |
+|  +----------------------+ +---------------------+     |
 +-------------------------------------------------------+
 ```
 
@@ -56,13 +56,14 @@ Private equity analysts spend hundreds of hours during due diligence manually re
 - **LangGraph Orchestration**: Manager/Worker fan-out pattern for parallel multi-deal queries
 - **Streaming SSE**: Token-by-token LLM output streamed to the frontend for immediate feedback
 - **Citation Grounding**: Every answer includes source file and page number references
-- **Fully Local**: All components run on your machine — no cloud APIs needed
+- **Automatic Fallback**: If Gemini 2.0 Flash Lite hits rate limits, automatically falls back to Gemma 3 27B
 
 ## Features
 
 ### Core Analysis
 - **Matrix comparison grid** — Ask questions across multiple deals simultaneously
 - **Streaming responses** — LLM output streams token-by-token with a live cursor
+- **Synthesis row** — Automatic cross-deal comparative analysis for each query
 - **Inline citations** — Clickable blue badges that show source document, page, and snippet
 - **Markdown rendering** — Bold, tables, bullets rendered inline; bar charts for numeric data
 - **Query templates** — Pre-built PE question library (Financials, Risk, Commercial, Deal Thesis)
@@ -71,6 +72,7 @@ Private equity analysts spend hundreds of hours during due diligence manually re
 ### Deal Management
 - **Drag-and-drop upload** — Drop PDF/Excel files directly onto deal cards
 - **Multi-file upload** — Upload an entire data room in one drop
+- **Document deletion** — Remove documents with hover-to-reveal delete button and confirmation dialog
 - **Pipeline stages** — Track deals through Screening, Due Diligence, IC Review, Closed
 - **Sector tags** — Tag deals by sector (Technology, Healthcare, Industrials, etc.)
 - **Excel-style selection** — Click, Ctrl+click, Shift+click to select which deals to query
@@ -84,10 +86,11 @@ Private equity analysts spend hundreds of hours during due diligence manually re
 
 | Component | Technology |
 |-----------|-----------|
-| **LLM** | DeepSeek-R1 8B (via Ollama) |
+| **LLM** | Gemini 2.0 Flash Lite (via Google AI Studio) |
+| **LLM Fallback** | Gemma 3 27B (automatic on rate limit) |
 | **Orchestration** | LangGraph (manager/worker state graph) |
 | **Vector DB** | ChromaDB (embedded, collection-per-deal isolation) |
-| **Embeddings** | nomic-embed-text (via Ollama) |
+| **Embeddings** | Gemini Embedding 001 (via Google AI Studio) |
 | **PDF Parsing** | Docling (local, table-aware, high-quality extraction) |
 | **Excel Parsing** | openpyxl |
 | **Backend** | FastAPI (Python 3.12) |
@@ -103,33 +106,27 @@ Private equity analysts spend hundreds of hours during due diligence manually re
 - **Docker Desktop** with at least **8 GB memory** allocated
   - Docker Desktop > Settings > Resources > Memory > 8 GB+
 - **Git** (to clone the repo)
+- **Google AI Studio API key** — get one free at [aistudio.google.com](https://aistudio.google.com)
 
-### Step 1: Start the services
+### Step 1: Configure your API key
+
+Create a `.env` file in the project root:
+
+```bash
+GEMINI_API_KEY=your_api_key_here
+```
+
+### Step 2: Start the services
 
 ```bash
 cd vyntic
 
-# CPU mode (Mac / Linux / Windows without NVIDIA GPU)
-docker compose --profile cpu up --build -d
-
-# GPU mode (Windows / Linux with NVIDIA GPU)
-docker compose --profile gpu up --build -d
+docker compose up --build -d
 ```
 
-This starts 3 containers:
-- `ollama` / `ollama-gpu` — Local LLM server (port 11434)
+This starts 2 containers:
 - `backend` — FastAPI API (port 8000)
 - `frontend` — Next.js UI (port 3100)
-
-### Step 2: Pull the AI models (first time only)
-
-```bash
-bash scripts/setup.sh
-```
-
-This downloads:
-- `deepseek-r1:8b` (~5 GB) — the LLM for reasoning
-- `nomic-embed-text` (~274 MB) — the embedding model
 
 ### Step 3: Verify everything is running
 
@@ -137,10 +134,6 @@ This downloads:
 # Check backend
 curl http://localhost:8000/health
 # -> {"status":"ok","service":"vyntic"}
-
-# Check Ollama has models
-curl http://localhost:11434/api/tags
-# -> lists deepseek-r1:8b and nomic-embed-text
 ```
 
 ### Step 4: Open the UI
@@ -241,6 +234,7 @@ Click **"Export CSV"** above the matrix to download results as a spreadsheet.
 | POST | `/deals/{deal_id}/documents` | Upload and index a document |
 | POST | `/deals/{deal_id}/documents/batch` | Upload multiple documents at once |
 | GET | `/deals/{deal_id}/documents` | List documents for a deal |
+| DELETE | `/deals/{deal_id}/documents/{doc_id}` | Delete a document and its vectors |
 | POST | `/deals/{deal_id}/query` | Query a single deal (RAG) |
 | POST | `/matrix/compare` | Compare multiple deals (batch) |
 | POST | `/matrix/compare/stream` | Compare deals with SSE streaming |
@@ -266,10 +260,8 @@ See [ROADMAP.md](./ROADMAP.md) for the full product roadmap, including completed
 | Problem | Solution |
 |---------|----------|
 | Backend won't start | Check Docker memory is >= 8 GB |
-| Model loading slow | First query loads model into RAM (~30s). Subsequent queries are faster |
-| "model requires more memory" | Increase Docker memory, or switch to `deepseek-r1:1.5b` in docker-compose.yml |
-| Ollama unhealthy | Run `docker compose restart ollama` |
+| "invalid argument" from Gemini | Verify your `GEMINI_API_KEY` in `.env` is correct |
+| Rate limit errors | The app auto-falls back to Gemma 3 27B. Wait a minute and retry |
 | Empty query results | Ensure documents were uploaded first (check deal doc count) |
 | Port 8000 in use | Run `lsof -i :8000 -t | xargs kill` then retry |
 | Matrix query timeout | LLM inference can take 60+ seconds. The proxy timeout is set to 5 minutes |
-| No NVIDIA GPU | Use `--profile cpu` instead of `--profile gpu` when starting services |

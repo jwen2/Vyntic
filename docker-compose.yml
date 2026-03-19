@@ -1,69 +1,18 @@
 services:
-  ollama:
-    image: ollama/ollama:latest
-    profiles: ["cpu"]
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      default:
-        aliases:
-          - ollama
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
-  ollama-gpu:
-    image: ollama/ollama:latest
-    profiles: ["gpu"]
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    networks:
-      default:
-        aliases:
-          - ollama
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OLLAMA_MODEL=deepseek-r1:8b
-      - EMBEDDING_MODEL=nomic-embed-text
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=gemini-2.0-flash-lite
+      - GEMINI_FALLBACK_MODEL=gemma-3-27b-it
+      - EMBEDDING_MODEL=models/gemini-embedding-001
       - CHROMA_PERSIST_DIR=/app/data/chroma
     volumes:
       - ./backend:/app
       - ./data:/app/data
       - ./sample_data:/app/sample_data:ro
-    depends_on:
-      ollama:
-        condition: service_healthy
-        required: false
-      ollama-gpu:
-        condition: service_healthy
-        required: false
     restart: unless-stopped
 
   frontend:
@@ -77,7 +26,6 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-      - next_cache:/app/.next
     restart: unless-stopped
 
   # Standalone frontend for development (uses host backend on port 8000)
@@ -90,10 +38,4 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-      - next_dev_cache:/app/.next
     restart: unless-stopped
-
-volumes:
-  ollama_data:
-  next_cache:
-  next_dev_cache:

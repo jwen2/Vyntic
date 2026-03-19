@@ -1,34 +1,29 @@
 """
-Embedding service using Ollama's local embedding models.
-Uses nomic-embed-text by default (768 dimensions).
-Falls back to hash-based mock if Ollama is unreachable.
+Embedding service using Google Gemini's text-embedding-004 model.
+Falls back to hash-based mock if the Gemini API is unreachable.
 """
-import httpx
+import google.generativeai as genai
 from app.config import settings
+
+# Configure the Gemini client once at module load
+if settings.gemini_api_key:
+    genai.configure(api_key=settings.gemini_api_key)
 
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings for a list of texts using Ollama."""
+    """Generate embeddings for a list of texts using Google Gemini."""
     all_embeddings = []
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        for text in texts:
-            try:
-                response = await client.post(
-                    f"{settings.ollama_base_url}/api/embed",
-                    json={
-                        "model": settings.embedding_model,
-                        "input": text,
-                    },
-                )
-                response.raise_for_status()
-                data = response.json()
-                # Ollama returns {"embeddings": [[...]]}
-                embedding = data["embeddings"][0]
-                all_embeddings.append(embedding)
-            except Exception as e:
-                print(f"Ollama embedding error, using mock: {e}")
-                all_embeddings.append(_mock_single(text))
+    for text in texts:
+        try:
+            result = genai.embed_content(
+                model=settings.embedding_model,
+                content=text,
+            )
+            all_embeddings.append(result["embedding"])
+        except Exception as e:
+            print(f"Gemini embedding error, using mock: {e}")
+            all_embeddings.append(_mock_single(text))
 
     return all_embeddings
 

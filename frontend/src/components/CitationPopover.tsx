@@ -33,9 +33,7 @@ export default function CitationPopover({ citations, children, onViewDocument }:
 
   return (
     <div className="relative" ref={ref}>
-      <div onClick={() => setOpen(!open)} className="cursor-pointer">
-        {children}
-      </div>
+      <div className="select-text">{children}</div>
       {open && (
         <div className="absolute z-50 top-full left-0 mt-1 w-96 max-h-80 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-xl p-3">
           <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
@@ -57,7 +55,7 @@ export default function CitationPopover({ citations, children, onViewDocument }:
                   </span>
                 )}
               </div>
-              <div className="text-gray-600 leading-relaxed">
+              <div className="text-gray-600 leading-relaxed select-text">
                 {c.text_snippet}
               </div>
             </div>

@@ -132,7 +132,7 @@ export default function MatrixGrid({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse bg-white rounded-lg shadow select-none">
+        <table className="w-full border-collapse bg-white rounded-lg shadow">
           <thead>
             <tr className="bg-gray-100">
               <th className="p-3 text-left font-semibold text-gray-700 border border-gray-200 min-w-[180px] sticky left-0 bg-gray-100 z-10">
@@ -219,15 +219,15 @@ export default function MatrixGrid({
               return (
                 <tr
                   key={dealId}
-                  onClick={(e) => handleRowClick(dealId, e)}
-                  className={`cursor-pointer transition-colors ${
+                  className={`transition-colors ${
                     isSelected
                       ? "bg-blue-50 hover:bg-blue-100/80"
                       : "hover:bg-gray-50"
                   }`}
                 >
                   <td
-                    className={`p-3 font-medium border border-gray-200 sticky left-0 z-10 transition-colors ${
+                    onClick={(e) => handleRowClick(dealId, e)}
+                    className={`p-3 font-medium border border-gray-200 sticky left-0 z-10 transition-colors cursor-pointer select-none ${
                       isSelected
                         ? "bg-blue-50 text-blue-900 border-l-2 border-l-blue-500"
                         : "bg-white text-gray-900"

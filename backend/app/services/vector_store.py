@@ -118,6 +118,16 @@ async def query_deal(deal_id: str, query_text: str, top_k: int = None) -> list[d
     return retrieved
 
 
+async def delete_doc_vectors(deal_id: str, doc_id: str) -> int:
+    """Delete all vectors for a specific document within a deal's collection."""
+    collection = _get_collection(deal_id)
+    results = collection.get(where={"doc_id": doc_id})
+    if results and results["ids"]:
+        collection.delete(ids=results["ids"])
+        return len(results["ids"])
+    return 0
+
+
 async def delete_deal_vectors(deal_id: str):
     """Delete all vectors in a deal's collection."""
     client = _get_client()

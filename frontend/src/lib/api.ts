@@ -15,8 +15,6 @@ export interface Citation {
   source_file: string;
   page: number;
   text_snippet: string;
-  /** Present on synthesis citations — the deal this source belongs to */
-  deal_id?: string;
 }
 
 export interface CellData {
@@ -102,6 +100,16 @@ export interface DocumentMetadata {
   filename: string;
   page_count: number;
   chunk_count: number;
+}
+
+export async function deleteDocument(
+  deal_id: string,
+  doc_id: string
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/deals/${deal_id}/documents/${doc_id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(await res.text());
 }
 
 export async function listDocuments(

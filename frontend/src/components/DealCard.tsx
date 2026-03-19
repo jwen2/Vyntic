@@ -26,6 +26,7 @@ interface Props {
     dealId: string,
     data: { stage?: string; tags?: string[] }
   ) => void;
+  onDocumentDeleted?: () => void;
   uploading: boolean;
 }
 
@@ -36,6 +37,7 @@ export default function DealCard({
   onDelete,
   onUploadFiles,
   onUpdateDeal,
+  onDocumentDeleted,
   uploading,
 }: Props) {
   const [dragging, setDragging] = useState(false);
@@ -250,7 +252,7 @@ export default function DealCard({
         />
 
         {/* Expanded detail */}
-        {expanded && <DealDetailPanel deal={deal} />}
+        {expanded && <DealDetailPanel deal={deal} onDocumentDeleted={onDocumentDeleted} />}
       </div>
     </li>
   );
