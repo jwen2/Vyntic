@@ -15,6 +15,7 @@ export interface Citation {
   source_file: string;
   page: number;
   text_snippet: string;
+  deal_id?: string;
 }
 
 export interface CellData {

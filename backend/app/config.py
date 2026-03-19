@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite:///./data/vyntic.db"
 
+    # File storage
+    uploads_dir: str = "/app/data/uploads"
+
     # ChromaDB
     chroma_persist_dir: str = "/app/data/chroma"
 

@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p /app/data/chroma
+RUN mkdir -p /app/data/chroma /app/data/uploads
 
 EXPOSE 8000
 

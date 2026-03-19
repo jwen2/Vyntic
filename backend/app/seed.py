@@ -5,8 +5,10 @@ Skips deals that already exist.
 """
 import asyncio
 import logging
+import shutil
 from pathlib import Path
 
+from app.config import settings
 from app.models.deal import DealCreate
 from app.services import deal_store
 from app.services.parser import parse_document
@@ -96,6 +98,12 @@ async def seed_sample_data():
 
             try:
                 file_bytes = filepath.read_bytes()
+
+                # Persist original file for document viewer
+                deal_upload_dir = Path(settings.uploads_dir) / deal_id
+                deal_upload_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(filepath, deal_upload_dir / filename)
+
                 doc_metadata, sections = await parse_document(
                     file_bytes, filename, deal_id
                 )

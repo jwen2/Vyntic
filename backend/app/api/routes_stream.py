@@ -64,7 +64,7 @@ async def _stream_deal_answer(deal_id: str, question: str):
                     "token": token,
                 }
 
-        citations = extract_citations(full_answer, retrieved)
+        citations = extract_citations(full_answer, retrieved, deal_id=deal_id)
         yield {
             "type": "done",
             "deal_id": deal_id,

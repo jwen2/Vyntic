@@ -16,7 +16,10 @@ export default function DocumentViewer({
   snippet,
   onClose,
 }: Props) {
-  const isPdf = filename.toLowerCase().endsWith(".pdf");
+  const lower = filename.toLowerCase();
+  const isPdf = lower.endsWith(".pdf");
+  const isExcel = lower.endsWith(".xlsx") || lower.endsWith(".xls");
+  const isPreviewable = isPdf || isExcel;
   const viewUrl = `/api/deals/${encodeURIComponent(dealId)}/documents/${encodeURIComponent(filename)}/view`;
 
   // Close on Escape key
@@ -68,11 +71,11 @@ export default function DocumentViewer({
 
         {/* Document content */}
         <div className="flex-1 min-h-0">
-          {isPdf ? (
+          {isPreviewable ? (
             <iframe
-              src={`${viewUrl}#page=${page}`}
+              src={isPdf ? `${viewUrl}#page=${page}` : viewUrl}
               className="w-full h-full border-0"
-              title={`${filename} - Page ${page}`}
+              title={`${filename}${isPdf ? ` - Page ${page}` : ""}`}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-500">

@@ -21,7 +21,7 @@ def build_context_string(retrieved_chunks: list[dict]) -> str:
     return "\n".join(parts)
 
 
-def extract_citations(answer: str, retrieved_chunks: list[dict]) -> list[Citation]:
+def extract_citations(answer: str, retrieved_chunks: list[dict], deal_id: str | None = None) -> list[Citation]:
     """Extract [Source N] references from the answer and map to chunk metadata."""
     # Find all [Source N] references
     source_refs = re.findall(r"\[Source\s+(\d+)\]", answer)
@@ -39,6 +39,7 @@ def extract_citations(answer: str, retrieved_chunks: list[dict]) -> list[Citatio
             source_file=chunk["source_file"],
             page=chunk["page"],
             text_snippet=chunk["content"][:300],
+            deal_id=deal_id or chunk.get("deal_id"),
         ))
 
     return citations

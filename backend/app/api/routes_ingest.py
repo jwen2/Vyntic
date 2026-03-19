@@ -1,6 +1,9 @@
 """Document ingestion routes — supports single and multi-file upload."""
+import os
+
 from fastapi import APIRouter, HTTPException, UploadFile, File
 
+from app.config import settings
 from app.models.document import DocumentMetadata
 from app.services.parser import parse_document
 from app.services.chunker import chunk_sections
@@ -16,6 +19,13 @@ async def _ingest_one(deal_id: str, file: UploadFile) -> DocumentMetadata:
         raise HTTPException(status_code=400, detail="Filename is required")
 
     file_bytes = await file.read()
+
+    # Persist original file for document viewer
+    deal_dir = os.path.join(settings.uploads_dir, deal_id)
+    os.makedirs(deal_dir, exist_ok=True)
+    dest_path = os.path.join(deal_dir, file.filename)
+    with open(dest_path, "wb") as f:
+        f.write(file_bytes)
 
     try:
         doc_metadata, sections = await parse_document(file_bytes, file.filename, deal_id)
@@ -54,11 +64,22 @@ async def delete_document(deal_id: str, doc_id: str):
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
 
+    # Look up filename before deleting metadata
+    docs = deal_store.list_documents(deal_id)
+    doc_meta = next((d for d in docs if d.doc_id == doc_id), None)
+
     removed = deal_store.delete_document(deal_id, doc_id)
     if not removed:
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
 
     chunks_deleted = await delete_doc_vectors(deal_id, doc_id)
+
+    # Clean up original file from uploads
+    if doc_meta:
+        file_path = os.path.join(settings.uploads_dir, deal_id, doc_meta.filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
     return {"deleted": True, "doc_id": doc_id, "chunks_removed": chunks_deleted}
 
 

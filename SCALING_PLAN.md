@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This plan replaces the self-hosted PoC stack (Ollama + ChromaDB on a single machine) with managed cloud services to support multi-tenant PE teams at scale: **Claude API for LLM, OpenAI Embeddings API, and Pinecone for vector storage**.
+This plan scales the current Gemini-powered PoC (local Docker, ChromaDB, local file storage) into a multi-tenant production system for PE teams. Each layer has a clear migration path with cost estimates.
 
 ---
 
@@ -10,11 +10,14 @@ This plan replaces the self-hosted PoC stack (Ollama + ChromaDB on a single mach
 
 | Layer | Technology | Limitation |
 |-------|-----------|------------|
-| LLM | DeepSeek-R1:8b via Ollama | Single GPU, no HA, ~15 tok/s |
-| Embeddings | nomic-embed-text via Ollama | Sequential, single-node |
+| LLM | Gemini 3 Flash via Google AI Studio | Free-tier rate limits, single API key |
+| Embeddings | gemini-embedding-001 via Google AI Studio | Sequential, single-key quota |
 | Vector DB | ChromaDB (local PersistentClient) | No replication, no auth, disk-bound |
-| PDF Parsing | Docling (local) | CPU-bound, fine for scale |
-| API Server | FastAPI single-instance | No horizontal scaling |
+| File Storage | Local disk (`/app/data/uploads/`) | Single-node, no CDN, no access control |
+| Metadata DB | SQLite (`vyntic.db`) | Single-writer, no concurrent access |
+| PDF Parsing | Docling (local) | CPU-bound, fine for PoC scale |
+| API Server | FastAPI single-instance (Docker) | No horizontal scaling |
+| Frontend | Next.js (Docker) | No CDN, single-instance |
 
 ---
 
@@ -22,154 +25,255 @@ This plan replaces the self-hosted PoC stack (Ollama + ChromaDB on a single mach
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
-│   Frontend   │────▶│   FastAPI     │────▶│  Claude API      │
-│  (Vercel)    │     │  (ECS/Cloud   │     │  (Anthropic)     │
-│              │     │   Run)        │     │  claude-sonnet-4-20250514     │
+│   Frontend   │────▶│   FastAPI     │────▶│  Google Gemini   │
+│  (Vercel /   │     │  (ECS/Cloud   │     │  Pro API         │
+│   CloudFront)│     │   Run)        │     │  (paid tier)     │
 └──────────────┘     └──────┬───────┘     └──────────────────┘
                             │
-                    ┌───────┼────────┐
-                    ▼       ▼        ▼
-             ┌──────────┐ ┌────────────┐ ┌──────────────┐
-             │ Pinecone │ │ OpenAI     │ │ PostgreSQL   │
-             │ (vector) │ │ Embeddings │ │ (metadata)   │
-             │ p2 pods  │ │ text-3-lg  │ │ (RDS/Cloud   │
-             └──────────┘ └────────────┘ │  SQL)        │
-                                         └──────────────┘
+                    ┌───────┼────────┬────────────┐
+                    ▼       ▼        ▼            ▼
+             ┌──────────┐ ┌────────────┐ ┌──────────┐ ┌──────────┐
+             │ Pinecone │ │    S3 /    │ │ Postgres │ │ CloudFront│
+             │ (vector) │ │    GCS     │ │ (RDS /   │ │ (PDF CDN) │
+             │ p2 pods  │ │ (files)    │ │ Cloud    │ └──────────┘
+             └──────────┘ └────────────┘ │ SQL)     │
+                                         └──────────┘
 ```
 
 ---
 
-## 3. Component-by-Component Migration
+## 3. Component-by-Component Scaling
 
-### 3a. LLM: Ollama (DeepSeek-R1:8b) → Claude API
+### 3a. LLM: Free-Tier Gemini → Paid Gemini API (or Claude)
 
-**Why Claude:** Best-in-class reasoning for financial document analysis, large context window (200K tokens), native citation support, and strong structured output.
+**Current:** Gemini 3 Flash (primary) + Gemini 2.5 Flash (fallback) on free-tier API keys with 15K token/min quotas.
 
-**Changes required:**
-- `single_deal_qa.py` — Replace `ChatOllama` with `ChatAnthropic` (langchain-anthropic)
-- `config.py` — Replace `ollama_*` settings with `anthropic_api_key`, `anthropic_model`
-- `prompts.py` — Adapt system prompts for Claude's instruction style
-- Remove Ollama service from `docker-compose.yml`
+**Production options:**
 
-**Model recommendation:** `claude-sonnet-4-20250514` for the best cost/quality balance on financial analysis.
-
-### 3b. Embeddings: Ollama (nomic-embed-text) → OpenAI Embeddings API
-
-**Why OpenAI Embeddings:** Industry-standard quality, high throughput, batch API available.
+| Option | Strengths | Cost (40K queries/mo) |
+|--------|-----------|----------------------|
+| Gemini 2.5 Pro (paid) | Best multimodal, 1M context, cheapest per-token | ~$400/mo |
+| Claude Sonnet (Anthropic) | Best financial reasoning, 200K context | ~$1,200/mo |
+| Hybrid routing | Gemini for simple lookups, Claude for complex analysis | ~$600/mo |
 
 **Changes required:**
-- `embedder.py` — Replace Ollama HTTP calls with `openai.embeddings.create()`
-- `config.py` — Add `openai_api_key`, change `embedding_model` to `text-embedding-3-large`, `embedding_dim` to 3072
-- Remove mock fallback (cloud service has SLA)
+- `llm.py` — Add paid API key, remove `convert_system_message_to_human` workaround if using models with system instruction support
+- `config.py` — Add `gemini_tier: str = "paid"` or switch to Anthropic SDK
+- Implement request-level model routing (simple queries → Flash, complex → Pro/Sonnet)
 
-### 3c. Vector DB: ChromaDB → Pinecone
+**Scaling levers:**
+- Prompt caching (Gemini supports cached context) — 30-50% cost reduction
+- Request batching for non-real-time synthesis queries
+- Per-tenant rate limiting to prevent noisy-neighbor issues
 
-**Why Pinecone:** Managed, scales to billions of vectors, built-in namespaces (maps to deal isolation), SOC2 compliant, sub-50ms P95 queries.
+### 3b. Embeddings: Free-Tier Gemini → Paid Embedding API
+
+**Current:** `gemini-embedding-001` (3072-dim) on free-tier, sequential single-key quota.
+
+**Production options:**
+
+| Option | Dimensions | Cost/MTok | Throughput |
+|--------|-----------|-----------|------------|
+| Gemini Embedding (paid) | 3072 | ~$0.004 | High (batch API) |
+| OpenAI text-embedding-3-large | 3072 | $0.13 | Very high (batch) |
+| Cohere embed-v3 | 1024 | $0.10 | High |
+
+**Changes required:**
+- `embedder.py` — Add batch embedding support (process chunks in groups of 100)
+- Add async queue for non-blocking embedding during ingestion
+- Implement embedding cache (Redis) for frequently queried terms
+
+**Scaling levers:**
+- Batch API (50% cheaper for non-real-time document ingestion)
+- Dimensionality reduction (Matryoshka embeddings at 1536-dim for 2x storage savings)
+- Pre-compute query embeddings for template questions
+
+### 3c. Vector DB: ChromaDB → Pinecone (or Qdrant Cloud)
+
+**Current:** ChromaDB PersistentClient on local Docker volume. One collection per deal (cosine similarity). No replication, no auth, disk-bound.
+
+**Production options:**
+
+| Option | Strengths | Cost (200K vectors) |
+|--------|-----------|-------------------|
+| Pinecone (Standard) | Managed, SOC2, namespaces map to deals | $70/mo |
+| Qdrant Cloud | Open-source core, payload filtering, self-host option | $50/mo |
+| pgvector (in Postgres) | Single DB for everything, simpler infra | $0 (included in RDS) |
+
+**Recommended:** Pinecone — namespaces provide 1:1 replacement for collection-per-deal isolation.
 
 **Changes required:**
 - `vector_store.py` — Replace ChromaDB client with Pinecone client
-- Map `deal_id` → Pinecone namespace (1:1 replacement for collection-per-deal)
+- Map `deal_id` → Pinecone namespace
 - `config.py` — Add `pinecone_api_key`, `pinecone_index_name`
-- Remove ChromaDB volume from `docker-compose.yml`
+- Remove ChromaDB volume from deployment
 
-### 3d. Metadata Store: Add PostgreSQL
+**Scaling levers:**
+- Pinecone serverless (pay-per-query, auto-scales to zero)
+- Metadata filtering (replace full-text fallback queries)
+- Hybrid search (sparse + dense retrieval for financial terminology)
 
-**Why:** Deal metadata, user accounts, RBAC, audit logs — ChromaDB currently holds some of this implicitly.
+### 3d. File Storage: Local Disk → S3/GCS + CDN
 
-- Add PostgreSQL (RDS or Cloud SQL) for structured data
-- Migrate deal/document metadata from in-memory to Postgres
-- Add SQLAlchemy or Prisma ORM layer
+**Current:** Original uploaded documents stored at `/app/data/uploads/{deal_id}/{filename}` on Docker volume. Served via FastAPI `FileResponse`. No access control, no CDN, lost on container restart without volume mount.
 
-### 3e. Compute: Docker Compose → Container Orchestration
+**Production architecture:**
 
-- Deploy FastAPI to **AWS ECS Fargate** or **GCP Cloud Run**
-- Auto-scaling based on request volume
-- Frontend to **Vercel** or **CloudFront + S3**
+```
+Upload Flow:
+  User → FastAPI → S3 (store original) → parse → embed → Pinecone
+
+View Flow:
+  User clicks citation → Frontend requests signed URL → S3 pre-signed URL (15min TTL)
+                       → Browser renders PDF via iframe with #page=N
+```
+
+**Changes required:**
+- `routes_ingest.py` — Replace `open(dest_path, "wb")` with `boto3.upload_fileobj()`
+- `routes_deals.py` — Replace `FileResponse` with S3 pre-signed URL redirect
+- Add `s3_bucket`, `s3_region` to config
+- Add CloudFront distribution for PDF serving (reduces latency for large files)
+- Implement per-deal folder isolation: `s3://{bucket}/{tenant_id}/{deal_id}/{filename}`
+
+**Access control:**
+- Pre-signed URLs with 15-minute TTL (no public access)
+- S3 bucket policy restricts to CloudFront origin only
+- Per-tenant IAM roles for data isolation
+- Audit log every document access
+
+**Scaling levers:**
+- S3 Intelligent-Tiering (auto-move cold deals to cheaper storage)
+- CloudFront caching for frequently viewed documents
+- S3 Transfer Acceleration for large file uploads
+- Lifecycle policies (archive deals older than 2 years to Glacier)
+
+**Cost estimate:**
+
+| Scale | Storage | Requests | CDN | Total |
+|-------|---------|----------|-----|-------|
+| 10 teams, 10K docs | ~50GB | ~100K reads/mo | ~200GB transfer | ~$15/mo |
+| 50 teams, 50K docs | ~250GB | ~500K reads/mo | ~1TB transfer | ~$60/mo |
+| 200 teams, 200K docs | ~1TB | ~2M reads/mo | ~5TB transfer | ~$200/mo |
+
+### 3e. Metadata DB: SQLite → PostgreSQL
+
+**Current:** SQLite (`vyntic.db`) + in-memory deal store. Single-writer, no concurrent access, lost without volume mount.
+
+**Production:**
+- AWS RDS PostgreSQL (or GCP Cloud SQL)
+- Add proper ORM migrations (Alembic)
+- Multi-tenant schema: add `tenant_id` to all tables
+- Row-level security (RLS) for deal isolation between teams
+
+**Changes required:**
+- `database.py` — Replace SQLite connection string with PostgreSQL
+- Add Alembic for schema migrations
+- `deal_store.py` — Remove in-memory store, use DB directly
+- Add connection pooling (SQLAlchemy `pool_size`, `max_overflow`)
+- Add `users`, `teams`, `audit_logs` tables
+
+**Tables to add for production:**
+
+```sql
+-- Multi-tenant support
+CREATE TABLE tenants (id UUID PRIMARY KEY, name TEXT, plan TEXT);
+CREATE TABLE users (id UUID PRIMARY KEY, tenant_id UUID REFERENCES tenants, email TEXT, role TEXT);
+
+-- Audit trail
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY,
+    tenant_id UUID, user_id UUID, deal_id TEXT,
+    action TEXT,  -- 'query', 'upload', 'delete', 'view_document'
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Document tracking (enhanced)
+CREATE TABLE documents (
+    doc_id TEXT PRIMARY KEY,
+    deal_id TEXT NOT NULL,
+    tenant_id UUID NOT NULL,
+    filename TEXT NOT NULL,
+    s3_key TEXT NOT NULL,        -- S3 object key
+    file_size_bytes BIGINT,
+    page_count INT DEFAULT 0,
+    chunk_count INT DEFAULT 0,
+    ingested_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 3f. Compute: Docker Compose → Container Orchestration
+
+**Current:** Docker Compose with 2 services (backend, frontend) on a single machine.
+
+**Production options:**
+
+| Option | Strengths | Complexity |
+|--------|-----------|------------|
+| AWS ECS Fargate | Serverless containers, auto-scaling, no cluster management | Low |
+| GCP Cloud Run | Scale-to-zero, pay-per-request, simple deployment | Low |
+| Kubernetes (EKS/GKE) | Full control, complex workloads, GPU scheduling | High |
+
+**Recommended:** ECS Fargate (or Cloud Run) for the API server. Vercel for the frontend.
+
+**Scaling configuration:**
+- Auto-scale 2-10 backend instances based on CPU/request count
+- Health check endpoint (`/health`) for load balancer
+- Graceful shutdown for in-flight SSE streams
+- Separate task definition for background ingestion (CPU-intensive parsing)
+
+### 3g. PDF Parsing: Local Docling → Async Worker Queue
+
+**Current:** Docling runs synchronously in the FastAPI request handler. Large PDFs block the API thread.
+
+**Production:**
+- Move parsing to background worker (Celery + Redis, or SQS + Lambda)
+- Return `202 Accepted` with a job ID immediately
+- Frontend polls for ingestion completion
+- Scale workers independently of API servers
+
+```
+Upload → API (store file in S3) → SQS message → Worker (parse + chunk + embed + store)
+                                                      ↓
+                                              Update DB: status = "ready"
+```
 
 ---
 
-## 4. Cost Estimate
+## 4. Cost Estimate at Scale
 
 ### Assumptions
-- **10 PE teams**, each analyzing **20 deals/month**
-- **50 documents per deal** (avg 30 pages each)
-- **200 queries per deal** across the analysis lifecycle
-- Total: **200 deals/month**, **10,000 documents/month**, **40,000 queries/month**
+- **10 PE teams**, **20 deals/month each**
+- **50 documents/deal** (avg 30 pages)
+- **200 queries/deal** across analysis lifecycle
+- **Total:** 200 deals/mo, 10K documents/mo, 40K queries/mo
 
-### 4a. Claude API (LLM)
+### Monthly Cost Breakdown
 
-| Parameter | Value |
-|-----------|-------|
-| Model | claude-sonnet-4-20250514 |
-| Input tokens per query | ~6,000 (system + context + question) |
-| Output tokens per query | ~800 |
-| Queries/month | 40,000 |
+| Component | Service | Monthly Cost |
+|-----------|---------|-------------|
+| LLM (Gemini Pro, paid) | Google AI Platform | $400–800 |
+| Embeddings (Gemini, paid) | Google AI Platform | ~$10 |
+| Vector DB | Pinecone Standard (1× p2 pod) | $70 |
+| File Storage | S3 + CloudFront (50GB) | ~$15 |
+| Metadata DB | RDS PostgreSQL (db.t4g.micro) | $15 |
+| Compute | ECS Fargate (2 tasks, 1vCPU, 2GB) | $60 |
+| Frontend | Vercel Pro | $20 |
+| Monitoring | CloudWatch + Sentry | $15 |
+| **Total** | | **$605–$1,005/mo** |
 
-| Item | Calculation | Monthly Cost |
-|------|------------|-------------|
-| Input tokens | 40,000 × 6,000 = 240M tokens × $3/MTok | **$720** |
-| Output tokens | 40,000 × 800 = 32M tokens × $15/MTok | **$480** |
-| **Subtotal** | | **$1,200/mo** |
+### Scaling Curve
 
-*With prompt caching (system prompts reused): ~30% savings → **~$850/mo***
+| Scale | Teams | Queries/mo | Docs/mo | Est. Monthly Cost |
+|-------|-------|-----------|---------|------------------|
+| Seed | 10 | 40K | 10K | $600–1,000 |
+| Growth | 50 | 200K | 50K | $2,500–4,000 |
+| Scale | 200 | 800K | 200K | $8,000–14,000 |
 
-### 4b. OpenAI Embeddings API
-
-| Parameter | Value |
-|-----------|-------|
-| Model | text-embedding-3-large |
-| Tokens per document chunk | ~300 |
-| Chunks per document | ~20 |
-| Documents/month | 10,000 |
-| Query embeddings/month | 40,000 |
-
-| Item | Calculation | Monthly Cost |
-|------|------------|-------------|
-| Document embeddings | 10,000 × 20 × 300 = 60M tokens × $0.13/MTok | **$7.80** |
-| Query embeddings | 40,000 × 50 tokens × $0.13/MTok | **$0.26** |
-| **Subtotal** | | **~$8/mo** |
-
-### 4c. Pinecone (Vector DB)
-
-| Parameter | Value |
-|-----------|-------|
-| Plan | Standard (p2 pod) |
-| Vectors stored | ~200K (growing) |
-| Queries/month | 40,000 |
-| Dimensions | 3,072 |
-
-| Item | Monthly Cost |
-|------|-------------|
-| 1× p2 pod (Standard) | **$70/mo** |
-| Scaling to 2 pods at ~500K vectors | **$140/mo** |
-| **Estimate** | **$70–140/mo** |
-
-### 4d. Infrastructure
-
-| Service | Monthly Cost |
-|---------|-------------|
-| AWS ECS Fargate (2 tasks, 1 vCPU, 2GB) | **$60/mo** |
-| RDS PostgreSQL (db.t4g.micro) | **$15/mo** |
-| Vercel (Pro, frontend) | **$20/mo** |
-| CloudWatch / monitoring | **$10/mo** |
-| **Subtotal** | **~$105/mo** |
-
-### 4e. Total Monthly Cost Summary
-
-| Component | Monthly Cost |
-|-----------|-------------|
-| Claude API (LLM) | $850–1,200 |
-| OpenAI Embeddings | ~$8 |
-| Pinecone | $70–140 |
-| Infrastructure | ~$105 |
-| **Total** | **$1,033–$1,453/mo** |
-
-### Cost Scaling Notes
-
-- **Linear scaling:** Costs scale linearly with queries and documents
-- **At 5× volume (50 teams):** ~$5,500–7,000/mo
-- **Biggest lever:** Claude API is ~80% of cost; use prompt caching and Haiku for simple queries to optimize
-- **Batch embedding:** OpenAI batch API offers 50% discount for non-real-time embedding jobs
+**Biggest cost lever:** LLM is 60-70% of total. Optimize with:
+- Prompt caching (30-50% savings)
+- Model routing (Flash for simple, Pro for complex)
+- Response caching for repeated template queries across deals
 
 ---
 
@@ -177,19 +281,35 @@ This plan replaces the self-hosted PoC stack (Ollama + ChromaDB on a single mach
 
 | Phase | Scope | Effort | Impact |
 |-------|-------|--------|--------|
-| **Phase 1** | Claude API + OpenAI Embeddings | 2–3 days | Removes GPU dependency, 10× faster responses |
-| **Phase 2** | Pinecone migration | 2 days | Production-grade vector storage with isolation |
-| **Phase 3** | PostgreSQL + auth | 3–5 days | Multi-tenant RBAC, audit trail |
-| **Phase 4** | Container orchestration + CI/CD | 3–5 days | Auto-scaling, zero-downtime deploys |
+| **Phase 1** | Paid Gemini API + file persistence (S3) | 2–3 days | Removes rate limits, enables document viewer |
+| **Phase 2** | Pinecone + PostgreSQL migration | 3–4 days | Production-grade storage with isolation |
+| **Phase 3** | Auth + multi-tenant (Clerk/Auth0) | 3–5 days | Team-based access control, audit trail |
+| **Phase 4** | ECS/Cloud Run + Vercel deployment | 2–3 days | Auto-scaling, zero-downtime deploys |
+| **Phase 5** | Async ingestion worker + monitoring | 2–3 days | Non-blocking uploads, observability |
 
 ---
 
-## 6. Risk Considerations
+## 6. Security & Compliance
+
+| Area | PoC | Production |
+|------|-----|-----------|
+| Auth | None | Clerk/Auth0 with RBAC |
+| Data isolation | ChromaDB collections | Pinecone namespaces + Postgres RLS + S3 prefix policies |
+| Encryption at rest | None | S3 SSE-S3, RDS encryption, Pinecone encrypted |
+| Encryption in transit | HTTP (Docker internal) | TLS everywhere (ALB → backend, S3, Pinecone) |
+| Document access | Direct FileResponse | Pre-signed URLs with TTL, audit log |
+| API keys | `.env` file | AWS Secrets Manager / GCP Secret Manager |
+| SOC2 | N/A | Pinecone, AWS, Vercel all SOC2 compliant |
+
+---
+
+## 7. Risk Considerations
 
 | Risk | Mitigation |
 |------|-----------|
-| API rate limits (Claude/OpenAI) | Implement retry with exponential backoff; request rate limit increases |
-| Vendor lock-in (Pinecone) | Abstract vector store behind interface (already done with current design) |
-| Data residency / compliance | Pinecone supports AWS us-east-1 and eu-west-1; Claude API supports EU region |
-| Cost overruns | Set billing alerts, implement per-tenant usage tracking, use Haiku for simple lookups |
-| Latency increase (cloud vs local) | Claude Sonnet is faster than local DeepSeek-R1:8b; net improvement expected |
+| Gemini API rate limits | Paid tier has 10x higher limits; implement retry with exponential backoff |
+| Vendor lock-in (Pinecone) | Vector store abstracted behind interface; can swap to pgvector or Qdrant |
+| Large PDF ingestion timeouts | Async worker queue decouples upload from processing |
+| S3 cost for large doc libraries | Intelligent-Tiering + Glacier lifecycle for archived deals |
+| Multi-region latency | CloudFront for files, regional API deployment for compute |
+| Data residency / GDPR | Choose S3 + RDS regions per tenant; Pinecone supports EU |

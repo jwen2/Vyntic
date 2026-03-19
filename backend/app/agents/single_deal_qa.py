@@ -41,7 +41,7 @@ async def answer_deal_question(deal_id: str, question: str) -> QueryResponse:
     ])
 
     # Step 4: Extract citations
-    citations = extract_citations(answer, retrieved)
+    citations = extract_citations(answer, retrieved, deal_id=deal_id)
 
     return QueryResponse(
         deal_id=deal_id,
