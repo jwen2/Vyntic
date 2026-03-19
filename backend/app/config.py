@@ -15,10 +15,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/vyntic.db"
 
     # File storage
-    uploads_dir: str = "/app/data/uploads"
+    uploads_dir: str = "./data/uploads"
 
     # ChromaDB
-    chroma_persist_dir: str = "/app/data/chroma"
+    chroma_persist_dir: str = "./data/chroma"
 
     # Chunking
     chunk_size: int = 1000
