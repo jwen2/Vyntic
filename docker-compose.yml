@@ -5,8 +5,8 @@ services:
       - "8000:8000"
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_MODEL=gemini-2.0-flash-lite
-      - GEMINI_FALLBACK_MODEL=gemma-3-27b-it
+      - GEMINI_MODEL=gemini-3-flash-preview
+      - GEMINI_FALLBACK_MODEL=gemini-2.5-flash
       - EMBEDDING_MODEL=models/gemini-embedding-001
       - CHROMA_PERSIST_DIR=/app/data/chroma
     volumes:
