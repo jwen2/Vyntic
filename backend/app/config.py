@@ -4,12 +4,12 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Google Gemini LLM
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.0-flash-lite"
-    gemini_fallback_model: str = "gemma-3-27b-it"
+    gemini_model: str = "gemini-3-flash-preview"
+    gemini_fallback_model: str = "gemini-2.5-flash"
 
     # Gemini Embeddings
     embedding_model: str = "models/gemini-embedding-001"
-    embedding_dim: int = 768
+    embedding_dim: int = 3072
 
     # Database
     database_url: str = "sqlite:///./data/vyntic.db"
