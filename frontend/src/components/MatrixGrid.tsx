@@ -1,5 +1,6 @@
 "use client";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { CellData, Citation, SYNTHESIS_DEAL_ID } from "@/lib/api";
 import MatrixCell from "./MatrixCell";
 import DocumentViewer from "./DocumentViewer";
@@ -39,6 +40,8 @@ export default function MatrixGrid({
   const [showTemplates, setShowTemplates] = useState(false);
   const [viewerState, setViewerState] = useState<ViewerState | null>(null);
   const templateRef = useRef<HTMLDivElement>(null);
+  const templateBtnRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   const handleAddQuery = () => {
     if (newQuery.trim()) {
@@ -61,17 +64,27 @@ export default function MatrixGrid({
     });
   }, []);
 
-  // Close template dropdown on click outside
+  // Position and close template dropdown
   useEffect(() => {
+    if (!showTemplates) return;
+    // Calculate position from button
+    if (templateBtnRef.current) {
+      const rect = templateBtnRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: rect.bottom + 4,
+        left: Math.max(8, rect.right - 384), // 384 = w-96, anchor right edge to button
+      });
+    }
     const handler = (e: MouseEvent) => {
-      if (templateRef.current && !templateRef.current.contains(e.target as Node)) {
+      if (
+        templateRef.current && !templateRef.current.contains(e.target as Node) &&
+        templateBtnRef.current && !templateBtnRef.current.contains(e.target as Node)
+      ) {
         setShowTemplates(false);
       }
     };
-    if (showTemplates) {
-      document.addEventListener("mousedown", handler);
-      return () => document.removeEventListener("mousedown", handler);
-    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [showTemplates]);
 
   const handleRowClick = (dealId: string, e: React.MouseEvent) => {
@@ -164,8 +177,9 @@ export default function MatrixGrid({
                   >
                     +
                   </button>
-                  <div className="relative" ref={templateRef}>
+                  <div>
                     <button
+                      ref={templateBtnRef}
                       onClick={() => setShowTemplates(!showTemplates)}
                       disabled={loading}
                       className="px-2 py-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors disabled:opacity-50"
@@ -176,38 +190,44 @@ export default function MatrixGrid({
                       </svg>
                     </button>
 
-                    {/* Template dropdown */}
-                    {showTemplates && (
-                      <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[420px] overflow-y-auto">
-                        <div className="p-2 border-b border-gray-100">
-                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            Question Templates
-                          </span>
-                        </div>
-                        {QUERY_TEMPLATES.map((cat) => (
-                          <div key={cat.name}>
-                            <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-gray-50 flex items-center gap-1.5">
-                              <span>{cat.icon}</span>
-                              {cat.name}
-                            </div>
-                            {cat.templates.map((t) => (
-                              <button
-                                key={t.label}
-                                onClick={() => handleTemplateSelect(t.query)}
-                                className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
-                              >
-                                <div className="text-sm font-medium text-gray-800">
-                                  {t.label}
-                                </div>
-                                <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                                  {t.query}
-                                </div>
-                              </button>
-                            ))}
+                    {/* Template dropdown — portaled to body so it never clips */}
+                    {showTemplates &&
+                      createPortal(
+                        <div
+                          ref={templateRef}
+                          className="fixed w-96 bg-white rounded-lg shadow-2xl border border-gray-200 z-[9999] max-h-[480px] overflow-y-auto"
+                          style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                        >
+                          <div className="p-2.5 border-b border-gray-100 sticky top-0 bg-white z-10">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                              Question Templates
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          {QUERY_TEMPLATES.map((cat) => (
+                            <div key={cat.name}>
+                              <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-gray-50 flex items-center gap-1.5 sticky top-10 z-[1]">
+                                <span>{cat.icon}</span>
+                                {cat.name}
+                              </div>
+                              {cat.templates.map((t) => (
+                                <button
+                                  key={t.label}
+                                  onClick={() => handleTemplateSelect(t.query)}
+                                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                                >
+                                  <div className="text-sm font-medium text-gray-800">
+                                    {t.label}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                                    {t.query}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>,
+                        document.body
+                      )}
                   </div>
                 </div>
               </th>
