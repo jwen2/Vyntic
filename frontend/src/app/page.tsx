@@ -6,6 +6,8 @@ import MatrixGrid from "@/components/MatrixGrid";
 import AddDealDialog from "@/components/AddDealDialog";
 import DealCard from "@/components/DealCard";
 import { exportMatrixCSV } from "@/lib/exportMatrix";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { Deal } from "@/lib/api";
 
 export default function Home() {
   const {
@@ -16,10 +18,12 @@ export default function Home() {
     removeDeal,
     uploadDocs,
     editDeal,
+    refresh: refreshDeals,
   } = useDeals();
   const matrix = useMatrix();
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
+  const [confirmDeleteDeal, setConfirmDeleteDeal] = useState<Deal | null>(null);
 
   // Sync deal IDs to matrix when deals change
   useEffect(() => {
@@ -86,9 +90,10 @@ export default function Home() {
                             : deal.deal_id
                         )
                       }
-                      onDelete={() => removeDeal(deal.deal_id)}
+                      onDelete={() => setConfirmDeleteDeal(deal)}
                       onUploadFiles={uploadDocs}
                       onUpdateDeal={editDeal}
+                      onDocumentDeleted={refreshDeals}
                       uploading={dealsLoading}
                     />
                   ))}
@@ -140,6 +145,20 @@ export default function Home() {
         <AddDealDialog
           onAdd={addDeal}
           onClose={() => setShowAddDeal(false)}
+        />
+      )}
+
+      {/* Confirm Delete Deal Dialog */}
+      {confirmDeleteDeal && (
+        <ConfirmDialog
+          title="Delete Deal"
+          message={`Remove "${confirmDeleteDeal.name}" and all its documents and indexed data? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={() => {
+            removeDeal(confirmDeleteDeal.deal_id);
+            setConfirmDeleteDeal(null);
+          }}
+          onCancel={() => setConfirmDeleteDeal(null)}
         />
       )}
     </div>

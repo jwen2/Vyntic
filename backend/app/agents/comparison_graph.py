@@ -5,10 +5,8 @@ Enforces zero context leak by ensuring each worker only queries its own collecti
 """
 import asyncio
 import operator
-import re
 from typing import Annotated, TypedDict
 
-from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 
@@ -17,6 +15,7 @@ from app.models.query import QueryResponse, Citation
 from app.models.matrix import CellData
 from app.agents.single_deal_qa import answer_deal_question
 from app.agents.prompts import COMPARISON_SYSTEM
+from app.agents.llm import invoke_with_fallback
 
 
 class ComparisonState(TypedDict):
@@ -79,19 +78,12 @@ async def _synthesis_node(state: ComparisonState) -> dict:
     deal_analyses_str = "\n\n".join(analyses_parts)
     system_prompt = COMPARISON_SYSTEM.format(deal_analyses=deal_analyses_str)
 
-    llm = ChatOllama(
-        model=settings.ollama_model,
-        base_url=settings.ollama_base_url,
-        num_predict=settings.max_tokens,
-    )
-
-    response = await llm.ainvoke([
+    synthesis = await invoke_with_fallback([
         SystemMessage(content=system_prompt),
         HumanMessage(content=f"Compare the following across all deals: {query}"),
     ])
 
-    _think_re = re.compile(r"<think>[\s\S]*?</think>", re.IGNORECASE)
-    return {"synthesis": _think_re.sub("", response.content).strip()}
+    return {"synthesis": synthesis}
 
 
 def build_comparison_graph() -> StateGraph:

@@ -1,54 +1,40 @@
 #!/bin/bash
 # ==============================================================================
 # Vyntic Setup Script
-# Pulls required Ollama models after docker-compose up
+# Verifies services are running after docker compose up
 # ==============================================================================
 
 set -e
 
-OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
-LLM_MODEL="${LLM_MODEL:-deepseek-r1:8b}"
-EMBED_MODEL="${EMBED_MODEL:-nomic-embed-text}"
+BACKEND_URL="${BACKEND_URL:-http://localhost:8000}"
 
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║           Vyntic — Model Setup                     ║"
+echo "║           Vyntic — Setup Verification                   ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
-# Wait for Ollama to be ready
-echo "⏳ Waiting for Ollama at $OLLAMA_HOST..."
+# Wait for backend to be ready
+echo "⏳ Waiting for backend at $BACKEND_URL..."
 MAX_RETRIES=30
 RETRY=0
-until curl -sf "$OLLAMA_HOST/api/tags" > /dev/null 2>&1; do
+until curl -sf "$BACKEND_URL/health" > /dev/null 2>&1; do
     RETRY=$((RETRY + 1))
     if [ $RETRY -ge $MAX_RETRIES ]; then
-        echo "✗ Ollama not reachable after $MAX_RETRIES attempts."
-        echo "  Make sure 'docker-compose up' is running."
+        echo "✗ Backend not reachable after $MAX_RETRIES attempts."
+        echo "  Make sure 'docker compose up' is running."
+        echo "  Check that GEMINI_API_KEY is set in .env"
         exit 1
     fi
     echo "  Attempt $RETRY/$MAX_RETRIES..."
     sleep 2
 done
-echo "✓ Ollama is ready!"
+echo "✓ Backend is ready!"
 echo ""
 
-# Pull LLM model
-echo "📦 Pulling LLM model: $LLM_MODEL"
-echo "   (This may take a few minutes on first run...)"
-docker-compose exec ollama ollama pull "$LLM_MODEL"
-echo "✓ $LLM_MODEL ready"
-echo ""
-
-# Pull embedding model
-echo "📦 Pulling embedding model: $EMBED_MODEL"
-docker-compose exec ollama ollama pull "$EMBED_MODEL"
-echo "✓ $EMBED_MODEL ready"
-echo ""
-
-# Verify models
-echo "Installed models:"
-curl -sf "$OLLAMA_HOST/api/tags" | python3 -m json.tool 2>/dev/null || \
-    curl -sf "$OLLAMA_HOST/api/tags"
+# Verify deals loaded
+echo "📋 Checking sample data..."
+DEAL_COUNT=$(curl -sf "$BACKEND_URL/deals" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+echo "✓ $DEAL_COUNT deals loaded"
 echo ""
 
 echo "╔══════════════════════════════════════════════════════════╗"
@@ -57,7 +43,9 @@ echo "║                                                         ║"
 echo "║  Frontend:  http://localhost:3100                       ║"
 echo "║  Backend:   http://localhost:8000                       ║"
 echo "║  API docs:  http://localhost:8000/docs                  ║"
-echo "║  Ollama:    http://localhost:11434                      ║"
+echo "║                                                         ║"
+echo "║  LLM:       Gemini 2.0 Flash Lite (Google AI Studio)   ║"
+echo "║  Fallback:  Gemma 3 27B (automatic on rate limit)      ║"
 echo "║                                                         ║"
 echo "║  Next: Run the E2E test:                               ║"
 echo "║    cd sample_data && python3 test_e2e.py               ║"
