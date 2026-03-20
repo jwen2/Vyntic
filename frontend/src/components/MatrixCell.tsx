@@ -25,7 +25,7 @@ import {
 import CitationPopover from "./CitationPopover";
 import InlineCitation from "./InlineCitation";
 
-const SOURCE_RE = /\[Source\s+(\d+)\]/g;
+const SOURCE_PATTERN = /\[Source\s+(\d+)\]/g;
 
 const CHART_COLORS = [
   "#3b82f6", // blue
@@ -44,7 +44,7 @@ function renderTextWithCitations(
   const parts: ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
-  const re = new RegExp(SOURCE_RE);
+  const re = new RegExp(SOURCE_PATTERN);
 
   while ((match = re.exec(text)) !== null) {
     if (match.index > lastIndex) {
@@ -74,7 +74,7 @@ function processCitations(
 ): ReactNode {
   return Children.map(children, (child) => {
     if (typeof child === "string") {
-      if (SOURCE_RE.test(child)) {
+      if (new RegExp(SOURCE_PATTERN).test(child)) {
         return <>{renderTextWithCitations(child, citations, onViewDocument)}</>;
       }
       return child;
