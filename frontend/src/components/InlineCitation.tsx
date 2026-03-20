@@ -18,9 +18,10 @@ export default function InlineCitation({ index, citation, onViewDocument }: Prop
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
+    // Use viewport-relative coords directly (no scroll offset) for position:fixed
     setPos({
-      top: rect.top + window.scrollY - 4,
-      left: rect.left + window.scrollX,
+      top: rect.top - 4,
+      left: rect.left,
     });
   }, []);
 
