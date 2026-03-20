@@ -40,12 +40,12 @@ async def answer_deal_question(deal_id: str, question: str) -> QueryResponse:
         HumanMessage(content=question),
     ])
 
-    # Step 4: Extract citations
-    citations = extract_citations(answer, retrieved, deal_id=deal_id)
+    # Step 4: Extract citations and strip hallucinated source refs
+    cleaned_answer, citations = extract_citations(answer, retrieved, deal_id=deal_id)
 
     return QueryResponse(
         deal_id=deal_id,
         question=question,
-        answer=answer,
+        answer=cleaned_answer,
         citations=citations,
     )

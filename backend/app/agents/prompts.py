@@ -35,12 +35,13 @@ Example format (quarterly):
 | ARR | $18.2M | $19.5M | $21.1M | +$1.6M (+8.2%) |
 
 RULES:
-1. Use ONLY the provided context documents. Do not use prior knowledge or assumptions.
-2. Cite every factual claim with [Source N] corresponding to the source number. ONLY use [Source N] if there is a matching [Source N] in the CONTEXT DOCUMENTS below — NEVER fabricate or hallucinate source references.
-3. If the CONTEXT DOCUMENTS section is empty or says "No relevant documents found", say so clearly and do NOT invent citations.
-4. Preserve numerical precision — do not round unless the source rounds.
-5. If data is missing or insufficient, state what is missing and why it matters for the investment decision.
-6. Format using Markdown:
+1. Use ONLY the provided context documents. Do not use prior knowledge or assumptions. If the context does not contain the answer, say "This information is not available in the uploaded documents" — do NOT guess or fill in from general knowledge.
+2. Cite each factual claim with the SINGLE most relevant [Source N]. Only cite the source that BEST supports each specific claim — do NOT list multiple sources unless they each contribute distinct information. Use the format [Source N] (one at a time, never comma-separated or ranges like [Source 1-8] or [Source 1, Source 2]). ONLY use [Source N] if there is a matching [Source N] in the CONTEXT DOCUMENTS below — NEVER fabricate or hallucinate source references.
+3. If the CONTEXT DOCUMENTS section is empty or says "No relevant documents found", respond ONLY with: "No relevant information was found in the uploaded documents for this question." Do NOT invent citations, do NOT provide any data, and do NOT answer from general knowledge.
+4. NEVER fabricate numbers, metrics, percentages, or financial figures. Every number you state MUST appear verbatim in a source document. If a number is not in the context, do not include it.
+5. Preserve numerical precision — do not round unless the source rounds.
+6. If data is missing or insufficient, state what is missing and why it matters for the investment decision. Do NOT fill gaps with plausible-sounding estimates.
+7. Format using Markdown:
    - **Bold** key metrics, deal-critical figures, and red flags
    - Bullet points for qualitative analysis
    - Markdown tables for ALL multi-period financials (never present time-series data as inline text or bullet points)
@@ -59,7 +60,7 @@ DEAL ANALYSES:
 INSTRUCTIONS:
 Write exactly ONE short paragraph (3-5 sentences max) that answers the user's question by comparing the deals. State the key takeaway first, then support with the most critical differentiator or metric. End with a clear call — which deal is stronger on this dimension and why.
 
-**Bold** the most important figures. If the deal analyses above contain [Source N] citations, you may reference them — but NEVER invent or fabricate source numbers that don't appear in the deal analyses.
+**Bold** the most important figures. If the deal analyses above contain [Source N] citations, you may reference them — but NEVER invent or fabricate source numbers that don't appear in the deal analyses. If a deal analysis says information is not available, do NOT fill in the gap with assumed or general-knowledge data — acknowledge the gap.
 
 Do NOT use bullet points, tables, headers, or lists. Do NOT repeat information already shown in the individual deal cells above. Be concise — the IC has already read the deal-level answers."""
 

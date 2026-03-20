@@ -20,8 +20,11 @@ export interface Citation {
 
 export interface CellData {
   answer: string;
-  citations: Citation[];
+  citations: (Citation | null)[];
   status: "pending" | "loading" | "complete" | "error";
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
 }
 
 export interface MatrixResponse {
@@ -148,7 +151,10 @@ export interface StreamDoneEvent {
   deal_id: string;
   query: string;
   answer: string;
-  citations: Citation[];
+  citations: (Citation | null)[];
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
 }
 
 export interface StreamErrorEvent {

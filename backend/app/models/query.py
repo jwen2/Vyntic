@@ -16,4 +16,4 @@ class QueryResponse(BaseModel):
     deal_id: str
     question: str
     answer: str
-    citations: list[Citation]
+    citations: list[Citation | None]
