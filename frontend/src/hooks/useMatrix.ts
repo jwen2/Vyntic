@@ -117,6 +117,9 @@ export function useMatrix() {
           answer: event.answer,
           citations: event.citations,
           status: "complete",
+          model: event.model,
+          fallback: event.fallback,
+          duration_ms: event.duration_ms,
         };
         updatedCells[event.deal_id] = dealCells;
         return { ...s, cells: updatedCells };

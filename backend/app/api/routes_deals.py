@@ -189,6 +189,8 @@ def _excel_to_html_response(file_path: str, filename: str, active_sheet: int | N
         html_parts.append("<tr>")
         for cell in row:
             val = "" if cell is None else str(cell)
+            # Escape HTML entities for all cells (headers and data)
+            val = val.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             cls = ""
             if tag == "td":
                 try:
@@ -196,8 +198,6 @@ def _excel_to_html_response(file_path: str, filename: str, active_sheet: int | N
                     cls = " class='num'"
                 except (ValueError, TypeError, AttributeError):
                     pass
-                # Escape HTML entities
-                val = val.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             html_parts.append(f"<{tag}{cls}>{val}</{tag}>")
         html_parts.append("</tr>")
         row_count += 1

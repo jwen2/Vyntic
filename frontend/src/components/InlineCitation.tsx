@@ -5,7 +5,7 @@ import { Citation } from "@/lib/api";
 
 interface Props {
   index: number;
-  citation: Citation | undefined;
+  citation: Citation | null | undefined;
   onViewDocument?: (citation: Citation) => void;
 }
 
@@ -47,11 +47,8 @@ export default function InlineCitation({ index, citation, onViewDocument }: Prop
   }, [open, updatePosition]);
 
   if (!citation) {
-    return (
-      <span className="inline text-[10px] bg-gray-100 text-gray-500 rounded px-1 font-mono">
-        [{index}]
-      </span>
-    );
+    // No matching source — hide the badge entirely to avoid showing broken citations
+    return null;
   }
 
   const handleViewClick = (e: React.MouseEvent) => {

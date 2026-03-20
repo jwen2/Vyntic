@@ -16,7 +16,7 @@ from app.utils.citations import build_context_string, extract_citations
 from app.agents.prompts import SINGLE_DEAL_SYSTEM, COMPARISON_SYSTEM
 
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.agents.llm import stream_with_fallback
+from app.agents.llm import stream_with_fallback, get_last_meta
 
 router = APIRouter(prefix="/matrix", tags=["matrix"])
 
@@ -64,13 +64,17 @@ async def _stream_deal_answer(deal_id: str, question: str):
                     "token": token,
                 }
 
-        citations = extract_citations(full_answer, retrieved, deal_id=deal_id)
+        cleaned_answer, citations = extract_citations(full_answer, retrieved, deal_id=deal_id)
+        meta = get_last_meta()
         yield {
             "type": "done",
             "deal_id": deal_id,
             "query": question,
-            "answer": full_answer,
-            "citations": [c.model_dump() for c in citations],
+            "answer": cleaned_answer,
+            "citations": [c.model_dump() if c else None for c in citations],
+            "model": meta.model_used if meta else "unknown",
+            "fallback": meta.fallback if meta else False,
+            "duration_ms": meta.duration_ms if meta else 0,
         }
 
     except Exception as e:
@@ -105,7 +109,8 @@ async def _stream_synthesis(query: str, deal_ids: list[str], answers: dict[str, 
                 full_answer += token
                 yield f"data: {json.dumps({'type': 'token', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'token': token})}\n\n"
 
-        yield f"data: {json.dumps({'type': 'done', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'answer': full_answer, 'citations': []})}\n\n"
+        meta = get_last_meta()
+        yield f"data: {json.dumps({'type': 'done', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'answer': full_answer, 'citations': [], 'model': meta.model_used if meta else 'unknown', 'fallback': meta.fallback if meta else False, 'duration_ms': meta.duration_ms if meta else 0})}\n\n"
 
     except Exception as e:
         yield f"data: {json.dumps({'type': 'error', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'error': str(e)})}\n\n"
