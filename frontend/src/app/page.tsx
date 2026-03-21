@@ -40,7 +40,7 @@ export default function Home() {
               <img src="/logo.jpg" alt="Vyntic" className="h-8 w-auto" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Vyntic</h1>
-                <p className="text-sm text-gray-500">AI Asset Analysis</p>
+                <p className="text-sm text-gray-500">AI Due Diligence Platform</p>
               </div>
             </div>
           </div>
