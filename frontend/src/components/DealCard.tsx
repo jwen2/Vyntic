@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, DragEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Deal } from "@/lib/api";
 import DealDetailPanel from "./DealDetailPanel";
 
@@ -40,6 +41,7 @@ export default function DealCard({
   onDocumentDeleted,
   uploading,
 }: Props) {
+  const router = useRouter();
   const [dragging, setDragging] = useState(false);
   const [showStageMenu, setShowStageMenu] = useState(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
@@ -113,19 +115,23 @@ export default function DealCard({
         <div className="flex items-start justify-between group">
           <div
             className="cursor-pointer flex-1 min-w-0"
-            onClick={onToggleExpand}
+            onClick={() => router.push(`/deal/${deal.deal_id}`)}
           >
-            <div className="text-sm font-semibold text-gray-900">
+            <div className="text-sm font-semibold text-gray-900 hover:text-blue-700 transition-colors">
               {deal.name}
             </div>
             <div className="text-xs text-gray-400 mt-0.5">
               {deal.deal_id} · {deal.document_count} doc
               {deal.document_count !== 1 ? "s" : ""}
-              <span className="ml-1 text-blue-400">
-                {expanded ? "▾" : "▸"}
-              </span>
             </div>
           </div>
+          <button
+            onClick={onToggleExpand}
+            className="text-gray-400 hover:text-gray-600 transition-colors text-xs ml-1 mt-0.5 px-1"
+            title="Expand details"
+          >
+            {expanded ? "▾" : "▸"}
+          </button>
           <button
             onClick={onDelete}
             className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-xs ml-2 mt-0.5"
@@ -233,11 +239,19 @@ export default function DealCard({
           </div>
         )}
 
+        {/* DD Workspace button */}
+        <button
+          onClick={() => router.push(`/deal/${deal.deal_id}`)}
+          className="mt-2 w-full text-xs font-medium text-blue-600 hover:text-blue-800 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors"
+        >
+          Open DD Workspace
+        </button>
+
         {/* Browse files button */}
         {!dragging && (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="mt-2 w-full text-[10px] text-gray-400 hover:text-blue-500 py-1 border border-dashed border-gray-200 rounded hover:border-blue-300 transition-colors"
+            className="mt-1.5 w-full text-[10px] text-gray-400 hover:text-blue-500 py-1 border border-dashed border-gray-200 rounded hover:border-blue-300 transition-colors"
           >
             Drop files or click to upload
           </button>

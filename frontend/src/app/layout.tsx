@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Vyntic — AI Asset Analysis",
-  description: "AI-powered asset analysis for PE deal comparison",
+  title: "Vyntic — AI Due Diligence Platform",
+  description: "AI-powered due diligence platform for private equity",
 };
 
 export default function RootLayout({

@@ -10,6 +10,7 @@ from app.api.routes_ingest import router as ingest_router
 from app.api.routes_query import router as query_router
 from app.api.routes_matrix import router as matrix_router
 from app.api.routes_stream import router as stream_router
+from app.api.routes_workstream import router as workstream_router
 
 app = FastAPI(
     title="Vyntic",
@@ -31,6 +32,7 @@ app.include_router(ingest_router)
 app.include_router(query_router)
 app.include_router(matrix_router)
 app.include_router(stream_router)
+app.include_router(workstream_router)
 
 
 @app.on_event("startup")
