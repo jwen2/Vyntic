@@ -25,7 +25,7 @@ import {
 import CitationPopover from "./CitationPopover";
 import InlineCitation from "./InlineCitation";
 
-const SOURCE_RE = /\[Source\s+(\d+)\]/g;
+const SOURCE_PATTERN = /\[Source\s+(\d+)\]/g;
 
 const CHART_COLORS = [
   "#3b82f6", // blue
@@ -38,13 +38,13 @@ const CHART_COLORS = [
 
 function renderTextWithCitations(
   text: string,
-  citations: Citation[],
+  citations: (Citation | null)[],
   onViewDocument?: (citation: Citation) => void
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
-  const re = new RegExp(SOURCE_RE);
+  const re = new RegExp(SOURCE_PATTERN);
 
   while ((match = re.exec(text)) !== null) {
     if (match.index > lastIndex) {
@@ -69,12 +69,12 @@ function renderTextWithCitations(
 
 function processCitations(
   children: ReactNode,
-  citations: Citation[],
+  citations: (Citation | null)[],
   onViewDocument?: (citation: Citation) => void
 ): ReactNode {
   return Children.map(children, (child) => {
     if (typeof child === "string") {
-      if (SOURCE_RE.test(child)) {
+      if (new RegExp(SOURCE_PATTERN).test(child)) {
         return <>{renderTextWithCitations(child, citations, onViewDocument)}</>;
       }
       return child;
@@ -327,7 +327,7 @@ export default function MatrixCell({
 
   return (
     <td className={tdClass}>
-      <CitationPopover citations={cell.citations} onViewDocument={handleViewDocument}>
+      <CitationPopover citations={cell.citations.filter((c): c is Citation => c !== null)} onViewDocument={handleViewDocument}>
         <div className={`prose prose-sm max-w-none text-gray-800 ${clampClass}`}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
@@ -424,10 +424,21 @@ export default function MatrixCell({
         </div>
         {cell.citations.length > 0 && (
           <div className="mt-1 text-xs text-blue-500">
-            {cell.citations.length} source{cell.citations.length > 1 ? "s" : ""}
+            {cell.citations.filter(c => c !== null).length} source{cell.citations.filter(c => c !== null).length > 1 ? "s" : ""}
           </div>
         )}
       </CitationPopover>
+
+      {/* Model analytics */}
+      {cell.model && (
+        <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-400">
+          <span className={`px-1.5 py-0.5 rounded-full font-mono ${cell.fallback ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
+            {cell.model}
+          </span>
+          {cell.fallback && <span className="text-amber-600 font-medium">fallback</span>}
+          {cell.duration_ms != null && <span>{(cell.duration_ms / 1000).toFixed(1)}s</span>}
+        </div>
+      )}
 
       {/* Chart + controls */}
       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">

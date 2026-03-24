@@ -20,8 +20,11 @@ export interface Citation {
 
 export interface CellData {
   answer: string;
-  citations: Citation[];
+  citations: (Citation | null)[];
   status: "pending" | "loading" | "complete" | "error";
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
 }
 
 export interface MatrixResponse {
@@ -148,7 +151,10 @@ export interface StreamDoneEvent {
   deal_id: string;
   query: string;
   answer: string;
-  citations: Citation[];
+  citations: (Citation | null)[];
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
 }
 
 export interface StreamErrorEvent {
@@ -159,6 +165,38 @@ export interface StreamErrorEvent {
 }
 
 export type StreamEvent = StreamTokenEvent | StreamDoneEvent | StreamErrorEvent;
+
+// ── Workstream SSE events (question-keyed instead of query-keyed) ──
+
+export interface WorkstreamTokenEvent {
+  type: "token";
+  deal_id: string;
+  question: string;
+  token: string;
+}
+
+export interface WorkstreamDoneEvent {
+  type: "done";
+  deal_id: string;
+  question: string;
+  answer: string;
+  citations: (Citation | null)[];
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
+}
+
+export interface WorkstreamErrorEvent {
+  type: "error";
+  deal_id: string;
+  question: string;
+  error: string;
+}
+
+export type WorkstreamEvent =
+  | WorkstreamTokenEvent
+  | WorkstreamDoneEvent
+  | WorkstreamErrorEvent;
 
 /**
  * Opens a streaming SSE connection to the matrix compare endpoint.
@@ -213,6 +251,152 @@ export function matrixCompareStream(
           if (!trimmed.startsWith("data: ")) continue;
           try {
             const event = JSON.parse(trimmed.slice(6)) as StreamEvent;
+            onEvent(event);
+          } catch {
+            // skip malformed
+          }
+        }
+      }
+
+      onFinish?.();
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        onError?.(err as Error);
+      }
+    }
+  })();
+
+  return controller;
+}
+
+/**
+ * Opens a streaming SSE connection to run a workstream against a single deal.
+ * Calls onEvent for each parsed SSE event (token, done, error).
+ * Returns an AbortController so the caller can cancel.
+ */
+export function workstreamStream(
+  dealId: string,
+  workstream: string,
+  questions: string[],
+  onEvent: (event: WorkstreamEvent) => void,
+  onFinish?: () => void,
+  onError?: (err: Error) => void
+): AbortController {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/deals/${dealId}/workstream/stream`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workstream, questions }),
+          signal: controller.signal,
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        onError?.(new Error(text));
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        onError?.(new Error("No response body"));
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(trimmed.slice(6)) as WorkstreamEvent;
+            onEvent(event);
+          } catch {
+            // skip malformed
+          }
+        }
+      }
+
+      onFinish?.();
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        onError?.(err as Error);
+      }
+    }
+  })();
+
+  return controller;
+}
+
+/**
+ * Stream a single question against a deal with optional workstream context.
+ */
+export function singleQuestionStream(
+  dealId: string,
+  question: string,
+  workstream: string,
+  onEvent: (event: WorkstreamEvent) => void,
+  onFinish?: () => void,
+  onError?: (err: Error) => void
+): AbortController {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/deals/${dealId}/workstream/query/stream`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, workstream }),
+          signal: controller.signal,
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        onError?.(new Error(text));
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        onError?.(new Error("No response body"));
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(trimmed.slice(6)) as WorkstreamEvent;
             onEvent(event);
           } catch {
             // skip malformed

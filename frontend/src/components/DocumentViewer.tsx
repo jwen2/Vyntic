@@ -46,8 +46,8 @@ export default function DocumentViewer({
         className="flex-1 bg-black/30 transition-opacity"
         onClick={onClose}
       />
-      {/* Slide-over panel */}
-      <div className="w-[600px] bg-white shadow-2xl flex flex-col animate-slide-in-right">
+      {/* Full-screen panel */}
+      <div className="w-[90vw] max-w-[1400px] bg-white shadow-2xl flex flex-col animate-slide-in-right">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
           <div className="min-w-0">
