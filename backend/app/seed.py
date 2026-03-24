@@ -28,19 +28,13 @@ SAMPLE_DEALS = [
         "description": "B2B SaaS ERP platform for mid-market",
         "stage": "Due Diligence",
         "tags": ["Technology"],
-        # Only seed 2 lightweight files on startup
         "files": [
             "acme_saas_cim.pdf",
             "acme_saas_financials.xlsx",
-        ],
-        # All other files are copied to uploads dir for on-demand ingestion
-        "store_only_files": [
-            "acme_saas_qoe_report.pdf",
-            "acme_saas_lbo_model.xlsx",
-            "acme_saas_sim.pdf",
-            "acme_saas_legal_dd_summary.pdf",
-            "acme_saas_detailed_financials.xlsx",
-            "acme_saas_operational_review.pdf",
+            "acme_saas_financial_dd.pdf",
+            "acme_saas_legal_dd.pdf",
+            "acme_saas_operational_dd.pdf",
+            "acme_saas_hr_dd.pdf",
         ],
     },
     {

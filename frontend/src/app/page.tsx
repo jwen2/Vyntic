@@ -37,7 +37,7 @@ export default function Home() {
         <div className="flex items-center justify-between max-w-[1600px] mx-auto">
           <div>
             <div className="flex items-center gap-3">
-              <img src="/logo.jpg" alt="Vyntic" className="h-8 w-auto" />
+              <img src="/temp_logo.jpg" alt="Vyntic" className="h-8 w-auto" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Vyntic</h1>
                 <p className="text-sm text-gray-500">AI Due Diligence Platform</p>
