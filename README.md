@@ -138,7 +138,7 @@ curl http://localhost:8000/health
 
 ### Step 4: Open the UI
 
-Open **http://localhost:3100** in your browser. Three sample deals (Acme Cloud, Pinnacle Healthcare, Summit Manufacturing) auto-load with documents on startup.
+Open **http://localhost:3100/landing** in your browser. This is the landing page. Three sample deals (Acme Cloud, Pinnacle Healthcare, Summit Manufacturing) auto-load with documents on startup.
 
 ---
 
@@ -199,7 +199,7 @@ npm test
 
 ### 1. Create a deal
 
-1. Open http://localhost:3100
+1. Open http://localhost:3100/landing
 2. Click **"+ Add Deal"** in the top-right
 3. Fill in Deal ID, Name, and Description
 4. Click **Create**
