@@ -20,7 +20,8 @@ export type WorkstreamId =
   | "financial"
   | "commercial"
   | "operational"
-  | "legal";
+  | "legal"
+  | "risk";
 
 export interface Workstream {
   id: WorkstreamId;
@@ -333,6 +334,60 @@ export const DD_WORKSTREAMS: Workstream[] = [
         label: "Anti-bribery & FCPA",
         query:
           "Is there any exposure to anti-bribery or FCPA risks? Are there adequate compliance programs in place for international operations?",
+      },
+    ],
+  },
+  {
+    id: "risk",
+    name: "Risk Scorecard",
+    icon: "🚦",
+    description:
+      "Automated risk scoring across key dimensions with red/yellow/green indicators",
+    templates: [
+      {
+        label: "Revenue quality risk",
+        query:
+          "Assess the REVENUE QUALITY risk on a scale of 1-5 (1=low risk, 5=critical risk). Consider: recurring vs. non-recurring mix, customer concentration, revenue volatility, and sustainability. Provide your score, a one-sentence justification, and list the top 2-3 supporting data points from the documents.",
+      },
+      {
+        label: "Customer concentration risk",
+        query:
+          "Assess the CUSTOMER CONCENTRATION risk on a scale of 1-5 (1=low risk, 5=critical risk). Consider: top customer revenue share, customer diversification, contract stability, and churn risk. Provide your score, a one-sentence justification, and list the top 2-3 supporting data points from the documents.",
+      },
+      {
+        label: "Management & key person risk",
+        query:
+          "Assess the MANAGEMENT & KEY PERSON risk on a scale of 1-5 (1=low risk, 5=critical risk). Consider: leadership depth, key person dependencies, succession planning, tenure, and track record. Provide your score, a one-sentence justification, and list the top 2-3 supporting data points from the documents.",
+      },
+      {
+        label: "Margin sustainability risk",
+        query:
+          "Assess the MARGIN SUSTAINABILITY risk on a scale of 1-5 (1=low risk, 5=critical risk). Consider: gross margin trends, cost structure, pricing power, input cost exposure, and competitive pressure on margins. Provide your score, a one-sentence justification, and list the top 2-3 supporting data points from the documents.",
+      },
+      {
+        label: "Regulatory & compliance risk",
+        query:
+          "Assess the REGULATORY & COMPLIANCE risk on a scale of 1-5 (1=low risk, 5=critical risk). Consider: regulatory environment, pending enforcement actions, compliance gaps, licensing requirements, and upcoming regulation changes. Provide your score, a one-sentence justification, and list the top 2-3 supporting data points from the documents.",
+      },
+      {
+        label: "Litigation risk",
+        query:
+          "Assess the LITIGATION risk on a scale of 1-5 (1=low risk, 5=critical risk). Consider: pending lawsuits, historical claims, contingent liabilities, and potential exposure amounts. Provide your score, a one-sentence justification, and list the top 2-3 supporting data points from the documents.",
+      },
+      {
+        label: "Capital intensity risk",
+        query:
+          "Assess the CAPITAL INTENSITY risk on a scale of 1-5 (1=low risk, 5=critical risk). Consider: capex requirements, maintenance vs. growth capex, asset-heavy vs. asset-light model, and free cash flow conversion. Provide your score, a one-sentence justification, and list the top 2-3 supporting data points from the documents.",
+      },
+      {
+        label: "Technology & obsolescence risk",
+        query:
+          "Assess the TECHNOLOGY & OBSOLESCENCE risk on a scale of 1-5 (1=low risk, 5=critical risk). Consider: technical debt, legacy system dependencies, competitive tech landscape, and R&D investment adequacy. Provide your score, a one-sentence justification, and list the top 2-3 supporting data points from the documents.",
+      },
+      {
+        label: "Overall risk summary",
+        query:
+          "Provide an EXECUTIVE RISK SUMMARY for this deal. Synthesize all risk dimensions (revenue quality, customer concentration, management depth, margin sustainability, regulatory exposure, litigation, capital intensity, technology) into a one-page assessment. For each dimension, assign a risk level (Low/Medium/High) with a traffic-light color (Green/Yellow/Red). End with an overall risk rating and the top 3 risks that require immediate attention or mitigation.",
       },
     ],
   },

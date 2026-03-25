@@ -66,6 +66,53 @@ def strip_invalid_sources(answer: str, num_chunks: int) -> str:
     return re.sub(r"\[Source\s+(\d+)\]", _replace, answer)
 
 
+def _fix_table_newlines(text: str) -> str:
+    """Ensure markdown tables have proper newlines between rows.
+
+    Some LLMs (notably Gemini) sometimes return table rows joined on a single
+    line like:  | A | B | | C | D |  instead of separate lines.  This detects
+    the pattern and inserts newlines so remark-gfm can parse them.
+    """
+    # Pattern: end-of-row pipe followed immediately by start-of-next-row pipe
+    # e.g. "| value |\n| next |" is fine, but "| value | | next |" needs fixing.
+    # Specifically: " | |" or "| |" at a boundary where a row ends and another begins.
+    # We look for: pipe + optional spaces + pipe + space + non-pipe (new row start)
+    # More robust: split on "| |" boundaries that look like row transitions
+
+    # If the text doesn't look like it contains a malformed table, skip
+    if " | |" not in text and "| |" not in text and "|| " not in text:
+        return text
+
+    lines = text.split("\n")
+    fixed_lines = []
+    for line in lines:
+        # Only process lines that look like they contain multiple table rows
+        # A well-formed table row starts and ends with |
+        # Detect: "| ... | | ... |" or "| ... || ... |"
+        if line.count("|") > 6 and re.search(r"\|\s*\|(?:\s*:?-+:?\s*\||\s*\w)", line):
+            # Split on the pattern where one row ends and another begins:
+            # "| <whitespace> |" where the second | starts a new row
+            # We split on " | | " or " || " patterns that indicate row boundaries
+            parts = re.split(r"(\|)\s*(\|)(?=\s*(?::?-+:?\s*\||[A-Za-z0-9$+\-*]))", line)
+            if len(parts) > 1:
+                # Reassemble: join the parts with newlines at row boundaries
+                rebuilt = ""
+                i = 0
+                while i < len(parts):
+                    rebuilt += parts[i]
+                    if i + 2 < len(parts) and parts[i + 1] == "|" and parts[i + 2] == "|":
+                        rebuilt += "|\n|"
+                        i += 3
+                    else:
+                        i += 1
+                fixed_lines.append(rebuilt)
+            else:
+                fixed_lines.append(line)
+        else:
+            fixed_lines.append(line)
+    return "\n".join(fixed_lines)
+
+
 def extract_citations(answer: str, retrieved_chunks: list[dict], deal_id: str | None = None) -> tuple[str, list[Citation]]:
     """Extract [Source N] references from the answer and map to chunk metadata.
 
@@ -74,6 +121,9 @@ def extract_citations(answer: str, retrieved_chunks: list[dict], deal_id: str | 
     positions are filled with None so that citations[N-1] always corresponds
     to [Source N] in the answer text.
     """
+    # Fix malformed table formatting from LLMs that omit newlines between rows
+    answer = _fix_table_newlines(answer)
+
     # First strip any hallucinated source references
     cleaned = strip_invalid_sources(answer, len(retrieved_chunks))
 

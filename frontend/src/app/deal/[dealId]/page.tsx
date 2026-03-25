@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Deal,
@@ -12,10 +12,58 @@ import {
 import { DD_WORKSTREAMS, WorkstreamId } from "@/lib/queryTemplates";
 import WorkstreamTabs from "@/components/WorkstreamTabs";
 import WorkstreamPanel, { QuestionResult } from "@/components/WorkstreamPanel";
+import RiskScorecard from "@/components/RiskScorecard";
 import DocumentViewer from "@/components/DocumentViewer";
 
 /** Session-level cache: workstreamId → { questionKey → result } */
 type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
+
+// ── sessionStorage helpers for persisting analysis across navigation ──
+const CACHE_PREFIX = "vyntic_ws_cache_";
+const TAB_PREFIX = "vyntic_ws_tab_";
+
+function loadCacheFromSession(dealId: string): WorkstreamCache {
+  try {
+    const raw = sessionStorage.getItem(CACHE_PREFIX + dealId);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
+
+function saveCacheToSession(dealId: string, cache: WorkstreamCache) {
+  try {
+    // Only persist completed/error results (not loading state)
+    const persistable: WorkstreamCache = {};
+    for (const [wsId, questions] of Object.entries(cache)) {
+      const filtered: Record<string, QuestionResult> = {};
+      for (const [q, r] of Object.entries(questions)) {
+        if (r.status === "complete" || r.status === "error") {
+          filtered[q] = r;
+        }
+      }
+      if (Object.keys(filtered).length > 0) {
+        persistable[wsId] = filtered;
+      }
+    }
+    sessionStorage.setItem(CACHE_PREFIX + dealId, JSON.stringify(persistable));
+  } catch {}
+}
+
+function loadTabFromSession(dealId: string): WorkstreamId {
+  try {
+    const raw = sessionStorage.getItem(TAB_PREFIX + dealId);
+    if (raw && ["financial", "commercial", "operational", "legal", "risk"].includes(raw)) {
+      return raw as WorkstreamId;
+    }
+  } catch {}
+  return "financial";
+}
+
+function saveTabToSession(dealId: string, tab: WorkstreamId) {
+  try {
+    sessionStorage.setItem(TAB_PREFIX + dealId, tab);
+  } catch {}
+}
 
 export default function DealWorkspacePage() {
   const params = useParams();
@@ -25,12 +73,12 @@ export default function DealWorkspacePage() {
   const [deal, setDeal] = useState<Deal | null>(null);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<WorkstreamId>("financial");
+  const [activeTab, setActiveTab] = useState<WorkstreamId>(() => loadTabFromSession(dealId));
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // ── Session-level result cache (survives tab switches) ──
-  const [resultCache, setResultCache] = useState<WorkstreamCache>({});
+  // ── Session-level result cache (survives tab switches AND navigation) ──
+  const [resultCache, setResultCache] = useState<WorkstreamCache>(() => loadCacheFromSession(dealId));
 
   // ── Document viewer state ──
   const [viewerState, setViewerState] = useState<{
@@ -54,10 +102,19 @@ export default function DealWorkspacePage() {
 
   const updateCacheForWorkstream = useCallback(
     (workstreamId: string, results: Record<string, QuestionResult>) => {
-      setResultCache((prev) => ({ ...prev, [workstreamId]: results }));
+      setResultCache((prev) => {
+        const next = { ...prev, [workstreamId]: results };
+        saveCacheToSession(dealId, next);
+        return next;
+      });
     },
-    []
+    [dealId]
   );
+
+  // Persist active tab to sessionStorage
+  useEffect(() => {
+    saveTabToSession(dealId, activeTab);
+  }, [dealId, activeTab]);
 
   const fetchDeal = useCallback(async () => {
     try {
@@ -275,6 +332,12 @@ export default function DealWorkspacePage() {
       {/* Workstream content */}
       <div className="flex-1 bg-white">
         <div className="max-w-[1600px] mx-auto h-full">
+          {activeTab === "risk" && (
+            <RiskScorecard
+              results={resultCache["risk"] || {}}
+              questionLabels={activeWorkstream.templates}
+            />
+          )}
           <WorkstreamPanel
             dealId={dealId}
             workstream={activeWorkstream}
