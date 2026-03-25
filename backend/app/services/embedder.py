@@ -2,12 +2,16 @@
 Embedding service using Google Gemini's text-embedding-004 model.
 Falls back to hash-based mock if the Gemini API is unreachable.
 """
+import asyncio
 import google.generativeai as genai
 from app.config import settings
 
 # Configure the Gemini client once at module load
 if settings.gemini_api_key:
     genai.configure(api_key=settings.gemini_api_key)
+
+# Timeout per embedding call (seconds)
+EMBED_TIMEOUT = 30
 
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
@@ -16,11 +20,21 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
 
     for text in texts:
         try:
-            result = genai.embed_content(
-                model=settings.embedding_model,
-                content=text,
+            # Run sync call in thread pool with timeout
+            result = await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda t=text: genai.embed_content(
+                        model=settings.embedding_model,
+                        content=t,
+                    ),
+                ),
+                timeout=EMBED_TIMEOUT,
             )
             all_embeddings.append(result["embedding"])
+        except asyncio.TimeoutError:
+            print(f"Gemini embedding timeout after {EMBED_TIMEOUT}s, using mock")
+            all_embeddings.append(_mock_single(text))
         except Exception as e:
             print(f"Gemini embedding error, using mock: {e}")
             all_embeddings.append(_mock_single(text))
