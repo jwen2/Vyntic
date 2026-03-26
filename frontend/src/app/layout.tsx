@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AuthGuard from "@/components/AuthGuard";
 
 export const metadata: Metadata = {
   title: "Vyntic — AI Due Diligence Platform",
@@ -13,7 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gray-50 text-gray-900 min-h-screen">{children}</body>
+      <body className="bg-gray-50 text-gray-900 min-h-screen">
+        <AuthGuard>{children}</AuthGuard>
+      </body>
     </html>
   );
 }

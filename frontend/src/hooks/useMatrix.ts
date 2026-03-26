@@ -15,6 +15,8 @@ export interface MatrixState {
   error: string | null;
 }
 
+const MATRIX_CACHE_KEY = "vyntic_matrix_cache";
+
 export function useMatrix() {
   const [state, setState] = useState<MatrixState>({
     deals: [],
@@ -26,6 +28,73 @@ export function useMatrix() {
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
   const [lastClickedDeal, setLastClickedDeal] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Keep ref of latest state to auto-save on unmount
+  const latestState = useRef(state);
+  useEffect(() => {
+    latestState.current = state;
+  }, [state]);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MATRIX_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setState((s) => ({
+          ...s,
+          queries: parsed.queries || [],
+          cells: parsed.cells || {},
+        }));
+      }
+    } catch {}
+    
+    // Save on exact unmount (navigation)
+    return () => {
+      const s = latestState.current;
+      if (s.queries.length === 0) return;
+      try {
+        const persistableCells: Record<string, Record<string, CellData>> = {};
+        for (const [dealId, dealCells] of Object.entries(s.cells)) {
+          persistableCells[dealId] = {};
+          for (const [query, cell] of Object.entries(dealCells)) {
+            if (cell.status === "complete" || cell.status === "error") {
+              persistableCells[dealId][query] = cell;
+            }
+          }
+        }
+        localStorage.setItem(
+          MATRIX_CACHE_KEY,
+          JSON.stringify({ queries: s.queries, cells: persistableCells })
+        );
+      } catch {}
+    };
+  }, []);
+
+  // Save to localStorage whenever queries or cells change (debounced for streaming performance)
+  useEffect(() => {
+    if (state.queries.length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      try {
+        const persistableCells: Record<string, Record<string, CellData>> = {};
+        for (const [dealId, dealCells] of Object.entries(state.cells)) {
+          persistableCells[dealId] = {};
+          for (const [query, cell] of Object.entries(dealCells)) {
+            if (cell.status === "complete" || cell.status === "error") {
+              persistableCells[dealId][query] = cell;
+            }
+          }
+        }
+        localStorage.setItem(
+          MATRIX_CACHE_KEY,
+          JSON.stringify({ queries: state.queries, cells: persistableCells })
+        );
+      } catch {}
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [state.queries, state.cells]);
 
   // Keep selectedDeals in sync when deals change — select all by default
   useEffect(() => {

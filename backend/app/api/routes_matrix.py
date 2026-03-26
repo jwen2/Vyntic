@@ -1,16 +1,18 @@
 """Matrix comparison routes — the core multi-deal comparison endpoint."""
 import asyncio
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.matrix import MatrixRequest, MatrixResponse, CellData
 from app.services import deal_store
 from app.agents.comparison_graph import compare_deals
+from app.database import UserRow
+from app.auth import get_current_user, require_deal_access
 
 router = APIRouter(prefix="/matrix", tags=["matrix"])
 
 
 @router.post("/compare", response_model=MatrixResponse)
-async def matrix_compare(request: MatrixRequest):
+async def matrix_compare(request: MatrixRequest, current_user: UserRow = Depends(get_current_user)):
     """
     Compare multiple deals across multiple queries.
     Returns a matrix: cells[deal_id][query] = CellData.
@@ -18,6 +20,7 @@ async def matrix_compare(request: MatrixRequest):
     """
     # Validate all deals exist
     for deal_id in request.deal_ids:
+        require_deal_access(current_user, deal_id)
         if not deal_store.get_deal(deal_id):
             raise HTTPException(
                 status_code=404,

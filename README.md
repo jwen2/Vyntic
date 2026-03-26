@@ -51,7 +51,9 @@ Private equity analysts spend hundreds of hours during due diligence manually re
 
 ## Key Design Decisions
 
-- **Collection Isolation**: Each deal uses a separate ChromaDB collection — zero context leak between deals
+- **Persistent Relational DB**: Deal metadata and user access bindings are stored in SQLite via SQLAlchemy (ready to scale to PostgreSQL).
+- **JWT Authentication & Tenant Isolation**: Secure user registration/login. Deal records are strictly bound to authorized users ensuring zero context leak dynamically.
+- **Collection Isolation**: Each deal uses a separate ChromaDB collection — reinforcing data containment per deal.
 - **Structural Parsing**: Docling for PDFs (high-quality table + text extraction), openpyxl for Excel
 - **LangGraph Orchestration**: Manager/Worker fan-out pattern for parallel multi-deal queries
 - **Streaming SSE**: Token-by-token LLM output streamed to the frontend for immediate feedback
@@ -89,11 +91,13 @@ Private equity analysts spend hundreds of hours during due diligence manually re
 | **LLM** | Gemini 2.0 Flash Lite (via Google AI Studio) |
 | **LLM Fallback** | Gemma 3 27B (automatic on rate limit) |
 | **Orchestration** | LangGraph (manager/worker state graph) |
+| **Relational DB** | SQLite (via SQLAlchemy) |
 | **Vector DB** | ChromaDB (embedded, collection-per-deal isolation) |
 | **Embeddings** | Gemini Embedding 001 (via Google AI Studio) |
 | **PDF Parsing** | Docling (local, table-aware, high-quality extraction) |
 | **Excel Parsing** | openpyxl |
 | **Backend** | FastAPI (Python 3.12) |
+| **Authentication**| JWT (python-jose, passlib) |
 | **Frontend** | Next.js 14, React 18, TailwindCSS |
 | **Streaming** | Server-Sent Events (SSE) |
 
@@ -136,9 +140,16 @@ curl http://localhost:8000/health
 # -> {"status":"ok","service":"vyntic"}
 ```
 
-### Step 4: Open the UI
+### Step 4: Open the UI and Log in
 
-Open **http://localhost:3100/landing** in your browser. This is the landing page. Three sample deals (Acme Cloud, Pinnacle Healthcare, Summit Manufacturing) auto-load with documents on startup.
+Open **http://localhost:3100** in your browser. 
+
+The application is secured. You will be redirected to the login page.
+Use the default administrator credentials auto-provisioned during startup:
+- **Email:** `admin@vyntic.com`
+- **Password:** `admin`
+
+Once logged in, the dashboard will load. Three sample deals (Acme Cloud, Pinnacle Healthcare, Summit Manufacturing) auto-load with documents on startup and are automatically assigned to this default admin account in the database.
 
 ---
 
@@ -225,6 +236,9 @@ Click **"Export CSV"** above the matrix to download results as a spreadsheet.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| POST | `/auth/login` | Authenticate and receive JWT |
+| POST | `/auth/register` | Create a new user account |
+| GET | `/auth/me` | Get current user profile |
 | GET | `/health` | Health check |
 | POST | `/deals` | Create a new deal |
 | GET | `/deals` | List all deals |
