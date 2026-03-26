@@ -343,6 +343,130 @@ export function workstreamStream(
   return controller;
 }
 
+// ── Doc-Matrix SSE events (doc_id keyed) ──
+
+export interface DocMatrixTokenEvent {
+  type: "token";
+  doc_id: string;
+  query: string;
+  token: string;
+}
+
+export interface DocMatrixDoneEvent {
+  type: "done";
+  doc_id: string;
+  query: string;
+  answer: string;
+  citations: (Citation | null)[];
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
+}
+
+export interface DocMatrixErrorEvent {
+  type: "error";
+  doc_id: string;
+  query: string;
+  error: string;
+}
+
+export type DocMatrixEvent =
+  | DocMatrixTokenEvent
+  | DocMatrixDoneEvent
+  | DocMatrixErrorEvent;
+
+/**
+ * Opens a streaming SSE connection to run a prompt against individual documents.
+ * Each document gets its own streaming response.
+ * Returns an AbortController so the caller can cancel.
+ */
+export function docMatrixStream(
+  dealId: string,
+  docIds: string[],
+  query: string,
+  onEvent: (event: DocMatrixEvent) => void,
+  onFinish?: () => void,
+  onError?: (err: Error) => void
+): AbortController {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/deals/${dealId}/doc-matrix/stream`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ doc_ids: docIds, query }),
+          signal: controller.signal,
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        onError?.(new Error(text));
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        onError?.(new Error("No response body"));
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          try {
+            const raw = JSON.parse(trimmed.slice(6));
+            // Derive event type from backend payload shape
+            let event: DocMatrixEvent;
+            if (raw.error) {
+              event = { type: "error", doc_id: raw.doc_id, query: "", error: raw.error };
+            } else if (raw.done) {
+              event = {
+                type: "done",
+                doc_id: raw.doc_id,
+                query: "",
+                answer: raw.answer,
+                citations: raw.citations || [],
+                model: raw.model,
+                fallback: raw.fallback,
+                duration_ms: raw.duration_ms,
+              };
+            } else {
+              event = { type: "token", doc_id: raw.doc_id, query: "", token: raw.token };
+            }
+            onEvent(event);
+          } catch {
+            // skip malformed
+          }
+        }
+      }
+
+      onFinish?.();
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        onError?.(err as Error);
+      }
+    }
+  })();
+
+  return controller;
+}
+
 /**
  * Stream a single question against a deal with optional workstream context.
  */

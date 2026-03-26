@@ -28,15 +28,17 @@ SAMPLE_DEALS = [
         "description": "B2B SaaS ERP platform for mid-market",
         "stage": "Due Diligence",
         "tags": ["Technology"],
+        # Core deal documents — parsed, chunked, and embedded on startup
         "files": [
             "acme_saas_cim.pdf",
             "acme_saas_financials.xlsx",
-        ],
-        "store_only_files": [
             "acme_saas_financial_dd.pdf",
             "acme_saas_legal_dd.pdf",
             "acme_saas_operational_dd.pdf",
             "acme_saas_hr_dd.pdf",
+        ],
+        # Additional files copied to uploads dir for on-demand ingestion
+        "store_only_files": [
             "acme_saas_qoe_report.pdf",
             "acme_saas_lbo_model.xlsx",
             "acme_saas_sim.pdf",

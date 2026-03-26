@@ -21,7 +21,8 @@ export type WorkstreamId =
   | "commercial"
   | "operational"
   | "legal"
-  | "risk";
+  | "risk"
+  | "documents";
 
 export interface Workstream {
   id: WorkstreamId;

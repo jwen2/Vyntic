@@ -118,6 +118,45 @@ async def query_deal(deal_id: str, query_text: str, top_k: int = None) -> list[d
     return retrieved
 
 
+async def query_document(deal_id: str, doc_id: str, query_text: str, top_k: int = 8) -> list[dict]:
+    """
+    Query vectors within a single document inside a deal's collection.
+    Uses ChromaDB 'where' filter to pre-filter by doc_id, ensuring
+    only chunks from the specified document are considered.
+    Returns list of {content, source_file, page, section_type, score}.
+    """
+    collection = _get_collection(deal_id)
+
+    if collection.count() == 0:
+        return []
+
+    query_embedding = await embed_query(query_text)
+
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=min(top_k, collection.count()),
+        where={"doc_id": doc_id},
+        include=["documents", "metadatas", "distances"],
+    )
+
+    retrieved = []
+    if results and results["documents"] and results["documents"][0]:
+        for doc, meta, distance in zip(
+            results["documents"][0],
+            results["metadatas"][0],
+            results["distances"][0],
+        ):
+            retrieved.append({
+                "content": doc,
+                "source_file": meta.get("source_file", ""),
+                "page": meta.get("page", 0),
+                "section_type": meta.get("section_type", "text"),
+                "score": 1 - distance,
+            })
+
+    return retrieved
+
+
 async def delete_doc_vectors(deal_id: str, doc_id: str) -> int:
     """Delete all vectors for a specific document within a deal's collection."""
     collection = _get_collection(deal_id)
