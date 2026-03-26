@@ -1,7 +1,7 @@
 """Document ingestion routes — supports single and multi-file upload."""
 import os
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from app.config import settings
 from app.models.document import DocumentMetadata
@@ -9,6 +9,8 @@ from app.services.parser import parse_document
 from app.services.chunker import chunk_sections
 from app.services.vector_store import upsert_chunks, delete_doc_vectors
 from app.services import deal_store
+from app.database import UserRow
+from app.auth import get_current_user, require_deal_access
 
 router = APIRouter(prefix="/deals/{deal_id}/documents", tags=["ingestion"])
 
@@ -49,8 +51,9 @@ async def _ingest_one(deal_id: str, file: UploadFile) -> DocumentMetadata:
 
 
 @router.post("", response_model=DocumentMetadata)
-async def ingest_document(deal_id: str, file: UploadFile = File(...)):
+async def ingest_document(deal_id: str, file: UploadFile = File(...), current_user: UserRow = Depends(get_current_user)):
     """Upload and ingest a single document into a deal's namespace."""
+    require_deal_access(current_user, deal_id)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -58,8 +61,9 @@ async def ingest_document(deal_id: str, file: UploadFile = File(...)):
 
 
 @router.delete("/{doc_id}")
-async def delete_document(deal_id: str, doc_id: str):
+async def delete_document(deal_id: str, doc_id: str, current_user: UserRow = Depends(get_current_user)):
     """Delete a document and its vectors from a deal."""
+    require_deal_access(current_user, deal_id)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -84,8 +88,9 @@ async def delete_document(deal_id: str, doc_id: str):
 
 
 @router.post("/batch", response_model=list[DocumentMetadata])
-async def ingest_batch(deal_id: str, files: list[UploadFile] = File(...)):
+async def ingest_batch(deal_id: str, files: list[UploadFile] = File(...), current_user: UserRow = Depends(get_current_user)):
     """Upload and ingest multiple documents at once into a deal's namespace."""
+    require_deal_access(current_user, deal_id)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")

@@ -143,6 +143,73 @@ export default function DocMatrixPanel({
   const [showTemplates, setShowTemplates] = useState(false);
   const [viewerState, setViewerState] = useState<ViewerState | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+
+  // ── Persistence Setup ──
+  const CACHE_KEY = useMemo(() => `vyntic_doc_matrix_${dealId}`, [dealId]);
+
+  const latestState = useRef({ queries, cells });
+  useEffect(() => {
+    latestState.current = { queries, cells };
+  }, [queries, cells]);
+
+  // Load from local storage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.queries && p.cells) {
+          setQueries(p.queries);
+          setCells(p.cells);
+        }
+      }
+    } catch {}
+    
+    // Save on exact unmount (tab switch / navigation)
+    return () => {
+      const { queries: sq, cells: sc } = latestState.current;
+      if (sq.length === 0) return;
+      try {
+        const persistableCells: typeof sc = {};
+        for (const [docId, docCells] of Object.entries(sc)) {
+          persistableCells[docId] = {};
+          for (const [q, r] of Object.entries(docCells)) {
+            if (r.status === "complete" || r.status === "error") {
+              persistableCells[docId][q] = r;
+            }
+          }
+        }
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({ queries: sq, cells: persistableCells })
+        );
+      } catch {}
+    };
+  }, [CACHE_KEY]);
+
+  // Debounced save
+  useEffect(() => {
+    if (queries.length === 0) return;
+    const tid = setTimeout(() => {
+      try {
+        const persistableCells: typeof cells = {};
+        for (const [docId, docCells] of Object.entries(cells)) {
+          persistableCells[docId] = {};
+          for (const [q, r] of Object.entries(docCells)) {
+            if (r.status === "complete" || r.status === "error") {
+              persistableCells[docId][q] = r;
+            }
+          }
+        }
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({ queries, cells: persistableCells })
+        );
+      } catch {}
+    }, 1000);
+    return () => clearTimeout(tid);
+  }, [queries, cells, CACHE_KEY]);
+
   const templateRef = useRef<HTMLDivElement>(null);
   const templateBtnRef = useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{

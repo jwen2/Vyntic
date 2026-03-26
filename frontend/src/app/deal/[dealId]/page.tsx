@@ -19,19 +19,21 @@ import DocumentViewer from "@/components/DocumentViewer";
 /** Session-level cache: workstreamId → { questionKey → result } */
 type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
 
-// ── sessionStorage helpers for persisting analysis across navigation ──
+// ── localStorage helpers for persisting analysis across navigation ──
 const CACHE_PREFIX = "vyntic_ws_cache_";
 const TAB_PREFIX = "vyntic_ws_tab_";
 
-function loadCacheFromSession(dealId: string): WorkstreamCache {
+function loadCacheFromLocal(dealId: string): WorkstreamCache {
+  if (typeof window === "undefined") return {};
   try {
-    const raw = sessionStorage.getItem(CACHE_PREFIX + dealId);
+    const raw = localStorage.getItem(CACHE_PREFIX + dealId);
     if (raw) return JSON.parse(raw);
   } catch {}
   return {};
 }
 
-function saveCacheToSession(dealId: string, cache: WorkstreamCache) {
+function saveCacheToLocal(dealId: string, cache: WorkstreamCache) {
+  if (typeof window === "undefined") return;
   try {
     // Only persist completed/error results (not loading state)
     const persistable: WorkstreamCache = {};
@@ -46,13 +48,14 @@ function saveCacheToSession(dealId: string, cache: WorkstreamCache) {
         persistable[wsId] = filtered;
       }
     }
-    sessionStorage.setItem(CACHE_PREFIX + dealId, JSON.stringify(persistable));
+    localStorage.setItem(CACHE_PREFIX + dealId, JSON.stringify(persistable));
   } catch {}
 }
 
-function loadTabFromSession(dealId: string): WorkstreamId {
+function loadTabFromLocal(dealId: string): WorkstreamId {
+  if (typeof window === "undefined") return "documents";
   try {
-    const raw = sessionStorage.getItem(TAB_PREFIX + dealId);
+    const raw = localStorage.getItem(TAB_PREFIX + dealId);
     if (raw && ["financial", "commercial", "operational", "legal", "risk", "documents"].includes(raw)) {
       return raw as WorkstreamId;
     }
@@ -60,9 +63,10 @@ function loadTabFromSession(dealId: string): WorkstreamId {
   return "documents";
 }
 
-function saveTabToSession(dealId: string, tab: WorkstreamId) {
+function saveTabToLocal(dealId: string, tab: WorkstreamId) {
+  if (typeof window === "undefined") return;
   try {
-    sessionStorage.setItem(TAB_PREFIX + dealId, tab);
+    localStorage.setItem(TAB_PREFIX + dealId, tab);
   } catch {}
 }
 
@@ -74,12 +78,18 @@ export default function DealWorkspacePage() {
   const [deal, setDeal] = useState<Deal | null>(null);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<WorkstreamId>(() => loadTabFromSession(dealId));
+  const [activeTab, setActiveTab] = useState<WorkstreamId>("documents");
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   // ── Session-level result cache (survives tab switches AND navigation) ──
-  const [resultCache, setResultCache] = useState<WorkstreamCache>(() => loadCacheFromSession(dealId));
+  const [resultCache, setResultCache] = useState<WorkstreamCache>({});
+
+  // Initialize from exact localStorage after first client mount
+  useEffect(() => {
+    setActiveTab(loadTabFromLocal(dealId));
+    setResultCache(loadCacheFromLocal(dealId));
+  }, [dealId]);
 
   // ── Document viewer state ──
   const [viewerState, setViewerState] = useState<{
@@ -105,16 +115,16 @@ export default function DealWorkspacePage() {
     (workstreamId: string, results: Record<string, QuestionResult>) => {
       setResultCache((prev) => {
         const next = { ...prev, [workstreamId]: results };
-        saveCacheToSession(dealId, next);
+        saveCacheToLocal(dealId, next);
         return next;
       });
     },
     [dealId]
   );
 
-  // Persist active tab to sessionStorage
+  // Persist active tab to localStorage
   useEffect(() => {
-    saveTabToSession(dealId, activeTab);
+    saveTabToLocal(dealId, activeTab);
   }, [dealId, activeTab]);
 
   const fetchDeal = useCallback(async () => {

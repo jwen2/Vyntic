@@ -6,12 +6,14 @@ Streams token-by-token LLM output for each document via SSE.
 import asyncio
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.services import deal_store
 from app.services.vector_store import query_document
+from app.database import UserRow
+from app.auth import get_current_user, require_deal_access
 from app.utils.citations import build_context_string, extract_citations
 from app.agents.prompts import SINGLE_DEAL_SYSTEM
 
@@ -83,11 +85,12 @@ async def _stream_doc_answer(deal_id: str, doc_id: str, query: str):
 
 
 @router.post("/stream")
-async def doc_matrix_stream(deal_id: str, request: DocMatrixRequest):
+async def doc_matrix_stream(deal_id: str, request: DocMatrixRequest, current_user: UserRow = Depends(get_current_user)):
     """
     SSE endpoint: streams token-by-token LLM output for each document in the
     doc matrix. Documents are processed with bounded concurrency (semaphore of 2).
     """
+    require_deal_access(current_user, deal_id)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")

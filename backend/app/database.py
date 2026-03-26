@@ -3,7 +3,8 @@ SQLAlchemy database setup.
 Uses SQLite for local/PoC — swap connection string to PostgreSQL for production.
 """
 import json
-from sqlalchemy import create_engine, Column, String, Integer, Text, ForeignKey, event
+from datetime import datetime
+from sqlalchemy import create_engine, Column, String, Integer, Text, Boolean, DateTime, ForeignKey, event
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, Session
 
 from app.config import settings
@@ -50,6 +51,32 @@ class DocumentRow(Base):
     chunk_count = Column(Integer, default=0)
 
     deal = relationship("DealRow", back_populates="documents")
+
+
+# ── Authentication models ──
+
+class UserRow(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    full_name = Column(String, default="")
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    deal_access = relationship("DealAccessRow", back_populates="user", cascade="all, delete-orphan")
+
+
+class DealAccessRow(Base):
+    __tablename__ = "deal_access"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String, default="analyst")  # "analyst", "lead", "admin"
+
+    user = relationship("UserRow", back_populates="deal_access")
 
 
 def init_db():

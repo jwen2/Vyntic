@@ -1,5 +1,42 @@
 const API_BASE = "/api";
+const TOKEN_KEY = "vyntic_auth_token";
 
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setAuthToken(token: string) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+}
+
+export function clearAuthToken() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+async function fetchWrapper(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = getAuthToken();
+  const headers = new Headers(options.headers || {});
+  
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  
+  const response = await fetch(url, { ...options, headers });
+  
+  if (response.status === 401) {
+    clearAuthToken();
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+  }
+  
+  return response;
+}
 export const SYNTHESIS_DEAL_ID = "__synthesis__";
 
 export interface Deal {
@@ -36,7 +73,7 @@ export async function createDeal(
   name: string,
   description: string = ""
 ): Promise<Deal> {
-  const res = await fetch(`${API_BASE}/deals`, {
+  const res = await fetchWrapper(`${API_BASE}/deals`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deal_id, name, description }),
@@ -46,13 +83,13 @@ export async function createDeal(
 }
 
 export async function listDeals(): Promise<Deal[]> {
-  const res = await fetch(`${API_BASE}/deals`);
+  const res = await fetchWrapper(`${API_BASE}/deals`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 export async function deleteDeal(deal_id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/deals/${deal_id}`, { method: "DELETE" });
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(await res.text());
 }
 
@@ -62,7 +99,7 @@ export async function uploadDocument(
 ): Promise<void> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${API_BASE}/deals/${deal_id}/documents`, {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents`, {
     method: "POST",
     body: form,
   });
@@ -77,7 +114,7 @@ export async function uploadDocumentsBatch(
   for (const file of files) {
     form.append("files", file);
   }
-  const res = await fetch(`${API_BASE}/deals/${deal_id}/documents/batch`, {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents/batch`, {
     method: "POST",
     body: form,
   });
@@ -110,7 +147,7 @@ export async function deleteDocument(
   deal_id: string,
   doc_id: string
 ): Promise<void> {
-  const res = await fetch(`${API_BASE}/deals/${deal_id}/documents/${doc_id}`, {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents/${doc_id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(await res.text());
@@ -119,7 +156,7 @@ export async function deleteDocument(
 export async function listDocuments(
   deal_id: string
 ): Promise<DocumentMetadata[]> {
-  const res = await fetch(`${API_BASE}/deals/${deal_id}/documents`);
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -128,7 +165,7 @@ export async function matrixCompare(
   deal_ids: string[],
   queries: string[]
 ): Promise<MatrixResponse> {
-  const res = await fetch(`${API_BASE}/matrix/compare`, {
+  const res = await fetchWrapper(`${API_BASE}/matrix/compare`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deal_ids, queries }),
@@ -214,9 +251,13 @@ export function matrixCompareStream(
 
   (async () => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(`${API_BASE}/matrix/compare/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ deal_ids, queries }),
         signal: controller.signal,
       });
@@ -286,11 +327,15 @@ export function workstreamStream(
 
   (async () => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(
         `${API_BASE}/deals/${dealId}/workstream/stream`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ workstream, questions }),
           signal: controller.signal,
         }
@@ -392,11 +437,15 @@ export function docMatrixStream(
 
   (async () => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(
         `${API_BASE}/deals/${dealId}/doc-matrix/stream`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ doc_ids: docIds, query }),
           signal: controller.signal,
         }
@@ -482,11 +531,15 @@ export function singleQuestionStream(
 
   (async () => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(
         `${API_BASE}/deals/${dealId}/workstream/query/stream`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ question, workstream }),
           signal: controller.signal,
         }
@@ -537,4 +590,49 @@ export function singleQuestionStream(
   })();
 
   return controller;
+}
+
+// ── Authentication API ──
+
+export interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  is_admin: boolean;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  setAuthToken(data.access_token);
+  return data;
+}
+
+export async function register(email: string, password: string, full_name: string = ""): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, full_name }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  setAuthToken(data.access_token);
+  return data;
+}
+
+export async function getMe(): Promise<User> {
+  const res = await fetchWrapper(`${API_BASE}/auth/me`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }

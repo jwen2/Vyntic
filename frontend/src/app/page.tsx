@@ -7,7 +7,7 @@ import AddDealDialog from "@/components/AddDealDialog";
 import DealCard from "@/components/DealCard";
 import { exportMatrixCSV } from "@/lib/exportMatrix";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { Deal } from "@/lib/api";
+import { Deal, User, getMe, clearAuthToken } from "@/lib/api";
 
 export default function Home() {
   const {
@@ -24,11 +24,26 @@ export default function Home() {
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
   const [confirmDeleteDeal, setConfirmDeleteDeal] = useState<Deal | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Sync deal IDs to matrix when deals change
   useEffect(() => {
-    matrix.setDeals(deals.map((d) => d.deal_id));
+    matrix.setDeals(deals.map((d: Deal) => d.deal_id));
   }, [deals, matrix.setDeals]);
+
+  // Fetch current user
+  useEffect(() => {
+    getMe()
+      .then(setCurrentUser)
+      .catch((err) => {
+        console.error("Failed to fetch user:", err);
+      });
+  }, []);
+
+  function handleLogout() {
+    clearAuthToken();
+    window.location.href = "/login";
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -44,15 +59,26 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-400">
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-gray-400 border-r border-gray-200 pr-4">
               {deals.length} deal{deals.length !== 1 ? "s" : ""} active
             </span>
+            {currentUser && (
+              <span className="text-sm font-medium text-gray-700">
+                {currentUser.full_name || currentUser.email}
+              </span>
+            )}
             <button
               onClick={() => setShowAddDeal(true)}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
             >
               + Add Deal
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              Logout
             </button>
           </div>
         </div>

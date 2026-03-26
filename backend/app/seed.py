@@ -97,7 +97,7 @@ async def _ingest_file(sample_dir: Path, deal_id: str, filename: str) -> bool:
         return False
 
 
-async def seed_sample_data():
+async def seed_sample_data(admin_user_id: int | None = None):
     """Create sample deals and ingest their documents if not already present."""
     sample_dir = _find_sample_dir()
     if not sample_dir:
@@ -123,6 +123,10 @@ async def seed_sample_data():
                     )
                 )
                 logger.info(f"  Created deal: {deal_info['name']}")
+                # Grant admin access to seeded deal
+                if admin_user_id:
+                    from app.auth import grant_deal_access
+                    grant_deal_access(admin_user_id, deal_id, role="admin")
             except ValueError:
                 logger.info(f"  Deal '{deal_id}' already exists — skipping create")
 
