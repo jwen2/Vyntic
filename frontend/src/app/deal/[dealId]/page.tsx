@@ -13,6 +13,7 @@ import { DD_WORKSTREAMS, WorkstreamId } from "@/lib/queryTemplates";
 import WorkstreamTabs from "@/components/WorkstreamTabs";
 import WorkstreamPanel, { QuestionResult } from "@/components/WorkstreamPanel";
 import RiskScorecard from "@/components/RiskScorecard";
+import DocMatrixPanel from "@/components/DocMatrixPanel";
 import DocumentViewer from "@/components/DocumentViewer";
 
 /** Session-level cache: workstreamId → { questionKey → result } */
@@ -52,11 +53,11 @@ function saveCacheToSession(dealId: string, cache: WorkstreamCache) {
 function loadTabFromSession(dealId: string): WorkstreamId {
   try {
     const raw = sessionStorage.getItem(TAB_PREFIX + dealId);
-    if (raw && ["financial", "commercial", "operational", "legal", "risk"].includes(raw)) {
+    if (raw && ["financial", "commercial", "operational", "legal", "risk", "documents"].includes(raw)) {
       return raw as WorkstreamId;
     }
   } catch {}
-  return "financial";
+  return "documents";
 }
 
 function saveTabToSession(dealId: string, tab: WorkstreamId) {
@@ -143,9 +144,17 @@ export default function DealWorkspacePage() {
     );
   }, [fetchDeal, fetchDocuments]);
 
-  const activeWorkstream = DD_WORKSTREAMS.find((w) => w.id === activeTab)!;
+  const activeWorkstream = DD_WORKSTREAMS.find((w) => w.id === activeTab);
 
-  const tabs = DD_WORKSTREAMS.map((w) => {
+  const docMatrixTab = {
+    id: "documents" as WorkstreamId,
+    name: "Doc Matrix",
+    icon: "📋",
+    questionCount: documents.length,
+    completedCount: documents.length,
+  };
+
+  const workstreamTabs = DD_WORKSTREAMS.map((w) => {
     const cached = resultCache[w.id] || {};
     const completedCount = w.templates.filter(
       (t) => cached[t.query]?.status === "complete"
@@ -158,6 +167,8 @@ export default function DealWorkspacePage() {
       completedCount,
     };
   });
+
+  const tabs = [docMatrixTab, ...workstreamTabs];
 
   if (loading) {
     return (
@@ -329,24 +340,36 @@ export default function DealWorkspacePage() {
         onTabChange={setActiveTab}
       />
 
-      {/* Workstream content */}
+      {/* Content */}
       <div className="flex-1 bg-white">
         <div className="max-w-[1600px] mx-auto h-full">
-          {activeTab === "risk" && (
-            <RiskScorecard
-              results={resultCache["risk"] || {}}
-              questionLabels={activeWorkstream.templates}
+          {activeTab === "documents" ? (
+            <DocMatrixPanel
+              documents={documents}
+              dealId={dealId}
+              onViewDocument={handleViewDocument}
             />
+          ) : (
+            <>
+              {activeTab === "risk" && activeWorkstream && (
+                <RiskScorecard
+                  results={resultCache["risk"] || {}}
+                  questionLabels={activeWorkstream.templates}
+                />
+              )}
+              {activeWorkstream && (
+                <WorkstreamPanel
+                  dealId={dealId}
+                  workstream={activeWorkstream}
+                  cachedResults={resultCache[activeTab] || {}}
+                  onResultsChange={(results) =>
+                    updateCacheForWorkstream(activeTab, results)
+                  }
+                  onViewDocument={handleViewDocument}
+                />
+              )}
+            </>
           )}
-          <WorkstreamPanel
-            dealId={dealId}
-            workstream={activeWorkstream}
-            cachedResults={resultCache[activeTab] || {}}
-            onResultsChange={(results) =>
-              updateCacheForWorkstream(activeTab, results)
-            }
-            onViewDocument={handleViewDocument}
-          />
         </div>
       </div>
 
