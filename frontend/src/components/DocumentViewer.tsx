@@ -43,20 +43,20 @@ export default function DocumentViewer({
     <div className="fixed inset-0 z-[9999] flex">
       {/* Overlay */}
       <div
-        className="flex-1 bg-black/30 transition-opacity"
+        className="flex-1 bg-black/30 dark:bg-black/60 transition-opacity"
         onClick={onClose}
       />
       {/* Full-screen panel */}
-      <div className="w-[90vw] max-w-[1400px] bg-white shadow-2xl flex flex-col animate-slide-in-right">
+      <div className="w-[90vw] max-w-[1400px] bg-white dark:bg-gray-900 shadow-2xl flex flex-col animate-slide-in-right">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
           <div className="min-w-0">
-            <h3 className="font-semibold text-gray-900 truncate">{filename}</h3>
-            <span className="text-sm text-gray-500">Page {page}</span>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{filename}</h3>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Page {page}</span>
           </div>
           <button
             onClick={onClose}
-            className="ml-4 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors text-xl leading-none"
+            className="ml-4 p-1 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors text-xl leading-none"
             title="Close viewer"
           >
             &#10005;
@@ -64,9 +64,9 @@ export default function DocumentViewer({
         </div>
 
         {/* Citation snippet */}
-        <div className="p-3 bg-amber-50 border-b border-amber-100 text-sm shrink-0">
-          <span className="font-medium text-amber-800">Referenced text:</span>
-          <p className="mt-1 text-gray-700 leading-relaxed">{snippet}</p>
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-900 text-sm shrink-0">
+          <span className="font-medium text-amber-800 dark:text-amber-300">Referenced text:</span>
+          <p className="mt-1 text-gray-700 dark:text-gray-300 leading-relaxed">{snippet}</p>
         </div>
 
         {/* Document content */}
@@ -78,9 +78,9 @@ export default function DocumentViewer({
               title={`${filename}${isPdf ? ` - Page ${page}` : ""}`}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-500">
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-500 dark:text-gray-400">
               <svg
-                className="w-16 h-16 mb-4 text-gray-300"
+                className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -92,7 +92,7 @@ export default function DocumentViewer({
                   d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
                 />
               </svg>
-              <p className="text-lg font-medium text-gray-700 mb-2">
+              <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Inline preview not available
               </p>
               <p className="text-sm mb-4">
