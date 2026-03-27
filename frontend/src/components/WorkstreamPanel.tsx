@@ -237,19 +237,19 @@ export default function WorkstreamPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Workstream header */}
-      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
+      <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <span className="text-xl">{workstream.icon}</span>
             {workstream.name}
           </h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             {workstream.description}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {completedCount > 0 && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 dark:text-gray-500">
               {completedCount}/{workstream.templates.length} complete
             </span>
           )}
@@ -258,7 +258,7 @@ export default function WorkstreamPanel({
             disabled={runningAll}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
               runningAll
-                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed"
                 : "bg-blue-600 text-white hover:bg-blue-700"
             }`}
           >
@@ -275,7 +275,7 @@ export default function WorkstreamPanel({
       </div>
 
       {/* Custom question input */}
-      <div className="p-4 bg-gray-50 border-b border-gray-200">
+      <div className="p-4 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
         <div className="flex gap-2">
           <input
             type="text"
@@ -283,12 +283,12 @@ export default function WorkstreamPanel({
             onChange={(e) => setCustomQuestion(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCustomSubmit()}
             placeholder={`Ask a custom ${workstream.name.toLowerCase()} question...`}
-            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <button
             onClick={handleCustomSubmit}
             disabled={!customQuestion.trim()}
-            className="px-4 py-2 text-sm font-medium bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium bg-gray-700 dark:bg-gray-600 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Ask
           </button>
@@ -357,20 +357,20 @@ function QuestionRow({
   }, [result?.status]);
 
   return (
-    <div className="border-b border-gray-100">
+    <div className="border-b border-gray-100 dark:border-gray-800">
       {/* Question header */}
       <div
-        className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${
-          hasResult ? "bg-white" : ""
+        className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+          hasResult ? "bg-white dark:bg-gray-900" : ""
         }`}
         onClick={() => hasResult && setExpanded(!expanded)}
       >
         {/* Status indicator */}
         <div className="flex-shrink-0">
           {result?.status === "complete" ? (
-            <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
+            <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
               <svg
-                className="w-3 h-3 text-emerald-600"
+                className="w-3 h-3 text-emerald-600 dark:text-emerald-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -386,18 +386,18 @@ function QuestionRow({
           ) : result?.status === "loading" ? (
             <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
           ) : result?.status === "error" ? (
-            <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center">
-              <span className="text-red-600 text-xs font-bold">!</span>
+            <div className="w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+              <span className="text-red-600 dark:text-red-400 text-xs font-bold">!</span>
             </div>
           ) : (
-            <div className="w-5 h-5 rounded-full border-2 border-gray-200" />
+            <div className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-700" />
           )}
         </div>
 
         {/* Question text */}
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-800">{label}</div>
-          <div className="text-xs text-gray-400 truncate">{query}</div>
+          <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</div>
+          <div className="text-xs text-gray-400 dark:text-gray-500 truncate">{query}</div>
         </div>
 
         {/* Actions + model analytics (matching MatrixCell style) */}
@@ -407,26 +407,26 @@ function QuestionRow({
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
                   result.fallback
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-gray-100 text-gray-500"
+                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                    : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                 }`}
               >
                 {result.model}
               </span>
               {result.fallback && (
-                <span className="text-[10px] text-amber-600 font-medium">
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
                   fallback
                 </span>
               )}
               {result.duration_ms != null && (
-                <span className="text-[10px] text-gray-400">
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">
                   {(result.duration_ms / 1000).toFixed(1)}s
                 </span>
               )}
             </div>
           )}
           {sourceCount > 0 && result?.status === "complete" && (
-            <span className="text-[10px] text-blue-500">
+            <span className="text-[10px] text-blue-500 dark:text-blue-400">
               {sourceCount} source{sourceCount > 1 ? "s" : ""}
             </span>
           )}
@@ -436,7 +436,7 @@ function QuestionRow({
                 e.stopPropagation();
                 setExpanded(!expanded);
               }}
-              className="text-xs text-gray-400 hover:text-gray-600"
+              className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
             >
               {expanded ? "Collapse" : "Expand"}
             </button>
@@ -446,7 +446,7 @@ function QuestionRow({
               e.stopPropagation();
               onRun();
             }}
-            className="text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+            className="text-xs px-2.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
             title="Run this question"
           >
             {result?.status === "loading" ? "Running..." : hasResult ? "Re-run" : "Run"}
@@ -457,27 +457,27 @@ function QuestionRow({
       {/* Answer content */}
       {(expanded || result?.status === "loading") && hasResult && (
         <div className="px-4 pb-4 pl-12">
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-100 dark:border-gray-700">
             {result.status === "loading" && cleanAnswer.length === 0 ? (
-              <div className="flex items-center gap-2 text-sm text-gray-400">
+              <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
                 <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
                 Analyzing...
               </div>
             ) : (
               <>
-                <div className="prose prose-sm max-w-none text-gray-800">
+                <div className="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                       table: ({ children }) => (
-                        <div className="not-prose overflow-x-auto my-3 rounded-lg border border-gray-200 shadow-sm bg-white">
+                        <div className="not-prose overflow-x-auto my-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
                           <table className="text-xs border-collapse w-full min-w-[280px]">
                             {children}
                           </table>
                         </div>
                       ),
                       thead: ({ children }) => (
-                        <thead className="bg-gradient-to-b from-slate-50 to-slate-100/80">
+                        <thead className="bg-gradient-to-b from-slate-50 to-slate-100/80 dark:from-gray-800 dark:to-gray-800/80">
                           {children}
                         </thead>
                       ),
@@ -486,10 +486,10 @@ function QuestionRow({
                         const isDelta = isDeltaHeader(text);
                         return (
                           <th
-                            className={`border-b border-r border-gray-200 last:border-r-0 px-3 py-2.5 text-[11px] font-semibold whitespace-nowrap tracking-wide ${
+                            className={`border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0 px-3 py-2.5 text-[11px] font-semibold whitespace-nowrap tracking-wide ${
                               isDelta
-                                ? "text-gray-500 bg-gray-50/50 italic"
-                                : "text-gray-700"
+                                ? "text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/50 italic"
+                                : "text-gray-700 dark:text-gray-300"
                             }`}
                           >
                             {children}
@@ -497,7 +497,7 @@ function QuestionRow({
                         );
                       },
                       tr: ({ children }) => (
-                        <tr className="even:bg-slate-50/40 hover:bg-blue-50/30 transition-colors border-b border-gray-100 last:border-b-0">
+                        <tr className="even:bg-slate-50/40 dark:even:bg-gray-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0">
                           {children}
                         </tr>
                       ),
@@ -509,12 +509,12 @@ function QuestionRow({
                         const delta = isDeltaCell(raw);
                         return (
                           <td
-                            className={`border-r border-gray-100 last:border-r-0 px-3 py-2 text-xs tabular-nums font-medium ${
+                            className={`border-r border-gray-100 dark:border-gray-800 last:border-r-0 px-3 py-2 text-xs tabular-nums font-medium ${
                               delta === "positive"
-                                ? "text-emerald-700 bg-emerald-50/40"
+                                ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20"
                                 : delta === "negative"
-                                ? "text-red-700 bg-red-50/40"
-                                : "text-gray-700"
+                                ? "text-red-700 dark:text-red-400 bg-red-50/40 dark:bg-red-950/20"
+                                : "text-gray-700 dark:text-gray-300"
                             }`}
                           >
                             {processCitations(children, result.citations, onViewDocument)}
@@ -538,21 +538,21 @@ function QuestionRow({
                         </li>
                       ),
                       h1: ({ children }) => (
-                        <h3 className="text-base font-bold mt-3 mb-1.5 text-gray-900">{children}</h3>
+                        <h3 className="text-base font-bold mt-3 mb-1.5 text-gray-900 dark:text-gray-100">{children}</h3>
                       ),
                       h2: ({ children }) => (
-                        <h4 className="text-sm font-bold mt-2.5 mb-1 text-gray-900">{children}</h4>
+                        <h4 className="text-sm font-bold mt-2.5 mb-1 text-gray-900 dark:text-gray-100">{children}</h4>
                       ),
                       h3: ({ children }) => (
-                        <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-800">{children}</h5>
+                        <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-800 dark:text-gray-200">{children}</h5>
                       ),
                       strong: ({ children }) => (
-                        <strong className="font-semibold text-gray-900">
+                        <strong className="font-semibold text-gray-900 dark:text-gray-100">
                           {children}
                         </strong>
                       ),
                       blockquote: ({ children }) => (
-                        <blockquote className="border-l-3 border-blue-300 pl-3 my-2 text-sm text-gray-600 italic">
+                        <blockquote className="border-l-3 border-blue-300 dark:border-blue-600 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
                           {children}
                         </blockquote>
                       ),
@@ -566,9 +566,9 @@ function QuestionRow({
                 )}
                 {/* Bottom analytics bar (matches MatrixCell) */}
                 {result.status === "complete" && (
-                  <div className="mt-3 pt-2 border-t border-gray-100 flex items-center gap-3 flex-wrap">
+                  <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center gap-3 flex-wrap">
                     {sourceCount > 0 && (
-                      <span className="text-xs text-blue-500">
+                      <span className="text-xs text-blue-500 dark:text-blue-400">
                         {sourceCount} source{sourceCount > 1 ? "s" : ""}
                       </span>
                     )}
@@ -577,19 +577,19 @@ function QuestionRow({
                         <span
                           className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
                             result.fallback
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-gray-100 text-gray-500"
+                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                              : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                           }`}
                         >
                           {result.model}
                         </span>
                         {result.fallback && (
-                          <span className="text-[10px] text-amber-600 font-medium">
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
                             fallback
                           </span>
                         )}
                         {result.duration_ms != null && (
-                          <span className="text-[10px] text-gray-400">
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">
                             {(result.duration_ms / 1000).toFixed(1)}s
                           </span>
                         )}

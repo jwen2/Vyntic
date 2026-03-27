@@ -124,15 +124,25 @@ function TimeSeriesChart({
   const isPercentage = series[0]?.isPercentage ?? false;
 
   const commonAxisProps = {
-    tick: { fontSize: 10, fill: "#6b7280" },
-    axisLine: { stroke: "#e5e7eb" },
+    tick: { fontSize: 10, fill: "#9ca3af" },
+    axisLine: { stroke: "#374151" },
     tickLine: false,
   };
 
-  const tooltipFormatter = (value: number) => [
-    formatTooltipValue(value, isPercentage),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tooltipFormatter = (value: any) => [
+    formatTooltipValue(Number(value), isPercentage),
     "",
   ];
+
+  const tooltipStyle = {
+    fontSize: 11,
+    borderRadius: 8,
+    border: "1px solid #374151",
+    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.3)",
+    backgroundColor: "#1f2937",
+    color: "#e5e7eb",
+  };
 
   if (chartType === "area") {
     return (
@@ -146,13 +156,10 @@ function TimeSeriesChart({
               </linearGradient>
             ))}
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
           <XAxis dataKey="period" {...commonAxisProps} />
           <YAxis {...commonAxisProps} width={45} tickFormatter={(v) => isPercentage ? `${v}%` : `$${v}M`} />
-          <Tooltip
-            contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-            formatter={tooltipFormatter}
-          />
+          <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
           {metrics.length > 1 && <Legend wrapperStyle={{ fontSize: 10 }} />}
           {metrics.map((metric, i) => (
             <Area
@@ -175,13 +182,10 @@ function TimeSeriesChart({
     return (
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
           <XAxis dataKey="period" {...commonAxisProps} />
           <YAxis {...commonAxisProps} width={45} tickFormatter={(v) => isPercentage ? `${v}%` : `$${v}M`} />
-          <Tooltip
-            contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-            formatter={tooltipFormatter}
-          />
+          <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
           {metrics.length > 1 && <Legend wrapperStyle={{ fontSize: 10 }} />}
           {metrics.map((metric, i) => (
             <Line
@@ -203,13 +207,13 @@ function TimeSeriesChart({
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
         <XAxis dataKey="period" {...commonAxisProps} />
         <YAxis {...commonAxisProps} width={45} tickFormatter={(v) => isPercentage ? `${v}%` : `$${v}M`} />
         <Tooltip
-          contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
+          contentStyle={tooltipStyle}
           formatter={tooltipFormatter}
-          cursor={{ fill: "rgba(59, 130, 246, 0.05)" }}
+          cursor={{ fill: "rgba(59, 130, 246, 0.1)" }}
         />
         {metrics.length > 1 && <Legend wrapperStyle={{ fontSize: 10 }} />}
         {metrics.map((metric, i) => (
@@ -274,7 +278,7 @@ export default function MatrixCell({
 
   if (!cell) {
     return (
-      <td className="p-3 text-gray-400 text-sm border border-gray-200">—</td>
+      <td className="p-3 text-gray-400 dark:text-gray-600 text-sm border border-gray-200 dark:border-gray-700">—</td>
     );
   }
 
@@ -283,16 +287,16 @@ export default function MatrixCell({
     const streamingText = stripThinkTags(cell.answer);
     if (!streamingText) {
       return (
-        <td className={`p-3 border border-gray-200 text-sm align-top ${synthesis ? "min-w-[350px]" : "max-w-xs"}`}>
-          <div className="flex items-center gap-2 text-amber-600">
+        <td className={`p-3 border border-gray-200 dark:border-gray-700 text-sm align-top ${synthesis ? "min-w-[350px]" : "max-w-xs"}`}>
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <div className="animate-pulse text-xs">Reasoning...</div>
           </div>
         </td>
       );
     }
     return (
-      <td className={`p-3 border border-gray-200 text-sm align-top ${synthesis ? "min-w-[350px]" : "max-w-xs"}`}>
-        <div className={`prose prose-sm max-w-none text-gray-800 ${synthesis ? "" : "line-clamp-6"}`}>
+      <td className={`p-3 border border-gray-200 dark:border-gray-700 text-sm align-top ${synthesis ? "min-w-[350px]" : "max-w-xs"}`}>
+        <div className={`prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 ${synthesis ? "" : "line-clamp-6"}`}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingText}</ReactMarkdown>
         </div>
         <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
@@ -302,10 +306,10 @@ export default function MatrixCell({
 
   if (cell.status === "loading") {
     return (
-      <td className="p-3 border border-gray-200">
+      <td className="p-3 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-          <span className="text-xs text-gray-400">Analyzing...</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">Analyzing...</span>
         </div>
       </td>
     );
@@ -313,44 +317,44 @@ export default function MatrixCell({
 
   if (cell.status === "error") {
     return (
-      <td className="p-3 border border-gray-200 bg-red-50 text-red-700 text-sm">
+      <td className="p-3 border border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-sm">
         {cell.answer}
       </td>
     );
   }
 
   const tdClass = synthesis
-    ? "p-4 border border-gray-200 text-sm min-w-[350px] align-top"
-    : "p-3 border border-gray-200 text-sm max-w-xs align-top";
+    ? "p-4 border border-gray-200 dark:border-gray-700 text-sm min-w-[350px] align-top"
+    : "p-3 border border-gray-200 dark:border-gray-700 text-sm max-w-xs align-top";
 
   const clampClass = synthesis ? "" : expanded ? "" : "line-clamp-4";
 
   return (
     <td className={tdClass}>
       <CitationPopover citations={cell.citations.filter((c): c is Citation => c !== null)} onViewDocument={handleViewDocument}>
-        <div className={`prose prose-sm max-w-none text-gray-800 ${clampClass}`}>
+        <div className={`prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 ${clampClass}`}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               table: ({ children }) => (
-                <div className="not-prose overflow-x-auto my-3 rounded-lg border border-gray-200 shadow-sm bg-white">
+                <div className="not-prose overflow-x-auto my-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
                   <table className="text-xs border-collapse w-full min-w-[280px]">
                     {children}
                   </table>
                 </div>
               ),
               thead: ({ children }) => (
-                <thead className="bg-gradient-to-b from-slate-50 to-slate-100/80">{children}</thead>
+                <thead className="bg-gradient-to-b from-slate-50 to-slate-100/80 dark:from-gray-800 dark:to-gray-800/80">{children}</thead>
               ),
               th: ({ children }) => {
                 const text = typeof children === "string" ? children : String(children ?? "");
                 const isDelta = isDeltaHeader(text);
                 return (
                   <th
-                    className={`border-b border-r border-gray-200 last:border-r-0 px-3 py-2.5 text-[11px] font-semibold whitespace-nowrap tracking-wide ${
+                    className={`border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0 px-3 py-2.5 text-[11px] font-semibold whitespace-nowrap tracking-wide ${
                       isDelta
-                        ? "text-gray-500 bg-gray-50/50 italic"
-                        : "text-gray-700"
+                        ? "text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/50 italic"
+                        : "text-gray-700 dark:text-gray-300"
                     }`}
                   >
                     {children}
@@ -358,7 +362,7 @@ export default function MatrixCell({
                 );
               },
               tr: ({ children }) => (
-                <tr className="even:bg-slate-50/40 hover:bg-blue-50/30 transition-colors border-b border-gray-100 last:border-b-0">
+                <tr className="even:bg-slate-50/40 dark:even:bg-gray-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0">
                   {children}
                 </tr>
               ),
@@ -371,12 +375,12 @@ export default function MatrixCell({
 
                 return (
                   <td
-                    className={`border-r border-gray-100 last:border-r-0 px-3 py-2 text-xs tabular-nums font-medium ${
+                    className={`border-r border-gray-100 dark:border-gray-800 last:border-r-0 px-3 py-2 text-xs tabular-nums font-medium ${
                       delta === "positive"
-                        ? "text-emerald-700 bg-emerald-50/40"
+                        ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20"
                         : delta === "negative"
-                        ? "text-red-700 bg-red-50/40"
-                        : "text-gray-700"
+                        ? "text-red-700 dark:text-red-400 bg-red-50/40 dark:bg-red-950/20"
+                        : "text-gray-700 dark:text-gray-300"
                     }`}
                   >
                     {processCitations(children, cell.citations, handleViewDocument)}
@@ -400,30 +404,30 @@ export default function MatrixCell({
                 </li>
               ),
               h1: ({ children }) => (
-                <h3 className="text-base font-bold mt-3 mb-1.5 text-gray-900">{children}</h3>
+                <h3 className="text-base font-bold mt-3 mb-1.5 text-gray-900 dark:text-gray-100">{children}</h3>
               ),
               h2: ({ children }) => (
-                <h4 className="text-sm font-bold mt-2.5 mb-1 text-gray-900">{children}</h4>
+                <h4 className="text-sm font-bold mt-2.5 mb-1 text-gray-900 dark:text-gray-100">{children}</h4>
               ),
               h3: ({ children }) => (
-                <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-800">{children}</h5>
+                <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-800 dark:text-gray-200">{children}</h5>
               ),
               strong: ({ children }) => (
-                <strong className="font-semibold text-gray-900">{children}</strong>
+                <strong className="font-semibold text-gray-900 dark:text-gray-100">{children}</strong>
               ),
               blockquote: ({ children }) => (
-                <blockquote className="border-l-3 border-blue-300 pl-3 my-2 text-sm text-gray-600 italic">
+                <blockquote className="border-l-3 border-blue-300 dark:border-blue-600 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
                   {children}
                 </blockquote>
               ),
-              hr: () => <hr className="my-3 border-gray-200" />,
+              hr: () => <hr className="my-3 border-gray-200 dark:border-gray-700" />,
             }}
           >
             {cleanAnswer}
           </ReactMarkdown>
         </div>
         {cell.citations.length > 0 && (
-          <div className="mt-1 text-xs text-blue-500">
+          <div className="mt-1 text-xs text-blue-500 dark:text-blue-400">
             {cell.citations.filter(c => c !== null).length} source{cell.citations.filter(c => c !== null).length > 1 ? "s" : ""}
           </div>
         )}
@@ -431,11 +435,11 @@ export default function MatrixCell({
 
       {/* Model analytics */}
       {cell.model && (
-        <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-400">
-          <span className={`px-1.5 py-0.5 rounded-full font-mono ${cell.fallback ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
+        <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-400 dark:text-gray-500">
+          <span className={`px-1.5 py-0.5 rounded-full font-mono ${cell.fallback ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"}`}>
             {cell.model}
           </span>
-          {cell.fallback && <span className="text-amber-600 font-medium">fallback</span>}
+          {cell.fallback && <span className="text-amber-600 dark:text-amber-400 font-medium">fallback</span>}
           {cell.duration_ms != null && <span>{(cell.duration_ms / 1000).toFixed(1)}s</span>}
         </div>
       )}
@@ -445,7 +449,7 @@ export default function MatrixCell({
         {!synthesis && cleanAnswer.length > 200 && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="text-[10px] text-blue-500 hover:text-blue-700 px-1.5 py-0.5 rounded hover:bg-blue-50 transition-colors"
+            className="text-[10px] text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
           >
             {expanded ? "Show less" : "Show more"}
           </button>
@@ -453,18 +457,18 @@ export default function MatrixCell({
         {synthesis && cleanAnswer.length > 500 && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="text-[10px] text-amber-600 hover:text-amber-800 font-medium px-1.5 py-0.5 rounded hover:bg-amber-50 transition-colors"
+            className="text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 font-medium px-1.5 py-0.5 rounded hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
           >
             {expanded ? "Collapse" : "Expand"}
           </button>
         )}
         {hasChartableData && (
           <div className="flex items-center gap-0.5 ml-auto">
-            <span className="text-[9px] text-gray-400 mr-1">Chart:</span>
+            <span className="text-[9px] text-gray-400 dark:text-gray-500 mr-1">Chart:</span>
             <button
               onClick={() => toggleChart("bar")}
               className={`p-1 rounded transition-colors ${
-                chartType === "bar" ? "bg-blue-100 text-blue-700" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                chartType === "bar" ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40"
               }`}
               title="Bar chart"
             >
@@ -475,7 +479,7 @@ export default function MatrixCell({
             <button
               onClick={() => toggleChart("line")}
               className={`p-1 rounded transition-colors ${
-                chartType === "line" ? "bg-blue-100 text-blue-700" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                chartType === "line" ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40"
               }`}
               title="Line chart"
             >
@@ -486,7 +490,7 @@ export default function MatrixCell({
             <button
               onClick={() => toggleChart("area")}
               className={`p-1 rounded transition-colors ${
-                chartType === "area" ? "bg-blue-100 text-blue-700" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                chartType === "area" ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40"
               }`}
               title="Area chart"
             >
@@ -500,7 +504,7 @@ export default function MatrixCell({
 
       {/* Inline chart */}
       {chartType && hasChartableData && (
-        <div className="mt-2 rounded-lg border border-gray-100 bg-gradient-to-b from-white to-gray-50/50 p-2">
+        <div className="mt-2 rounded-lg border border-gray-100 dark:border-gray-700 bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-900/50 p-2">
           <div className="h-44 w-full">
             <TimeSeriesChart series={tableSeries} chartType={chartType} />
           </div>

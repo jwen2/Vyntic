@@ -5,6 +5,7 @@ import { CellData, Citation, SYNTHESIS_DEAL_ID } from "@/lib/api";
 import MatrixCell from "./MatrixCell";
 import DocumentViewer from "./DocumentViewer";
 import { QUERY_TEMPLATES } from "@/lib/queryTemplates";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface ViewerState {
   dealId: string;
@@ -18,6 +19,9 @@ interface Props {
   queries: string[];
   cells: Record<string, Record<string, CellData>>;
   onAddQuery: (query: string) => void;
+  onRemoveQuery?: (index: number) => void;
+  onRenameQuery?: (index: number, newName: string) => void;
+  onReorderQueries?: (fromIndex: number, toIndex: number) => void;
   loading: boolean;
   selectedDeals: Set<string>;
   onSelectDeal: (dealId: string, opts: { ctrl?: boolean; shift?: boolean }) => void;
@@ -30,6 +34,9 @@ export default function MatrixGrid({
   queries,
   cells,
   onAddQuery,
+  onRemoveQuery,
+  onRenameQuery,
+  onReorderQueries,
   loading,
   selectedDeals,
   onSelectDeal,
@@ -42,6 +49,13 @@ export default function MatrixGrid({
   const templateRef = useRef<HTMLDivElement>(null);
   const templateBtnRef = useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  // Column management state
+  const [editingColIndex, setEditingColIndex] = useState<number | null>(null);
+  const [editingColValue, setEditingColValue] = useState("");
+  const [confirmDeleteCol, setConfirmDeleteCol] = useState<number | null>(null);
+  const [dragColIndex, setDragColIndex] = useState<number | null>(null);
+  const [dragOverColIndex, setDragOverColIndex] = useState<number | null>(null);
 
   const handleAddQuery = () => {
     if (newQuery.trim()) {
@@ -64,15 +78,51 @@ export default function MatrixGrid({
     });
   }, []);
 
+  // Column rename handlers
+  const startRename = (index: number) => {
+    setEditingColIndex(index);
+    setEditingColValue(queries[index]);
+  };
+
+  const commitRename = () => {
+    if (editingColIndex !== null && onRenameQuery && editingColValue.trim()) {
+      onRenameQuery(editingColIndex, editingColValue.trim());
+    }
+    setEditingColIndex(null);
+    setEditingColValue("");
+  };
+
+  // Column drag-and-drop handlers
+  const handleColDragStart = (index: number) => {
+    setDragColIndex(index);
+  };
+
+  const handleColDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverColIndex(index);
+  };
+
+  const handleColDrop = (index: number) => {
+    if (dragColIndex !== null && onReorderQueries) {
+      onReorderQueries(dragColIndex, index);
+    }
+    setDragColIndex(null);
+    setDragOverColIndex(null);
+  };
+
+  const handleColDragEnd = () => {
+    setDragColIndex(null);
+    setDragOverColIndex(null);
+  };
+
   // Position and close template dropdown
   useEffect(() => {
     if (!showTemplates) return;
-    // Calculate position from button
     if (templateBtnRef.current) {
       const rect = templateBtnRef.current.getBoundingClientRect();
       setDropdownPos({
         top: rect.bottom + 4,
-        left: Math.max(8, rect.right - 384), // 384 = w-96, anchor right edge to button
+        left: Math.max(8, rect.right - 384),
       });
     }
     const handler = (e: MouseEvent) => {
@@ -98,7 +148,7 @@ export default function MatrixGrid({
 
   if (deals.length === 0) {
     return (
-      <div className="text-center py-20 text-gray-400">
+      <div className="text-center py-20 text-gray-400 dark:text-gray-600">
         <div className="text-4xl mb-4">+</div>
         <div className="text-lg">Add deals to get started</div>
         <div className="text-sm mt-2">
@@ -111,7 +161,7 @@ export default function MatrixGrid({
   return (
     <div className="space-y-2">
       {/* Selection hint + export */}
-      <div className="flex items-center justify-between text-xs text-gray-400 px-1">
+      <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 px-1">
         <span>
           {selectedCount === deals.length
             ? "All deals selected"
@@ -119,7 +169,7 @@ export default function MatrixGrid({
           {selectedCount < deals.length && (
             <button
               onClick={onSelectAll}
-              className="ml-2 text-blue-500 hover:text-blue-700"
+              className="ml-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
             >
               Select all
             </button>
@@ -129,7 +179,7 @@ export default function MatrixGrid({
           {queries.length > 0 && onExport && (
             <button
               onClick={onExport}
-              className="text-blue-500 hover:text-blue-700 flex items-center gap-1"
+              className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
               title="Export matrix as CSV"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -138,28 +188,87 @@ export default function MatrixGrid({
               Export CSV
             </button>
           )}
-          <span className="text-gray-300">
+          <span className="text-gray-300 dark:text-gray-600">
             Click row to select · Ctrl+click to add · Shift+click for range
           </span>
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse bg-white rounded-lg shadow">
+        <table className="w-full border-collapse bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-900/50">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="p-3 text-left font-semibold text-gray-700 border border-gray-200 min-w-[180px] sticky left-0 bg-gray-100 z-10">
+            <tr className="bg-gray-100 dark:bg-gray-800">
+              <th className="p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[180px] sticky left-0 bg-gray-100 dark:bg-gray-800 z-10">
                 Deal
               </th>
               {queries.map((q, i) => (
                 <th
                   key={i}
-                  className="p-3 text-left font-medium text-gray-700 border border-gray-200 min-w-[250px] max-w-[350px]"
+                  draggable={!!onReorderQueries}
+                  onDragStart={() => handleColDragStart(i)}
+                  onDragOver={(e) => handleColDragOver(e, i)}
+                  onDrop={() => handleColDrop(i)}
+                  onDragEnd={handleColDragEnd}
+                  className={`p-3 text-left font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[250px] max-w-[350px] group transition-colors ${
+                    dragColIndex === i ? "opacity-50" : ""
+                  } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50 dark:bg-blue-950/40" : ""} ${
+                    onReorderQueries ? "cursor-grab active:cursor-grabbing" : ""
+                  }`}
                 >
-                  <div className="text-sm">{q}</div>
+                  {editingColIndex === i ? (
+                    <input
+                      type="text"
+                      value={editingColValue}
+                      onChange={(e) => setEditingColValue(e.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRename();
+                        if (e.key === "Escape") {
+                          setEditingColIndex(null);
+                          setEditingColValue("");
+                        }
+                      }}
+                      autoFocus
+                      className="w-full text-sm px-2 py-1 border border-blue-400 rounded bg-white dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  ) : (
+                    <div className="flex items-start justify-between gap-1">
+                      <div
+                        className="text-sm flex-1 min-w-0 cursor-text"
+                        onDoubleClick={() => onRenameQuery && startRename(i)}
+                        title="Double-click to rename"
+                      >
+                        {q}
+                      </div>
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        {onRenameQuery && (
+                          <button
+                            onClick={() => startRename(i)}
+                            className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded"
+                            title="Rename column"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                            </svg>
+                          </button>
+                        )}
+                        {onRemoveQuery && (
+                          <button
+                            onClick={() => setConfirmDeleteCol(i)}
+                            className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 rounded"
+                            title="Delete column"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </th>
               ))}
-              <th className="p-3 border border-gray-200 min-w-[320px]">
+              <th className="p-3 border border-gray-200 dark:border-gray-700 min-w-[320px]">
                 <div className="flex gap-2 items-center">
                   <input
                     type="text"
@@ -167,7 +276,7 @@ export default function MatrixGrid({
                     onChange={(e) => setNewQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAddQuery()}
                     placeholder="Ask away..."
-                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     disabled={loading}
                   />
                   <button
@@ -182,7 +291,7 @@ export default function MatrixGrid({
                       ref={templateBtnRef}
                       onClick={() => setShowTemplates(!showTemplates)}
                       disabled={loading}
-                      className="px-2 py-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors disabled:opacity-50"
+                      className="px-2 py-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-md transition-colors disabled:opacity-50"
                       title="Question templates"
                     >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -195,17 +304,17 @@ export default function MatrixGrid({
                       createPortal(
                         <div
                           ref={templateRef}
-                          className="fixed w-96 bg-white rounded-lg shadow-2xl border border-gray-200 z-[9999] max-h-[480px] overflow-y-auto"
+                          className="fixed w-96 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-[9999] max-h-[480px] overflow-y-auto"
                           style={{ top: dropdownPos.top, left: dropdownPos.left }}
                         >
-                          <div className="p-2.5 border-b border-gray-100 sticky top-0 bg-white z-10">
-                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                          <div className="p-2.5 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
+                            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                               Question Templates
                             </span>
                           </div>
                           {QUERY_TEMPLATES.map((cat) => (
                             <div key={cat.name}>
-                              <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-gray-50 flex items-center gap-1.5 sticky top-10 z-[1]">
+                              <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-1.5 sticky top-10 z-[1]">
                                 <span>{cat.icon}</span>
                                 {cat.name}
                               </div>
@@ -213,12 +322,12 @@ export default function MatrixGrid({
                                 <button
                                   key={t.label}
                                   onClick={() => handleTemplateSelect(t.query)}
-                                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
                                 >
-                                  <div className="text-sm font-medium text-gray-800">
+                                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
                                     {t.label}
                                   </div>
-                                  <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
                                     {t.query}
                                   </div>
                                 </button>
@@ -241,16 +350,16 @@ export default function MatrixGrid({
                   key={dealId}
                   className={`transition-colors ${
                     isSelected
-                      ? "bg-blue-50 hover:bg-blue-100/80"
-                      : "hover:bg-gray-50"
+                      ? "bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100/80 dark:hover:bg-blue-950/50"
+                      : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   }`}
                 >
                   <td
                     onClick={(e) => handleRowClick(dealId, e)}
-                    className={`p-3 font-medium border border-gray-200 sticky left-0 z-10 transition-colors cursor-pointer select-none ${
+                    className={`p-3 font-medium border border-gray-200 dark:border-gray-700 sticky left-0 z-10 transition-colors cursor-pointer select-none ${
                       isSelected
-                        ? "bg-blue-50 text-blue-900 border-l-2 border-l-blue-500"
-                        : "bg-white text-gray-900"
+                        ? "bg-blue-50 dark:bg-blue-950/30 text-blue-900 dark:text-blue-200 border-l-2 border-l-blue-500"
+                        : "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                     }`}
                   >
                     <div className="text-sm font-semibold">{dealId}</div>
@@ -263,20 +372,20 @@ export default function MatrixGrid({
                       onCitationClick={handleCitationClick}
                     />
                   ))}
-                  <td className="border border-gray-200"></td>
+                  <td className="border border-gray-200 dark:border-gray-700"></td>
                 </tr>
               );
             })}
 
             {/* Synthesis row — shown when comparing multiple deals */}
             {queries.length > 0 && deals.length > 1 && cells[SYNTHESIS_DEAL_ID] && (
-              <tr className="bg-amber-50/70 border-t-2 border-amber-300">
-                <td className="p-3 font-medium border border-gray-200 sticky left-0 z-10 bg-amber-50">
+              <tr className="bg-amber-50/70 dark:bg-amber-950/30 border-t-2 border-amber-300 dark:border-amber-700">
+                <td className="p-3 font-medium border border-gray-200 dark:border-gray-700 sticky left-0 z-10 bg-amber-50 dark:bg-amber-950/30">
                   <div className="flex items-center gap-1.5">
-                    <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
                     </svg>
-                    <span className="text-sm font-bold text-amber-900">Synthesis</span>
+                    <span className="text-sm font-bold text-amber-900 dark:text-amber-300">Synthesis</span>
                   </div>
                 </td>
                 {queries.map((q, i) => (
@@ -287,7 +396,7 @@ export default function MatrixGrid({
                     onCitationClick={handleCitationClick}
                   />
                 ))}
-                <td className="border border-gray-200 bg-amber-50"></td>
+                <td className="border border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-950/30"></td>
               </tr>
             )}
           </tbody>
@@ -302,6 +411,20 @@ export default function MatrixGrid({
           page={viewerState.page}
           snippet={viewerState.snippet}
           onClose={() => setViewerState(null)}
+        />
+      )}
+
+      {/* Confirm delete column dialog */}
+      {confirmDeleteCol !== null && onRemoveQuery && (
+        <ConfirmDialog
+          title="Delete Column"
+          message={`Remove the query "${queries[confirmDeleteCol]}" and all its results? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={() => {
+            onRemoveQuery(confirmDeleteCol);
+            setConfirmDeleteCol(null);
+          }}
+          onCancel={() => setConfirmDeleteCol(null)}
         />
       )}
     </div>
