@@ -15,6 +15,7 @@ import WorkstreamPanel, { QuestionResult } from "@/components/WorkstreamPanel";
 import RiskScorecard from "@/components/RiskScorecard";
 import DocMatrixPanel from "@/components/DocMatrixPanel";
 import DocumentViewer from "@/components/DocumentViewer";
+import ReportModal from "@/components/ReportModal";
 import { useTheme } from "@/components/ThemeProvider";
 
 /** Session-level cache: workstreamId → { questionKey → result } */
@@ -89,6 +90,8 @@ export default function DealWorkspacePage() {
     setActiveTab(loadTabFromLocal(dealId));
     setResultCache(loadCacheFromLocal(dealId));
   }, [dealId]);
+
+  const [showReport, setShowReport] = useState(false);
 
   const [viewerState, setViewerState] = useState<{
     dealId: string;
@@ -285,6 +288,12 @@ export default function DealWorkspacePage() {
               )}
             </button>
             <button
+              onClick={() => setShowReport(true)}
+              className="px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Generate IC Report
+            </button>
+            <button
               onClick={() => setShowUpload(!showUpload)}
               className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
@@ -404,6 +413,15 @@ export default function DealWorkspacePage() {
           page={viewerState.page}
           snippet={viewerState.snippet}
           onClose={() => setViewerState(null)}
+        />
+      )}
+
+      {/* IC Report modal */}
+      {showReport && (
+        <ReportModal
+          deal={deal}
+          resultCache={resultCache}
+          onClose={() => setShowReport(false)}
         />
       )}
     </div>

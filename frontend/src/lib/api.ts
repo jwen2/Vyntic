@@ -516,6 +516,70 @@ export function docMatrixStream(
   return controller;
 }
 
+// ── IC Report Generation ──
+
+export interface ReportCitation {
+  source_file: string;
+  page: number;
+  text_snippet: string;
+}
+
+export interface ReportQuestion {
+  label: string;
+  question: string;
+  answer: string;
+  citations: ReportCitation[];
+}
+
+export interface ReportWorkstream {
+  workstream_id: string;
+  workstream_name: string;
+  questions: ReportQuestion[];
+}
+
+export interface ReportDeal {
+  deal_id: string;
+  name: string;
+  stage?: string;
+  tags?: string[];
+  document_count?: number;
+  workstreams: ReportWorkstream[];
+}
+
+export interface ICReportRequest {
+  title?: string;
+  deals: ReportDeal[];
+}
+
+export async function generateICReport(request: ICReportRequest): Promise<void> {
+  const res = await fetchWrapper(`${API_BASE}/reports/ic`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text);
+  }
+
+  // Extract filename from Content-Disposition header
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+  const filename = filenameMatch?.[1] || "IC-Report.docx";
+
+  // Download the blob
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 /**
  * Stream a single question against a deal with optional workstream context.
  */
