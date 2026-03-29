@@ -57,7 +57,6 @@ export default function MatrixGrid({
   const [dragColIndex, setDragColIndex] = useState<number | null>(null);
   const [dragOverColIndex, setDragOverColIndex] = useState<number | null>(null);
 
-<<<<<<< HEAD
   // Unified Excel-like header filter/sort for all columns
   const [openMenu, setOpenMenu] = useState<"deal" | number | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -113,8 +112,6 @@ export default function MatrixGrid({
     return result;
   }, [deals, colFilters, sortConfig, queries, cells]);
 
-=======
->>>>>>> origin/main
   const handleAddQuery = () => {
     if (newQuery.trim()) {
       onAddQuery(newQuery.trim());
@@ -173,7 +170,6 @@ export default function MatrixGrid({
     setDragOverColIndex(null);
   };
 
-<<<<<<< HEAD
   // Column header menu open handler
   const openColMenu = (col: "deal" | number, thElement: HTMLElement) => {
     if (openMenu === col) {
@@ -197,8 +193,6 @@ export default function MatrixGrid({
     return () => document.removeEventListener("mousedown", handler);
   }, [openMenu]);
 
-=======
->>>>>>> origin/main
   // Position and close template dropdown
   useEffect(() => {
     if (!showTemplates) return;
@@ -281,46 +275,28 @@ export default function MatrixGrid({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-900/50">
           <thead>
-<<<<<<< HEAD
-            <tr className="bg-gray-100">
+            <tr className="bg-gray-100 dark:bg-gray-800">
               {/* Deal column header with Excel-like dropdown */}
               <th
-                className={`p-3 text-left font-semibold text-gray-700 border border-gray-200 min-w-[180px] sticky left-0 z-10 cursor-pointer select-none hover:bg-gray-200 transition-colors ${isColFiltered("deal") ? "bg-blue-50" : "bg-gray-100"}`}
+                className={`p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[180px] sticky left-0 z-10 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${isColFiltered("deal") ? "bg-blue-50 dark:bg-blue-950/40" : "bg-gray-100 dark:bg-gray-800"}`}
                 onClick={(e) => openColMenu("deal", e.currentTarget)}
               >
                 <ColumnHeaderLabel label="Deal" col="deal" sortConfig={sortConfig} filterValue={getColFilter("deal")} />
-=======
-            <tr className="bg-gray-100 dark:bg-gray-800">
-              <th className="p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[180px] sticky left-0 bg-gray-100 dark:bg-gray-800 z-10">
-                Deal
->>>>>>> origin/main
               </th>
 
               {queries.map((q, i) => (
                 <th
                   key={i}
-<<<<<<< HEAD
                   draggable={!!onReorderQueries && editingColIndex !== i}
-=======
-                  draggable={!!onReorderQueries}
->>>>>>> origin/main
                   onDragStart={() => handleColDragStart(i)}
                   onDragOver={(e) => handleColDragOver(e, i)}
                   onDrop={() => handleColDrop(i)}
                   onDragEnd={handleColDragEnd}
-<<<<<<< HEAD
-                  className={`p-3 text-left font-medium text-gray-700 border border-gray-200 min-w-[250px] max-w-[350px] group transition-colors ${
-                    dragColIndex === i ? "opacity-50" : ""
-                  } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50" : ""} ${
-                    isColFiltered(i) ? "bg-blue-50/50" : ""
-                  } ${onReorderQueries ? "cursor-grab active:cursor-grabbing" : ""}`}
-=======
                   className={`p-3 text-left font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[250px] max-w-[350px] group transition-colors ${
                     dragColIndex === i ? "opacity-50" : ""
                   } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50 dark:bg-blue-950/40" : ""} ${
-                    onReorderQueries ? "cursor-grab active:cursor-grabbing" : ""
-                  }`}
->>>>>>> origin/main
+                    isColFiltered(i) ? "bg-blue-50/50 dark:bg-blue-950/30" : ""
+                  } ${onReorderQueries ? "cursor-grab active:cursor-grabbing" : ""}`}
                 >
                   {editingColIndex === i ? (
                     <input
@@ -336,11 +312,7 @@ export default function MatrixGrid({
                         }
                       }}
                       autoFocus
-<<<<<<< HEAD
-                      className="w-full text-sm px-2 py-1 border border-blue-400 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-=======
                       className="w-full text-sm px-2 py-1 border border-blue-400 rounded bg-white dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
->>>>>>> origin/main
                     />
                   ) : (
                     <div className="flex items-start justify-between gap-1">
@@ -351,12 +323,11 @@ export default function MatrixGrid({
                       >
                         {q}
                       </div>
-<<<<<<< HEAD
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         {/* Sort/filter indicators + dropdown trigger */}
                         <button
                           onClick={(e) => { e.stopPropagation(); openColMenu(i, e.currentTarget.closest("th")!); }}
-                          className={`p-0.5 rounded transition-colors ${isColFiltered(i) ? "text-blue-500" : "text-gray-400 opacity-0 group-hover:opacity-100"} hover:text-blue-600`}
+                          className={`p-0.5 rounded transition-colors ${isColFiltered(i) ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100"} hover:text-blue-600 dark:hover:text-blue-400`}
                           title="Sort & filter"
                         >
                           {sortConfig?.col === i ? (
@@ -375,14 +346,7 @@ export default function MatrixGrid({
                         {onRenameQuery && (
                           <button
                             onClick={() => startRename(i)}
-                            className="p-0.5 text-gray-400 hover:text-blue-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-=======
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        {onRenameQuery && (
-                          <button
-                            onClick={() => startRename(i)}
-                            className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded"
->>>>>>> origin/main
+                            className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Rename column"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -393,11 +357,7 @@ export default function MatrixGrid({
                         {onRemoveQuery && (
                           <button
                             onClick={() => setConfirmDeleteCol(i)}
-<<<<<<< HEAD
-                            className="p-0.5 text-gray-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-=======
-                            className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 rounded"
->>>>>>> origin/main
+                            className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Delete column"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

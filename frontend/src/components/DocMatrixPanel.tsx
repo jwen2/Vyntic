@@ -153,7 +153,6 @@ export default function DocMatrixPanel({
   const [dragColIndex, setDragColIndex] = useState<number | null>(null);
   const [dragOverColIndex, setDragOverColIndex] = useState<number | null>(null);
 
-<<<<<<< HEAD
   // Unified Excel-like header filter/sort for all columns
   const [openMenu, setOpenMenu] = useState<"doc" | number | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -209,8 +208,6 @@ export default function DocMatrixPanel({
     return result;
   }, [documents, colFilters, sortConfig, queries, cells]);
 
-=======
->>>>>>> origin/main
   // ── Persistence Setup ──
   const CACHE_KEY = useMemo(() => `vyntic_doc_matrix_${dealId}`, [dealId]);
 
@@ -232,10 +229,7 @@ export default function DocMatrixPanel({
       }
     } catch {}
 
-<<<<<<< HEAD
-=======
     // Save on exact unmount (tab switch / navigation)
->>>>>>> origin/main
     return () => {
       const { queries: sq, cells: sc } = latestState.current;
       if (sq.length === 0) return;
@@ -574,45 +568,28 @@ export default function DocMatrixPanel({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-900/50">
           <thead>
-<<<<<<< HEAD
-            <tr className="bg-gray-100">
+            <tr className="bg-gray-100 dark:bg-gray-800">
               {/* Document column header with Excel-like dropdown */}
               <th
-                className={`p-3 text-left font-semibold text-gray-700 border border-gray-200 min-w-[220px] sticky left-0 z-10 cursor-pointer select-none hover:bg-gray-200 transition-colors ${isColFiltered("doc") ? "bg-blue-50" : "bg-gray-100"}`}
+                className={`p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[220px] sticky left-0 z-10 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${isColFiltered("doc") ? "bg-blue-50 dark:bg-blue-950/40" : "bg-gray-100 dark:bg-gray-800"}`}
                 onClick={(e) => openColMenu("doc", e.currentTarget)}
               >
                 <DocColumnHeaderLabel label="Document" col="doc" sortConfig={sortConfig} filterValue={getColFilter("doc")} />
-=======
-            <tr className="bg-gray-100 dark:bg-gray-800">
-              {/* Document column header */}
-              <th className="p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[220px] sticky left-0 bg-gray-100 dark:bg-gray-800 z-10">
-                Document
->>>>>>> origin/main
               </th>
               {/* Query column headers */}
               {queries.map((q, i) => (
                 <th
                   key={i}
-<<<<<<< HEAD
                   draggable={editingColIndex !== i}
-=======
-                  draggable
->>>>>>> origin/main
                   onDragStart={() => handleColDragStart(i)}
                   onDragOver={(e) => handleColDragOver(e, i)}
                   onDrop={() => handleColDrop(i)}
                   onDragEnd={handleColDragEnd}
-<<<<<<< HEAD
-                  className={`p-3 text-left font-medium text-gray-700 border border-gray-200 min-w-[280px] max-w-[400px] group cursor-grab active:cursor-grabbing transition-colors ${
-                    dragColIndex === i ? "opacity-50" : ""
-                  } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50" : ""} ${
-                    isColFiltered(i) ? "bg-blue-50/50" : ""
-                  }`}
-=======
                   className={`p-3 text-left font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[280px] max-w-[400px] group cursor-grab active:cursor-grabbing transition-colors ${
                     dragColIndex === i ? "opacity-50" : ""
-                  } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50 dark:bg-blue-950/40" : ""}`}
->>>>>>> origin/main
+                  } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50 dark:bg-blue-950/40" : ""} ${
+                    isColFiltered(i) ? "bg-blue-50/50 dark:bg-blue-950/30" : ""
+                  }`}
                 >
                   {editingColIndex === i ? (
                     <input
@@ -628,11 +605,7 @@ export default function DocMatrixPanel({
                         }
                       }}
                       autoFocus
-<<<<<<< HEAD
-                      className="w-full text-sm px-2 py-1 border border-blue-400 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-=======
                       className="w-full text-sm px-2 py-1 border border-blue-400 rounded bg-white dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
->>>>>>> origin/main
                     />
                   ) : (
                     <div className="flex items-start justify-between gap-1">
@@ -643,12 +616,11 @@ export default function DocMatrixPanel({
                       >
                         {q}
                       </div>
-<<<<<<< HEAD
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         {/* Sort/filter dropdown trigger */}
                         <button
                           onClick={(e) => { e.stopPropagation(); openColMenu(i, e.currentTarget.closest("th")!); }}
-                          className={`p-0.5 rounded transition-colors ${isColFiltered(i) ? "text-blue-500" : "text-gray-400 opacity-0 group-hover:opacity-100"} hover:text-blue-600`}
+                          className={`p-0.5 rounded transition-colors ${isColFiltered(i) ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100"} hover:text-blue-600 dark:hover:text-blue-400`}
                           title="Sort & filter"
                         >
                           {sortConfig?.col === i ? (
@@ -666,29 +638,17 @@ export default function DocMatrixPanel({
                         {/* Rename button */}
                         <button
                           onClick={() => startRename(i)}
-                          className="p-0.5 text-gray-400 hover:text-blue-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-=======
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        <button
-                          onClick={() => startRename(i)}
-                          className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded"
->>>>>>> origin/main
+                          className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Rename column"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                           </svg>
                         </button>
-<<<<<<< HEAD
                         {/* Delete button */}
                         <button
                           onClick={() => setConfirmDeleteCol(i)}
-                          className="p-0.5 text-gray-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-=======
-                        <button
-                          onClick={() => setConfirmDeleteCol(i)}
-                          className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 rounded"
->>>>>>> origin/main
+                          className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Delete column"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -791,13 +751,8 @@ export default function DocMatrixPanel({
             </tr>
           </thead>
           <tbody>
-<<<<<<< HEAD
             {filteredDocuments.map((doc) => (
-              <tr key={doc.doc_id} className="hover:bg-gray-50 transition-colors">
-=======
-            {documents.map((doc) => (
               <tr key={doc.doc_id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
->>>>>>> origin/main
                 {/* Document name cell (sticky left) */}
                 <td className="p-3 font-medium border border-gray-200 dark:border-gray-700 sticky left-0 z-10 bg-white dark:bg-gray-900">
                   <div className="flex items-center gap-2.5">
