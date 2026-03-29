@@ -2,7 +2,7 @@
 Authentication routes: register, login, user profile, and deal access management.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from app.auth import (
     create_access_token,

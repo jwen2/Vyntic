@@ -5,13 +5,15 @@ Sends token-by-token LLM output for each deal cell as it generates.
 import asyncio
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.models.matrix import MatrixRequest
 from app.services import deal_store
 from app.services.vector_store import query_deal
+from app.database import UserRow
+from app.auth import get_current_user, require_deal_access
 from app.utils.citations import build_context_string, extract_citations
 from app.agents.prompts import SINGLE_DEAL_SYSTEM, COMPARISON_SYSTEM
 
@@ -117,12 +119,13 @@ async def _stream_synthesis(query: str, deal_ids: list[str], answers: dict[str, 
 
 
 @router.post("/compare/stream")
-async def matrix_compare_stream(request: MatrixRequest):
+async def matrix_compare_stream(request: MatrixRequest, current_user: UserRow = Depends(get_current_user)):
     """
     SSE endpoint: streams token-by-token LLM output for each deal×query cell.
     Deals are processed in parallel (bounded by semaphore), tokens interleave.
     """
     for deal_id in request.deal_ids:
+        require_deal_access(current_user, deal_id)
         if not deal_store.get_deal(deal_id):
             raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
     if not request.queries:

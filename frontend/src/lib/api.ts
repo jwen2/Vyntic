@@ -18,7 +18,7 @@ export function clearAuthToken() {
   }
 }
 
-async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+async function fetchWrapper(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
 
@@ -37,50 +37,6 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
 
   return response;
 }
-
-export interface User {
-  id: number;
-  email: string;
-  full_name: string;
-  is_admin: boolean;
-}
-
-export interface AuthResponse {
-  access_token: string;
-  token_type: string;
-  user: User;
-}
-
-export async function login(email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  setAuthToken(data.access_token);
-  return data;
-}
-
-export async function register(email: string, password: string, full_name: string = ""): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, full_name }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  setAuthToken(data.access_token);
-  return data;
-}
-
-export async function getMe(): Promise<User> {
-  const res = await fetchWithAuth(`${API_BASE}/auth/me`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
-
 export const SYNTHESIS_DEAL_ID = "__synthesis__";
 
 export interface Deal {
@@ -129,7 +85,7 @@ export async function listConversations(
   workstream?: string
 ): Promise<ConversationEntry[]> {
   const params = workstream ? `?workstream=${encodeURIComponent(workstream)}` : "";
-  const res = await fetchWithAuth(`${API_BASE}/deals/${deal_id}/conversations${params}`);
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/conversations${params}`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -138,7 +94,7 @@ export async function saveConversation(
   deal_id: string,
   data: { question: string; answer: string; citations?: (Citation | null)[]; workstream?: string }
 ): Promise<ConversationEntry> {
-  const res = await fetchWithAuth(`${API_BASE}/deals/${deal_id}/conversations`, {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/conversations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deal_id, ...data }),
@@ -152,7 +108,7 @@ export async function createDeal(
   name: string,
   description: string = ""
 ): Promise<Deal> {
-  const res = await fetchWithAuth(`${API_BASE}/deals`, {
+  const res = await fetchWrapper(`${API_BASE}/deals`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deal_id, name, description }),
@@ -162,13 +118,13 @@ export async function createDeal(
 }
 
 export async function listDeals(): Promise<Deal[]> {
-  const res = await fetchWithAuth(`${API_BASE}/deals`);
+  const res = await fetchWrapper(`${API_BASE}/deals`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 export async function deleteDeal(deal_id: string): Promise<void> {
-  const res = await fetchWithAuth(`${API_BASE}/deals/${deal_id}`, { method: "DELETE" });
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(await res.text());
 }
 
@@ -178,7 +134,7 @@ export async function uploadDocument(
 ): Promise<void> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetchWithAuth(`${API_BASE}/deals/${deal_id}/documents`, {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents`, {
     method: "POST",
     body: form,
   });
@@ -193,7 +149,7 @@ export async function uploadDocumentsBatch(
   for (const file of files) {
     form.append("files", file);
   }
-  const res = await fetchWithAuth(`${API_BASE}/deals/${deal_id}/documents/batch`, {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents/batch`, {
     method: "POST",
     body: form,
   });
@@ -205,7 +161,7 @@ export async function updateDeal(
   deal_id: string,
   data: { name?: string; description?: string; stage?: string; tags?: string[] }
 ): Promise<Deal> {
-  const res = await fetchWithAuth(`${API_BASE}/deals/${deal_id}`, {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -226,7 +182,7 @@ export async function deleteDocument(
   deal_id: string,
   doc_id: string
 ): Promise<void> {
-  const res = await fetchWithAuth(`${API_BASE}/deals/${deal_id}/documents/${doc_id}`, {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents/${doc_id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(await res.text());
@@ -235,7 +191,7 @@ export async function deleteDocument(
 export async function listDocuments(
   deal_id: string
 ): Promise<DocumentMetadata[]> {
-  const res = await fetchWithAuth(`${API_BASE}/deals/${deal_id}/documents`);
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -244,7 +200,7 @@ export async function matrixCompare(
   deal_ids: string[],
   queries: string[]
 ): Promise<MatrixResponse> {
-  const res = await fetchWithAuth(`${API_BASE}/matrix/compare`, {
+  const res = await fetchWrapper(`${API_BASE}/matrix/compare`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deal_ids, queries }),
@@ -406,15 +362,15 @@ export function workstreamStream(
 
   (async () => {
     try {
-      const wsHeaders: Record<string, string> = { "Content-Type": "application/json" };
-      const wsToken = getAuthToken();
-      if (wsToken) wsHeaders["Authorization"] = `Bearer ${wsToken}`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const res = await fetch(
         `${API_BASE}/deals/${dealId}/workstream/stream`,
         {
           method: "POST",
-          headers: wsHeaders,
+          headers,
           body: JSON.stringify({ workstream, questions }),
           signal: controller.signal,
         }
@@ -516,15 +472,15 @@ export function docMatrixStream(
 
   (async () => {
     try {
-      const dmHeaders: Record<string, string> = { "Content-Type": "application/json" };
-      const dmToken = getAuthToken();
-      if (dmToken) dmHeaders["Authorization"] = `Bearer ${dmToken}`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const res = await fetch(
         `${API_BASE}/deals/${dealId}/doc-matrix/stream`,
         {
           method: "POST",
-          headers: dmHeaders,
+          headers,
           body: JSON.stringify({ doc_ids: docIds, query }),
           signal: controller.signal,
         }
@@ -595,6 +551,70 @@ export function docMatrixStream(
   return controller;
 }
 
+// ── IC Report Generation ──
+
+export interface ReportCitation {
+  source_file: string;
+  page: number;
+  text_snippet: string;
+}
+
+export interface ReportQuestion {
+  label: string;
+  question: string;
+  answer: string;
+  citations: ReportCitation[];
+}
+
+export interface ReportWorkstream {
+  workstream_id: string;
+  workstream_name: string;
+  questions: ReportQuestion[];
+}
+
+export interface ReportDeal {
+  deal_id: string;
+  name: string;
+  stage?: string;
+  tags?: string[];
+  document_count?: number;
+  workstreams: ReportWorkstream[];
+}
+
+export interface ICReportRequest {
+  title?: string;
+  deals: ReportDeal[];
+}
+
+export async function generateICReport(request: ICReportRequest): Promise<void> {
+  const res = await fetchWrapper(`${API_BASE}/reports/ic`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text);
+  }
+
+  // Extract filename from Content-Disposition header
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+  const filename = filenameMatch?.[1] || "IC-Report.docx";
+
+  // Download the blob
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 /**
  * Stream a single question against a deal with optional workstream context.
  */
@@ -610,15 +630,15 @@ export function singleQuestionStream(
 
   (async () => {
     try {
-      const sqHeaders: Record<string, string> = { "Content-Type": "application/json" };
-      const sqToken = getAuthToken();
-      if (sqToken) sqHeaders["Authorization"] = `Bearer ${sqToken}`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const res = await fetch(
         `${API_BASE}/deals/${dealId}/workstream/query/stream`,
         {
           method: "POST",
-          headers: sqHeaders,
+          headers,
           body: JSON.stringify({ question, workstream }),
           signal: controller.signal,
         }
@@ -669,4 +689,49 @@ export function singleQuestionStream(
   })();
 
   return controller;
+}
+
+// ── Authentication API ──
+
+export interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  is_admin: boolean;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  setAuthToken(data.access_token);
+  return data;
+}
+
+export async function register(email: string, password: string, full_name: string = ""): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, full_name }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  setAuthToken(data.access_token);
+  return data;
+}
+
+export async function getMe(): Promise<User> {
+  const res = await fetchWrapper(`${API_BASE}/auth/me`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }

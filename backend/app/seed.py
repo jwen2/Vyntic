@@ -123,6 +123,7 @@ async def seed_sample_data(admin_user_id: int | None = None):
                     )
                 )
                 logger.info(f"  Created deal: {deal_info['name']}")
+                # Grant admin access to seeded deal
                 if admin_user_id:
                     from app.auth import grant_deal_access
                     grant_deal_access(admin_user_id, deal_id, role="admin")

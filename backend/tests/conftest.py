@@ -1,22 +1,24 @@
 """
 Shared test fixtures for Vyntic backend tests.
+Uses an in-memory SQLite database for isolation between tests.
 """
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.database import Base, engine, SessionLocal
 from app.services import deal_store
 from app.models.deal import DealCreate
 
 
 @pytest.fixture(autouse=True)
 def clear_store():
-    """Reset the in-memory store between tests."""
-    deal_store._deals.clear()
-    deal_store._documents.clear()
+    """Reset the database between tests by dropping and recreating all tables."""
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     yield
-    deal_store._deals.clear()
-    deal_store._documents.clear()
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
 
 @pytest.fixture

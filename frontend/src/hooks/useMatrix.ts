@@ -15,6 +15,8 @@ export interface MatrixState {
   error: string | null;
 }
 
+const MATRIX_CACHE_KEY = "vyntic_matrix_cache";
+
 export function useMatrix() {
   const [state, setState] = useState<MatrixState>({
     deals: [],
@@ -26,6 +28,73 @@ export function useMatrix() {
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
   const [lastClickedDeal, setLastClickedDeal] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Keep ref of latest state to auto-save on unmount
+  const latestState = useRef(state);
+  useEffect(() => {
+    latestState.current = state;
+  }, [state]);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MATRIX_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setState((s) => ({
+          ...s,
+          queries: parsed.queries || [],
+          cells: parsed.cells || {},
+        }));
+      }
+    } catch {}
+    
+    // Save on exact unmount (navigation)
+    return () => {
+      const s = latestState.current;
+      if (s.queries.length === 0) return;
+      try {
+        const persistableCells: Record<string, Record<string, CellData>> = {};
+        for (const [dealId, dealCells] of Object.entries(s.cells)) {
+          persistableCells[dealId] = {};
+          for (const [query, cell] of Object.entries(dealCells)) {
+            if (cell.status === "complete" || cell.status === "error") {
+              persistableCells[dealId][query] = cell;
+            }
+          }
+        }
+        localStorage.setItem(
+          MATRIX_CACHE_KEY,
+          JSON.stringify({ queries: s.queries, cells: persistableCells })
+        );
+      } catch {}
+    };
+  }, []);
+
+  // Save to localStorage whenever queries or cells change (debounced for streaming performance)
+  useEffect(() => {
+    if (state.queries.length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      try {
+        const persistableCells: Record<string, Record<string, CellData>> = {};
+        for (const [dealId, dealCells] of Object.entries(state.cells)) {
+          persistableCells[dealId] = {};
+          for (const [query, cell] of Object.entries(dealCells)) {
+            if (cell.status === "complete" || cell.status === "error") {
+              persistableCells[dealId][query] = cell;
+            }
+          }
+        }
+        localStorage.setItem(
+          MATRIX_CACHE_KEY,
+          JSON.stringify({ queries: state.queries, cells: persistableCells })
+        );
+      } catch {}
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [state.queries, state.cells]);
 
   // Keep selectedDeals in sync when deals change — select all by default
   useEffect(() => {
@@ -208,6 +277,51 @@ export function useMatrix() {
     [state.deals, state.queries, handleStreamEvent]
   );
 
+  const removeQuery = useCallback((index: number) => {
+    setState((s) => {
+      const query = s.queries[index];
+      if (!query) return s;
+      const newQueries = s.queries.filter((_, i) => i !== index);
+      const newCells = { ...s.cells };
+      for (const dealId of Object.keys(newCells)) {
+        const dealCells = { ...newCells[dealId] };
+        delete dealCells[query];
+        newCells[dealId] = dealCells;
+      }
+      return { ...s, queries: newQueries, cells: newCells };
+    });
+  }, []);
+
+  const renameQuery = useCallback((index: number, newName: string) => {
+    setState((s) => {
+      const oldQuery = s.queries[index];
+      if (!oldQuery || !newName.trim() || oldQuery === newName) return s;
+      if (s.queries.includes(newName)) return s; // no duplicates
+      const newQueries = [...s.queries];
+      newQueries[index] = newName;
+      const newCells = { ...s.cells };
+      for (const dealId of Object.keys(newCells)) {
+        const dealCells = { ...newCells[dealId] };
+        if (dealCells[oldQuery]) {
+          dealCells[newName] = dealCells[oldQuery];
+          delete dealCells[oldQuery];
+        }
+        newCells[dealId] = dealCells;
+      }
+      return { ...s, queries: newQueries, cells: newCells };
+    });
+  }, []);
+
+  const reorderQueries = useCallback((fromIndex: number, toIndex: number) => {
+    setState((s) => {
+      if (fromIndex === toIndex) return s;
+      const newQueries = [...s.queries];
+      const [moved] = newQueries.splice(fromIndex, 1);
+      newQueries.splice(toIndex, 0, moved);
+      return { ...s, queries: newQueries };
+    });
+  }, []);
+
   const runAllQueries = useCallback(
     (dealIds: string[], queries: string[]) => {
       if (dealIds.length === 0 || queries.length === 0) return;
@@ -269,6 +383,9 @@ export function useMatrix() {
     ...state,
     setDeals,
     addQuery,
+    removeQuery,
+    renameQuery,
+    reorderQueries,
     runAllQueries,
     selectedDeals,
     selectDeal,

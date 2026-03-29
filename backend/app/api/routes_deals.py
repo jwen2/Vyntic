@@ -19,6 +19,7 @@ router = APIRouter(prefix="/deals", tags=["deals"])
 def create_deal(data: DealCreate, current_user: UserRow = Depends(get_current_user)):
     try:
         deal = deal_store.create_deal(data)
+        # Auto-grant access to the creator
         grant_deal_access(current_user.id, data.deal_id, role="admin")
         return deal
     except ValueError as e:

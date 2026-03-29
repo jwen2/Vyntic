@@ -76,6 +76,7 @@ async def get_current_user(
         user = db.query(UserRow).filter(UserRow.id == user_id).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+        # Detach from session so it can be used after db.close()
         db.expunge(user)
         return user
     finally:
@@ -147,7 +148,7 @@ def grant_deal_access(user_id: int, deal_id: str, role: str = "analyst"):
             DealAccessRow.deal_id == deal_id,
         ).first()
         if existing:
-            return
+            return  # Already has access
         access = DealAccessRow(user_id=user_id, deal_id=deal_id, role=role)
         db.add(access)
         db.commit()
