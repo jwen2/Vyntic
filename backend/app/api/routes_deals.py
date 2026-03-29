@@ -2,27 +2,31 @@
 import os
 import shutil
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.models.deal import Deal, DealCreate, DealUpdate, DEAL_STAGES, SECTOR_TAGS
 from app.models.document import DocumentMetadata
 from app.services import deal_store
+from app.database import UserRow
+from app.auth import get_current_user, require_deal_access, grant_deal_access
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
 
 @router.post("", response_model=Deal)
-def create_deal(data: DealCreate):
+def create_deal(data: DealCreate, current_user: UserRow = Depends(get_current_user)):
     try:
-        return deal_store.create_deal(data)
+        deal = deal_store.create_deal(data)
+        grant_deal_access(current_user.id, data.deal_id, role="admin")
+        return deal
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.get("", response_model=list[Deal])
-def list_deals():
+def list_deals(current_user: UserRow = Depends(get_current_user)):
     return deal_store.list_deals()
 
 
@@ -39,7 +43,8 @@ def get_tags():
 
 
 @router.get("/{deal_id}", response_model=Deal)
-def get_deal(deal_id: str):
+def get_deal(deal_id: str, current_user: UserRow = Depends(get_current_user)):
+    require_deal_access(current_user, deal_id)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -47,7 +52,8 @@ def get_deal(deal_id: str):
 
 
 @router.patch("/{deal_id}", response_model=Deal)
-def update_deal(deal_id: str, data: DealUpdate):
+def update_deal(deal_id: str, data: DealUpdate, current_user: UserRow = Depends(get_current_user)):
+    require_deal_access(current_user, deal_id)
     deal = deal_store.update_deal(deal_id, data)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -55,7 +61,8 @@ def update_deal(deal_id: str, data: DealUpdate):
 
 
 @router.get("/{deal_id}/documents", response_model=list[DocumentMetadata])
-def list_deal_documents(deal_id: str):
+def list_deal_documents(deal_id: str, current_user: UserRow = Depends(get_current_user)):
+    require_deal_access(current_user, deal_id)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -63,7 +70,8 @@ def list_deal_documents(deal_id: str):
 
 
 @router.delete("/{deal_id}")
-async def delete_deal(deal_id: str):
+async def delete_deal(deal_id: str, current_user: UserRow = Depends(get_current_user)):
+    require_deal_access(current_user, deal_id)
     from app.services.vector_store import delete_deal_vectors
 
     if not deal_store.delete_deal(deal_id):
@@ -83,7 +91,8 @@ async def delete_deal(deal_id: str):
 
 
 @router.get("/{deal_id}/documents/{filename}/view")
-async def view_document(deal_id: str, filename: str, sheet: int | None = None):
+async def view_document(deal_id: str, filename: str, sheet: int | None = None, current_user: UserRow = Depends(get_current_user)):
+    require_deal_access(current_user, deal_id)
     """Serve an original uploaded document file for inline viewing (not download).
 
     For Excel files, optionally pass ?sheet=0 to view a specific sheet.

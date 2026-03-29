@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useDeals } from "@/hooks/useDeals";
 import { useMatrix } from "@/hooks/useMatrix";
 import MatrixGrid from "@/components/MatrixGrid";
@@ -7,9 +8,28 @@ import AddDealDialog from "@/components/AddDealDialog";
 import DealCard from "@/components/DealCard";
 import { exportMatrixCSV } from "@/lib/exportMatrix";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { Deal } from "@/lib/api";
+import { Deal, User, getMe, getAuthToken, clearAuthToken } from "@/lib/api";
 
 export default function Home() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    getMe()
+      .then(setUser)
+      .catch(() => {
+        clearAuthToken();
+        router.push("/login");
+      })
+      .finally(() => setAuthLoading(false));
+  }, [router]);
+
   const {
     deals,
     loading: dealsLoading,
@@ -30,6 +50,14 @@ export default function Home() {
     matrix.setDeals(deals.map((d) => d.deal_id));
   }, [deals, matrix.setDeals]);
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-3 border-blue-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -45,15 +73,39 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {user && (
+              <div className="flex items-center gap-2 text-xs text-gray-500 border-r border-gray-200 pr-3 mr-1">
+                <span>{user.email}</span>
+                {user.is_admin && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
+                    Admin
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    clearAuthToken();
+                    router.push("/login");
+                  }}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                  title="Sign out"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              </div>
+            )}
             <span className="text-xs text-gray-400">
               {deals.length} deal{deals.length !== 1 ? "s" : ""} active
             </span>
-            <button
-              onClick={() => setShowAddDeal(true)}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              + Add Deal
-            </button>
+            {user?.is_admin && (
+              <button
+                onClick={() => setShowAddDeal(true)}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                + Add Deal
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -95,6 +147,7 @@ export default function Home() {
                       onUpdateDeal={editDeal}
                       onDocumentDeleted={refreshDeals}
                       uploading={dealsLoading}
+                      readOnly={!user?.is_admin}
                     />
                   ))}
                 </ul>

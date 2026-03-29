@@ -8,6 +8,7 @@ import {
   isValidElement,
   cloneElement,
   useMemo,
+  forwardRef,
 } from "react";
 import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
@@ -21,6 +22,7 @@ import {
 import { QUERY_TEMPLATES } from "@/lib/queryTemplates";
 import InlineCitation from "./InlineCitation";
 import DocumentViewer from "./DocumentViewer";
+import ConfirmDialog from "./ConfirmDialog";
 
 // ── Types ──
 
@@ -143,6 +145,134 @@ export default function DocMatrixPanel({
   const [showTemplates, setShowTemplates] = useState(false);
   const [viewerState, setViewerState] = useState<ViewerState | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+
+  // Column management state
+  const [editingColIndex, setEditingColIndex] = useState<number | null>(null);
+  const [editingColValue, setEditingColValue] = useState("");
+  const [confirmDeleteCol, setConfirmDeleteCol] = useState<number | null>(null);
+  const [dragColIndex, setDragColIndex] = useState<number | null>(null);
+  const [dragOverColIndex, setDragOverColIndex] = useState<number | null>(null);
+
+  // Unified Excel-like header filter/sort for all columns
+  const [openMenu, setOpenMenu] = useState<"doc" | number | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [sortConfig, setSortConfig] = useState<{ col: "doc" | number; dir: "asc" | "desc" } | null>(null);
+  const [colFilters, setColFilters] = useState<Record<string, string>>({});
+
+  const setColFilter = (col: "doc" | number, value: string) => {
+    setColFilters((prev) => ({ ...prev, [String(col)]: value }));
+  };
+  const getColFilter = (col: "doc" | number) => colFilters[String(col)] || "";
+  const isColFiltered = (col: "doc" | number) =>
+    !!getColFilter(col) || (sortConfig?.col === col);
+  const hasAnyFilter = Object.values(colFilters).some((v) => v) || sortConfig !== null;
+
+  const getCellAnswer = (docId: string, query: string) =>
+    cells[docId]?.[query]?.answer || "";
+
+  const filteredDocuments = useMemo(() => {
+    let result = documents;
+    // Apply document name filter
+    const docFilter = getColFilter("doc");
+    if (docFilter) {
+      const lower = docFilter.toLowerCase();
+      result = result.filter((d) => d.filename.toLowerCase().includes(lower));
+    }
+    // Apply query column filters
+    for (const [key, value] of Object.entries(colFilters)) {
+      if (key === "doc" || !value) continue;
+      const queryIdx = parseInt(key, 10);
+      const query = queries[queryIdx];
+      if (!query) continue;
+      const lower = value.toLowerCase();
+      result = result.filter((d) =>
+        getCellAnswer(d.doc_id, query).toLowerCase().includes(lower)
+      );
+    }
+    // Apply sort
+    if (sortConfig) {
+      result = [...result].sort((a, b) => {
+        let aVal: string, bVal: string;
+        if (sortConfig.col === "doc") {
+          aVal = a.filename;
+          bVal = b.filename;
+        } else {
+          const query = queries[sortConfig.col];
+          aVal = getCellAnswer(a.doc_id, query);
+          bVal = getCellAnswer(b.doc_id, query);
+        }
+        return sortConfig.dir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      });
+    }
+    return result;
+  }, [documents, colFilters, sortConfig, queries, cells]);
+
+  // ── Persistence Setup ──
+  const CACHE_KEY = useMemo(() => `vyntic_doc_matrix_${dealId}`, [dealId]);
+
+  const latestState = useRef({ queries, cells });
+  useEffect(() => {
+    latestState.current = { queries, cells };
+  }, [queries, cells]);
+
+  // Load from local storage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.queries && p.cells) {
+          setQueries(p.queries);
+          setCells(p.cells);
+        }
+      }
+    } catch {}
+
+    return () => {
+      const { queries: sq, cells: sc } = latestState.current;
+      if (sq.length === 0) return;
+      try {
+        const persistableCells: typeof sc = {};
+        for (const [docId, docCells] of Object.entries(sc)) {
+          persistableCells[docId] = {};
+          for (const [q, r] of Object.entries(docCells)) {
+            if (r.status === "complete" || r.status === "error") {
+              persistableCells[docId][q] = r;
+            }
+          }
+        }
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({ queries: sq, cells: persistableCells })
+        );
+      } catch {}
+    };
+  }, [CACHE_KEY]);
+
+  // Debounced save
+  useEffect(() => {
+    if (queries.length === 0) return;
+    const tid = setTimeout(() => {
+      try {
+        const persistableCells: typeof cells = {};
+        for (const [docId, docCells] of Object.entries(cells)) {
+          persistableCells[docId] = {};
+          for (const [q, r] of Object.entries(docCells)) {
+            if (r.status === "complete" || r.status === "error") {
+              persistableCells[docId][q] = r;
+            }
+          }
+        }
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({ queries, cells: persistableCells })
+        );
+      } catch {}
+    }, 1000);
+    return () => clearTimeout(tid);
+  }, [queries, cells, CACHE_KEY]);
+
   const templateRef = useRef<HTMLDivElement>(null);
   const templateBtnRef = useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{
@@ -156,6 +286,29 @@ export default function DocMatrixPanel({
       controllerRef.current?.abort();
     };
   }, []);
+
+  // Column header menu open handler
+  const openColMenu = (col: "doc" | number, thElement: HTMLElement) => {
+    if (openMenu === col) {
+      setOpenMenu(null);
+      return;
+    }
+    const rect = thElement.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 2, left: rect.left });
+    setOpenMenu(col);
+  };
+
+  // Column header menu close on outside click
+  useEffect(() => {
+    if (openMenu === null) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openMenu]);
 
   // Position and close template dropdown
   useEffect(() => {
@@ -183,7 +336,6 @@ export default function DocMatrixPanel({
 
   const handleCitationClick = useCallback(
     (citation: Citation) => {
-      // Open in the page-level viewer via onViewDocument
       onViewDocument(citation);
     },
     [onViewDocument]
@@ -198,15 +350,100 @@ export default function DocMatrixPanel({
     });
   }, []);
 
+  // Column management handlers
+  const removeQuery = useCallback((index: number) => {
+    setQueries((prev) => {
+      const query = prev[index];
+      if (!query) return prev;
+      setCells((prevCells) => {
+        const newCells = { ...prevCells };
+        for (const docId of Object.keys(newCells)) {
+          const docCells = { ...newCells[docId] };
+          delete docCells[query];
+          newCells[docId] = docCells;
+        }
+        return newCells;
+      });
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  const renameQuery = useCallback((index: number, newName: string) => {
+    setQueries((prev) => {
+      const oldQuery = prev[index];
+      if (!oldQuery || !newName.trim() || oldQuery === newName) return prev;
+      if (prev.includes(newName)) return prev;
+      const newQueries = [...prev];
+      newQueries[index] = newName;
+      setCells((prevCells) => {
+        const newCells = { ...prevCells };
+        for (const docId of Object.keys(newCells)) {
+          const docCells = { ...newCells[docId] };
+          if (docCells[oldQuery]) {
+            docCells[newName] = docCells[oldQuery];
+            delete docCells[oldQuery];
+          }
+          newCells[docId] = docCells;
+        }
+        return newCells;
+      });
+      return newQueries;
+    });
+  }, []);
+
+  const reorderQueries = useCallback((fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    setQueries((prev) => {
+      const newQueries = [...prev];
+      const [moved] = newQueries.splice(fromIndex, 1);
+      newQueries.splice(toIndex, 0, moved);
+      return newQueries;
+    });
+  }, []);
+
+  const startRename = (index: number) => {
+    setEditingColIndex(index);
+    setEditingColValue(queries[index]);
+  };
+
+  const commitRename = () => {
+    if (editingColIndex !== null && editingColValue.trim()) {
+      renameQuery(editingColIndex, editingColValue.trim());
+    }
+    setEditingColIndex(null);
+    setEditingColValue("");
+  };
+
+  const handleColDragStart = (index: number) => {
+    setDragColIndex(index);
+  };
+
+  const handleColDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverColIndex(index);
+  };
+
+  const handleColDrop = (index: number) => {
+    if (dragColIndex !== null) {
+      reorderQueries(dragColIndex, index);
+    }
+    setDragColIndex(null);
+    setDragOverColIndex(null);
+  };
+
+  const handleColDragEnd = () => {
+    setDragColIndex(null);
+    setDragOverColIndex(null);
+  };
+
   const addQuery = useCallback(
     (queryText: string) => {
       const trimmed = queryText.trim();
       if (!trimmed || documents.length === 0) return;
-      if (queries.includes(trimmed)) return; // no duplicate columns
+      if (queries.includes(trimmed)) return;
 
       setQueries((prev) => [...prev, trimmed]);
 
-      // Initialize cells for all docs as loading
       setCells((prev) => {
         const updated = { ...prev };
         for (const doc of documents) {
@@ -226,7 +463,6 @@ export default function DocMatrixPanel({
         dealId,
         docIds,
         trimmed,
-        // onEvent
         (event: DocMatrixEvent) => {
           setCells((prev) => {
             const updated = { ...prev };
@@ -264,9 +500,7 @@ export default function DocMatrixPanel({
             return updated;
           });
         },
-        // onFinish
         () => setLoading(false),
-        // onError
         (err) => {
           console.error("Doc matrix stream error:", err);
           setLoading(false);
@@ -334,17 +568,95 @@ export default function DocMatrixPanel({
         <table className="w-full border-collapse bg-white rounded-lg shadow">
           <thead>
             <tr className="bg-gray-100">
-              {/* Document column header */}
-              <th className="p-3 text-left font-semibold text-gray-700 border border-gray-200 min-w-[220px] sticky left-0 bg-gray-100 z-10">
-                Document
+              {/* Document column header with Excel-like dropdown */}
+              <th
+                className={`p-3 text-left font-semibold text-gray-700 border border-gray-200 min-w-[220px] sticky left-0 z-10 cursor-pointer select-none hover:bg-gray-200 transition-colors ${isColFiltered("doc") ? "bg-blue-50" : "bg-gray-100"}`}
+                onClick={(e) => openColMenu("doc", e.currentTarget)}
+              >
+                <DocColumnHeaderLabel label="Document" col="doc" sortConfig={sortConfig} filterValue={getColFilter("doc")} />
               </th>
               {/* Query column headers */}
               {queries.map((q, i) => (
                 <th
                   key={i}
-                  className="p-3 text-left font-medium text-gray-700 border border-gray-200 min-w-[280px] max-w-[400px]"
+                  draggable={editingColIndex !== i}
+                  onDragStart={() => handleColDragStart(i)}
+                  onDragOver={(e) => handleColDragOver(e, i)}
+                  onDrop={() => handleColDrop(i)}
+                  onDragEnd={handleColDragEnd}
+                  className={`p-3 text-left font-medium text-gray-700 border border-gray-200 min-w-[280px] max-w-[400px] group cursor-grab active:cursor-grabbing transition-colors ${
+                    dragColIndex === i ? "opacity-50" : ""
+                  } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50" : ""} ${
+                    isColFiltered(i) ? "bg-blue-50/50" : ""
+                  }`}
                 >
-                  <div className="text-sm leading-snug">{q}</div>
+                  {editingColIndex === i ? (
+                    <input
+                      type="text"
+                      value={editingColValue}
+                      onChange={(e) => setEditingColValue(e.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRename();
+                        if (e.key === "Escape") {
+                          setEditingColIndex(null);
+                          setEditingColValue("");
+                        }
+                      }}
+                      autoFocus
+                      className="w-full text-sm px-2 py-1 border border-blue-400 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  ) : (
+                    <div className="flex items-start justify-between gap-1">
+                      <div
+                        className="text-sm leading-snug flex-1 min-w-0 cursor-text"
+                        onDoubleClick={() => startRename(i)}
+                        title="Double-click to rename"
+                      >
+                        {q}
+                      </div>
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        {/* Sort/filter dropdown trigger */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openColMenu(i, e.currentTarget.closest("th")!); }}
+                          className={`p-0.5 rounded transition-colors ${isColFiltered(i) ? "text-blue-500" : "text-gray-400 opacity-0 group-hover:opacity-100"} hover:text-blue-600`}
+                          title="Sort & filter"
+                        >
+                          {sortConfig?.col === i ? (
+                            <span className="text-xs">{sortConfig.dir === "asc" ? "\u25B2" : "\u25BC"}</span>
+                          ) : getColFilter(i) ? (
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          )}
+                        </button>
+                        {/* Rename button */}
+                        <button
+                          onClick={() => startRename(i)}
+                          className="p-0.5 text-gray-400 hover:text-blue-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Rename column"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                          </svg>
+                        </button>
+                        {/* Delete button */}
+                        <button
+                          onClick={() => setConfirmDeleteCol(i)}
+                          className="p-0.5 text-gray-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Delete column"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </th>
               ))}
               {/* Add query column */}
@@ -438,7 +750,7 @@ export default function DocMatrixPanel({
             </tr>
           </thead>
           <tbody>
-            {documents.map((doc) => (
+            {filteredDocuments.map((doc) => (
               <tr key={doc.doc_id} className="hover:bg-gray-50 transition-colors">
                 {/* Document name cell (sticky left) */}
                 <td className="p-3 font-medium border border-gray-200 sticky left-0 z-10 bg-white">
@@ -490,6 +802,33 @@ export default function DocMatrixPanel({
         </table>
       </div>
 
+      {/* Excel-like column filter/sort dropdown — portaled to body */}
+      {openMenu !== null &&
+        createPortal(
+          <DocColumnFilterMenu
+            ref={menuRef}
+            col={openMenu}
+            pos={menuPos}
+            sortConfig={sortConfig}
+            filterValue={getColFilter(openMenu)}
+            placeholder={openMenu === "doc" ? "Filter documents..." : "Filter by answer..."}
+            matchInfo={`${filteredDocuments.length} of ${documents.length} rows`}
+            onSort={(dir) => {
+              setSortConfig(dir ? { col: openMenu, dir } : (sortConfig?.col === openMenu ? null : sortConfig));
+              setOpenMenu(null);
+            }}
+            onFilter={(value) => setColFilter(openMenu, value)}
+            onClearAll={() => {
+              if (openMenu === "doc") setColFilter("doc", "");
+              else setColFilter(openMenu, "");
+              if (sortConfig?.col === openMenu) setSortConfig(null);
+              setOpenMenu(null);
+            }}
+            onClearAllGlobal={hasAnyFilter ? () => { setColFilters({}); setSortConfig(null); setOpenMenu(null); } : undefined}
+          />,
+          document.body
+        )}
+
       {/* Document Viewer slide-over panel */}
       {viewerState && (
         <DocumentViewer
@@ -498,6 +837,20 @@ export default function DocMatrixPanel({
           page={viewerState.page}
           snippet={viewerState.snippet}
           onClose={() => setViewerState(null)}
+        />
+      )}
+
+      {/* Confirm delete column dialog */}
+      {confirmDeleteCol !== null && (
+        <ConfirmDialog
+          title="Delete Column"
+          message={`Remove the query "${queries[confirmDeleteCol]}" and all its results? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={() => {
+            removeQuery(confirmDeleteCol);
+            setConfirmDeleteCol(null);
+          }}
+          onCancel={() => setConfirmDeleteCol(null)}
         />
       )}
     </div>
@@ -703,3 +1056,121 @@ function DocMatrixCell({
     </td>
   );
 }
+
+// ── Shared sub-components for Excel-like column headers ──
+
+function DocColumnHeaderLabel({
+  label,
+  col,
+  sortConfig,
+  filterValue,
+}: {
+  label: string;
+  col: "doc" | number;
+  sortConfig: { col: "doc" | number; dir: "asc" | "desc" } | null;
+  filterValue: string;
+}) {
+  const isSorted = sortConfig?.col === col;
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5">
+        {label}
+        {isSorted && (
+          <span className="text-blue-500 text-xs">
+            {sortConfig!.dir === "asc" ? "\u25B2" : "\u25BC"}
+          </span>
+        )}
+        {filterValue && (
+          <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+          </svg>
+        )}
+      </div>
+      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  );
+}
+
+const DocColumnFilterMenu = forwardRef<
+  HTMLDivElement,
+  {
+    col: "doc" | number;
+    pos: { top: number; left: number };
+    sortConfig: { col: "doc" | number; dir: "asc" | "desc" } | null;
+    filterValue: string;
+    placeholder: string;
+    matchInfo: string;
+    onSort: (dir: "asc" | "desc" | null) => void;
+    onFilter: (value: string) => void;
+    onClearAll: () => void;
+    onClearAllGlobal?: () => void;
+  }
+>(function DocColumnFilterMenu(
+  { col, pos, sortConfig, filterValue, placeholder, matchInfo, onSort, onFilter, onClearAll, onClearAllGlobal },
+  ref
+) {
+  const isSortedAsc = sortConfig?.col === col && sortConfig.dir === "asc";
+  const isSortedDesc = sortConfig?.col === col && sortConfig.dir === "desc";
+  const hasFilter = !!filterValue || isSortedAsc || isSortedDesc;
+
+  return (
+    <div
+      ref={ref}
+      className="fixed w-56 bg-white rounded-lg shadow-2xl border border-gray-200 z-[9999] overflow-hidden"
+      style={{ top: pos.top, left: pos.left }}
+    >
+      <div className="border-b border-gray-100">
+        <button
+          onClick={() => onSort(isSortedAsc ? null : "asc")}
+          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${isSortedAsc ? "text-blue-600 font-medium bg-blue-50" : "text-gray-700"}`}
+        >
+          <span className="text-sm">{"\u25B2"}</span> Sort A to Z
+        </button>
+        <button
+          onClick={() => onSort(isSortedDesc ? null : "desc")}
+          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${isSortedDesc ? "text-blue-600 font-medium bg-blue-50" : "text-gray-700"}`}
+        >
+          <span className="text-sm">{"\u25BC"}</span> Sort Z to A
+        </button>
+      </div>
+      <div className="p-2">
+        <div className="relative">
+          <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={filterValue}
+            onChange={(e) => onFilter(e.target.value)}
+            placeholder={placeholder}
+            className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+            autoFocus
+          />
+        </div>
+        {filterValue && (
+          <div className="mt-1 text-[10px] text-gray-400">{matchInfo}</div>
+        )}
+      </div>
+      {hasFilter && (
+        <div className="border-t border-gray-100 p-1 space-y-0.5">
+          <button
+            onClick={onClearAll}
+            className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+          >
+            Clear column filter
+          </button>
+          {onClearAllGlobal && (
+            <button
+              onClick={onClearAllGlobal}
+              className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+            >
+              Clear all filters
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
