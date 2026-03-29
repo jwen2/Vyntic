@@ -29,6 +29,7 @@ interface Props {
   ) => void;
   onDocumentDeleted?: () => void;
   uploading: boolean;
+  readOnly?: boolean;
 }
 
 export default function DealCard({
@@ -40,6 +41,7 @@ export default function DealCard({
   onUpdateDeal,
   onDocumentDeleted,
   uploading,
+  readOnly = false,
 }: Props) {
   const router = useRouter();
   const [dragging, setDragging] = useState(false);
@@ -105,10 +107,10 @@ export default function DealCard({
           ? "border-blue-400 bg-blue-50 dark:bg-blue-950/30 shadow-md ring-2 ring-blue-200 dark:ring-blue-800"
           : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-600"
       }`}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      onDragEnter={readOnly ? undefined : handleDragEnter}
+      onDragLeave={readOnly ? undefined : handleDragLeave}
+      onDragOver={readOnly ? undefined : handleDragOver}
+      onDrop={readOnly ? undefined : handleDrop}
     >
       <div className="p-3">
         {/* Header row */}
@@ -132,45 +134,55 @@ export default function DealCard({
           >
             {expanded ? "▾" : "▸"}
           </button>
-          <button
-            onClick={onDelete}
-            className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-xs ml-2 mt-0.5"
-            title="Delete deal"
-          >
-            ✕
-          </button>
+          {!readOnly && (
+            <button
+              onClick={onDelete}
+              className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-xs ml-2 mt-0.5"
+              title="Delete deal"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Stage + Tags row */}
         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
           {/* Stage badge */}
           <div className="relative">
-            <button
-              onClick={() => {
-                setShowStageMenu(!showStageMenu);
-                setShowTagMenu(false);
-              }}
-              className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${stageColor} hover:opacity-80 transition-opacity`}
-            >
-              {deal.stage}
-            </button>
-            {showStageMenu && (
-              <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-36">
-                {STAGES.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => {
-                      onUpdateDeal(deal.deal_id, { stage: s });
-                      setShowStageMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                      s === deal.stage ? "font-semibold text-blue-600 dark:text-blue-400" : "text-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+            {readOnly ? (
+              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${stageColor}`}>
+                {deal.stage}
+              </span>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    setShowStageMenu(!showStageMenu);
+                    setShowTagMenu(false);
+                  }}
+                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${stageColor} hover:opacity-80 transition-opacity`}
+                >
+                  {deal.stage}
+                </button>
+                {showStageMenu && (
+                  <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-36">
+                    {STAGES.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => {
+                          onUpdateDeal(deal.deal_id, { stage: s });
+                          setShowStageMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                          s === deal.stage ? "font-semibold text-blue-600 dark:text-blue-400" : "text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -178,9 +190,11 @@ export default function DealCard({
           {deal.tags.map((tag) => (
             <span
               key={tag}
-              className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-              title={`Click to remove "${tag}"`}
-              onClick={() =>
+              className={`text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 ${
+                readOnly ? "" : "cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+              }`}
+              title={readOnly ? undefined : `Click to remove "${tag}"`}
+              onClick={readOnly ? undefined : () =>
                 onUpdateDeal(deal.deal_id, {
                   tags: deal.tags.filter((t) => t !== tag),
                 })
@@ -191,35 +205,37 @@ export default function DealCard({
           ))}
 
           {/* Add tag button */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setShowTagMenu(!showTagMenu);
-                setShowStageMenu(false);
-              }}
-              className="text-[10px] px-1.5 py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
-            >
-              + tag
-            </button>
-            {showTagMenu && (
-              <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-40 max-h-48 overflow-y-auto">
-                {SECTOR_TAGS.filter((t) => !deal.tags.includes(t)).map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => {
-                      onUpdateDeal(deal.deal_id, {
-                        tags: [...deal.tags, tag],
-                      });
-                      setShowTagMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {!readOnly && (
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowTagMenu(!showTagMenu);
+                  setShowStageMenu(false);
+                }}
+                className="text-[10px] px-1.5 py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
+              >
+                + tag
+              </button>
+              {showTagMenu && (
+                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-40 max-h-48 overflow-y-auto">
+                  {SECTOR_TAGS.filter((t) => !deal.tags.includes(t)).map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        onUpdateDeal(deal.deal_id, {
+                          tags: [...deal.tags, tag],
+                        });
+                        setShowTagMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Drop zone hint */}
@@ -248,7 +264,7 @@ export default function DealCard({
         </button>
 
         {/* Browse files button */}
-        {!dragging && (
+        {!readOnly && !dragging && (
           <button
             onClick={() => fileInputRef.current?.click()}
             className="mt-1.5 w-full text-[10px] text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 py-1 border border-dashed border-gray-200 dark:border-gray-700 rounded hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
@@ -256,14 +272,16 @@ export default function DealCard({
             Drop files or click to upload
           </button>
         )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.xlsx,.xls"
-          multiple
-          onChange={handleFileSelect}
-          className="hidden"
-        />
+        {!readOnly && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.xlsx,.xls"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+        )}
 
         {/* Expanded detail */}
         {expanded && <DealDetailPanel deal={deal} onDocumentDeleted={onDocumentDeleted} />}

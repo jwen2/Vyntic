@@ -21,20 +21,20 @@ export function clearAuthToken() {
 async function fetchWrapper(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
-  
+
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  
+
   const response = await fetch(url, { ...options, headers });
-  
+
   if (response.status === 401) {
     clearAuthToken();
     if (typeof window !== "undefined" && window.location.pathname !== "/login") {
       window.location.href = "/login";
     }
   }
-  
+
   return response;
 }
 export const SYNTHESIS_DEAL_ID = "__synthesis__";
@@ -66,6 +66,41 @@ export interface CellData {
 
 export interface MatrixResponse {
   cells: Record<string, Record<string, CellData>>;
+}
+
+// ── Conversation History ──
+
+export interface ConversationEntry {
+  id: string;
+  deal_id: string;
+  question: string;
+  answer: string;
+  citations: (Citation | null)[];
+  workstream: string;
+  created_at: string;
+}
+
+export async function listConversations(
+  deal_id: string,
+  workstream?: string
+): Promise<ConversationEntry[]> {
+  const params = workstream ? `?workstream=${encodeURIComponent(workstream)}` : "";
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/conversations${params}`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function saveConversation(
+  deal_id: string,
+  data: { question: string; answer: string; citations?: (Citation | null)[]; workstream?: string }
+): Promise<ConversationEntry> {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/conversations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ deal_id, ...data }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 export async function createDeal(
@@ -126,7 +161,7 @@ export async function updateDeal(
   deal_id: string,
   data: { name?: string; description?: string; stage?: string; tags?: string[] }
 ): Promise<Deal> {
-  const res = await fetch(`${API_BASE}/deals/${deal_id}`, {
+  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),

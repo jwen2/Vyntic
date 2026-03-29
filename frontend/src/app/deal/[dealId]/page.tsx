@@ -4,10 +4,13 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Deal,
   Citation,
+  User,
   listDeals,
   listDocuments,
   uploadDocumentsBatch,
   DocumentMetadata,
+  getMe,
+  getAuthToken,
 } from "@/lib/api";
 import { DD_WORKSTREAMS, WorkstreamId } from "@/lib/queryTemplates";
 import WorkstreamTabs from "@/components/WorkstreamTabs";
@@ -15,6 +18,7 @@ import WorkstreamPanel, { QuestionResult } from "@/components/WorkstreamPanel";
 import RiskScorecard from "@/components/RiskScorecard";
 import DocMatrixPanel from "@/components/DocMatrixPanel";
 import DocumentViewer from "@/components/DocumentViewer";
+import ConversationHistory from "@/components/ConversationHistory";
 import ReportModal from "@/components/ReportModal";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -77,12 +81,14 @@ export default function DealWorkspacePage() {
   const dealId = params.dealId as string;
   const { theme, toggleTheme } = useTheme();
 
+  const [user, setUser] = useState<User | null>(null);
   const [deal, setDeal] = useState<Deal | null>(null);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<WorkstreamId>("documents");
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const [resultCache, setResultCache] = useState<WorkstreamCache>({});
 
@@ -149,10 +155,17 @@ export default function DealWorkspacePage() {
   }, [dealId]);
 
   useEffect(() => {
-    Promise.all([fetchDeal(), fetchDocuments()]).finally(() =>
-      setLoading(false)
-    );
-  }, [fetchDeal, fetchDocuments]);
+    const token = getAuthToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    Promise.all([
+      fetchDeal(),
+      fetchDocuments(),
+      getMe().then(setUser).catch(() => router.push("/login")),
+    ]).finally(() => setLoading(false));
+  }, [fetchDeal, fetchDocuments, router]);
 
   const activeWorkstream = DD_WORKSTREAMS.find((w) => w.id === activeTab);
 
@@ -294,11 +307,22 @@ export default function DealWorkspacePage() {
               Generate IC Report
             </button>
             <button
-              onClick={() => setShowUpload(!showUpload)}
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              onClick={() => setShowHistory(true)}
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-1.5"
             >
-              Upload Docs
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              History
             </button>
+            {user?.is_admin && (
+              <button
+                onClick={() => setShowUpload(!showUpload)}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Upload Docs
+              </button>
+            )}
             <button
               onClick={() => router.push("/")}
               className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
@@ -413,6 +437,14 @@ export default function DealWorkspacePage() {
           page={viewerState.page}
           snippet={viewerState.snippet}
           onClose={() => setViewerState(null)}
+        />
+      )}
+
+      {/* Conversation history slide-over */}
+      {showHistory && (
+        <ConversationHistory
+          dealId={dealId}
+          onClose={() => setShowHistory(false)}
         />
       )}
 

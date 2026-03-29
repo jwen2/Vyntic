@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useDeals } from "@/hooks/useDeals";
 import { useMatrix } from "@/hooks/useMatrix";
 import MatrixGrid from "@/components/MatrixGrid";
@@ -7,10 +8,29 @@ import AddDealDialog from "@/components/AddDealDialog";
 import DealCard from "@/components/DealCard";
 import { exportMatrixCSV } from "@/lib/exportMatrix";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { Deal, User, getMe, clearAuthToken } from "@/lib/api";
+import { Deal, User, getMe, getAuthToken, clearAuthToken } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
 
 export default function Home() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    getMe()
+      .then(setUser)
+      .catch(() => {
+        clearAuthToken();
+        router.push("/login");
+      })
+      .finally(() => setAuthLoading(false));
+  }, [router]);
+
   const {
     deals,
     loading: dealsLoading,
@@ -25,7 +45,6 @@ export default function Home() {
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
   const [confirmDeleteDeal, setConfirmDeleteDeal] = useState<Deal | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [dealSearch, setDealSearch] = useState("");
   const { theme, toggleTheme } = useTheme();
 
@@ -45,14 +64,13 @@ export default function Home() {
     matrix.setDeals(deals.map((d: Deal) => d.deal_id));
   }, [deals, matrix.setDeals]);
 
-  // Fetch current user
-  useEffect(() => {
-    getMe()
-      .then(setCurrentUser)
-      .catch((err) => {
-        console.error("Failed to fetch user:", err);
-      });
-  }, []);
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-3 border-blue-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   function handleLogout() {
     clearAuthToken();
@@ -73,15 +91,20 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-gray-400 dark:text-gray-500 border-r border-gray-200 dark:border-gray-700 pr-4">
+          <div className="flex items-center gap-3">
+            {user && (
+              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700 pr-3 mr-1">
+                <span>{user.full_name || user.email}</span>
+                {user.is_admin && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400 font-medium">
+                    Admin
+                  </span>
+                )}
+              </div>
+            )}
+            <span className="text-xs text-gray-400 dark:text-gray-500">
               {deals.length} deal{deals.length !== 1 ? "s" : ""} active
             </span>
-            {currentUser && (
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {currentUser.full_name || currentUser.email}
-              </span>
-            )}
             {/* Dark mode toggle */}
             <button
               onClick={toggleTheme}
@@ -98,12 +121,14 @@ export default function Home() {
                 </svg>
               )}
             </button>
-            <button
-              onClick={() => setShowAddDeal(true)}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              + Add Deal
-            </button>
+            {user?.is_admin && (
+              <button
+                onClick={() => setShowAddDeal(true)}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                + Add Deal
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
@@ -182,6 +207,7 @@ export default function Home() {
                       onUpdateDeal={editDeal}
                       onDocumentDeleted={refreshDeals}
                       uploading={dealsLoading}
+                      readOnly={!user?.is_admin}
                     />
                   ))}
                 </ul>

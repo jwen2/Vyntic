@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, forwardRef } from "react";
 import { createPortal } from "react-dom";
 import { CellData, Citation, SYNTHESIS_DEAL_ID } from "@/lib/api";
 import MatrixCell from "./MatrixCell";
@@ -57,6 +57,64 @@ export default function MatrixGrid({
   const [dragColIndex, setDragColIndex] = useState<number | null>(null);
   const [dragOverColIndex, setDragOverColIndex] = useState<number | null>(null);
 
+<<<<<<< HEAD
+  // Unified Excel-like header filter/sort for all columns
+  const [openMenu, setOpenMenu] = useState<"deal" | number | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [sortConfig, setSortConfig] = useState<{ col: "deal" | number; dir: "asc" | "desc" } | null>(null);
+  const [colFilters, setColFilters] = useState<Record<string, string>>({});
+
+  const setColFilter = (col: "deal" | number, value: string) => {
+    setColFilters((prev) => ({ ...prev, [String(col)]: value }));
+  };
+  const getColFilter = (col: "deal" | number) => colFilters[String(col)] || "";
+  const isColFiltered = (col: "deal" | number) =>
+    !!getColFilter(col) || (sortConfig?.col === col);
+  const hasAnyFilter = Object.values(colFilters).some((v) => v) || sortConfig !== null;
+
+  const getCellText = (dealId: string, query: string) =>
+    cells[dealId]?.[query]?.answer || "";
+
+  const filteredDeals = useMemo(() => {
+    let result = deals;
+    // Apply deal name filter
+    const dealFilter = getColFilter("deal");
+    if (dealFilter) {
+      const lower = dealFilter.toLowerCase();
+      result = result.filter((d) => d.toLowerCase().includes(lower));
+    }
+    // Apply query column filters
+    for (const [key, value] of Object.entries(colFilters)) {
+      if (key === "deal" || !value) continue;
+      const queryIdx = parseInt(key, 10);
+      const query = queries[queryIdx];
+      if (!query) continue;
+      const lower = value.toLowerCase();
+      result = result.filter((d) =>
+        getCellText(d, query).toLowerCase().includes(lower)
+      );
+    }
+    // Apply sort
+    if (sortConfig) {
+      result = [...result].sort((a, b) => {
+        let aVal: string, bVal: string;
+        if (sortConfig.col === "deal") {
+          aVal = a;
+          bVal = b;
+        } else {
+          const query = queries[sortConfig.col];
+          aVal = getCellText(a, query);
+          bVal = getCellText(b, query);
+        }
+        return sortConfig.dir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      });
+    }
+    return result;
+  }, [deals, colFilters, sortConfig, queries, cells]);
+
+=======
+>>>>>>> origin/main
   const handleAddQuery = () => {
     if (newQuery.trim()) {
       onAddQuery(newQuery.trim());
@@ -115,6 +173,32 @@ export default function MatrixGrid({
     setDragOverColIndex(null);
   };
 
+<<<<<<< HEAD
+  // Column header menu open handler
+  const openColMenu = (col: "deal" | number, thElement: HTMLElement) => {
+    if (openMenu === col) {
+      setOpenMenu(null);
+      return;
+    }
+    const rect = thElement.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 2, left: rect.left });
+    setOpenMenu(col);
+  };
+
+  // Column header menu close on outside click
+  useEffect(() => {
+    if (openMenu === null) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openMenu]);
+
+=======
+>>>>>>> origin/main
   // Position and close template dropdown
   useEffect(() => {
     if (!showTemplates) return;
@@ -197,23 +281,46 @@ export default function MatrixGrid({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-900/50">
           <thead>
+<<<<<<< HEAD
+            <tr className="bg-gray-100">
+              {/* Deal column header with Excel-like dropdown */}
+              <th
+                className={`p-3 text-left font-semibold text-gray-700 border border-gray-200 min-w-[180px] sticky left-0 z-10 cursor-pointer select-none hover:bg-gray-200 transition-colors ${isColFiltered("deal") ? "bg-blue-50" : "bg-gray-100"}`}
+                onClick={(e) => openColMenu("deal", e.currentTarget)}
+              >
+                <ColumnHeaderLabel label="Deal" col="deal" sortConfig={sortConfig} filterValue={getColFilter("deal")} />
+=======
             <tr className="bg-gray-100 dark:bg-gray-800">
               <th className="p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[180px] sticky left-0 bg-gray-100 dark:bg-gray-800 z-10">
                 Deal
+>>>>>>> origin/main
               </th>
+
               {queries.map((q, i) => (
                 <th
                   key={i}
+<<<<<<< HEAD
+                  draggable={!!onReorderQueries && editingColIndex !== i}
+=======
                   draggable={!!onReorderQueries}
+>>>>>>> origin/main
                   onDragStart={() => handleColDragStart(i)}
                   onDragOver={(e) => handleColDragOver(e, i)}
                   onDrop={() => handleColDrop(i)}
                   onDragEnd={handleColDragEnd}
+<<<<<<< HEAD
+                  className={`p-3 text-left font-medium text-gray-700 border border-gray-200 min-w-[250px] max-w-[350px] group transition-colors ${
+                    dragColIndex === i ? "opacity-50" : ""
+                  } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50" : ""} ${
+                    isColFiltered(i) ? "bg-blue-50/50" : ""
+                  } ${onReorderQueries ? "cursor-grab active:cursor-grabbing" : ""}`}
+=======
                   className={`p-3 text-left font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[250px] max-w-[350px] group transition-colors ${
                     dragColIndex === i ? "opacity-50" : ""
                   } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50 dark:bg-blue-950/40" : ""} ${
                     onReorderQueries ? "cursor-grab active:cursor-grabbing" : ""
                   }`}
+>>>>>>> origin/main
                 >
                   {editingColIndex === i ? (
                     <input
@@ -229,7 +336,11 @@ export default function MatrixGrid({
                         }
                       }}
                       autoFocus
+<<<<<<< HEAD
+                      className="w-full text-sm px-2 py-1 border border-blue-400 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+=======
                       className="w-full text-sm px-2 py-1 border border-blue-400 rounded bg-white dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+>>>>>>> origin/main
                     />
                   ) : (
                     <div className="flex items-start justify-between gap-1">
@@ -240,11 +351,38 @@ export default function MatrixGrid({
                       >
                         {q}
                       </div>
+<<<<<<< HEAD
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        {/* Sort/filter indicators + dropdown trigger */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openColMenu(i, e.currentTarget.closest("th")!); }}
+                          className={`p-0.5 rounded transition-colors ${isColFiltered(i) ? "text-blue-500" : "text-gray-400 opacity-0 group-hover:opacity-100"} hover:text-blue-600`}
+                          title="Sort & filter"
+                        >
+                          {sortConfig?.col === i ? (
+                            <span className="text-xs">{sortConfig.dir === "asc" ? "\u25B2" : "\u25BC"}</span>
+                          ) : getColFilter(i) ? (
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          )}
+                        </button>
+                        {/* Rename/delete buttons */}
+                        {onRenameQuery && (
+                          <button
+                            onClick={() => startRename(i)}
+                            className="p-0.5 text-gray-400 hover:text-blue-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+=======
                       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                         {onRenameQuery && (
                           <button
                             onClick={() => startRename(i)}
                             className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded"
+>>>>>>> origin/main
                             title="Rename column"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -255,7 +393,11 @@ export default function MatrixGrid({
                         {onRemoveQuery && (
                           <button
                             onClick={() => setConfirmDeleteCol(i)}
+<<<<<<< HEAD
+                            className="p-0.5 text-gray-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+=======
                             className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 rounded"
+>>>>>>> origin/main
                             title="Delete column"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -343,7 +485,7 @@ export default function MatrixGrid({
             </tr>
           </thead>
           <tbody>
-            {deals.map((dealId) => {
+            {filteredDeals.map((dealId) => {
               const isSelected = selectedDeals.has(dealId);
               return (
                 <tr
@@ -403,6 +545,33 @@ export default function MatrixGrid({
         </table>
       </div>
 
+      {/* Excel-like column filter/sort dropdown — portaled to body */}
+      {openMenu !== null &&
+        createPortal(
+          <ColumnFilterMenu
+            ref={menuRef}
+            col={openMenu}
+            pos={menuPos}
+            sortConfig={sortConfig}
+            filterValue={getColFilter(openMenu)}
+            placeholder={openMenu === "deal" ? "Filter deals..." : "Filter by answer..."}
+            matchInfo={`${filteredDeals.length} of ${deals.length} rows`}
+            onSort={(dir) => {
+              setSortConfig(dir ? { col: openMenu, dir } : (sortConfig?.col === openMenu ? null : sortConfig));
+              setOpenMenu(null);
+            }}
+            onFilter={(value) => setColFilter(openMenu, value)}
+            onClearAll={() => {
+              if (openMenu === "deal") setColFilter("deal", "");
+              else setColFilter(openMenu, "");
+              if (sortConfig?.col === openMenu) setSortConfig(null);
+              setOpenMenu(null);
+            }}
+            onClearAllGlobal={hasAnyFilter ? () => { setColFilters({}); setSortConfig(null); setOpenMenu(null); } : undefined}
+          />,
+          document.body
+        )}
+
       {/* Document Viewer slide-over panel */}
       {viewerState && (
         <DocumentViewer
@@ -430,3 +599,121 @@ export default function MatrixGrid({
     </div>
   );
 }
+
+// ── Shared sub-components for Excel-like column headers ──
+
+function ColumnHeaderLabel({
+  label,
+  col,
+  sortConfig,
+  filterValue,
+}: {
+  label: string;
+  col: "deal" | number;
+  sortConfig: { col: "deal" | number; dir: "asc" | "desc" } | null;
+  filterValue: string;
+}) {
+  const isSorted = sortConfig?.col === col;
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5">
+        {label}
+        {isSorted && (
+          <span className="text-blue-500 text-xs">
+            {sortConfig!.dir === "asc" ? "\u25B2" : "\u25BC"}
+          </span>
+        )}
+        {filterValue && (
+          <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+          </svg>
+        )}
+      </div>
+      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  );
+}
+
+const ColumnFilterMenu = forwardRef<
+  HTMLDivElement,
+  {
+    col: "deal" | number;
+    pos: { top: number; left: number };
+    sortConfig: { col: "deal" | number; dir: "asc" | "desc" } | null;
+    filterValue: string;
+    placeholder: string;
+    matchInfo: string;
+    onSort: (dir: "asc" | "desc" | null) => void;
+    onFilter: (value: string) => void;
+    onClearAll: () => void;
+    onClearAllGlobal?: () => void;
+  }
+>(function ColumnFilterMenu(
+  { col, pos, sortConfig, filterValue, placeholder, matchInfo, onSort, onFilter, onClearAll, onClearAllGlobal },
+  ref
+) {
+  const isSortedAsc = sortConfig?.col === col && sortConfig.dir === "asc";
+  const isSortedDesc = sortConfig?.col === col && sortConfig.dir === "desc";
+  const hasFilter = !!filterValue || isSortedAsc || isSortedDesc;
+
+  return (
+    <div
+      ref={ref}
+      className="fixed w-56 bg-white rounded-lg shadow-2xl border border-gray-200 z-[9999] overflow-hidden"
+      style={{ top: pos.top, left: pos.left }}
+    >
+      <div className="border-b border-gray-100">
+        <button
+          onClick={() => onSort(isSortedAsc ? null : "asc")}
+          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${isSortedAsc ? "text-blue-600 font-medium bg-blue-50" : "text-gray-700"}`}
+        >
+          <span className="text-sm">{"\u25B2"}</span> Sort A to Z
+        </button>
+        <button
+          onClick={() => onSort(isSortedDesc ? null : "desc")}
+          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${isSortedDesc ? "text-blue-600 font-medium bg-blue-50" : "text-gray-700"}`}
+        >
+          <span className="text-sm">{"\u25BC"}</span> Sort Z to A
+        </button>
+      </div>
+      <div className="p-2">
+        <div className="relative">
+          <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={filterValue}
+            onChange={(e) => onFilter(e.target.value)}
+            placeholder={placeholder}
+            className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+            autoFocus
+          />
+        </div>
+        {filterValue && (
+          <div className="mt-1 text-[10px] text-gray-400">{matchInfo}</div>
+        )}
+      </div>
+      {hasFilter && (
+        <div className="border-t border-gray-100 p-1 space-y-0.5">
+          <button
+            onClick={onClearAll}
+            className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+          >
+            Clear column filter
+          </button>
+          {onClearAllGlobal && (
+            <button
+              onClick={onClearAllGlobal}
+              className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+            >
+              Clear all filters
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
