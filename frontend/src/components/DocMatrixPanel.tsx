@@ -23,6 +23,7 @@ import { QUERY_TEMPLATES } from "@/lib/queryTemplates";
 import InlineCitation from "./InlineCitation";
 import DocumentViewer from "./DocumentViewer";
 import ConfirmDialog from "./ConfirmDialog";
+import { fixMarkdownTables } from "@/lib/markdownUtils";
 
 // ── Types ──
 
@@ -872,7 +873,7 @@ function DocMatrixCell({
   const [expanded, setExpanded] = useState(false);
 
   const cleanAnswer = useMemo(
-    () => (cell?.answer ? stripThinkTags(cell.answer) : ""),
+    () => (cell?.answer ? fixMarkdownTables(stripThinkTags(cell.answer)) : ""),
     [cell?.answer]
   );
 
@@ -937,8 +938,6 @@ function DocMatrixCell({
 
   // Complete
   const clampClass = expanded ? "" : "line-clamp-4";
-  const sourceCount = cell.citations?.filter((c) => c !== null).length || 0;
-
   return (
     <td className="p-3 border border-gray-200 dark:border-gray-700 text-sm max-w-xs align-top">
       <div
@@ -1017,22 +1016,17 @@ function DocMatrixCell({
         </ReactMarkdown>
       </div>
 
-      {/* Source count + expand */}
-      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-        {sourceCount > 0 && (
-          <span className="text-[10px] text-blue-500 dark:text-blue-400">
-            {sourceCount} source{sourceCount > 1 ? "s" : ""}
-          </span>
-        )}
-        {cleanAnswer.length > 200 && (
+      {/* Expand toggle */}
+      {cleanAnswer.length > 200 && (
+        <div className="mt-1.5">
           <button
             onClick={() => setExpanded(!expanded)}
             className="text-[10px] text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
           >
             {expanded ? "Show less" : "Show more"}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Model info */}
       {cell.model && (

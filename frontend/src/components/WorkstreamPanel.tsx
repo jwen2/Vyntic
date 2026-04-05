@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import { Citation, WorkstreamEvent, workstreamStream, singleQuestionStream } from "@/lib/api";
 import { Workstream } from "@/lib/queryTemplates";
 import InlineCitation from "./InlineCitation";
+import { fixMarkdownTables } from "@/lib/markdownUtils";
 
 const SOURCE_PATTERN = /\[Source\s+(\d+)\]/g;
 
@@ -346,7 +347,7 @@ function QuestionRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const hasResult = result && result.status !== "pending";
-  const cleanAnswer = result?.answer ? stripThinkTags(result.answer) : "";
+  const cleanAnswer = result?.answer ? fixMarkdownTables(stripThinkTags(result.answer)) : "";
   const sourceCount = result?.citations
     ? result.citations.filter((c) => c !== null).length
     : 0;
