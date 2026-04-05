@@ -1,5 +1,6 @@
 "use client";
 import { useEffect } from "react";
+import { getAuthToken } from "@/lib/api";
 
 interface Props {
   dealId: string;
@@ -20,7 +21,9 @@ export default function DocumentViewer({
   const isPdf = lower.endsWith(".pdf");
   const isExcel = lower.endsWith(".xlsx") || lower.endsWith(".xls");
   const isPreviewable = isPdf || isExcel;
-  const viewUrl = `/api/deals/${encodeURIComponent(dealId)}/documents/${encodeURIComponent(filename)}/view`;
+  const token = getAuthToken();
+  const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
+  const viewUrl = `/api/deals/${encodeURIComponent(dealId)}/documents/${encodeURIComponent(filename)}/view${tokenParam}`;
 
   // Close on Escape key
   useEffect(() => {

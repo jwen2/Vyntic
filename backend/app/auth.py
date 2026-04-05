@@ -5,7 +5,7 @@ and FastAPI dependency for protecting routes.
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 import bcrypt
@@ -81,6 +81,51 @@ async def get_current_user(
         return user
     finally:
         db.close()
+
+
+def _resolve_user_from_token(token: str) -> UserRow:
+    """Validate a raw JWT string and return the corresponding UserRow."""
+    try:
+        payload = decode_access_token(token)
+        sub_str = payload.get("sub")
+        if sub_str is None:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        user_id = int(sub_str)
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    db = SessionLocal()
+    try:
+        user = db.query(UserRow).filter(UserRow.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        db.expunge(user)
+        return user
+    finally:
+        db.close()
+
+
+async def get_current_user_or_query_token(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    token: Optional[str] = Query(None),
+) -> UserRow:
+    """Authenticate via Authorization header OR ?token= query param.
+
+    Useful for iframe/download URLs where the browser cannot set headers.
+    """
+    if credentials is not None:
+        return _resolve_user_from_token(credentials.credentials)
+    if token is not None:
+        return _resolve_user_from_token(token)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def verify_deal_access(user: UserRow, deal_id: str) -> bool:

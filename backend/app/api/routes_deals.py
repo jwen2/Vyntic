@@ -10,7 +10,7 @@ from app.models.deal import Deal, DealCreate, DealUpdate, DEAL_STAGES, SECTOR_TA
 from app.models.document import DocumentMetadata
 from app.services import deal_store
 from app.database import UserRow
-from app.auth import get_current_user, require_deal_access, grant_deal_access
+from app.auth import get_current_user, get_current_user_or_query_token, require_deal_access, grant_deal_access
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
@@ -92,7 +92,7 @@ async def delete_deal(deal_id: str, current_user: UserRow = Depends(get_current_
 
 
 @router.get("/{deal_id}/documents/{filename}/view")
-async def view_document(deal_id: str, filename: str, sheet: int | None = None, current_user: UserRow = Depends(get_current_user)):
+async def view_document(deal_id: str, filename: str, sheet: int | None = None, current_user: UserRow = Depends(get_current_user_or_query_token)):
     require_deal_access(current_user, deal_id)
     """Serve an original uploaded document file for inline viewing (not download).
 
