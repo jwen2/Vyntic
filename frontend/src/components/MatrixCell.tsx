@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, ReactNode, Children, useCallback } from "react";
+import { useState, useMemo, ReactNode, Children, useCallback, isValidElement, cloneElement } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -24,6 +24,7 @@ import {
 } from "@/lib/numericDetector";
 import CitationPopover from "./CitationPopover";
 import InlineCitation from "./InlineCitation";
+import { fixMarkdownTables } from "@/lib/markdownUtils";
 
 const SOURCE_PATTERN = /\[Source\s+(\d+)\]/g;
 
@@ -79,6 +80,16 @@ function processCitations(
       }
       return child;
     }
+    if (
+      isValidElement(child) &&
+      child.props &&
+      (child.props as Record<string, unknown>).children
+    ) {
+      const nested = (child.props as Record<string, unknown>)
+        .children as ReactNode;
+      const processed = processCitations(nested, citations, onViewDocument);
+      return cloneElement(child, {}, processed);
+    }
     return child;
   });
 }
@@ -86,6 +97,7 @@ function processCitations(
 function stripThinkTags(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
+
 
 /** Detect if a cell value is a delta/change value */
 function isDeltaCell(text: string): "positive" | "negative" | null {
@@ -247,7 +259,7 @@ export default function MatrixCell({
   const [chartType, setChartType] = useState<"bar" | "line" | "area" | null>(null);
 
   const cleanAnswer = useMemo(
-    () => (cell?.answer ? stripThinkTags(cell.answer) : ""),
+    () => (cell?.answer ? fixMarkdownTables(stripThinkTags(cell.answer)) : ""),
     [cell?.answer]
   );
 
@@ -426,11 +438,6 @@ export default function MatrixCell({
             {cleanAnswer}
           </ReactMarkdown>
         </div>
-        {cell.citations.length > 0 && (
-          <div className="mt-1 text-xs text-blue-500 dark:text-blue-400">
-            {cell.citations.filter(c => c !== null).length} source{cell.citations.filter(c => c !== null).length > 1 ? "s" : ""}
-          </div>
-        )}
       </CitationPopover>
 
       {/* Model analytics */}
