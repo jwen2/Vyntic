@@ -22,7 +22,8 @@ export type WorkstreamId =
   | "operational"
   | "legal"
   | "risk"
-  | "documents";
+  | "documents"
+  | "proactive_scan";
 
 export interface Workstream {
   id: WorkstreamId;
@@ -389,6 +390,45 @@ export const DD_WORKSTREAMS: Workstream[] = [
         label: "Overall risk summary",
         query:
           "Provide an EXECUTIVE RISK SUMMARY for this deal. Synthesize all risk dimensions (revenue quality, customer concentration, management depth, margin sustainability, regulatory exposure, litigation, capital intensity, technology) into a one-page assessment. For each dimension, assign a risk level (Low/Medium/High) with a traffic-light color (Green/Yellow/Red). End with an overall risk rating and the top 3 risks that require immediate attention or mitigation.",
+      },
+    ],
+  },
+  {
+    id: "proactive_scan",
+    name: "Proactive Scan",
+    icon: "🔍",
+    description:
+      "AI-powered sweep of ALL documents to find hidden risks, buried clauses, and items you might miss",
+    templates: [
+      {
+        label: "Hidden financial risks",
+        query:
+          "Scan these deal documents for HIDDEN FINANCIAL RISKS that a deal team might overlook. Focus on: unusual EBITDA adjustments or add-backs that inflate profitability, one-time items presented as recurring, aggressive revenue recognition, off-balance-sheet obligations, related-party transactions, working capital anomalies, or any financial metrics qualified by footnotes or caveats that weaken the headline numbers. List each finding with its severity.",
+      },
+      {
+        label: "Buried contractual & legal risks",
+        query:
+          "Scan these deal documents for BURIED CONTRACTUAL AND LEGAL RISKS. Focus on: change-of-control provisions that could trigger penalties or contract terminations upon acquisition, exclusivity clauses limiting future growth, unfavorable termination terms, non-compete restrictions on key personnel, pending or threatened litigation minimized in presentations, contingent liabilities, indemnification caps, and any contractual terms creating asymmetric downside for the buyer.",
+      },
+      {
+        label: "Operational vulnerabilities",
+        query:
+          "Scan these deal documents for OPERATIONAL VULNERABILITIES that could impact the investment thesis. Focus on: key person dependencies without succession plans, vendor or supplier concentration risks, customer concentration downplayed in the CIM, technology debt or system limitations, capacity constraints, talent retention risks, and any operational metrics trending in the wrong direction that aren't prominently highlighted.",
+      },
+      {
+        label: "Data room gaps & omissions",
+        query:
+          "Analyze what is CONSPICUOUSLY ABSENT from these deal documents. Based on standard PE due diligence requirements, identify: missing document types (e.g., no QoE report, no environmental assessment, no customer contracts), referenced but unprovided data (reports mentioned but not included), incomplete disclosures, time periods with gaps in financial data, and any areas where the documents raise questions that the existing materials don't answer.",
+      },
+      {
+        label: "Cross-document inconsistencies",
+        query:
+          "CROSS-REFERENCE claims, metrics, and narratives across all documents in this deal room. Identify: revenue or EBITDA figures that don't match between documents, growth projections that differ between the CIM and financial models, risk factors described inconsistently, headcount or operational metrics that conflict, and any narrative in one document that contradicts or undermines claims made in another.",
+      },
+      {
+        label: "Regulatory & compliance exposure",
+        query:
+          "Scan these deal documents for REGULATORY AND COMPLIANCE EXPOSURE. Focus on: pending regulatory actions or investigations, data privacy and cybersecurity risks (GDPR, CCPA), environmental liabilities or remediation obligations, anti-bribery/FCPA concerns for international operations, license or permit vulnerabilities, upcoming regulation changes that could impact the business model, and any compliance items buried in appendices or risk factor sections.",
       },
     ],
   },

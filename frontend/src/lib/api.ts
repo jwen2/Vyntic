@@ -423,6 +423,94 @@ export function workstreamStream(
   return controller;
 }
 
+// ── Sweep SSE events (proactive scan) ──
+
+export interface SweepMetaEvent {
+  type: "sweep_meta";
+  deal_id: string;
+  total_chunks: number;
+  total_questions: number;
+}
+
+export type SweepEvent = WorkstreamEvent | SweepMetaEvent;
+
+/**
+ * Opens a streaming SSE connection to run a proactive sweep scan on a deal.
+ * Unlike workstream queries, the sweep scans ALL document chunks.
+ * Returns an AbortController so the caller can cancel.
+ */
+export function sweepStream(
+  dealId: string,
+  questions: string[],
+  onEvent: (event: SweepEvent) => void,
+  onFinish?: () => void,
+  onError?: (err: Error) => void
+): AbortController {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(
+        `${API_BASE}/deals/${dealId}/sweep/stream`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ questions }),
+          signal: controller.signal,
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        onError?.(new Error(text));
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        onError?.(new Error("No response body"));
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(trimmed.slice(6)) as SweepEvent;
+            onEvent(event);
+          } catch {
+            // skip malformed
+          }
+        }
+      }
+
+      onFinish?.();
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        onError?.(err as Error);
+      }
+    }
+  })();
+
+  return controller;
+}
+
 // ── Doc-Matrix SSE events (doc_id keyed) ──
 
 export interface DocMatrixTokenEvent {
