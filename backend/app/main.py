@@ -17,6 +17,7 @@ from app.api.routes_doc_matrix import router as doc_matrix_router
 from app.api.routes_auth import router as auth_router
 from app.api.routes_conversation import router as conversation_router
 from app.api.routes_report import router as report_router
+from app.api.routes_sweep import router as sweep_router
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ app.include_router(workstream_router)
 app.include_router(doc_matrix_router)
 app.include_router(conversation_router)
 app.include_router(report_router)
+app.include_router(sweep_router)
 
 
 @app.on_event("startup")

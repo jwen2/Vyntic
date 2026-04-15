@@ -157,6 +157,38 @@ async def query_document(deal_id: str, doc_id: str, query_text: str, top_k: int 
     return retrieved
 
 
+async def get_all_chunks(deal_id: str, limit: int = 150) -> list[dict]:
+    """
+    Get all chunks from a deal's collection for proactive scanning.
+    Unlike query_deal() which uses embedding similarity, this returns
+    ALL chunks so the LLM can find things the user hasn't asked about.
+    Returns chunks sorted by source file and page for coherent context.
+    """
+    collection = _get_collection(deal_id)
+    count = collection.count()
+    if count == 0:
+        return []
+
+    results = collection.get(
+        limit=min(limit, count),
+        include=["documents", "metadatas"],
+    )
+
+    chunks = []
+    if results and results["documents"]:
+        for doc, meta in zip(results["documents"], results["metadatas"]):
+            chunks.append({
+                "content": doc,
+                "source_file": meta.get("source_file", ""),
+                "page": meta.get("page", 0),
+                "section_type": meta.get("section_type", "text"),
+            })
+
+    # Sort by file then page for coherent context
+    chunks.sort(key=lambda c: (c["source_file"], c["page"]))
+    return chunks
+
+
 async def delete_doc_vectors(deal_id: str, doc_id: str) -> int:
     """Delete all vectors for a specific document within a deal's collection."""
     collection = _get_collection(deal_id)
