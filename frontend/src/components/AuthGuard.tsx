@@ -13,7 +13,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     setMounted(true);
     const token = getAuthToken();
 
-    if (!token && pathname !== "/login") {
+    const publicPaths = ["/login", "/landing"];
+    if (!token && !publicPaths.includes(pathname)) {
       router.push("/login");
     } else if (token && pathname === "/login") {
       router.push("/");
@@ -26,7 +27,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   const token = getAuthToken();
-  if (!token && pathname !== "/login") {
+  const publicPaths = ["/login", "/landing"];
+  if (!token && !publicPaths.includes(pathname)) {
     return null;
   }
 
