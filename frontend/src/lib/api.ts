@@ -735,3 +735,260 @@ export async function getMe(): Promise<User> {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+// ── Diligence Agent (Investigate) SSE ──
+
+export interface AgentCitation {
+  source_file: string;
+  page: number;
+  snippet: string;
+}
+
+export interface AgentFinding {
+  category: string;
+  claim: string;
+  severity: "info" | "watch" | "red_flag";
+  citations: AgentCitation[];
+}
+
+export type InvestigationEvent =
+  | { type: "status"; status: string; deal_id?: string; investigation_id?: string }
+  | { type: "thought"; token: string }
+  | { type: "tool_call"; id: string; tool: string; args: Record<string, unknown> }
+  | { type: "tool_result"; id: string; summary: string }
+  | ({ type: "finding" } & AgentFinding)
+  | { type: "memo_token"; token: string }
+  | {
+      type: "done";
+      memo: string;
+      findings: AgentFinding[];
+      evidence?: Array<Record<string, unknown>>;
+      duration_ms: number;
+      model: string;
+      fallback: boolean;
+    }
+  | { type: "error"; error: string };
+
+// Persisted investigation types
+
+export interface InvestigationSummary {
+  id: string;
+  deal_id: string;
+  goal: string;
+  status: string;
+  finding_count: number;
+  followup_count: number;
+  model: string;
+  fallback: boolean;
+  duration_ms: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface FollowupTurn {
+  id?: number;
+  role: "user" | "assistant";
+  content: string;
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
+  created_at?: string | null;
+}
+
+export interface InvestigationRecord {
+  id: string;
+  deal_id: string;
+  goal: string;
+  status: string;
+  memo: string;
+  findings: AgentFinding[];
+  transcript: InvestigationEvent[];
+  evidence: Array<Record<string, unknown>>;
+  model: string;
+  fallback: boolean;
+  duration_ms: number;
+  created_at: string | null;
+  updated_at: string | null;
+  followups: FollowupTurn[];
+}
+
+export async function listInvestigations(dealId: string): Promise<InvestigationSummary[]> {
+  const res = await fetchWrapper(`${API_BASE}/deals/${dealId}/investigations`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function getInvestigation(
+  dealId: string,
+  investigationId: string,
+): Promise<InvestigationRecord> {
+  const res = await fetchWrapper(
+    `${API_BASE}/deals/${dealId}/investigations/${investigationId}`,
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function deleteInvestigation(
+  dealId: string,
+  investigationId: string,
+): Promise<void> {
+  const res = await fetchWrapper(
+    `${API_BASE}/deals/${dealId}/investigations/${investigationId}`,
+    { method: "DELETE" },
+  );
+  if (!res.ok) throw new Error(await res.text());
+}
+
+export type FollowupEvent =
+  | { type: "status"; status: string }
+  | { type: "token"; token: string }
+  | { type: "done"; content: string; duration_ms: number; model: string; fallback: boolean }
+  | { type: "error"; error: string };
+
+/**
+ * Stream a follow-up answer for a completed investigation.
+ * Returns an AbortController so the caller can cancel.
+ */
+export function askFollowup(
+  dealId: string,
+  investigationId: string,
+  question: string,
+  onEvent: (event: FollowupEvent) => void,
+  onFinish?: () => void,
+  onError?: (err: Error) => void,
+): AbortController {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(
+        `${API_BASE}/deals/${dealId}/investigations/${investigationId}/followup/stream`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ question }),
+          signal: controller.signal,
+        },
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        onError?.(new Error(text));
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        onError?.(new Error("No response body"));
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(trimmed.slice(6)) as FollowupEvent;
+            onEvent(event);
+          } catch {
+            // skip malformed
+          }
+        }
+      }
+
+      onFinish?.();
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        onError?.(err as Error);
+      }
+    }
+  })();
+
+  return controller;
+}
+
+/**
+ * Start a diligence investigation against a single deal. Returns an
+ * AbortController so the caller can stop the stream.
+ */
+export function startInvestigation(
+  dealId: string,
+  goal: string | undefined,
+  onEvent: (event: InvestigationEvent) => void,
+  onFinish?: () => void,
+  onError?: (err: Error) => void
+): AbortController {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(
+        `${API_BASE}/deals/${dealId}/investigate/stream`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ goal: goal || null }),
+          signal: controller.signal,
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        onError?.(new Error(text));
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        onError?.(new Error("No response body"));
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(trimmed.slice(6)) as InvestigationEvent;
+            onEvent(event);
+          } catch {
+            // skip malformed
+          }
+        }
+      }
+
+      onFinish?.();
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        onError?.(err as Error);
+      }
+    }
+  })();
+
+  return controller;
+}

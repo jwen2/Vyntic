@@ -246,15 +246,20 @@ interface Props {
   cell: CellData | undefined;
   synthesis?: boolean;
   dealId?: string;
+  query?: string;
   onCitationClick?: (citation: Citation, dealId: string) => void;
+  onInvestigate?: (dealId: string, goal: string) => void;
 }
 
 export default function MatrixCell({
   cell,
   synthesis = false,
   dealId,
+  query,
   onCitationClick,
+  onInvestigate,
 }: Props) {
+  const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC === "1";
   const [expanded, setExpanded] = useState(synthesis);
   const [chartType, setChartType] = useState<"bar" | "line" | "area" | null>(null);
 
@@ -453,6 +458,15 @@ export default function MatrixCell({
 
       {/* Chart + controls */}
       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+        {agenticEnabled && onInvestigate && !synthesis && dealId && query && (
+          <button
+            onClick={() => onInvestigate(dealId, query)}
+            className="text-[10px] text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 px-1.5 py-0.5 rounded hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"
+            title="Investigate further with the diligence agent"
+          >
+            Investigate further
+          </button>
+        )}
         {!synthesis && cleanAnswer.length > 200 && (
           <button
             onClick={() => setExpanded(!expanded)}

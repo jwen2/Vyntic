@@ -6,6 +6,7 @@ import { useMatrix } from "@/hooks/useMatrix";
 import MatrixGrid from "@/components/MatrixGrid";
 import AddDealDialog from "@/components/AddDealDialog";
 import DealCard from "@/components/DealCard";
+import InvestigationPanel from "@/components/InvestigationPanel";
 import { exportMatrixCSV } from "@/lib/exportMatrix";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Deal, User, getMe, getAuthToken, clearAuthToken } from "@/lib/api";
@@ -46,6 +47,10 @@ export default function Home() {
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
   const [confirmDeleteDeal, setConfirmDeleteDeal] = useState<Deal | null>(null);
   const [dealSearch, setDealSearch] = useState("");
+  const [investigation, setInvestigation] = useState<
+    { dealId: string; goal: string } | null
+  >(null);
+  const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC === "1";
   const { theme, toggleTheme } = useTheme();
 
   // Filter deals by search term
@@ -206,6 +211,11 @@ export default function Home() {
                       onUploadFiles={uploadDocs}
                       onUpdateDeal={editDeal}
                       onDocumentDeleted={refreshDeals}
+                      onInvestigate={
+                        agenticEnabled
+                          ? (dealId) => setInvestigation({ dealId, goal: "" })
+                          : undefined
+                      }
                       uploading={dealsLoading}
                       readOnly={!user?.is_admin}
                     />
@@ -251,6 +261,11 @@ export default function Home() {
                   matrix.cells
                 )
               }
+              onInvestigateCell={
+                agenticEnabled
+                  ? (dealId, query) => setInvestigation({ dealId, goal: query })
+                  : undefined
+              }
             />
           </div>
         </div>
@@ -261,6 +276,21 @@ export default function Home() {
         <AddDealDialog
           onAdd={addDeal}
           onClose={() => setShowAddDeal(false)}
+        />
+      )}
+
+      {/* Investigation Panel (agentic beta) */}
+      {agenticEnabled && (
+        <InvestigationPanel
+          open={investigation !== null}
+          dealId={investigation?.dealId ?? null}
+          dealName={
+            investigation
+              ? deals.find((d) => d.deal_id === investigation.dealId)?.name
+              : undefined
+          }
+          initialGoal={investigation?.goal}
+          onClose={() => setInvestigation(null)}
         />
       )}
 

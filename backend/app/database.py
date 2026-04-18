@@ -79,6 +79,54 @@ class DealAccessRow(Base):
     user = relationship("UserRow", back_populates="deal_access")
 
 
+# ── Diligence Agent (Investigate) persistence ──
+
+class InvestigationRow(Base):
+    __tablename__ = "investigations"
+
+    id = Column(String, primary_key=True, index=True)  # uuid4 hex
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    goal = Column(Text, default="")
+    status = Column(String, default="running")  # running | complete | stopped | error
+    memo = Column(Text, default="")
+    findings_json = Column(Text, default="[]")
+    transcript_json = Column(Text, default="[]")
+    evidence_json = Column(Text, default="[]")
+    model = Column(String, default="")
+    fallback = Column(Boolean, default=False)
+    duration_ms = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    followups = relationship(
+        "InvestigationFollowupRow",
+        back_populates="investigation",
+        cascade="all, delete-orphan",
+        order_by="InvestigationFollowupRow.created_at",
+    )
+
+
+class InvestigationFollowupRow(Base):
+    __tablename__ = "investigation_followups"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    investigation_id = Column(
+        String,
+        ForeignKey("investigations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role = Column(String, nullable=False)  # "user" | "assistant"
+    content = Column(Text, default="")
+    model = Column(String, default="")
+    fallback = Column(Boolean, default=False)
+    duration_ms = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    investigation = relationship("InvestigationRow", back_populates="followups")
+
+
 def init_db():
     """Create all tables if they don't exist."""
     Base.metadata.create_all(bind=engine)
