@@ -4,6 +4,16 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 
 **Powered by Google Gemini AI Studio** — uses Gemini 2.0 Flash Lite for fast inference with Gemma 3 27B as automatic fallback.
 
+## Landing Page
+
+| Hero | Pricing |
+|------|---------|
+| ![Landing Hero](docs/screenshots/landing-hero.png) | ![Pricing](docs/screenshots/landing-pricing.png) |
+
+Live at **`/landing`** — dark-mode hero with product demo preview, logo strip, feature cards, testimonials, how-it-works steps, pricing tiers (Free / Pro $99/mo / Enterprise), and a final CTA.
+
+---
+
 ## Why Vyntic?
 
 Private equity analysts spend hundreds of hours during due diligence manually reading CIMs, quality-of-earnings reports, and financial models — often across multiple competing deals simultaneously. The core challenge isn't access to data; it's the time it takes to extract, compare, and synthesize insights across deal rooms that can contain thousands of pages. Vyntic solves this by letting analysts ask natural-language questions across all active deals at once, returning cited, side-by-side answers in a matrix format. Instead of spending a week building a comparison spreadsheet, an analyst can populate it in minutes — with every claim traceable back to the exact page and document it came from. This applies equally to any finance workflow involving multi-document analysis: M&A due diligence, credit underwriting, equity research, or portfolio monitoring.
