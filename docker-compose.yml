@@ -9,6 +9,7 @@ services:
       - GEMINI_FALLBACK_MODEL=gemini-3-flash-preview
       - EMBEDDING_MODEL=models/gemini-embedding-001
       - CHROMA_PERSIST_DIR=/app/data/chroma
+      - AGENTIC_FEATURES=${AGENTIC_FEATURES:-false}
     volumes:
       - ./backend:/app
       - ./data:/app/data
@@ -23,6 +24,7 @@ services:
       - backend
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_AGENTIC=${NEXT_PUBLIC_AGENTIC:-0}
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -35,6 +37,7 @@ services:
       - "3200:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://host.docker.internal:8000
+      - NEXT_PUBLIC_AGENTIC=${NEXT_PUBLIC_AGENTIC:-0}
     volumes:
       - ./frontend:/app
       - /app/node_modules

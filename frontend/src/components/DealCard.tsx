@@ -28,6 +28,7 @@ interface Props {
     data: { stage?: string; tags?: string[] }
   ) => void;
   onDocumentDeleted?: () => void;
+  onInvestigate?: (dealId: string) => void;
   uploading: boolean;
   readOnly?: boolean;
 }
@@ -40,9 +41,11 @@ export default function DealCard({
   onUploadFiles,
   onUpdateDeal,
   onDocumentDeleted,
+  onInvestigate,
   uploading,
   readOnly = false,
 }: Props) {
+  const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC === "1";
   const router = useRouter();
   const [dragging, setDragging] = useState(false);
   const [showStageMenu, setShowStageMenu] = useState(false);
@@ -262,6 +265,23 @@ export default function DealCard({
         >
           Open DD Workspace
         </button>
+
+        {/* Investigate button (agentic beta) */}
+        {agenticEnabled && onInvestigate && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onInvestigate(deal.deal_id);
+            }}
+            className="mt-1.5 w-full text-xs font-medium text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-200 py-1.5 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 border border-purple-200 dark:border-purple-800 rounded-md transition-colors flex items-center justify-center gap-1.5"
+            title="Run the autonomous diligence agent against this deal"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            Investigate
+          </button>
+        )}
 
         {/* Browse files button */}
         {!readOnly && !dragging && (

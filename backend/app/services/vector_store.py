@@ -157,6 +157,37 @@ async def query_document(deal_id: str, doc_id: str, query_text: str, top_k: int 
     return retrieved
 
 
+def get_document_chunks(deal_id: str, doc_id: str) -> list[dict]:
+    """
+    Return all chunks for a specific document within a deal's collection.
+    Each item: {content, source_file, page, section_type, chunk_index}.
+    Ordered by (page, chunk_index). Used by the diligence agent's read_pages tool.
+    """
+    collection = _get_collection(deal_id)
+    if collection.count() == 0:
+        return []
+
+    results = collection.get(
+        where={"doc_id": doc_id},
+        include=["documents", "metadatas"],
+    )
+    if not results or not results.get("documents"):
+        return []
+
+    chunks: list[dict] = []
+    for doc, meta in zip(results["documents"], results["metadatas"]):
+        chunks.append({
+            "content": doc,
+            "source_file": meta.get("source_file", ""),
+            "page": int(meta.get("page", 0) or 0),
+            "section_type": meta.get("section_type", "text"),
+            "chunk_index": int(meta.get("chunk_index", 0) or 0),
+        })
+
+    chunks.sort(key=lambda c: (c["page"], c["chunk_index"]))
+    return chunks
+
+
 async def get_all_chunks(deal_id: str, limit: int = 150) -> list[dict]:
     """
     Get all chunks from a deal's collection for proactive scanning.

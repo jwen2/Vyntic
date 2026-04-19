@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # Concurrency
     max_concurrent_llm_calls: int = 3
 
+    # Feature flags
+    agentic_features: bool = False
+
     class Config:
         env_file = ".env"
 

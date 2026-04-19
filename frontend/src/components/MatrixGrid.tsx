@@ -27,6 +27,7 @@ interface Props {
   onSelectDeal: (dealId: string, opts: { ctrl?: boolean; shift?: boolean }) => void;
   onSelectAll: () => void;
   onExport?: () => void;
+  onInvestigateCell?: (dealId: string, query: string) => void;
 }
 
 export default function MatrixGrid({
@@ -42,6 +43,7 @@ export default function MatrixGrid({
   onSelectDeal,
   onSelectAll,
   onExport,
+  onInvestigateCell,
 }: Props) {
   const [newQuery, setNewQuery] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -471,7 +473,9 @@ export default function MatrixGrid({
                       key={i}
                       cell={cells[dealId]?.[q]}
                       dealId={dealId}
+                      query={q}
                       onCitationClick={handleCitationClick}
+                      onInvestigate={onInvestigateCell}
                     />
                   ))}
                   <td className="border border-gray-200 dark:border-gray-700"></td>
