@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 const NAV_LINKS = [
   {
@@ -118,12 +119,12 @@ export default function LandingNav() {
 
         {/* Right side CTAs */}
         <div className="hidden lg:flex items-center gap-4">
-          <a
-            href="#"
+          <Link
+            href="/login"
             className="text-sm text-gray-300 hover:text-white transition-colors"
           >
             Sign in
-          </a>
+          </Link>
           <a
             href="#hero"
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
@@ -177,12 +178,12 @@ export default function LandingNav() {
             </a>
           ))}
           <div className="pt-4 border-t border-white/10 space-y-3">
-            <a
-              href="#"
+            <Link
+              href="/login"
               className="block text-gray-300 hover:text-white transition-colors"
             >
               Sign in
-            </a>
+            </Link>
             <a
               href="#hero"
               className="block w-full text-center px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg"

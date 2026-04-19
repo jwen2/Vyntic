@@ -19,6 +19,7 @@ import RiskScorecard from "@/components/RiskScorecard";
 import DocMatrixPanel from "@/components/DocMatrixPanel";
 import DocumentViewer from "@/components/DocumentViewer";
 import ConversationHistory from "@/components/ConversationHistory";
+import ProactiveScanPanel from "@/components/ProactiveScanPanel";
 import ReportModal from "@/components/ReportModal";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -61,7 +62,7 @@ function loadTabFromLocal(dealId: string): WorkstreamId {
   if (typeof window === "undefined") return "documents";
   try {
     const raw = localStorage.getItem(TAB_PREFIX + dealId);
-    if (raw && ["financial", "commercial", "operational", "legal", "risk", "documents"].includes(raw)) {
+    if (raw && ["financial", "commercial", "operational", "legal", "risk", "documents", "proactive_scan"].includes(raw)) {
       return raw as WorkstreamId;
     }
   } catch {}
@@ -403,6 +404,16 @@ export default function DealWorkspacePage() {
             <DocMatrixPanel
               documents={documents}
               dealId={dealId}
+              onViewDocument={handleViewDocument}
+            />
+          ) : activeTab === "proactive_scan" && activeWorkstream ? (
+            <ProactiveScanPanel
+              dealId={dealId}
+              workstream={activeWorkstream}
+              cachedResults={resultCache[activeTab] || {}}
+              onResultsChange={(results) =>
+                updateCacheForWorkstream(activeTab, results)
+              }
               onViewDocument={handleViewDocument}
             />
           ) : (
