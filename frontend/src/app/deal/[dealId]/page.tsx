@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Deal,
@@ -13,22 +13,33 @@ import {
   getAuthToken,
 } from "@/lib/api";
 import { DD_WORKSTREAMS, WorkstreamId } from "@/lib/queryTemplates";
-import WorkstreamTabs from "@/components/WorkstreamTabs";
-import WorkstreamPanel, { QuestionResult } from "@/components/WorkstreamPanel";
-import RiskScorecard from "@/components/RiskScorecard";
 import DocMatrixPanel from "@/components/DocMatrixPanel";
 import DocumentViewer from "@/components/DocumentViewer";
 import ConversationHistory from "@/components/ConversationHistory";
 import ProactiveScanPanel from "@/components/ProactiveScanPanel";
 import ReportModal from "@/components/ReportModal";
+import RiskScorecard from "@/components/RiskScorecard";
 import { useTheme } from "@/components/ThemeProvider";
+import type { QuestionResult } from "@/components/WorkstreamPanel";
 
-/** Session-level cache: workstreamId → { questionKey → result } */
+import TopBar from "@/components/dd/TopBar";
+import RedFlagBanner from "@/components/dd/RedFlagBanner";
+import LeftSidebar from "@/components/dd/LeftSidebar";
+import WsTabs, { WsTab } from "@/components/dd/WsTabs";
+import DDWorkstreamView from "@/components/dd/DDWorkstreamView";
+import CitationPanel from "@/components/dd/CitationPanel";
+import AgentOverlay from "@/components/dd/AgentOverlay";
+import { useFindings } from "@/components/dd/useFindings";
+import { computeCoverage, overallCoverage } from "@/components/dd/coverage";
+import { extractScanFindings } from "@/components/dd/extractScanFindings";
+import type { Finding } from "@/components/dd/types";
+
 type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
+type LeftTab = "flags" | "docs";
 
-// ── localStorage helpers for persisting analysis across navigation ──
 const CACHE_PREFIX = "vyntic_ws_cache_";
 const TAB_PREFIX = "vyntic_ws_tab_";
+const BANNER_PREFIX = "vyntic_banner_dismissed_";
 
 function loadCacheFromLocal(dealId: string): WorkstreamCache {
   if (typeof window === "undefined") return {};
@@ -46,27 +57,31 @@ function saveCacheToLocal(dealId: string, cache: WorkstreamCache) {
     for (const [wsId, questions] of Object.entries(cache)) {
       const filtered: Record<string, QuestionResult> = {};
       for (const [q, r] of Object.entries(questions)) {
-        if (r.status === "complete" || r.status === "error") {
-          filtered[q] = r;
-        }
+        if (r.status === "complete" || r.status === "error") filtered[q] = r;
       }
-      if (Object.keys(filtered).length > 0) {
-        persistable[wsId] = filtered;
-      }
+      if (Object.keys(filtered).length > 0) persistable[wsId] = filtered;
     }
     localStorage.setItem(CACHE_PREFIX + dealId, JSON.stringify(persistable));
   } catch {}
 }
 
+const VALID_TABS: WorkstreamId[] = [
+  "financial",
+  "commercial",
+  "operational",
+  "legal",
+  "risk",
+  "documents",
+  "proactive_scan",
+];
+
 function loadTabFromLocal(dealId: string): WorkstreamId {
-  if (typeof window === "undefined") return "documents";
+  if (typeof window === "undefined") return "financial";
   try {
     const raw = localStorage.getItem(TAB_PREFIX + dealId);
-    if (raw && ["financial", "commercial", "operational", "legal", "risk", "documents", "proactive_scan"].includes(raw)) {
-      return raw as WorkstreamId;
-    }
+    if (raw && VALID_TABS.includes(raw as WorkstreamId)) return raw as WorkstreamId;
   } catch {}
-  return "documents";
+  return "financial";
 }
 
 function saveTabToLocal(dealId: string, tab: WorkstreamId) {
@@ -86,19 +101,19 @@ export default function DealWorkspacePage() {
   const [deal, setDeal] = useState<Deal | null>(null);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<WorkstreamId>("documents");
+  const [activeTab, setActiveTab] = useState<WorkstreamId>("financial");
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-
+  const [showReport, setShowReport] = useState(false);
   const [resultCache, setResultCache] = useState<WorkstreamCache>({});
 
-  useEffect(() => {
-    setActiveTab(loadTabFromLocal(dealId));
-    setResultCache(loadCacheFromLocal(dealId));
-  }, [dealId]);
-
-  const [showReport, setShowReport] = useState(false);
+  // DD workspace state
+  const [leftTab, setLeftTab] = useState<LeftTab>("flags");
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
+  const { findings, addFindings, setStatus, setNote, syncScanFindings } = useFindings(dealId);
 
   const [viewerState, setViewerState] = useState<{
     dealId: string;
@@ -107,17 +122,27 @@ export default function DealWorkspacePage() {
     snippet: string;
   } | null>(null);
 
-  const handleViewDocument = useCallback(
-    (citation: Citation) => {
-      setViewerState({
-        dealId: dealId,
-        filename: citation.source_file,
-        page: citation.page,
-        snippet: citation.text_snippet || "",
-      });
-    },
-    [dealId]
-  );
+  // ── Init from localStorage ──
+  useEffect(() => {
+    setActiveTab(loadTabFromLocal(dealId));
+    setResultCache(loadCacheFromLocal(dealId));
+    if (typeof window !== "undefined") {
+      try {
+        setBannerDismissed(localStorage.getItem(BANNER_PREFIX + dealId) === "1");
+      } catch {}
+    }
+  }, [dealId]);
+
+  useEffect(() => {
+    saveTabToLocal(dealId, activeTab);
+  }, [dealId, activeTab]);
+
+  const dismissBanner = useCallback(() => {
+    setBannerDismissed(true);
+    try {
+      localStorage.setItem(BANNER_PREFIX + dealId, "1");
+    } catch {}
+  }, [dealId]);
 
   const updateCacheForWorkstream = useCallback(
     (workstreamId: string, results: Record<string, QuestionResult>) => {
@@ -130,17 +155,41 @@ export default function DealWorkspacePage() {
     [dealId]
   );
 
+  const handleViewDocument = useCallback((citation: Citation) => {
+    setViewerState({
+      dealId,
+      filename: citation.source_file,
+      page: citation.page,
+      snippet: citation.text_snippet || "",
+    });
+  }, [dealId]);
+
+  const handleCit = useCallback((c: Citation, id: string) => {
+    setActiveCit((prev) => (prev?.id === id ? null : { c, id }));
+  }, []);
+
+  // ── Global ⌘K / Esc ──
   useEffect(() => {
-    saveTabToLocal(dealId, activeTab);
-  }, [dealId, activeTab]);
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setAgentOpen((v) => !v);
+        return;
+      }
+      if (e.key === "Escape") {
+        if (agentOpen) setAgentOpen(false);
+        else if (activeCit) setActiveCit(null);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [agentOpen, activeCit]);
 
   const fetchDeal = useCallback(async () => {
     try {
       const deals = await listDeals();
       const found = deals.find((d) => d.deal_id === dealId);
-      if (found) {
-        setDeal(found);
-      }
+      if (found) setDeal(found);
     } catch (err) {
       console.error("Failed to fetch deal:", err);
     }
@@ -168,36 +217,67 @@ export default function DealWorkspacePage() {
     ]).finally(() => setLoading(false));
   }, [fetchDeal, fetchDocuments, router]);
 
+  // ── Derived data ──
+  const docCoverage = useMemo(
+    () => computeCoverage(documents, resultCache, findings),
+    [documents, resultCache, findings]
+  );
+  const coverage = useMemo(() => overallCoverage(docCoverage), [docCoverage]);
+  const uncovered = useMemo(() => docCoverage.filter((d) => d.uncovered), [docCoverage]);
+  const dealBreakers = findings.filter((f) => f.sev === "deal-breaker").length;
+  const material = findings.filter((f) => f.sev === "material").length;
+
   const activeWorkstream = DD_WORKSTREAMS.find((w) => w.id === activeTab);
 
-  const docMatrixTab = {
-    id: "documents" as WorkstreamId,
-    name: "Doc Matrix",
-    icon: "📋",
-    questionCount: documents.length,
-    completedCount: documents.length,
-  };
-
-  const workstreamTabs = DD_WORKSTREAMS.map((w) => {
-    const cached = resultCache[w.id] || {};
-    const completedCount = w.templates.filter(
-      (t) => cached[t.query]?.status === "complete"
-    ).length;
-    return {
-      id: w.id,
-      name: w.name,
-      icon: w.icon,
-      questionCount: w.templates.length,
-      completedCount,
+  const wsTabs: WsTab[] = useMemo(() => {
+    const docMatrixTab: WsTab = {
+      id: "documents",
+      name: "Doc Matrix",
+      complete: documents.length,
+      total: documents.length,
     };
-  });
+    const streamTabs: WsTab[] = DD_WORKSTREAMS.map((w) => {
+      const cached = resultCache[w.id] || {};
+      const completedCount = w.templates.filter(
+        (t) => cached[t.query]?.status === "complete"
+      ).length;
+      return {
+        id: w.id,
+        name: w.name,
+        complete: completedCount,
+        total: w.templates.length,
+      };
+    });
+    return [docMatrixTab, ...streamTabs];
+  }, [documents.length, resultCache]);
 
-  const tabs = [docMatrixTab, ...workstreamTabs];
+  // ── Sync Proactive Scan findings into the shared findings store ──
+  const scanCache = resultCache["proactive_scan"];
+  useEffect(() => {
+    if (!scanCache) return;
+    const templates =
+      DD_WORKSTREAMS.find((w) => w.id === "proactive_scan")?.templates || [];
+    syncScanFindings(extractScanFindings(scanCache, templates));
+  }, [scanCache, syncScanFindings]);
+
+  // ── Sidebar finding click: jump to workstream + expand linked question ──
+  const onSelectFinding = useCallback((f: Finding) => {
+    if (f.ws && f.ws !== activeTab) setActiveTab(f.ws);
+    // qid-based expand is handled inside DDWorkstreamView via its internal state;
+    // a cross-component bus would be overkill — clicking the finding is enough to jump.
+  }, [activeTab]);
+
+  const handleAgentComplete = useCallback(
+    (newFindings: Finding[]) => {
+      addFindings(newFindings);
+    },
+    [addFindings]
+  );
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-3 border-blue-500 border-t-transparent rounded-full" />
+        <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -223,224 +303,187 @@ export default function DealWorkspacePage() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-3">
-        <div className="flex items-center justify-between max-w-[1600px] mx-auto">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push("/")}
-              className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              title="Back to deals"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <div className="flex items-center gap-3">
-              <img src="/logo.jpg" alt="Vyntic" className="h-7 w-auto" />
-              <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{deal.name}</h1>
-                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono">
-                    {deal.deal_id}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full font-medium ${
-                      deal.stage === "Due Diligence"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                        : deal.stage === "IC Review"
-                        ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
-                        : deal.stage === "Closed"
-                        ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                        : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                    }`}
-                  >
-                    {deal.stage}
-                  </span>
-                  {deal.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-xs text-gray-400 dark:text-gray-500">
-              {documents.length} document{documents.length !== 1 ? "s" : ""}
-            </div>
-            {/* Dark mode toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {theme === "dark" ? (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                </svg>
-              )}
-            </button>
-            <button
-              onClick={() => setShowReport(true)}
-              className="px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Generate IC Report
-            </button>
-            <button
-              onClick={() => setShowHistory(true)}
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-1.5"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              History
-            </button>
-            {user?.is_admin && (
-              <button
-                onClick={() => setShowUpload(!showUpload)}
-                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                Upload Docs
-              </button>
-            )}
-            <button
-              onClick={() => router.push("/")}
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              Matrix View
-            </button>
-          </div>
-        </div>
-      </header>
+  const showBanner = !bannerDismissed && (dealBreakers > 0 || uncovered.length > 0);
 
-      {/* Upload panel (collapsible) */}
-      {showUpload && (
-        <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
-          <div className="max-w-[1600px] mx-auto">
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
-                {uploading ? (
-                  <>
-                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Choose Files (PDF, Excel)
-                  </>
-                )}
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.xlsx,.xls,.csv"
-                  className="hidden"
-                  disabled={uploading}
-                  onChange={async (e) => {
-                    const files = Array.from(e.target.files || []);
-                    if (files.length === 0) return;
-                    setUploading(true);
-                    try {
-                      await uploadDocumentsBatch(deal.deal_id, files);
-                      fetchDocuments();
-                      fetchDeal();
-                    } catch (err) {
-                      console.error("Upload failed:", err);
-                    } finally {
-                      setUploading(false);
-                      e.target.value = "";
-                    }
-                  }}
-                />
-              </label>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {documents.length > 0 ? (
-                  <span>
-                    {documents.map((d) => d.filename).join(", ")}
-                  </span>
-                ) : (
-                  "No documents uploaded yet"
-                )}
-              </div>
+  return (
+    <div
+      style={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        fontFamily: "'DM Sans', sans-serif",
+        overflow: "hidden",
+        background: "#f8fafc",
+      }}
+    >
+      <TopBar
+        deal={deal}
+        documentCount={documents.length}
+        coverage={coverage}
+        dealBreakers={dealBreakers}
+        onAskAgent={() => setAgentOpen(true)}
+        onExport={() => setShowReport(true)}
+        onBack={() => router.push("/")}
+        onToggleTheme={toggleTheme}
+        theme={theme}
+        onUpload={user?.is_admin ? () => setShowUpload((v) => !v) : undefined}
+        onHistory={() => setShowHistory(true)}
+        onMatrixView={() => router.push("/")}
+        isAdmin={user?.is_admin}
+      />
+
+      {showBanner && (
+        <RedFlagBanner
+          dealBreakers={dealBreakers}
+          material={material}
+          uncovered={uncovered}
+          onDismiss={dismissBanner}
+          onViewFlags={() => setLeftTab("flags")}
+        />
+      )}
+
+      {showUpload && user?.is_admin && (
+        <div
+          style={{
+            background: "white",
+            borderBottom: "1px solid #e2e8f0",
+            padding: "10px 20px",
+          }}
+        >
+          <div className="flex items-center gap-4">
+            <label
+              className="flex items-center gap-2 cursor-pointer"
+              style={{
+                padding: "6px 14px",
+                background: "#2563eb",
+                color: "white",
+                fontSize: 12,
+                fontWeight: 600,
+                borderRadius: 6,
+              }}
+            >
+              {uploading ? (
+                <>
+                  <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
+                  Uploading...
+                </>
+              ) : (
+                "Choose files (PDF, Excel)"
+              )}
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.xlsx,.xls,.csv"
+                className="hidden"
+                disabled={uploading}
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (files.length === 0) return;
+                  setUploading(true);
+                  try {
+                    await uploadDocumentsBatch(deal.deal_id, files);
+                    fetchDocuments();
+                    fetchDeal();
+                  } catch (err) {
+                    console.error("Upload failed:", err);
+                  } finally {
+                    setUploading(false);
+                    e.target.value = "";
+                  }
+                }}
+              />
+            </label>
+            <div style={{ fontSize: 11, color: "#64748b" }}>
+              {documents.length > 0
+                ? documents.map((d) => d.filename).join(", ")
+                : "No documents uploaded yet"}
             </div>
           </div>
         </div>
       )}
 
-      {/* Workstream tabs */}
-      <WorkstreamTabs
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <LeftSidebar
+          tab={leftTab}
+          onTab={setLeftTab}
+          findings={findings}
+          docs={docCoverage}
+          activeWs={activeTab}
+          onSelectFinding={onSelectFinding}
+          onStatus={setStatus}
+          onNote={setNote}
+        />
 
-      {/* Content */}
-      <div className="flex-1 bg-white dark:bg-gray-900">
-        <div className="max-w-[1600px] mx-auto h-full">
-          {activeTab === "documents" ? (
-            <DocMatrixPanel
-              documents={documents}
-              dealId={dealId}
-              onViewDocument={handleViewDocument}
-            />
-          ) : activeTab === "proactive_scan" && activeWorkstream ? (
-            <ProactiveScanPanel
-              dealId={dealId}
-              workstream={activeWorkstream}
-              cachedResults={resultCache[activeTab] || {}}
-              onResultsChange={(results) =>
-                updateCacheForWorkstream(activeTab, results)
-              }
-              onViewDocument={handleViewDocument}
-            />
-          ) : (
-            <>
-              {activeTab === "risk" && activeWorkstream && (
+        <div
+          className="flex-1 flex flex-col overflow-hidden"
+          style={{
+            background: "#f8fafc",
+            borderLeft: "1px solid #e2e8f0",
+            borderRight: activeCit ? "1px solid #e2e8f0" : "none",
+          }}
+        >
+          <WsTabs tabs={wsTabs} active={activeTab} onSelect={setActiveTab} findings={findings} />
+
+          <div className="flex-1 overflow-y-auto" style={{ background: "white" }}>
+            {activeTab === "documents" ? (
+              <DocMatrixPanel
+                documents={documents}
+                dealId={dealId}
+                onViewDocument={handleViewDocument}
+              />
+            ) : activeTab === "proactive_scan" && activeWorkstream ? (
+              <ProactiveScanPanel
+                dealId={dealId}
+                workstream={activeWorkstream}
+                cachedResults={resultCache[activeTab] || {}}
+                onResultsChange={(r) => updateCacheForWorkstream(activeTab, r)}
+                onViewDocument={handleViewDocument}
+              />
+            ) : activeTab === "risk" && activeWorkstream ? (
+              <>
                 <RiskScorecard
                   results={resultCache["risk"] || {}}
                   questionLabels={activeWorkstream.templates}
                 />
-              )}
-              {activeWorkstream && (
-                <WorkstreamPanel
+                <DDWorkstreamView
                   dealId={dealId}
                   workstream={activeWorkstream}
                   cachedResults={resultCache[activeTab] || {}}
-                  onResultsChange={(results) =>
-                    updateCacheForWorkstream(activeTab, results)
-                  }
-                  onViewDocument={handleViewDocument}
+                  onResultsChange={(r) => updateCacheForWorkstream(activeTab, r)}
+                  activeCitId={activeCit?.id ?? null}
+                  onCit={handleCit}
                 />
-              )}
-            </>
-          )}
+              </>
+            ) : activeWorkstream ? (
+              <DDWorkstreamView
+                dealId={dealId}
+                workstream={activeWorkstream}
+                cachedResults={resultCache[activeTab] || {}}
+                onResultsChange={(r) => updateCacheForWorkstream(activeTab, r)}
+                activeCitId={activeCit?.id ?? null}
+                onCit={handleCit}
+              />
+            ) : null}
+          </div>
         </div>
+
+        {activeCit && (
+          <CitationPanel
+            citation={activeCit.c}
+            onClose={() => setActiveCit(null)}
+            onOpenDocument={handleViewDocument}
+          />
+        )}
       </div>
 
-      {/* Document viewer slide-over */}
+      {agentOpen && (
+        <AgentOverlay
+          onClose={() => setAgentOpen(false)}
+          onComplete={handleAgentComplete}
+          docShortNames={docCoverage.map((d) => d.short)}
+        />
+      )}
+
       {viewerState && (
         <DocumentViewer
           dealId={viewerState.dealId}
@@ -451,15 +494,10 @@ export default function DealWorkspacePage() {
         />
       )}
 
-      {/* Conversation history slide-over */}
       {showHistory && (
-        <ConversationHistory
-          dealId={dealId}
-          onClose={() => setShowHistory(false)}
-        />
+        <ConversationHistory dealId={dealId} onClose={() => setShowHistory(false)} />
       )}
 
-      {/* IC Report modal */}
       {showReport && (
         <ReportModal
           deal={deal}
