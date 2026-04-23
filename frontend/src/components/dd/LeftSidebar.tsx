@@ -49,7 +49,7 @@ export default function LeftSidebar({
           active={tab === "flags"}
           onClick={() => onTab("flags")}
           label="Red Flags"
-          count={findings.length}
+          count={db.length}
         />
         <TabButton
           active={tab === "docs"}
