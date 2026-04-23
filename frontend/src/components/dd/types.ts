@@ -2,7 +2,7 @@ import type { WorkstreamId } from "@/lib/queryTemplates";
 
 export type FindingSeverity = "deal-breaker" | "material" | "noteworthy";
 export type FindingStatus = null | "validated" | "rejected" | "review";
-export type FindingOrigin = null | "agent";
+export type FindingOrigin = null | "agent" | "scan";
 
 export interface Finding {
   id: string;

@@ -91,6 +91,23 @@ export default function FlagItem({ f, active, onSelect, onStatus, onNote }: Prop
               AGENT
             </span>
           )}
+          {f.origin === "scan" && (
+            <span
+              style={{
+                fontSize: 8,
+                fontWeight: 700,
+                padding: "1px 4px",
+                borderRadius: 3,
+                background: "#3f1d38",
+                color: "#f0abfc",
+                letterSpacing: "0.05em",
+                flexShrink: 0,
+                marginTop: 1,
+              }}
+            >
+              SCAN
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5" style={{ marginTop: 3 }}>
           <span style={{ fontSize: 10, color: "#475569" }}>{f.src}</span>

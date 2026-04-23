@@ -75,5 +75,37 @@ export function useFindings(dealId: string) {
     setFindings(persist([]));
   }, [persist]);
 
-  return { findings, addFindings, setStatus, setNote, removeFinding, clearFindings };
+  /**
+   * Replace all findings whose `origin === "scan"` with `scanItems`, preserving
+   * user edits (status / note) for findings that still exist by stable id.
+   * Non-scan findings are left alone.
+   */
+  const syncScanFindings = useCallback(
+    (scanItems: Finding[]) => {
+      setFindings((prev) => {
+        const prevScanById = new Map(
+          prev.filter((f) => f.origin === "scan").map((f) => [f.id, f])
+        );
+        const nonScan = prev.filter((f) => f.origin !== "scan");
+        const mergedScan = scanItems.map((f) => {
+          const existing = prevScanById.get(f.id);
+          return existing
+            ? { ...f, status: existing.status, note: existing.note }
+            : f;
+        });
+        return persist([...nonScan, ...mergedScan]);
+      });
+    },
+    [persist]
+  );
+
+  return {
+    findings,
+    addFindings,
+    setStatus,
+    setNote,
+    removeFinding,
+    clearFindings,
+    syncScanFindings,
+  };
 }

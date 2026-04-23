@@ -31,6 +31,7 @@ import CitationPanel from "@/components/dd/CitationPanel";
 import AgentOverlay from "@/components/dd/AgentOverlay";
 import { useFindings } from "@/components/dd/useFindings";
 import { computeCoverage, overallCoverage } from "@/components/dd/coverage";
+import { extractScanFindings } from "@/components/dd/extractScanFindings";
 import type { Finding } from "@/components/dd/types";
 
 type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
@@ -112,7 +113,7 @@ export default function DealWorkspacePage() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
-  const { findings, addFindings, setStatus, setNote } = useFindings(dealId);
+  const { findings, addFindings, setStatus, setNote, syncScanFindings } = useFindings(dealId);
 
   const [viewerState, setViewerState] = useState<{
     dealId: string;
@@ -249,6 +250,15 @@ export default function DealWorkspacePage() {
     });
     return [docMatrixTab, ...streamTabs];
   }, [documents.length, resultCache]);
+
+  // ── Sync Proactive Scan findings into the shared findings store ──
+  const scanCache = resultCache["proactive_scan"];
+  useEffect(() => {
+    if (!scanCache) return;
+    const templates =
+      DD_WORKSTREAMS.find((w) => w.id === "proactive_scan")?.templates || [];
+    syncScanFindings(extractScanFindings(scanCache, templates));
+  }, [scanCache, syncScanFindings]);
 
   // ── Sidebar finding click: jump to workstream + expand linked question ──
   const onSelectFinding = useCallback((f: Finding) => {
