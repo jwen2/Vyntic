@@ -76,12 +76,12 @@ const VALID_TABS: WorkstreamId[] = [
 ];
 
 function loadTabFromLocal(dealId: string): WorkstreamId {
-  if (typeof window === "undefined") return "financial";
+  if (typeof window === "undefined") return "proactive_scan";
   try {
     const raw = localStorage.getItem(TAB_PREFIX + dealId);
     if (raw && VALID_TABS.includes(raw as WorkstreamId)) return raw as WorkstreamId;
   } catch {}
-  return "financial";
+  return "proactive_scan";
 }
 
 function saveTabToLocal(dealId: string, tab: WorkstreamId) {
@@ -101,7 +101,7 @@ export default function DealWorkspacePage() {
   const [deal, setDeal] = useState<Deal | null>(null);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<WorkstreamId>("financial");
+  const [activeTab, setActiveTab] = useState<WorkstreamId>("proactive_scan");
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -236,7 +236,7 @@ export default function DealWorkspacePage() {
       complete: documents.length,
       total: documents.length,
     };
-    const streamTabs: WsTab[] = DD_WORKSTREAMS.map((w) => {
+    const buildTab = (w: typeof DD_WORKSTREAMS[number]): WsTab => {
       const cached = resultCache[w.id] || {};
       const completedCount = w.templates.filter(
         (t) => cached[t.query]?.status === "complete"
@@ -247,8 +247,14 @@ export default function DealWorkspacePage() {
         complete: completedCount,
         total: w.templates.length,
       };
-    });
-    return [docMatrixTab, ...streamTabs];
+    };
+    const proactive = DD_WORKSTREAMS.find((w) => w.id === "proactive_scan");
+    const others = DD_WORKSTREAMS.filter((w) => w.id !== "proactive_scan");
+    return [
+      ...(proactive ? [buildTab(proactive)] : []),
+      docMatrixTab,
+      ...others.map(buildTab),
+    ];
   }, [documents.length, resultCache]);
 
   // ── Sync Proactive Scan findings into the shared findings store ──
@@ -305,6 +311,11 @@ export default function DealWorkspacePage() {
 
   const showBanner = !bannerDismissed && (dealBreakers > 0 || uncovered.length > 0);
 
+  const isDark = theme === "dark";
+  const pageBg = isDark ? "#020617" : "#f8fafc";
+  const panelBg = isDark ? "#0f172a" : "white";
+  const panelBorder = isDark ? "#1e293b" : "#e2e8f0";
+
   return (
     <div
       style={{
@@ -313,7 +324,7 @@ export default function DealWorkspacePage() {
         flexDirection: "column",
         fontFamily: "'DM Sans', sans-serif",
         overflow: "hidden",
-        background: "#f8fafc",
+        background: pageBg,
       }}
     >
       <TopBar
@@ -339,14 +350,15 @@ export default function DealWorkspacePage() {
           uncovered={uncovered}
           onDismiss={dismissBanner}
           onViewFlags={() => setLeftTab("flags")}
+          onRunScan={() => setActiveTab("proactive_scan")}
         />
       )}
 
       {showUpload && user?.is_admin && (
         <div
           style={{
-            background: "white",
-            borderBottom: "1px solid #e2e8f0",
+            background: panelBg,
+            borderBottom: `1px solid ${panelBorder}`,
             padding: "10px 20px",
           }}
         >
@@ -417,14 +429,14 @@ export default function DealWorkspacePage() {
         <div
           className="flex-1 flex flex-col overflow-hidden"
           style={{
-            background: "#f8fafc",
-            borderLeft: "1px solid #e2e8f0",
-            borderRight: activeCit ? "1px solid #e2e8f0" : "none",
+            background: pageBg,
+            borderLeft: `1px solid ${panelBorder}`,
+            borderRight: activeCit ? `1px solid ${panelBorder}` : "none",
           }}
         >
           <WsTabs tabs={wsTabs} active={activeTab} onSelect={setActiveTab} findings={findings} />
 
-          <div className="flex-1 overflow-y-auto" style={{ background: "white" }}>
+          <div className="flex-1 overflow-y-auto" style={{ background: panelBg }}>
             {activeTab === "documents" ? (
               <DocMatrixPanel
                 documents={documents}

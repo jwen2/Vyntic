@@ -7,6 +7,7 @@ interface Props {
   uncovered: DocCoverage[];
   onDismiss: () => void;
   onViewFlags: () => void;
+  onRunScan?: () => void;
 }
 
 export default function RedFlagBanner({
@@ -15,7 +16,9 @@ export default function RedFlagBanner({
   uncovered,
   onDismiss,
   onViewFlags,
+  onRunScan,
 }: Props) {
+  const hasFindings = dealBreakers > 0 || material > 0;
   return (
     <div
       className="flex items-center gap-2.5 flex-shrink-0"
@@ -63,22 +66,41 @@ export default function RedFlagBanner({
           </span>
         </>
       )}
-      <button
-        onClick={onViewFlags}
-        style={{
-          marginLeft: 6,
-          fontSize: 11,
-          color: "#dc2626",
-          fontWeight: 600,
-          background: "none",
-          border: "1px solid #fca5a5",
-          borderRadius: 4,
-          padding: "2px 9px",
-          cursor: "pointer",
-        }}
-      >
-        View all findings →
-      </button>
+      {hasFindings ? (
+        <button
+          onClick={onViewFlags}
+          style={{
+            marginLeft: 6,
+            fontSize: 11,
+            color: "#dc2626",
+            fontWeight: 600,
+            background: "none",
+            border: "1px solid #fca5a5",
+            borderRadius: 4,
+            padding: "2px 9px",
+            cursor: "pointer",
+          }}
+        >
+          View all findings →
+        </button>
+      ) : onRunScan ? (
+        <button
+          onClick={onRunScan}
+          style={{
+            marginLeft: 6,
+            fontSize: 11,
+            color: "white",
+            fontWeight: 600,
+            background: "#dc2626",
+            border: "1px solid #dc2626",
+            borderRadius: 4,
+            padding: "2px 9px",
+            cursor: "pointer",
+          }}
+        >
+          Run Proactive Scan →
+        </button>
+      ) : null}
       <button
         onClick={onDismiss}
         aria-label="Dismiss"

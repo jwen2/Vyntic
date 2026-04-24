@@ -79,7 +79,7 @@ export default function Home() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#f8fafc",
+          background: theme === "dark" ? "#020617" : "#f8fafc",
         }}
       >
         <div
@@ -101,6 +101,9 @@ export default function Home() {
     window.location.href = "/login";
   }
 
+  const isDark = theme === "dark";
+  const pageBg = isDark ? "#020617" : "#f8fafc";
+
   return (
     <div
       style={{
@@ -109,7 +112,7 @@ export default function Home() {
         flexDirection: "column",
         fontFamily: "'DM Sans', sans-serif",
         overflow: "hidden",
-        background: "#f8fafc",
+        background: pageBg,
       }}
     >
       <HomeTopBar
@@ -154,7 +157,7 @@ export default function Home() {
         <div
           className="flex-1 overflow-y-auto"
           style={{
-            background: "#f8fafc",
+            background: pageBg,
             padding: "16px 20px",
           }}
         >
