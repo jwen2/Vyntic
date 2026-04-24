@@ -39,13 +39,24 @@ export default function RedFlagBanner({
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
-      <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600 }}>
-        {dealBreakers} deal-breaker{dealBreakers !== 1 ? "s" : ""} · {material} material finding
-        {material !== 1 ? "s" : ""}
-      </span>
+      {(dealBreakers > 0 || material > 0) && (
+        <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600 }}>
+          {dealBreakers > 0 && (
+            <>
+              {dealBreakers} deal-breaker{dealBreakers !== 1 ? "s" : ""}
+            </>
+          )}
+          {dealBreakers > 0 && material > 0 && " · "}
+          {material > 0 && (
+            <>
+              {material} material finding{material !== 1 ? "s" : ""}
+            </>
+          )}
+        </span>
+      )}
       {uncovered.length > 0 && (
         <>
-          <span style={{ color: "#fda4af" }}>·</span>
+          {(dealBreakers > 0 || material > 0) && <span style={{ color: "#fda4af" }}>·</span>}
           <span style={{ fontSize: 13, color: "#9a3412", fontWeight: 500 }}>
             ⚠ {uncovered.length} document{uncovered.length > 1 ? "s" : ""} not yet analyzed:{" "}
             <strong>{uncovered.map((d) => d.short).join(", ")}</strong>
