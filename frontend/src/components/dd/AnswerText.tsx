@@ -13,6 +13,7 @@ interface Props {
 
 type Block =
   | { kind: "p"; content: React.ReactNode }
+  | { kind: "heading"; level: number; content: React.ReactNode }
   | { kind: "list"; ordered: boolean; items: React.ReactNode[] }
   | { kind: "table"; heads: React.ReactNode[]; rows: React.ReactNode[][] }
   | { kind: "spacer" };
@@ -123,11 +124,29 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
   const tableHeadBg = isDark ? "#1e293b" : "#f8fafc";
   const tableBorder = isDark ? "#334155" : "#e2e8f0";
   const rowBorder = isDark ? "#1e293b" : "#f1f5f9";
+  const headingColor = isDark ? "#f8fafc" : "#0f172a";
   const lines = text.split("\n");
   const blocks: Block[] = [];
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      blocks.push({
+        kind: "heading",
+        level: headingMatch[1].length,
+        content: renderInline(
+          headingMatch[2].trim(),
+          `h${i}`,
+          citations,
+          activeCitId,
+          onCit,
+          isDark
+        ),
+      });
+      i++;
+      continue;
+    }
     // Table
     if (line.startsWith("|") && i + 1 < lines.length && lines[i + 1].includes("---")) {
       const heads = line
@@ -184,6 +203,23 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
               {b.content}
             </div>
           );
+        if (b.kind === "heading") {
+          const fontSize = b.level <= 2 ? 14 : 13;
+          return (
+            <div
+              key={idx}
+              style={{
+                color: headingColor,
+                fontSize,
+                fontWeight: 700,
+                lineHeight: 1.45,
+                margin: b.level <= 2 ? "12px 0 5px" : "9px 0 4px",
+              }}
+            >
+              {b.content}
+            </div>
+          );
+        }
         if (b.kind === "list") {
           const Tag = b.ordered ? "ol" : "ul";
           return (
