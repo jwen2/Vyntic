@@ -130,6 +130,16 @@ Create a `.env` file in the project root:
 GEMINI_API_KEY=your_api_key_here
 ```
 
+Optional Docling controls for lower-memory local startup:
+
+```bash
+DOCLING_SUBPROCESS_ENABLED=true
+DOCLING_DEVICE=cpu
+DOCLING_NUM_THREADS=1
+DOCLING_OCR_ENABLED=false
+DOCLING_TIMEOUT_SECONDS=180
+```
+
 ### Step 2: Start the services
 
 ```bash

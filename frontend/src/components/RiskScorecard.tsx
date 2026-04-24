@@ -41,7 +41,7 @@ const LEVEL_CONFIG = {
     bg: "bg-emerald-50",
     border: "border-emerald-200",
     text: "text-emerald-700",
-    badge: "bg-emerald-100 text-emerald-800",
+    badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
     dot: "bg-emerald-500",
     label: "Low Risk",
     bar: "bg-emerald-500",
@@ -50,7 +50,7 @@ const LEVEL_CONFIG = {
     bg: "bg-amber-50",
     border: "border-amber-200",
     text: "text-amber-700",
-    badge: "bg-amber-100 text-amber-800",
+    badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
     dot: "bg-amber-500",
     label: "Medium Risk",
     bar: "bg-amber-500",
@@ -59,7 +59,7 @@ const LEVEL_CONFIG = {
     bg: "bg-orange-50",
     border: "border-orange-200",
     text: "text-orange-700",
-    badge: "bg-orange-100 text-orange-800",
+    badge: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
     dot: "bg-orange-500",
     label: "High Risk",
     bar: "bg-orange-500",
@@ -68,7 +68,7 @@ const LEVEL_CONFIG = {
     bg: "bg-red-50",
     border: "border-red-200",
     text: "text-red-700",
-    badge: "bg-red-100 text-red-800",
+    badge: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
     dot: "bg-red-500",
     label: "Critical",
     bar: "bg-red-500",
@@ -109,15 +109,15 @@ export default function RiskScorecard({ results, questionLabels }: Props) {
   }
 
   return (
-    <div className="mx-4 mt-4 mb-2 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+    <div className="mx-4 mt-4 mb-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm dark:shadow-gray-950/40 overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <span className="text-base">🚦</span>
             Risk Scorecard
           </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             {scoredDimensions.length} of {dimensions.length} dimensions scored
           </p>
         </div>
@@ -140,19 +140,19 @@ export default function RiskScorecard({ results, questionLabels }: Props) {
           return (
             <div key={dim.label} className="flex items-center gap-3">
               {/* Label */}
-              <div className="w-44 text-xs font-medium text-gray-700 truncate">
+              <div className="w-44 text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
                 {dim.label}
               </div>
 
               {/* Bar */}
-              <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden relative">
+              <div className="flex-1 h-5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden relative">
                 {dim.score !== null && config ? (
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${config.bar}`}
                     style={{ width: `${(dim.score / 5) * 100}%` }}
                   />
                 ) : (
-                  <div className="h-full flex items-center justify-center text-[10px] text-gray-400">
+                  <div className="h-full flex items-center justify-center text-[10px] text-gray-400 dark:text-gray-500">
                     Not yet scored
                   </div>
                 )}
@@ -170,7 +170,7 @@ export default function RiskScorecard({ results, questionLabels }: Props) {
                     {dim.score}/5
                   </span>
                 ) : (
-                  <span className="text-[10px] text-gray-300">—</span>
+                  <span className="text-[10px] text-gray-300 dark:text-gray-600">—</span>
                 )}
               </div>
             </div>

@@ -91,7 +91,7 @@ function buildReportPayload(
 ): { request: { title: string; deals: ReportDeal[] }; workstreams: ReportWorkstream[] } {
   const workstreams: ReportWorkstream[] = [];
 
-  for (const wsId of selected) {
+  for (const wsId of Array.from(selected)) {
     const ws = DD_WORKSTREAMS.find((w) => w.id === wsId);
     if (!ws) continue;
     const cached = resultCache[wsId] || {};
@@ -438,7 +438,7 @@ export default function ReportModal({ deal, resultCache, onClose }: Props) {
 
   const totalQuestions = useMemo(() => {
     let count = 0;
-    for (const wsId of selected) {
+    for (const wsId of Array.from(selected)) {
       count += workstreamStatus[wsId]?.completed || 0;
     }
     return count;

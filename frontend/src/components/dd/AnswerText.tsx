@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import type { Citation } from "@/lib/api";
+import { useTheme } from "@/components/ThemeProvider";
 import { SEV_COLOR } from "./types";
 
 interface Props {
@@ -38,7 +39,8 @@ function renderInline(
   key: string,
   citations: (Citation | null)[],
   activeCitId: string | null,
-  onCit: (c: Citation, id: string) => void
+  onCit: (c: Citation, id: string) => void,
+  isDark: boolean
 ): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   const re = /\*\*\[(DEAL-BREAKER|MATERIAL|NOTEWORTHY)\]\*\*|\[(DEAL-BREAKER|MATERIAL|NOTEWORTHY)\]|\*\*(.+?)\*\*|\[Source (\d+)\]/g;
@@ -82,7 +84,10 @@ function renderInline(
       );
     } else if (bold) {
       parts.push(
-        <strong key={`${key}-b${k++}`} style={{ fontWeight: 600, color: "#1e293b" }}>
+        <strong
+          key={`${key}-b${k++}`}
+          style={{ fontWeight: 600, color: isDark ? "#f1f5f9" : "#1e293b" }}
+        >
           {bold}
         </strong>
       );
@@ -111,6 +116,13 @@ function renderInline(
 }
 
 export default function AnswerText({ text, citations, activeCitId, onCit }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const textColor = isDark ? "#cbd5e1" : "#334155";
+  const headerText = isDark ? "#cbd5e1" : "#475569";
+  const tableHeadBg = isDark ? "#1e293b" : "#f8fafc";
+  const tableBorder = isDark ? "#334155" : "#e2e8f0";
+  const rowBorder = isDark ? "#1e293b" : "#f1f5f9";
   const lines = text.split("\n");
   const blocks: Block[] = [];
   let i = 0;
@@ -121,14 +133,14 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
       const heads = line
         .split("|")
         .filter((c) => c.trim())
-        .map((c, j) => renderInline(c.trim(), `th${i}${j}`, citations, activeCitId, onCit));
+        .map((c, j) => renderInline(c.trim(), `th${i}${j}`, citations, activeCitId, onCit, isDark));
       i += 2;
       const rows: React.ReactNode[][] = [];
       while (i < lines.length && lines[i].startsWith("|")) {
         const cells = lines[i]
           .split("|")
           .filter((c) => c.trim())
-          .map((c, k) => renderInline(c.trim(), `td${i}${k}`, citations, activeCitId, onCit));
+          .map((c, k) => renderInline(c.trim(), `td${i}${k}`, citations, activeCitId, onCit, isDark));
         rows.push(cells);
         i++;
       }
@@ -143,7 +155,7 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
         const txt = lines[i].replace(/^- |^\d+\. /, "");
         items.push(
           <li key={i} style={{ marginBottom: 3, lineHeight: 1.6 }}>
-            {renderInline(txt, `li${i}`, citations, activeCitId, onCit)}
+            {renderInline(txt, `li${i}`, citations, activeCitId, onCit, isDark)}
           </li>
         );
         i++;
@@ -156,7 +168,7 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
     } else {
       blocks.push({
         kind: "p",
-        content: renderInline(line, `p${i}`, citations, activeCitId, onCit),
+        content: renderInline(line, `p${i}`, citations, activeCitId, onCit, isDark),
       });
     }
     i++;
@@ -194,9 +206,9 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
                         textAlign: "left",
                         fontSize: 11,
                         fontWeight: 600,
-                        color: "#475569",
-                        background: "#f8fafc",
-                        borderBottom: "1px solid #e2e8f0",
+                        color: headerText,
+                        background: tableHeadBg,
+                        borderBottom: `1px solid ${tableBorder}`,
                         whiteSpace: "nowrap",
                       }}
                     >
@@ -207,14 +219,14 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
               </thead>
               <tbody>
                 {b.rows.map((row, j) => (
-                  <tr key={j} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <tr key={j} style={{ borderBottom: `1px solid ${rowBorder}` }}>
                     {row.map((cell, k) => (
                       <td
                         key={k}
                         style={{
                           padding: "5px 10px",
                           fontSize: 12,
-                          color: "#334155",
+                          color: textColor,
                           fontWeight: k === 0 ? 500 : 400,
                         }}
                       >
@@ -243,6 +255,8 @@ export function CitBadge({
   active: boolean;
   onClick: () => void;
 }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   return (
     <button
       onClick={onClick}
@@ -253,15 +267,17 @@ export function CitBadge({
         alignItems: "center",
         padding: "1px 6px",
         borderRadius: 4,
-        background: active ? "#dbeafe" : "#eff6ff",
-        border: `1px solid ${active ? "#93c5fd" : "#bfdbfe"}`,
-        color: active ? "#1d4ed8" : "#3b82f6",
+        background: active
+          ? isDark ? "#1e3a8a" : "#dbeafe"
+          : isDark ? "#172554" : "#eff6ff",
+        border: `1px solid ${active ? (isDark ? "#3b82f6" : "#93c5fd") : (isDark ? "#1d4ed8" : "#bfdbfe")}`,
+        color: active ? (isDark ? "#bfdbfe" : "#1d4ed8") : (isDark ? "#93c5fd" : "#3b82f6"),
         fontSize: 10,
         fontWeight: 500,
         cursor: "pointer",
         margin: "0 1px",
         lineHeight: 1.4,
-        boxShadow: active ? "0 0 0 2px #bfdbfe" : "none",
+        boxShadow: active ? `0 0 0 2px ${isDark ? "#1e40af" : "#bfdbfe"}` : "none",
         transition: "all .15s",
       }}
     >
