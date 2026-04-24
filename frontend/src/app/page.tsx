@@ -69,7 +69,7 @@ export default function Home() {
     matrix.setDeals(deals.map((d: Deal) => d.deal_id));
   }, [deals, matrix.setDeals]);
 
-  if (authLoading) {
+  if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-3 border-blue-500 border-t-transparent rounded-full" />
