@@ -12,7 +12,7 @@ from pathlib import Path
 from app.config import settings
 from app.models.deal import DealCreate
 from app.services import deal_store
-from app.services.parser import parse_document
+from app.services.parser import parse_document_path
 from app.services.chunker import chunk_sections
 from app.services.vector_store import upsert_chunks
 
@@ -75,15 +75,13 @@ async def _ingest_file(sample_dir: Path, deal_id: str, filename: str) -> bool:
         return False
 
     try:
-        file_bytes = filepath.read_bytes()
-
         # Persist original file for document viewer
         deal_upload_dir = Path(settings.uploads_dir) / deal_id
         deal_upload_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(filepath, deal_upload_dir / filename)
 
-        doc_metadata, sections = await parse_document(
-            file_bytes, filename, deal_id
+        doc_metadata, sections = await parse_document_path(
+            filepath, filename, deal_id
         )
         chunks = chunk_sections(sections, deal_id, doc_metadata.doc_id)
         doc_metadata.chunk_count = len(chunks)

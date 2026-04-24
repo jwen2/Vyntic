@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     # File storage
     uploads_dir: str = "./data/uploads"
 
+    # Docling parsing
+    docling_subprocess_enabled: bool = True
+    docling_timeout_seconds: int = 180
+    docling_num_threads: int = 1
+    docling_device: str = "cpu"
+    docling_ocr_enabled: bool = False
+
     # ChromaDB
     chroma_persist_dir: str = "./data/chroma"
 

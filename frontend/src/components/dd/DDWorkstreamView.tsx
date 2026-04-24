@@ -4,6 +4,7 @@ import type { Citation, WorkstreamEvent } from "@/lib/api";
 import { workstreamStream, singleQuestionStream } from "@/lib/api";
 import type { Workstream } from "@/lib/queryTemplates";
 import type { QuestionResult } from "@/components/WorkstreamPanel";
+import { useTheme } from "@/components/ThemeProvider";
 import QCard from "./QCard";
 import { ACCENT } from "./types";
 
@@ -24,6 +25,8 @@ export default function DDWorkstreamView({
   activeCitId,
   onCit,
 }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [results, setResults] = useState<Record<string, QuestionResult>>(cachedResults);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [runningAll, setRunningAll] = useState(false);
@@ -72,7 +75,11 @@ export default function DDWorkstreamView({
             duration_ms: event.duration_ms,
           },
         }));
-        setExpanded((s) => new Set([...s, q]));
+        setExpanded((s) => {
+          const next = new Set(s);
+          next.add(q);
+          return next;
+        });
       } else if (event.type === "error") {
         updateResults((prev) => ({
           ...prev,
@@ -90,7 +97,11 @@ export default function DDWorkstreamView({
         ...prev,
         [query]: { answer: "", citations: [], status: "loading" },
       }));
-      setExpanded((s) => new Set([...s, query]));
+      setExpanded((s) => {
+        const next = new Set(s);
+        next.add(query);
+        return next;
+      });
       controllerRef.current = singleQuestionStream(
         dealId,
         query,
@@ -128,6 +139,11 @@ export default function DDWorkstreamView({
   const completed = workstream.templates.filter(
     (t) => results[t.query]?.status === "complete"
   ).length;
+  const surface = isDark ? "#0f172a" : "white";
+  const border = isDark ? "#1e293b" : "#f1f5f9";
+  const heading = isDark ? "#f1f5f9" : "#0f172a";
+  const muted = isDark ? "#94a3b8" : "#64748b";
+  const subtle = isDark ? "#64748b" : "#94a3b8";
 
   return (
     <div className="flex flex-col h-full">
@@ -136,20 +152,20 @@ export default function DDWorkstreamView({
         className="flex items-center justify-between flex-shrink-0"
         style={{
           padding: "14px 20px",
-          background: "white",
-          borderBottom: "1px solid #f1f5f9",
+          background: surface,
+          borderBottom: `1px solid ${border}`,
         }}
       >
         <div>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: heading }}>
             {workstream.name}
           </h2>
-          <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+          <p style={{ fontSize: 12, color: muted, marginTop: 2 }}>
             {workstream.description}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span style={{ fontSize: 11, color: "#94a3b8" }}>
+          <span style={{ fontSize: 11, color: subtle }}>
             {completed}/{workstream.templates.length} complete
           </span>
           <button
@@ -159,8 +175,8 @@ export default function DDWorkstreamView({
               padding: "6px 14px",
               fontSize: 12,
               fontWeight: 600,
-              background: runningAll ? "#e2e8f0" : ACCENT,
-              color: runningAll ? "#94a3b8" : "white",
+              background: runningAll ? (isDark ? "#1e293b" : "#e2e8f0") : ACCENT,
+              color: runningAll ? subtle : "white",
               borderRadius: 6,
               border: "none",
               cursor: runningAll ? "default" : "pointer",
@@ -230,7 +246,10 @@ export default function DDWorkstreamView({
 }
 
 function EmptyWs({ wsId, onRun }: { wsId: string; onRun: () => void }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const isLegal = wsId === "legal";
+  const muted = isDark ? "#94a3b8" : "#94a3b8";
   return (
     <div
       className="flex flex-col items-center justify-center gap-3"
@@ -241,7 +260,7 @@ function EmptyWs({ wsId, onRun }: { wsId: string; onRun: () => void }) {
           width: 44,
           height: 44,
           borderRadius: 12,
-          background: "#f1f5f9",
+          background: isDark ? "#1e293b" : "#f1f5f9",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -265,13 +284,13 @@ function EmptyWs({ wsId, onRun }: { wsId: string; onRun: () => void }) {
           style={{
             fontSize: 15,
             fontWeight: 600,
-            color: isLegal ? "#dc2626" : "#475569",
+            color: isLegal ? (isDark ? "#f87171" : "#dc2626") : isDark ? "#cbd5e1" : "#475569",
             marginBottom: 5,
           }}
         >
           {isLegal ? "Legal DD not analyzed — coverage gap" : "Not yet analyzed"}
         </div>
-        <div style={{ fontSize: 13, color: "#94a3b8", maxWidth: 280, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 13, color: muted, maxWidth: 280, lineHeight: 1.6 }}>
           {isLegal
             ? "The Legal DD workstream has no analysis yet. Undisclosed litigation or IP risks may be hiding in these documents."
             : `Run the ${wsId} workstream to generate AI-powered analysis with full source citations.`}

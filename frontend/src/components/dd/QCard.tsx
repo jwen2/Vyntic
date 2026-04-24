@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import type { Citation } from "@/lib/api";
 import type { QuestionResult } from "@/components/WorkstreamPanel";
+import { useTheme } from "@/components/ThemeProvider";
 import { fixMarkdownTables } from "@/lib/markdownUtils";
 import { SEV_COLOR, ACCENT } from "./types";
 import type { FindingSeverity } from "./types";
@@ -49,6 +50,8 @@ export default function QCard({
   activeCitId,
   onCit,
 }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const status = result?.status ?? "pending";
   const isPending = status === "pending" || !result;
   const isLoading = status === "loading";
@@ -64,23 +67,42 @@ export default function QCard({
   );
 
   const statusDot = severity ? SEV_COLOR[severity].dot : "#22c55e";
+  const rowBg = isDark ? "#0f172a" : "white";
+  const rowHoverBg = isDark ? "#1e293b" : "#fafafa";
+  const border = isDark ? "#1e293b" : "#f1f5f9";
+  const text = isDark ? "#e2e8f0" : "#1e293b";
+  const muted = isDark ? "#64748b" : "#94a3b8";
+  const bodyBg = isDark ? "#111827" : "#fafafa";
+  const bodyText = isDark ? "#cbd5e1" : "#334155";
+  const buttonBg = isDark ? "#1e293b" : "#f1f5f9";
+  const buttonBorder = isDark ? "#334155" : "#e2e8f0";
+  const pendingBorder = isDark ? "#334155" : "#e2e8f0";
+  const statusBg = isPending
+    ? "transparent"
+    : isError
+    ? isDark ? "#7f1d1d" : "#fee2e2"
+    : isLoading
+    ? isDark ? "#1e3a8a" : "#dbeafe"
+    : severity
+    ? `${statusDot}22`
+    : isDark ? "#064e3b" : "#dcfce7";
 
   return (
-    <div style={{ borderBottom: "1px solid #f1f5f9" }}>
+    <div style={{ borderBottom: `1px solid ${border}` }}>
       {/* Header row */}
       <div
         onClick={() => !isPending && onToggle()}
         className="flex items-center gap-2.5"
         onMouseEnter={(e) => {
-          if (!isPending) e.currentTarget.style.background = "#fafafa";
+          if (!isPending) e.currentTarget.style.background = rowHoverBg;
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = "white";
+          e.currentTarget.style.background = rowBg;
         }}
         style={{
           padding: "11px 20px",
           cursor: isPending ? "default" : "pointer",
-          background: "white",
+          background: rowBg,
           transition: "background .1s",
         }}
       >
@@ -94,16 +116,8 @@ export default function QCard({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: isPending
-              ? "transparent"
-              : isError
-              ? "#fee2e2"
-              : isLoading
-              ? "#dbeafe"
-              : severity
-              ? `${statusDot}22`
-              : "#dcfce7",
-            border: isPending ? "2px solid #e2e8f0" : "none",
+            background: statusBg,
+            border: isPending ? `2px solid ${pendingBorder}` : "none",
           }}
         >
           {isPending ? null : isError ? (
@@ -144,7 +158,7 @@ export default function QCard({
             style={{
               fontSize: 13,
               fontWeight: 500,
-              color: isPending ? "#94a3b8" : "#1e293b",
+              color: isPending ? muted : text,
             }}
           >
             {label}
@@ -180,7 +194,7 @@ export default function QCard({
             <ConfBar pct={conf} />
           )}
           {!isPending && (
-            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+            <span style={{ fontSize: 11, color: muted }}>
               {nonNullCits.length} src
             </span>
           )}
@@ -209,7 +223,7 @@ export default function QCard({
               height="14"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#94a3b8"
+              stroke={muted}
               strokeWidth="2"
               style={{
                 transform: open ? "rotate(180deg)" : "none",
@@ -228,8 +242,8 @@ export default function QCard({
           className="dd-fade-in"
           style={{
             padding: "12px 20px 18px 48px",
-            background: "#fafafa",
-            borderTop: "1px solid #f1f5f9",
+            background: bodyBg,
+            borderTop: `1px solid ${border}`,
           }}
         >
           {/* Analysis header */}
@@ -238,7 +252,7 @@ export default function QCard({
               style={{
                 fontSize: 10,
                 fontWeight: 700,
-                color: "#94a3b8",
+                color: muted,
                 textTransform: "uppercase",
                 letterSpacing: "0.07em",
               }}
@@ -247,9 +261,9 @@ export default function QCard({
             </span>
             {!isError && (
               <>
-                <span style={{ fontSize: 10, color: "#e2e8f0" }}>·</span>
+                <span style={{ fontSize: 10, color: isDark ? "#334155" : "#e2e8f0" }}>·</span>
                 <ConfBar pct={conf} />
-                <span style={{ fontSize: 10, color: "#94a3b8" }}>confidence</span>
+                <span style={{ fontSize: 10, color: muted }}>confidence</span>
               </>
             )}
             <div style={{ flex: 1 }} />
@@ -260,9 +274,9 @@ export default function QCard({
               }}
               style={{
                 fontSize: 11,
-                color: "#64748b",
-                background: "#f1f5f9",
-                border: "1px solid #e2e8f0",
+                color: isDark ? "#cbd5e1" : "#64748b",
+                background: buttonBg,
+                border: `1px solid ${buttonBorder}`,
                 borderRadius: 4,
                 padding: "2px 8px",
                 cursor: "pointer",
@@ -273,9 +287,9 @@ export default function QCard({
           </div>
 
           {/* Body */}
-          <div style={{ fontSize: 13, color: "#334155", fontFamily: "'DM Sans', sans-serif" }}>
+          <div style={{ fontSize: 13, color: bodyText, fontFamily: "'DM Sans', sans-serif" }}>
             {isError ? (
-              <div style={{ color: "#dc2626" }}>{result?.answer || "Error generating answer."}</div>
+              <div style={{ color: isDark ? "#f87171" : "#dc2626" }}>{result?.answer || "Error generating answer."}</div>
             ) : cleanAnswer ? (
               <AnswerText
                 text={cleanAnswer}
@@ -284,9 +298,9 @@ export default function QCard({
                 onCit={onCit}
               />
             ) : isLoading ? (
-              <span style={{ color: "#94a3b8" }}>Analyzing...</span>
+              <span style={{ color: muted }}>Analyzing...</span>
             ) : (
-              <span style={{ color: "#94a3b8" }}>No content yet.</span>
+              <span style={{ color: muted }}>No content yet.</span>
             )}
           </div>
 
@@ -297,10 +311,10 @@ export default function QCard({
               style={{
                 marginTop: 12,
                 paddingTop: 10,
-                borderTop: "1px solid #e2e8f0",
+                borderTop: `1px solid ${buttonBorder}`,
               }}
             >
-              <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>Sources</span>
+              <span style={{ fontSize: 11, color: muted, fontWeight: 500 }}>Sources</span>
               {nonNullCits.map((c, i) => {
                 const id = `${c.source_file}_p${c.page}_${i}`;
                 return (
@@ -313,7 +327,7 @@ export default function QCard({
                   />
                 );
               })}
-              <span style={{ fontSize: 10, color: "#b0bec5", marginLeft: 4 }}>
+              <span style={{ fontSize: 10, color: isDark ? "#475569" : "#b0bec5", marginLeft: 4 }}>
                 click to inspect evidence
               </span>
             </div>
@@ -325,6 +339,8 @@ export default function QCard({
 }
 
 function ConfBar({ pct }: { pct: number }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const color = pct >= 90 ? "#059669" : pct >= 75 ? "#2563eb" : pct >= 50 ? "#d97706" : "#dc2626";
   return (
     <span className="inline-flex items-center gap-1">
@@ -332,7 +348,7 @@ function ConfBar({ pct }: { pct: number }) {
         style={{
           width: 40,
           height: 3,
-          background: "#e2e8f0",
+          background: isDark ? "#334155" : "#e2e8f0",
           borderRadius: 99,
           overflow: "hidden",
           display: "inline-block",
