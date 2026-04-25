@@ -34,6 +34,13 @@ function citShort(c: Citation): string {
   return `${short}·p${c.page}`;
 }
 
+function normalizeSeverityTag(raw: string): "DEAL-BREAKER" | "MATERIAL" | "NOTEWORTHY" {
+  const normalized = raw.trim().toUpperCase().replace(/\s+/g, "-");
+  if (normalized === "DEAL-BREAKER" || normalized === "DEALBREAKER") return "DEAL-BREAKER";
+  if (normalized === "MATERIAL") return "MATERIAL";
+  return "NOTEWORTHY";
+}
+
 /** Render a single line with inline formatting: **bold**, [SEVERITY], [Source N]. */
 function renderInline(
   str: string,
@@ -44,7 +51,7 @@ function renderInline(
   isDark: boolean
 ): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  const re = /\*\*\[(DEAL-BREAKER|MATERIAL|NOTEWORTHY)\]\*\*|\[(DEAL-BREAKER|MATERIAL|NOTEWORTHY)\]|\*\*(.+?)\*\*|\[Source (\d+)\]/g;
+  const re = /\*\*\[\s*(DEAL[\s-]?BREAKER|MATERIAL|NOTEWORTHY)\s*\]\*\*|\[\s*(DEAL[\s-]?BREAKER|MATERIAL|NOTEWORTHY)\s*\]|\*\*(.+?)\*\*|\[Source\s+(\d+)\]/gi;
   let last = 0;
   let m: RegExpExecArray | null;
   let k = 0;
@@ -55,7 +62,7 @@ function renderInline(
       bold = m[3],
       srcN = m[4];
     if (sev1 || sev2) {
-      const raw = (sev1 || sev2) as "DEAL-BREAKER" | "MATERIAL" | "NOTEWORTHY";
+      const raw = normalizeSeverityTag(sev1 || sev2);
       const sv =
         raw === "DEAL-BREAKER"
           ? "deal-breaker"
@@ -63,6 +70,7 @@ function renderInline(
           ? "material"
           : "noteworthy";
       const s = SEV_COLOR[sv];
+      const label = raw === "DEAL-BREAKER" ? "Deal breaker" : s.label;
       parts.push(
         <span
           key={`${key}-s${k++}`}
@@ -80,7 +88,7 @@ function renderInline(
             color: s.color,
           }}
         >
-          {raw}
+          {label}
         </span>
       );
     } else if (bold) {

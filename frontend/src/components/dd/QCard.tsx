@@ -18,6 +18,7 @@ interface Props {
   onRun: () => void;
   activeCitId: string | null;
   onCit: (c: Citation, id: string) => void;
+  hideSeverityBadge?: boolean;
 }
 
 function stripThinkTags(text: string): string {
@@ -49,6 +50,7 @@ export default function QCard({
   onRun,
   activeCitId,
   onCit,
+  hideSeverityBadge = false,
 }: Props) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -166,7 +168,7 @@ export default function QCard({
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {!isPending && severity && (
+          {!isPending && severity && !hideSeverityBadge && (
             <span
               className="flex items-center gap-1"
               style={{

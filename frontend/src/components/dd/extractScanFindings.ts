@@ -14,11 +14,12 @@ function djb2(s: string): string {
   return (h >>> 0).toString(36);
 }
 
-const SEVERITY_TAG = /(?:\*\*)?\[(DEAL-BREAKER|MATERIAL|NOTEWORTHY)\](?:\*\*)?/g;
+const SEVERITY_TAG = /(?:\*\*)?\[\s*(DEAL[\s-]?BREAKER|MATERIAL|NOTEWORTHY)\s*\](?:\*\*)?/gi;
 
 function tagToSeverity(tag: string): FindingSeverity {
-  if (tag === "DEAL-BREAKER") return "deal-breaker";
-  if (tag === "MATERIAL") return "material";
+  const normalized = tag.trim().toUpperCase().replace(/\s+/g, "-");
+  if (normalized === "DEAL-BREAKER" || normalized === "DEALBREAKER") return "deal-breaker";
+  if (normalized === "MATERIAL") return "material";
   return "noteworthy";
 }
 

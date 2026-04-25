@@ -251,6 +251,7 @@ export default function DDWorkstreamView({
               onRun={() => runSingle(t.query)}
               activeCitId={activeCitId}
               onCit={onCit}
+              hideSeverityBadge={isProactiveScan}
             />
           );
         })}
@@ -277,6 +278,7 @@ export default function DDWorkstreamView({
               onRun={() => runSingle(query)}
               activeCitId={activeCitId}
               onCit={onCit}
+              hideSeverityBadge={isProactiveScan}
             />
           ))}
 
@@ -289,10 +291,10 @@ export default function DDWorkstreamView({
 }
 
 function severityFromResult(result?: QuestionResult): FindingSeverity | undefined {
-  const text = result?.answer?.toUpperCase() || "";
-  if (text.includes("[DEAL-BREAKER]")) return "deal-breaker";
-  if (text.includes("[MATERIAL]")) return "material";
-  if (text.includes("[NOTEWORTHY]")) return "noteworthy";
+  const text = result?.answer || "";
+  if (/\[\s*DEAL[\s-]?BREAKER\s*\]/i.test(text)) return "deal-breaker";
+  if (/\[\s*MATERIAL\s*\]/i.test(text)) return "material";
+  if (/\[\s*NOTEWORTHY\s*\]/i.test(text)) return "noteworthy";
   return undefined;
 }
 
