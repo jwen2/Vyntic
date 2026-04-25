@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ACCENT } from "@/components/dd/types";
+import { ACCENT, ddTheme } from "@/components/dd/types";
+import { useTheme } from "@/components/ThemeProvider";
 import BoldText from "./BoldText";
 import AgentMemoText from "./AgentMemoText";
 import AgentFindingCard from "./AgentFindingCard";
@@ -49,6 +50,9 @@ export default function AgentActiveState({
   onFollowupDraft,
   onSendFollowup,
 }: Props) {
+  const { theme } = useTheme();
+  const c = ddTheme(theme);
+  const isDark = theme === "dark";
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const isRunning = runState.phase === "running";
   const isDone = runState.phase === "complete";
@@ -60,32 +64,32 @@ export default function AgentActiveState({
   }, [followups]);
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 0 60px" }}>
-        <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 24px" }}>
-          <div className="fade-up" style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: c.bg }}>
+      <div className="dd-scroll" style={{ flex: 1, overflowY: "auto", padding: "32px 0 60px" }}>
+        <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 24px" }}>
+          <div className="fade-up" style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
               Your request
             </div>
-            <div style={{ padding: "14px 16px", background: "white", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, color: "#1e293b", lineHeight: 1.65, borderLeft: `3px solid ${ACCENT}` }}>
+            <div style={{ padding: "12px 14px", background: c.surface, border: `1px solid ${c.border}`, borderRadius: 10, fontSize: 14, color: c.t1, lineHeight: 1.6, borderLeft: `3px solid ${ACCENT}` }}>
               {runState.prompt}
             </div>
           </div>
 
-          <div className="fade-up" style={{ marginBottom: 24, animationDelay: ".1s" }}>
+          <div className="fade-up" style={{ marginBottom: 28, animationDelay: ".1s" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
               <div style={{ width: 24, height: 24, borderRadius: "50%", background: ACCENT, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                 </svg>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Agent plan</span>
-              <span style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 5 }}>
-                {isRunning ? <><Spinner size={11} color="#94a3b8" /> Analyzing {completedTasks}/{runState.tasks.length}...</> : `${completedTasks}/${runState.tasks.length} tasks complete`}
+              <span style={{ fontSize: 13, fontWeight: 700, color: c.t1 }}>Agent plan</span>
+              <span style={{ fontSize: 11, color: c.t2, display: "flex", alignItems: "center", gap: 5 }}>
+                {isRunning ? <><Spinner size={11} color={c.t2} /> Analyzing {completedTasks}/{runState.tasks.length}...</> : `${completedTasks}/${runState.tasks.length} tasks complete`}
               </span>
             </div>
 
-            <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 10, overflow: "hidden" }}>
               {runState.tasks.map((task, i) => {
                 const taskRunning = task.status === "running";
                 const taskDone = task.status === "complete";
@@ -97,13 +101,13 @@ export default function AgentActiveState({
                     alignItems: "center",
                     gap: 12,
                     padding: "11px 16px",
-                    borderBottom: i < runState.tasks.length - 1 ? "1px solid #f1f5f9" : "none",
-                    background: taskRunning ? "#f8faff" : "white",
+                    borderBottom: i < runState.tasks.length - 1 ? `1px solid ${c.borderLight}` : "none",
+                    background: taskRunning ? (isDark ? "#17213a" : "#f8faff") : c.surface,
                     transition: "background .2s",
                   }}>
                     <div style={{ width: 20, height: 20, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       {taskDone ? (
-                        <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div style={{ width: 18, height: 18, borderRadius: "50%", background: isDark ? "#064e3b" : "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3.5" strokeLinecap="round">
                             <path d="M5 13l4 4L19 7" />
                           </svg>
@@ -111,17 +115,17 @@ export default function AgentActiveState({
                       ) : taskRunning ? (
                         <Spinner size={18} color={task.color} />
                       ) : (
-                        <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid #e2e8f0" }} />
+                        <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${c.border}` }} />
                       )}
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: taskPending ? "#94a3b8" : "#1e293b", marginBottom: taskRunning ? 5 : 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: taskPending ? c.t3 : c.t1, marginBottom: taskRunning ? 5 : 0 }}>
                         {task.label}
                       </div>
                       {taskRunning && task.pagesTotal > 0 && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ flex: 1, height: 2.5, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{ flex: 1, height: 2.5, background: c.border, borderRadius: 99, overflow: "hidden" }}>
                             <div style={{ width: `${pct}%`, height: "100%", background: task.color, borderRadius: 99, transition: "width .3s" }} />
                           </div>
                           <span className="font-mono-dm" style={{ fontSize: 10, color: "#94a3b8", whiteSpace: "nowrap" }}>
@@ -145,9 +149,9 @@ export default function AgentActiveState({
                             fontWeight: 500,
                             padding: "1px 6px",
                             borderRadius: 4,
-                            background: taskDone || taskRunning ? `${d.color}18` : "#f1f5f9",
-                            color: taskDone || taskRunning ? d.color : "#94a3b8",
-                            border: `1px solid ${taskDone || taskRunning ? `${d.color}44` : "#e2e8f0"}`,
+                            background: taskDone || taskRunning ? `${d.color}18` : c.surfaceAlt,
+                            color: taskDone || taskRunning ? d.color : c.t3,
+                            border: `1px solid ${taskDone || taskRunning ? `${d.color}44` : c.border}`,
                           }}>
                             {d.short}
                           </span>
@@ -167,10 +171,10 @@ export default function AgentActiveState({
           </div>
 
           {runState.findings.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                 Findings surfaced
-                <span style={{ padding: "1px 6px", borderRadius: 99, background: dealBreakers > 0 ? "#fef2f2" : "#f1f5f9", color: dealBreakers > 0 ? "#dc2626" : "#64748b", fontSize: 10, fontWeight: 700, border: `1px solid ${dealBreakers > 0 ? "#fecaca" : "#e2e8f0"}` }}>
+                <span style={{ padding: "1px 6px", borderRadius: 99, background: dealBreakers > 0 ? (isDark ? "#7f1d1d" : "#fef2f2") : c.surfaceAlt, color: dealBreakers > 0 ? (isDark ? "#fca5a5" : "#dc2626") : c.t2, fontSize: 10, fontWeight: 700, border: `1px solid ${dealBreakers > 0 ? (isDark ? "#7f1d1d" : "#fecaca") : c.border}` }}>
                   {runState.findings.length} found
                 </span>
               </div>
@@ -190,13 +194,13 @@ export default function AgentActiveState({
           )}
 
           {(runState.synthText || runState.error) && (
-            <div className="fade-up" style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="fade-up" style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                 Agent synthesis
-                {isRunning && <Spinner size={11} color="#94a3b8" />}
+                {isRunning && <Spinner size={11} color={c.t2} />}
                 {runState.synthDone && <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>✓ Complete</span>}
               </div>
-              <div style={{ background: "white", border: `1px solid ${runState.error ? "#fecdd3" : "#e2e8f0"}`, borderRadius: 10, padding: "16px 18px", color: runState.error ? "#9f1239" : "#1e293b" }}>
+              <div style={{ background: c.surface, border: `1px solid ${runState.error ? "#fecdd3" : c.border}`, borderRadius: 10, padding: "16px 18px", color: runState.error ? "#fca5a5" : c.t1 }}>
                 {runState.error ? runState.error : <AgentMemoText text={runState.synthText} />}
                 {isRunning && !runState.synthDone && !runState.error && (
                   <span style={{ display: "inline-block", width: 2, height: 14, background: "#2563eb", animation: "blink 0.8s step-end infinite", marginLeft: 2, verticalAlign: "text-bottom" }} />
@@ -208,20 +212,18 @@ export default function AgentActiveState({
           {isDone && (
             <>
               <div className="fade-up" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8, marginBottom: 18 }}>
-                <button onClick={onReset} style={{ padding: "8px 16px", background: "white", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                <button onClick={onReset} style={{ padding: "9px 18px", background: c.surface, color: c.t2, border: `1px solid ${c.border}`, borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
                   New analysis
                 </button>
-                <button onClick={onWorkspace} style={{ padding: "8px 16px", background: ACCENT, color: "white", borderRadius: 7, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer" }}>
-                  View in Workspace →
+                <button onClick={onWorkspace} style={{ padding: "9px 18px", background: ACCENT, color: "white", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer" }}>
+                  Export findings
                 </button>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "16px 0 10px" }}>
-                <div style={{ height: 1, flex: 1, background: "#e2e8f0" }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px solid ${c.border}` }}>
+                <span style={{ display: "block", fontSize: 11, fontWeight: 700, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
                   Follow-up questions
                 </span>
-                <div style={{ height: 1, flex: 1, background: "#e2e8f0" }} />
               </div>
 
               {followups.length === 0 && (
@@ -235,14 +237,12 @@ export default function AgentActiveState({
                       key={question}
                       onClick={() => onFollowupDraft(question)}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#f1f5f9";
-                        e.currentTarget.style.borderColor = "#cbd5e1";
+                        e.currentTarget.style.borderColor = `${ACCENT}55`;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "#f8fafc";
-                        e.currentTarget.style.borderColor = "#e2e8f0";
+                        e.currentTarget.style.borderColor = c.border;
                       }}
-                      style={{ textAlign: "left", padding: "7px 10px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, fontSize: 11, color: "#475569", cursor: "pointer" }}
+                      style={{ textAlign: "left", padding: "8px 12px", background: c.surface, border: `1px solid ${c.border}`, borderRadius: 6, fontSize: 12, color: c.t2, cursor: "pointer" }}
                     >
                       {question}
                     </button>
@@ -254,7 +254,7 @@ export default function AgentActiveState({
                 <div key={index} style={{ marginBottom: 8 }}>
                   {turn.role === "user" ? (
                     <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <div style={{ maxWidth: "82%", padding: "8px 12px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px 10px 4px 10px", fontSize: 12, color: "#1e3a8a", lineHeight: 1.55 }}>
+                      <div style={{ maxWidth: "82%", padding: "8px 12px", background: isDark ? "#1e3a8a55" : "#eff6ff", border: `1px solid ${isDark ? "#3b82f644" : "#bfdbfe"}`, borderRadius: "10px 10px 4px 10px", fontSize: 12, color: isDark ? "#bfdbfe" : "#1e3a8a", lineHeight: 1.55 }}>
                         {turn.content}
                       </div>
                     </div>
@@ -265,7 +265,7 @@ export default function AgentActiveState({
                           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                         </svg>
                       </div>
-                      <div style={{ flex: 1, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px 10px 10px 4px", fontSize: 12, color: "#334155", lineHeight: 1.65 }}>
+                      <div style={{ flex: 1, padding: "8px 12px", background: c.surface, border: `1px solid ${c.border}`, borderRadius: "10px 10px 10px 4px", fontSize: 12, color: c.t2, lineHeight: 1.65 }}>
                         <BoldText text={turn.content} />
                         {turn.streaming && <span style={{ display: "inline-block", width: 2, height: 12, background: "#2563eb", marginLeft: 2, verticalAlign: "text-bottom", animation: "blink .8s step-end infinite" }} />}
                       </div>
@@ -280,8 +280,8 @@ export default function AgentActiveState({
       </div>
 
       {isDone && (
-        <div style={{ padding: "12px 24px", borderTop: "1px solid #e2e8f0", background: "white", flexShrink: 0 }}>
-          <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", gap: 8 }}>
+        <div style={{ padding: "12px 24px", borderTop: `1px solid ${c.border}`, background: c.bg, flexShrink: 0 }}>
+          <div style={{ maxWidth: 700, margin: "0 auto", display: "flex", gap: 10 }}>
             <textarea
               value={followupDraft}
               onChange={(e) => onFollowupDraft(e.target.value)}
@@ -294,17 +294,17 @@ export default function AgentActiveState({
               placeholder="Ask a follow-up grounded in these findings..."
               rows={2}
               disabled={followupStreaming || !runState.investigationId}
-              style={{ flex: 1, padding: "8px 12px", fontSize: 13, border: "1.5px solid #e2e8f0", borderRadius: 8, outline: "none", resize: "none", lineHeight: 1.5, background: followupStreaming ? "#f8fafc" : "white" }}
+              style={{ flex: 1, padding: "11px 14px", fontSize: 13, border: `1.5px solid ${c.border}`, color: c.t1, borderRadius: 10, outline: "none", resize: "none", lineHeight: 1.5, background: followupStreaming ? c.surfaceAlt : c.surface }}
             />
             <button
               onClick={onSendFollowup}
               disabled={!followupDraft.trim() || followupStreaming || !runState.investigationId}
               style={{
-                padding: "0 18px",
-                height: 52,
-                background: followupDraft.trim() && !followupStreaming && runState.investigationId ? ACCENT : "#e2e8f0",
-                color: followupDraft.trim() && !followupStreaming && runState.investigationId ? "white" : "#94a3b8",
-                borderRadius: 8,
+                padding: "0 20px",
+                height: 44,
+                background: followupDraft.trim() && !followupStreaming && runState.investigationId ? ACCENT : c.border,
+                color: followupDraft.trim() && !followupStreaming && runState.investigationId ? "white" : c.t3,
+                borderRadius: 10,
                 fontSize: 13,
                 fontWeight: 600,
                 border: "none",

@@ -25,7 +25,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:8000
       - NEXT_PUBLIC_AGENTIC=${NEXT_PUBLIC_AGENTIC:-1}
-      - NEXT_DIST_DIR=.next
+      - NEXT_DIST_DIR=.next-docker
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -39,7 +39,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://host.docker.internal:8000
       - NEXT_PUBLIC_AGENTIC=${NEXT_PUBLIC_AGENTIC:-1}
-      - NEXT_DIST_DIR=.next-dev
+      - NEXT_DIST_DIR=.next-dev-docker
     volumes:
       - ./frontend:/app
       - /app/node_modules

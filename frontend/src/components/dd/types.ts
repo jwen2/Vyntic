@@ -1,4 +1,5 @@
 import type { WorkstreamId } from "@/lib/queryTemplates";
+import type { Citation } from "@/lib/api";
 
 export type FindingSeverity = "deal-breaker" | "material" | "noteworthy";
 export type FindingStatus = null | "validated" | "rejected" | "review";
@@ -19,6 +20,10 @@ export interface Finding {
   status: FindingStatus;
   note: string | null;
   origin: FindingOrigin;
+  /** Best source citation for opening the document viewer directly. */
+  sourceCitation?: Citation | null;
+  /** Producer id, e.g. persisted agent investigation id. */
+  producerId?: string | null;
 }
 
 export interface AgentPlanTask {
@@ -74,3 +79,31 @@ export const SEV_COLOR: Record<
 };
 
 export const ACCENT = "#2563eb";
+
+export const DD_DARK = {
+  bg: "#0f172a",
+  surface: "#1e293b",
+  surfaceAlt: "#0b1120",
+  border: "#334155",
+  borderLight: "#1e293b",
+  t1: "#f1f5f9",
+  t2: "#94a3b8",
+  t3: "#475569",
+  t4: "#334155",
+};
+
+export const DD_LIGHT = {
+  bg: "#f8fafc",
+  surface: "#ffffff",
+  surfaceAlt: "#f1f5f9",
+  border: "#e2e8f0",
+  borderLight: "#f1f5f9",
+  t1: "#0f172a",
+  t2: "#64748b",
+  t3: "#94a3b8",
+  t4: "#cbd5e1",
+};
+
+export function ddTheme(theme: "light" | "dark") {
+  return theme === "dark" ? DD_DARK : DD_LIGHT;
+}

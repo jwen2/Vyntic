@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ACCENT } from "@/components/dd/types";
+import { ACCENT, ddTheme } from "@/components/dd/types";
+import { useTheme } from "@/components/ThemeProvider";
 
 const SUGGESTED_PROMPTS = [
   {
@@ -20,6 +21,10 @@ const SUGGESTED_PROMPTS = [
     label: "Identify concentration risks (customer, supplier, key person)",
     prompt: "Identify concentration risks across customers, suppliers, and key employees. Quantify exposure and highlight renewal, retention, or continuity risks.",
   },
+  {
+    label: "Find cross-document inconsistencies",
+    prompt: "Find cross-document inconsistencies across the CIM, QoE, financials, legal documents, and operations materials. Highlight metric mismatches, contradictory claims, and missing evidence.",
+  },
 ];
 
 interface Props {
@@ -32,6 +37,9 @@ interface Props {
 }
 
 export default function AgentIdleState({ dealName, totalPages, documentCount, prompt, setPrompt, onSubmit }: Props) {
+  const { theme } = useTheme();
+  const c = ddTheme(theme);
+  const isDark = theme === "dark";
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -45,37 +53,38 @@ export default function AgentIdleState({ dealName, totalPages, documentCount, pr
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      padding: "60px 20px 40px",
+      justifyContent: "center",
+      padding: "40px 24px",
+      background: c.bg,
     }}>
-      <div style={{ width: "100%", maxWidth: 680 }}>
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
+      <div style={{ width: "100%", maxWidth: 600 }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 8,
-            padding: "5px 14px",
-            background: "#f1f5f9",
-            border: "1px solid #e2e8f0",
+            gap: 7,
+            padding: "4px 12px",
+            background: c.surface,
+            border: `1px solid ${c.border}`,
             borderRadius: 99,
             marginBottom: 20,
           }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
-            <span style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>Agent ready · {dealName}</span>
+            <span style={{ fontSize: 12, color: c.t2, fontWeight: 500 }}>Agent ready · {dealName}</span>
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, marginBottom: 10 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: c.t1, lineHeight: 1.25, marginBottom: 8 }}>
             What do you want to investigate?
           </h1>
-          <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>
-            Describe what you&apos;re looking for. The agent will autonomously scan all {totalPages} pages across {documentCount} documents, cross-reference findings, and surface cited evidence.
+          <p style={{ fontSize: 14, color: c.t2, lineHeight: 1.6, maxWidth: 480, margin: "0 auto" }}>
+            Scan {totalPages} pages across {documentCount} documents. Surface cited evidence.
           </p>
         </div>
 
         <div style={{
-          background: "white",
-          border: "1.5px solid #e2e8f0",
+          background: c.surface,
+          border: `1.5px solid ${c.border}`,
           borderRadius: 12,
           overflow: "hidden",
-          boxShadow: "0 1px 3px rgba(0,0,0,.06)",
           marginBottom: 24,
         }}>
           <textarea
@@ -92,9 +101,9 @@ export default function AgentIdleState({ dealName, totalPages, documentCount, pr
             rows={4}
             style={{
               width: "100%",
-              padding: "16px 18px",
+              padding: "14px 16px",
               fontSize: 14,
-              color: "#1e293b",
+              color: c.t1,
               border: "none",
               outline: "none",
               resize: "none",
@@ -102,35 +111,55 @@ export default function AgentIdleState({ dealName, totalPages, documentCount, pr
               background: "transparent",
             }}
           />
-          <div style={{ padding: "10px 14px", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 11, color: "#94a3b8" }}>Enter to run · Shift+Enter for new line</span>
+          <div style={{ padding: "8px 12px", borderTop: `1px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 11, color: c.t3 }}>Enter to run · Shift+Enter for new line</span>
             <button
               onClick={() => onSubmit()}
               disabled={!prompt.trim()}
               style={{
-                padding: "7px 18px",
-                background: prompt.trim() ? ACCENT : "#e2e8f0",
-                color: prompt.trim() ? "white" : "#94a3b8",
+                padding: "6px 16px",
+                background: prompt.trim() ? ACCENT : c.border,
+                color: prompt.trim() ? "white" : c.t3,
                 borderRadius: 7,
                 fontSize: 13,
                 fontWeight: 600,
                 border: "none",
                 cursor: prompt.trim() ? "pointer" : "default",
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
               }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M5 3l14 9-14 9V3z" />
-              </svg>
-              Run Analysis
+              Run
             </button>
           </div>
         </div>
 
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>
-          Suggested
+        <button
+          onClick={() => onSubmit("Run proactive scan across all documents to find hidden risks, buried clauses, and data room gaps.")}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#f59e0b")}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = isDark ? "#92400e44" : "#fde68a")}
+          className="flex items-center"
+          style={{
+            width: "100%",
+            gap: 12,
+            padding: "14px 16px",
+            background: isDark ? "#78350f22" : "#fffbeb",
+            border: `1px solid ${isDark ? "#92400e44" : "#fde68a"}`,
+            borderRadius: 10,
+            cursor: "pointer",
+            marginBottom: 20,
+            textAlign: "left",
+            transition: "border-color .12s",
+          }}
+        >
+          <span style={{ width: 36, height: 36, borderRadius: 8, background: isDark ? "#78350f44" : "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>🔍</span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: c.t1 }}>Run Proactive Scan</span>
+            <span style={{ display: "block", fontSize: 12, color: c.t2, marginTop: 1 }}>Sweep all {totalPages} pages to find hidden risks, buried clauses, and data room gaps</span>
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.t3} strokeWidth="2"><path d="M5 3l14 9-14 9V3z" /></svg>
+        </button>
+
+        <div style={{ fontSize: 11, fontWeight: 600, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+          Suggested investigations
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
           {SUGGESTED_PROMPTS.map((item) => (
@@ -139,23 +168,21 @@ export default function AgentIdleState({ dealName, totalPages, documentCount, pr
               onClick={() => onSubmit(item.prompt)}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = "#2563eb33";
-                e.currentTarget.style.background = "#f8faff";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#e2e8f0";
-                e.currentTarget.style.background = "white";
+                e.currentTarget.style.borderColor = c.border;
               }}
               style={{
                 textAlign: "left",
                 padding: "12px 14px",
-                background: "white",
-                border: "1px solid #e2e8f0",
+                background: c.surface,
+                border: `1px solid ${c.border}`,
                 borderRadius: 8,
                 cursor: "pointer",
                 transition: "all .12s",
               }}
             >
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#1e293b", lineHeight: 1.45 }}>{item.label}</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: c.t1, lineHeight: 1.45 }}>{item.label}</div>
             </button>
           ))}
         </div>

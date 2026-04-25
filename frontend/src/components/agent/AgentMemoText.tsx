@@ -1,5 +1,7 @@
 "use client";
 
+import { ddTheme } from "@/components/dd/types";
+import { useTheme } from "@/components/ThemeProvider";
 import BoldText from "./BoldText";
 
 type MemoBlock =
@@ -84,6 +86,9 @@ function parseMemoBlocks(text: string): MemoBlock[] {
 }
 
 export default function AgentMemoText({ text }: { text: string }) {
+  const { theme } = useTheme();
+  const c = ddTheme(theme);
+  const isDark = theme === "dark";
   const blocks = parseMemoBlocks(text);
 
   return (
@@ -91,21 +96,21 @@ export default function AgentMemoText({ text }: { text: string }) {
       {blocks.map((block, index) => {
         if (block.type === "h1") {
           return (
-            <h2 key={index} style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.3, margin: 0 }}>
+            <h2 key={index} style={{ fontSize: 18, fontWeight: 700, color: c.t1, lineHeight: 1.3, margin: 0 }}>
               <BoldText text={block.text} />
             </h2>
           );
         }
         if (block.type === "h2") {
           return (
-            <h3 key={index} style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", lineHeight: 1.35, margin: "4px 0 0", paddingTop: 6, borderTop: index > 1 ? "1px solid #f1f5f9" : "none" }}>
+            <h3 key={index} style={{ fontSize: 14, fontWeight: 700, color: c.t1, lineHeight: 1.35, margin: "4px 0 0", paddingTop: 6, borderTop: index > 1 ? `1px solid ${c.borderLight}` : "none" }}>
               <BoldText text={block.text} />
             </h3>
           );
         }
         if (block.type === "h3") {
           return (
-            <h4 key={index} style={{ fontSize: 12.5, fontWeight: 700, color: "#334155", lineHeight: 1.35, margin: "2px 0 -2px" }}>
+            <h4 key={index} style={{ fontSize: 12.5, fontWeight: 700, color: c.t2, lineHeight: 1.35, margin: "2px 0 -2px" }}>
               <BoldText text={block.text} />
             </h4>
           );
@@ -114,8 +119,8 @@ export default function AgentMemoText({ text }: { text: string }) {
           return (
             <ul key={index} style={{ margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 7, listStyle: "none" }}>
               {block.items.map((item, itemIndex) => (
-                <li key={itemIndex} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 7, fontSize: 13, color: "#475569", lineHeight: 1.65 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#94a3b8", marginTop: 9, justifySelf: "center" }} />
+                <li key={itemIndex} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 7, fontSize: 13, color: c.t2, lineHeight: 1.65 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.t3, marginTop: 9, justifySelf: "center" }} />
                   <span><BoldText text={item} /></span>
                 </li>
               ))}
@@ -126,8 +131,8 @@ export default function AgentMemoText({ text }: { text: string }) {
           return (
             <ol key={index} style={{ margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 7, listStyle: "none", counterReset: "memo-counter" }}>
               {block.items.map((item, itemIndex) => (
-                <li key={itemIndex} style={{ display: "grid", gridTemplateColumns: "22px 1fr", gap: 8, fontSize: 13, color: "#475569", lineHeight: 1.65 }}>
-                  <span className="font-mono-dm" style={{ width: 22, height: 22, borderRadius: "50%", background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#64748b", fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>
+                <li key={itemIndex} style={{ display: "grid", gridTemplateColumns: "22px 1fr", gap: 8, fontSize: 13, color: c.t2, lineHeight: 1.65 }}>
+                  <span className="font-mono-dm" style={{ width: 22, height: 22, borderRadius: "50%", background: c.surfaceAlt, border: `1px solid ${c.border}`, color: c.t2, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>
                     {itemIndex + 1}
                   </span>
                   <span><BoldText text={item} /></span>
@@ -138,7 +143,7 @@ export default function AgentMemoText({ text }: { text: string }) {
         }
         if (block.type === "p") {
           return (
-            <p key={index} style={{ margin: 0, fontSize: 13.5, color: "#334155", lineHeight: 1.75 }}>
+            <p key={index} style={{ margin: 0, fontSize: 13.5, color: isDark ? "#cbd5e1" : "#334155", lineHeight: 1.75 }}>
               <BoldText text={block.text} />
             </p>
           );

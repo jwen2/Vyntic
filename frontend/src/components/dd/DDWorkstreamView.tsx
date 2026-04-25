@@ -7,6 +7,7 @@ import type { QuestionResult } from "@/components/WorkstreamPanel";
 import { useTheme } from "@/components/ThemeProvider";
 import QCard from "./QCard";
 import { ACCENT } from "./types";
+import type { FindingSeverity } from "./types";
 
 interface Props {
   dealId: string;
@@ -15,6 +16,8 @@ interface Props {
   onResultsChange: (results: Record<string, QuestionResult>) => void;
   activeCitId: string | null;
   onCit: (c: Citation, id: string) => void;
+  onBack?: () => void;
+  focusQuery?: string | null;
 }
 
 export default function DDWorkstreamView({
@@ -24,6 +27,8 @@ export default function DDWorkstreamView({
   onResultsChange,
   activeCitId,
   onCit,
+  onBack,
+  focusQuery,
 }: Props) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -36,7 +41,16 @@ export default function DDWorkstreamView({
   useEffect(() => {
     setResults(cachedResults);
     resultsRef.current = cachedResults;
-  }, [workstream.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cachedResults, workstream.id]);
+
+  useEffect(() => {
+    if (!focusQuery) return;
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.add(focusQuery);
+      return next;
+    });
+  }, [focusQuery]);
 
   const updateResults = useCallback(
     (updater: (prev: Record<string, QuestionResult>) => Record<string, QuestionResult>) => {
@@ -144,25 +158,52 @@ export default function DDWorkstreamView({
   const heading = isDark ? "#f1f5f9" : "#0f172a";
   const muted = isDark ? "#94a3b8" : "#64748b";
   const subtle = isDark ? "#64748b" : "#94a3b8";
+  const isProactiveScan = workstream.id === "proactive_scan";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ flex: 1, width: "100%", minWidth: 0 }}>
       {/* Workstream header */}
       <div
         className="flex items-center justify-between flex-shrink-0"
         style={{
-          padding: "14px 20px",
+          padding: "16px 24px",
           background: surface,
-          borderBottom: `1px solid ${border}`,
+          borderBottom: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
         }}
       >
-        <div>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: heading }}>
-            {workstream.name}
-          </h2>
-          <p style={{ fontSize: 12, color: muted, marginTop: 2 }}>
-            {workstream.description}
-          </p>
+        <div className="flex items-center" style={{ gap: 12, minWidth: 0 }}>
+          {onBack && (
+            <button
+              onClick={onBack}
+              title="Back to workstreams"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                background: "transparent",
+                border: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
+                color: muted,
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          )}
+          <span style={{ fontSize: 20 }}>{workstream.icon}</span>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 600, color: heading }}>
+              {workstream.name}
+            </h2>
+            <p style={{ fontSize: 12, color: muted, marginTop: 1 }}>
+              {workstream.description}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <span style={{ fontSize: 11, color: subtle }}>
@@ -182,7 +223,7 @@ export default function DDWorkstreamView({
               cursor: runningAll ? "default" : "pointer",
             }}
           >
-            {runningAll ? "Running..." : "Run full workstream"}
+            {runningAll ? "Running..." : isProactiveScan ? "Run Proactive Scan" : "Run full workstream"}
           </button>
         </div>
       </div>
@@ -197,6 +238,7 @@ export default function DDWorkstreamView({
               qid={t.query}
               label={t.label}
               result={r}
+              severity={severityFromResult(r)}
               open={expanded.has(t.query)}
               onToggle={() =>
                 setExpanded((s) => {
@@ -222,6 +264,7 @@ export default function DDWorkstreamView({
               qid={query}
               label="Custom question"
               result={r}
+              severity={severityFromResult(r)}
               open={expanded.has(query)}
               onToggle={() =>
                 setExpanded((s) => {
@@ -245,10 +288,19 @@ export default function DDWorkstreamView({
   );
 }
 
+function severityFromResult(result?: QuestionResult): FindingSeverity | undefined {
+  const text = result?.answer?.toUpperCase() || "";
+  if (text.includes("[DEAL-BREAKER]")) return "deal-breaker";
+  if (text.includes("[MATERIAL]")) return "material";
+  if (text.includes("[NOTEWORTHY]")) return "noteworthy";
+  return undefined;
+}
+
 function EmptyWs({ wsId, onRun }: { wsId: string; onRun: () => void }) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const isLegal = wsId === "legal";
+  const isProactiveScan = wsId === "proactive_scan";
   const muted = isDark ? "#94a3b8" : "#94a3b8";
   return (
     <div
@@ -288,11 +340,13 @@ function EmptyWs({ wsId, onRun }: { wsId: string; onRun: () => void }) {
             marginBottom: 5,
           }}
         >
-          {isLegal ? "Legal DD not analyzed — coverage gap" : "Not yet analyzed"}
+          {isLegal ? "Legal DD not analyzed — coverage gap" : isProactiveScan ? "Proactive Scan not run yet" : "Not yet analyzed"}
         </div>
         <div style={{ fontSize: 13, color: muted, maxWidth: 280, lineHeight: 1.6 }}>
           {isLegal
             ? "The Legal DD workstream has no analysis yet. Undisclosed litigation or IP risks may be hiding in these documents."
+            : isProactiveScan
+            ? "Run the scan once to persist hidden risks, buried clauses, cross-document inconsistencies, and data room gaps."
             : `Run the ${wsId} workstream to generate AI-powered analysis with full source citations.`}
         </div>
       </div>
@@ -309,7 +363,7 @@ function EmptyWs({ wsId, onRun }: { wsId: string; onRun: () => void }) {
           cursor: "pointer",
         }}
       >
-        {isLegal ? "Analyze Legal DD now" : "Run workstream"}
+        {isLegal ? "Analyze Legal DD now" : isProactiveScan ? "Run Proactive Scan" : "Run workstream"}
       </button>
     </div>
   );
