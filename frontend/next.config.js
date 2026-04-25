@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   skipTrailingSlashRedirect: true,
   experimental: {
     proxyTimeout: 300_000, // 5 minutes — LLM inference can be slow

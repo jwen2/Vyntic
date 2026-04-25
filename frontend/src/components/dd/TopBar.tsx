@@ -215,7 +215,7 @@ export default function TopBar({
         )}
       </IconButton>
 
-      {/* Ask agent button */}
+      {/* Agent analysis button */}
       <button
         onClick={onAskAgent}
         className="flex items-center gap-2"
@@ -240,7 +240,7 @@ export default function TopBar({
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
         </svg>
-        Ask agent
+        Agent analysis
         <kbd
           className="font-mono-dm"
           style={{

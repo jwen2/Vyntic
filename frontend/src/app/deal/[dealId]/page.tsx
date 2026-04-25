@@ -173,7 +173,7 @@ export default function DealWorkspacePage() {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setAgentOpen((v) => !v);
+        router.push(`/deal/${dealId}/agent`);
         return;
       }
       if (e.key === "Escape") {
@@ -332,7 +332,7 @@ export default function DealWorkspacePage() {
         documentCount={documents.length}
         coverage={coverage}
         dealBreakers={dealBreakers}
-        onAskAgent={() => setAgentOpen(true)}
+        onAskAgent={() => router.push(`/deal/${dealId}/agent`)}
         onExport={() => setShowReport(true)}
         onBack={() => router.push("/")}
         onToggleTheme={toggleTheme}
@@ -490,6 +490,7 @@ export default function DealWorkspacePage() {
 
       {agentOpen && (
         <AgentOverlay
+          dealId={dealId}
           onClose={() => setAgentOpen(false)}
           onComplete={handleAgentComplete}
           docShortNames={docCoverage.map((d) => d.short)}
