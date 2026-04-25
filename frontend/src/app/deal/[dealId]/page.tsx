@@ -1,45 +1,43 @@
 "use client";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Deal,
   Citation,
-  User,
   listDeals,
   listDocuments,
-  uploadDocumentsBatch,
+  listInvestigations,
   DocumentMetadata,
   getMe,
   getAuthToken,
 } from "@/lib/api";
+import type { InvestigationSummary } from "@/lib/api";
 import { DD_WORKSTREAMS, WorkstreamId } from "@/lib/queryTemplates";
-import DocMatrixPanel from "@/components/DocMatrixPanel";
 import DocumentViewer from "@/components/DocumentViewer";
-import ConversationHistory from "@/components/ConversationHistory";
-import ProactiveScanPanel from "@/components/ProactiveScanPanel";
 import ReportModal from "@/components/ReportModal";
-import RiskScorecard from "@/components/RiskScorecard";
 import { useTheme } from "@/components/ThemeProvider";
 import type { QuestionResult } from "@/components/WorkstreamPanel";
 
-import TopBar from "@/components/dd/TopBar";
-import RedFlagBanner from "@/components/dd/RedFlagBanner";
+import TopBar, { DealWorkspaceMode } from "@/components/dd/TopBar";
 import LeftSidebar from "@/components/dd/LeftSidebar";
-import WsTabs, { WsTab } from "@/components/dd/WsTabs";
 import DDWorkstreamView from "@/components/dd/DDWorkstreamView";
 import CitationPanel from "@/components/dd/CitationPanel";
-import AgentOverlay from "@/components/dd/AgentOverlay";
+import AgentWorkspaceView from "@/components/dd/AgentWorkspaceView";
+import WorkstreamListView from "@/components/dd/WorkstreamListView";
 import { useFindings } from "@/components/dd/useFindings";
-import { computeCoverage, overallCoverage } from "@/components/dd/coverage";
+import { computeCoverage } from "@/components/dd/coverage";
 import { extractScanFindings } from "@/components/dd/extractScanFindings";
+import { ddTheme } from "@/components/dd/types";
 import type { Finding } from "@/components/dd/types";
 
 type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
-type LeftTab = "flags" | "docs";
+type NavState = { mode: DealWorkspaceMode; selectedWorkstream: WorkstreamId | null };
 
 const CACHE_PREFIX = "vyntic_ws_cache_";
 const TAB_PREFIX = "vyntic_ws_tab_";
-const BANNER_PREFIX = "vyntic_banner_dismissed_";
+const DETAIL_WORKSTREAMS: WorkstreamId[] = ["financial", "commercial", "operational", "legal"];
+const LINKABLE_WORKSTREAMS: WorkstreamId[] = [...DETAIL_WORKSTREAMS, "proactive_scan"];
 
 function loadCacheFromLocal(dealId: string): WorkstreamCache {
   if (typeof window === "undefined") return {};
@@ -65,29 +63,30 @@ function saveCacheToLocal(dealId: string, cache: WorkstreamCache) {
   } catch {}
 }
 
-const VALID_TABS: WorkstreamId[] = [
-  "financial",
-  "commercial",
-  "operational",
-  "legal",
-  "risk",
-  "documents",
-  "proactive_scan",
-];
-
-function loadTabFromLocal(dealId: string): WorkstreamId {
-  if (typeof window === "undefined") return "proactive_scan";
+function loadNavFromLocal(dealId: string): NavState {
+  if (typeof window === "undefined") return { mode: "agent", selectedWorkstream: null };
   try {
     const raw = localStorage.getItem(TAB_PREFIX + dealId);
-    if (raw && VALID_TABS.includes(raw as WorkstreamId)) return raw as WorkstreamId;
-  } catch {}
-  return "proactive_scan";
+    if (!raw) return { mode: "agent", selectedWorkstream: null };
+    const parsed = JSON.parse(raw) as Partial<NavState>;
+    const mode = parsed.mode === "workstreams" ? "workstreams" : "agent";
+    const selectedWorkstream = parsed.selectedWorkstream && LINKABLE_WORKSTREAMS.includes(parsed.selectedWorkstream)
+      ? parsed.selectedWorkstream
+      : null;
+    return { mode, selectedWorkstream };
+  } catch {
+    const legacy = localStorage.getItem(TAB_PREFIX + dealId) as WorkstreamId | null;
+    return {
+      mode: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? "workstreams" : "agent",
+      selectedWorkstream: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? legacy : null,
+    };
+  }
 }
 
-function saveTabToLocal(dealId: string, tab: WorkstreamId) {
+function saveNavToLocal(dealId: string, nav: NavState) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(TAB_PREFIX + dealId, tab);
+    localStorage.setItem(TAB_PREFIX + dealId, JSON.stringify(nav));
   } catch {}
 }
 
@@ -96,24 +95,21 @@ export default function DealWorkspacePage() {
   const router = useRouter();
   const dealId = params.dealId as string;
   const { theme, toggleTheme } = useTheme();
+  const c = ddTheme(theme);
 
-  const [user, setUser] = useState<User | null>(null);
   const [deal, setDeal] = useState<Deal | null>(null);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<WorkstreamId>("proactive_scan");
-  const [showUpload, setShowUpload] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  const [mode, setMode] = useState<DealWorkspaceMode>("agent");
+  const [selectedWorkstream, setSelectedWorkstream] = useState<WorkstreamId | null>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+  const [selectedAgentRunId, setSelectedAgentRunId] = useState<string | null>(null);
+  const [agentFocusNonce, setAgentFocusNonce] = useState(0);
+  const [agentHistory, setAgentHistory] = useState<InvestigationSummary[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [resultCache, setResultCache] = useState<WorkstreamCache>({});
-
-  // DD workspace state
-  const [leftTab, setLeftTab] = useState<LeftTab>("flags");
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [agentOpen, setAgentOpen] = useState(false);
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
-  const { findings, addFindings, setStatus, setNote, syncScanFindings } = useFindings(dealId);
+  const { findings, addFindings, syncScanFindings } = useFindings(dealId);
 
   const [viewerState, setViewerState] = useState<{
     dealId: string;
@@ -122,27 +118,16 @@ export default function DealWorkspacePage() {
     snippet: string;
   } | null>(null);
 
-  // ── Init from localStorage ──
   useEffect(() => {
-    setActiveTab(loadTabFromLocal(dealId));
+    const nav = loadNavFromLocal(dealId);
+    setMode(nav.mode);
+    setSelectedWorkstream(nav.selectedWorkstream);
     setResultCache(loadCacheFromLocal(dealId));
-    if (typeof window !== "undefined") {
-      try {
-        setBannerDismissed(localStorage.getItem(BANNER_PREFIX + dealId) === "1");
-      } catch {}
-    }
   }, [dealId]);
 
   useEffect(() => {
-    saveTabToLocal(dealId, activeTab);
-  }, [dealId, activeTab]);
-
-  const dismissBanner = useCallback(() => {
-    setBannerDismissed(true);
-    try {
-      localStorage.setItem(BANNER_PREFIX + dealId, "1");
-    } catch {}
-  }, [dealId]);
+    saveNavToLocal(dealId, { mode, selectedWorkstream });
+  }, [dealId, mode, selectedWorkstream]);
 
   const updateCacheForWorkstream = useCallback(
     (workstreamId: string, results: Record<string, QuestionResult>) => {
@@ -164,26 +149,26 @@ export default function DealWorkspacePage() {
     });
   }, [dealId]);
 
-  const handleCit = useCallback((c: Citation, id: string) => {
-    setActiveCit((prev) => (prev?.id === id ? null : { c, id }));
+  const handleCit = useCallback((citation: Citation, id: string) => {
+    setActiveCit((prev) => (prev?.id === id ? null : { c: citation, id }));
   }, []);
 
-  // ── Global ⌘K / Esc ──
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setAgentOpen((v) => !v);
+        setMode("agent");
+        setSelectedWorkstream(null);
         return;
       }
       if (e.key === "Escape") {
-        if (agentOpen) setAgentOpen(false);
-        else if (activeCit) setActiveCit(null);
+        if (activeCit) setActiveCit(null);
+        else if (viewerState) setViewerState(null);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [agentOpen, activeCit]);
+  }, [activeCit, viewerState]);
 
   const fetchDeal = useCallback(async () => {
     try {
@@ -200,7 +185,16 @@ export default function DealWorkspacePage() {
       const docs = await listDocuments(dealId);
       setDocuments(docs);
     } catch {
-      // deal may not have documents yet
+      setDocuments([]);
+    }
+  }, [dealId]);
+
+  const fetchAgentHistory = useCallback(async () => {
+    try {
+      const items = await listInvestigations(dealId);
+      setAgentHistory(items);
+    } catch {
+      setAgentHistory([]);
     }
   }, [dealId]);
 
@@ -213,51 +207,17 @@ export default function DealWorkspacePage() {
     Promise.all([
       fetchDeal(),
       fetchDocuments(),
-      getMe().then(setUser).catch(() => router.push("/login")),
+      fetchAgentHistory(),
+      getMe().catch(() => router.push("/login")),
     ]).finally(() => setLoading(false));
-  }, [fetchDeal, fetchDocuments, router]);
+  }, [fetchAgentHistory, fetchDeal, fetchDocuments, router]);
 
-  // ── Derived data ──
   const docCoverage = useMemo(
     () => computeCoverage(documents, resultCache, findings),
     [documents, resultCache, findings]
   );
-  const coverage = useMemo(() => overallCoverage(docCoverage), [docCoverage]);
-  const uncovered = useMemo(() => docCoverage.filter((d) => d.uncovered), [docCoverage]);
   const dealBreakers = findings.filter((f) => f.sev === "deal-breaker").length;
-  const material = findings.filter((f) => f.sev === "material").length;
 
-  const activeWorkstream = DD_WORKSTREAMS.find((w) => w.id === activeTab);
-
-  const wsTabs: WsTab[] = useMemo(() => {
-    const docMatrixTab: WsTab = {
-      id: "documents",
-      name: "Doc Matrix",
-      complete: documents.length,
-      total: documents.length,
-    };
-    const buildTab = (w: typeof DD_WORKSTREAMS[number]): WsTab => {
-      const cached = resultCache[w.id] || {};
-      const completedCount = w.templates.filter(
-        (t) => cached[t.query]?.status === "complete"
-      ).length;
-      return {
-        id: w.id,
-        name: w.name,
-        complete: completedCount,
-        total: w.templates.length,
-      };
-    };
-    const proactive = DD_WORKSTREAMS.find((w) => w.id === "proactive_scan");
-    const others = DD_WORKSTREAMS.filter((w) => w.id !== "proactive_scan");
-    return [
-      ...(proactive ? [buildTab(proactive)] : []),
-      docMatrixTab,
-      ...others.map(buildTab),
-    ];
-  }, [documents.length, resultCache]);
-
-  // ── Sync Proactive Scan findings into the shared findings store ──
   const scanCache = resultCache["proactive_scan"];
   useEffect(() => {
     if (!scanCache) return;
@@ -266,42 +226,63 @@ export default function DealWorkspacePage() {
     syncScanFindings(extractScanFindings(scanCache, templates));
   }, [scanCache, syncScanFindings]);
 
-  // ── Sidebar finding click: jump to workstream + expand linked question ──
-  const onSelectFinding = useCallback((f: Finding) => {
-    if (f.ws && f.ws !== activeTab) setActiveTab(f.ws);
-    // qid-based expand is handled inside DDWorkstreamView via its internal state;
-    // a cross-component bus would be overkill — clicking the finding is enough to jump.
-  }, [activeTab]);
+  const onSelectFinding = useCallback((finding: Finding) => {
+    setActiveCit(null);
+    setSelectedQuestion(finding.qid);
 
-  const handleAgentComplete = useCallback(
-    (newFindings: Finding[]) => {
-      addFindings(newFindings);
-    },
-    [addFindings]
-  );
+    if (finding.origin === "agent") {
+      setMode("agent");
+      setSelectedWorkstream(null);
+      setSelectedAgentRunId(finding.producerId || null);
+      setAgentFocusNonce((nonce) => nonce + 1);
+      return;
+    }
+
+    setMode("workstreams");
+    setSelectedAgentRunId(null);
+    setSelectedWorkstream(LINKABLE_WORKSTREAMS.includes(finding.ws) ? finding.ws : null);
+  }, []);
+
+  const onOpenFindingSource = useCallback((finding: Finding) => {
+    if (!finding.sourceCitation) return;
+    handleViewDocument(finding.sourceCitation);
+  }, [handleViewDocument]);
+
+  const handleMode = useCallback((nextMode: DealWorkspaceMode) => {
+    setMode(nextMode);
+    if (nextMode === "agent") {
+      setSelectedWorkstream(null);
+      setSelectedQuestion(null);
+      setActiveCit(null);
+    } else {
+      setSelectedAgentRunId(null);
+    }
+  }, []);
+
+  const handleSelectAgentSession = useCallback((sessionId: string) => {
+    setMode("agent");
+    setSelectedWorkstream(null);
+    setSelectedQuestion(null);
+    setActiveCit(null);
+    setSelectedAgentRunId(sessionId);
+    setAgentFocusNonce((nonce) => nonce + 1);
+  }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+      <div style={{ minHeight: "100vh", background: c.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="dd-spin" style={{ width: 32, height: 32, border: `4px solid ${c.border}`, borderTopColor: "#2563eb", borderRadius: "50%" }} />
       </div>
     );
   }
 
   if (!deal) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Deal not found
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            No deal with ID &quot;{dealId}&quot; exists.
-          </p>
-          <button
-            onClick={() => router.push("/")}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
-          >
+      <div style={{ minHeight: "100vh", background: c.bg, color: c.t1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Deal not found</h2>
+          <p style={{ fontSize: 13, color: c.t2, marginBottom: 16 }}>No deal with ID &quot;{dealId}&quot; exists.</p>
+          <button onClick={() => router.push("/")} style={{ padding: "8px 14px", background: "#2563eb", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}>
             Back to Dashboard
           </button>
         </div>
@@ -309,12 +290,9 @@ export default function DealWorkspacePage() {
     );
   }
 
-  const showBanner = !bannerDismissed && (dealBreakers > 0 || uncovered.length > 0);
-
-  const isDark = theme === "dark";
-  const pageBg = isDark ? "#020617" : "#f8fafc";
-  const panelBg = isDark ? "#0f172a" : "white";
-  const panelBorder = isDark ? "#1e293b" : "#e2e8f0";
+  const activeWorkstream = selectedWorkstream
+    ? DD_WORKSTREAMS.find((workstream) => workstream.id === selectedWorkstream)
+    : null;
 
   return (
     <div
@@ -324,177 +302,87 @@ export default function DealWorkspacePage() {
         flexDirection: "column",
         fontFamily: "'DM Sans', sans-serif",
         overflow: "hidden",
-        background: pageBg,
+        background: c.bg,
+        color: c.t1,
       }}
     >
       <TopBar
         deal={deal}
-        documentCount={documents.length}
-        coverage={coverage}
+        mode={mode}
+        onMode={handleMode}
         dealBreakers={dealBreakers}
-        onAskAgent={() => setAgentOpen(true)}
         onExport={() => setShowReport(true)}
         onBack={() => router.push("/")}
         onToggleTheme={toggleTheme}
         theme={theme}
-        onUpload={user?.is_admin ? () => setShowUpload((v) => !v) : undefined}
-        onHistory={() => setShowHistory(true)}
-        onMatrixView={() => router.push("/")}
-        isAdmin={user?.is_admin}
       />
-
-      {showBanner && (
-        <RedFlagBanner
-          dealBreakers={dealBreakers}
-          material={material}
-          uncovered={uncovered}
-          onDismiss={dismissBanner}
-          onViewFlags={() => setLeftTab("flags")}
-          onRunScan={() => setActiveTab("proactive_scan")}
-        />
-      )}
-
-      {showUpload && user?.is_admin && (
-        <div
-          style={{
-            background: panelBg,
-            borderBottom: `1px solid ${panelBorder}`,
-            padding: "10px 20px",
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <label
-              className="flex items-center gap-2 cursor-pointer"
-              style={{
-                padding: "6px 14px",
-                background: "#2563eb",
-                color: "white",
-                fontSize: 12,
-                fontWeight: 600,
-                borderRadius: 6,
-              }}
-            >
-              {uploading ? (
-                <>
-                  <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
-                  Uploading...
-                </>
-              ) : (
-                "Choose files (PDF, Excel)"
-              )}
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.xlsx,.xls,.csv"
-                className="hidden"
-                disabled={uploading}
-                onChange={async (e) => {
-                  const files = Array.from(e.target.files || []);
-                  if (files.length === 0) return;
-                  setUploading(true);
-                  try {
-                    await uploadDocumentsBatch(deal.deal_id, files);
-                    fetchDocuments();
-                    fetchDeal();
-                  } catch (err) {
-                    console.error("Upload failed:", err);
-                  } finally {
-                    setUploading(false);
-                    e.target.value = "";
-                  }
-                }}
-              />
-            </label>
-            <div style={{ fontSize: 11, color: "#64748b" }}>
-              {documents.length > 0
-                ? documents.map((d) => d.filename).join(", ")
-                : "No documents uploaded yet"}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <LeftSidebar
-          tab={leftTab}
-          onTab={setLeftTab}
           findings={findings}
           docs={docCoverage}
-          activeWs={activeTab}
+          sessions={agentHistory}
+          activeSessionId={selectedAgentRunId}
+          activeWs={selectedWorkstream}
+          theme={theme}
+          onSelectSession={handleSelectAgentSession}
           onSelectFinding={onSelectFinding}
-          onStatus={setStatus}
-          onNote={setNote}
+          onOpenSource={onOpenFindingSource}
         />
 
-        <div
-          className="flex-1 flex flex-col overflow-hidden"
-          style={{
-            background: pageBg,
-            borderLeft: `1px solid ${panelBorder}`,
-            borderRight: activeCit ? `1px solid ${panelBorder}` : "none",
-          }}
-        >
-          <WsTabs tabs={wsTabs} active={activeTab} onSelect={setActiveTab} findings={findings} />
-
-          <div className="flex-1 overflow-y-auto" style={{ background: panelBg }}>
-            {activeTab === "documents" ? (
-              <DocMatrixPanel
-                documents={documents}
-                dealId={dealId}
-                onViewDocument={handleViewDocument}
-              />
-            ) : activeTab === "proactive_scan" && activeWorkstream ? (
-              <ProactiveScanPanel
-                dealId={dealId}
-                workstream={activeWorkstream}
-                cachedResults={resultCache[activeTab] || {}}
-                onResultsChange={(r) => updateCacheForWorkstream(activeTab, r)}
-                onViewDocument={handleViewDocument}
-              />
-            ) : activeTab === "risk" && activeWorkstream ? (
-              <>
-                <RiskScorecard
-                  results={resultCache["risk"] || {}}
-                  questionLabels={activeWorkstream.templates}
-                />
-                <DDWorkstreamView
-                  dealId={dealId}
-                  workstream={activeWorkstream}
-                  cachedResults={resultCache[activeTab] || {}}
-                  onResultsChange={(r) => updateCacheForWorkstream(activeTab, r)}
-                  activeCitId={activeCit?.id ?? null}
-                  onCit={handleCit}
-                />
-              </>
-            ) : activeWorkstream ? (
+        <main style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, background: c.bg }}>
+          {mode === "agent" ? (
+            <AgentWorkspaceView
+              deal={deal}
+              documents={documents}
+              onFindings={addFindings}
+              onOpenDocument={handleViewDocument}
+              onExport={() => setShowReport(true)}
+              focusInvestigationId={selectedAgentRunId}
+              focusSignal={agentFocusNonce}
+              onHistoryChange={fetchAgentHistory}
+            />
+          ) : activeWorkstream ? (
+            <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden", borderRight: activeCit ? `1px solid ${c.border}` : "none" }}>
               <DDWorkstreamView
                 dealId={dealId}
                 workstream={activeWorkstream}
-                cachedResults={resultCache[activeTab] || {}}
-                onResultsChange={(r) => updateCacheForWorkstream(activeTab, r)}
+                cachedResults={resultCache[activeWorkstream.id] || {}}
+                onResultsChange={(results) => updateCacheForWorkstream(activeWorkstream.id, results)}
                 activeCitId={activeCit?.id ?? null}
                 onCit={handleCit}
+                focusQuery={selectedQuestion}
+                onBack={() => {
+                  setSelectedWorkstream(null);
+                  setSelectedQuestion(null);
+                  setActiveCit(null);
+                }}
               />
-            ) : null}
-          </div>
-        </div>
+            </div>
+          ) : (
+            <WorkstreamListView
+              workstreams={DD_WORKSTREAMS}
+              resultCache={resultCache}
+              findings={findings}
+              theme={theme}
+              onSelect={(workstreamId) => {
+                setSelectedWorkstream(workstreamId);
+                setSelectedQuestion(null);
+                setSelectedAgentRunId(null);
+                setActiveCit(null);
+              }}
+            />
+          )}
 
-        {activeCit && (
-          <CitationPanel
-            citation={activeCit.c}
-            onClose={() => setActiveCit(null)}
-            onOpenDocument={handleViewDocument}
-          />
-        )}
+          {activeCit && mode === "workstreams" && (
+            <CitationPanel
+              citation={activeCit.c}
+              onClose={() => setActiveCit(null)}
+              onOpenDocument={handleViewDocument}
+            />
+          )}
+        </main>
       </div>
-
-      {agentOpen && (
-        <AgentOverlay
-          onClose={() => setAgentOpen(false)}
-          onComplete={handleAgentComplete}
-          docShortNames={docCoverage.map((d) => d.short)}
-        />
-      )}
 
       {viewerState && (
         <DocumentViewer
@@ -504,10 +392,6 @@ export default function DealWorkspacePage() {
           snippet={viewerState.snippet}
           onClose={() => setViewerState(null)}
         />
-      )}
-
-      {showHistory && (
-        <ConversationHistory dealId={dealId} onClose={() => setShowHistory(false)} />
       )}
 
       {showReport && (

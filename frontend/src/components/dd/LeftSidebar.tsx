@@ -1,345 +1,354 @@
 "use client";
-import type { Finding, FindingStatus, DocCoverage } from "./types";
-import FlagItem from "./FlagItem";
 
-type LeftTab = "flags" | "docs";
+import type React from "react";
+import type { InvestigationSummary } from "@/lib/api";
+import type { Finding, DocCoverage, FindingSeverity } from "./types";
+import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 
 interface Props {
-  tab: LeftTab;
-  onTab: (t: LeftTab) => void;
   findings: Finding[];
   docs: DocCoverage[];
-  activeWs: string;
+  sessions: InvestigationSummary[];
+  activeSessionId: string | null;
+  activeWs: string | null;
+  theme: "light" | "dark";
+  onSelectSession: (sessionId: string) => void;
   onSelectFinding: (f: Finding) => void;
-  onStatus: (id: string, status: FindingStatus) => void;
-  onNote: (id: string, note: string | null) => void;
+  onOpenSource: (f: Finding) => void;
 }
 
+const SEVERITY_ORDER: Array<{ sev: FindingSeverity; label: string }> = [
+  { sev: "deal-breaker", label: "Deal-Breaker" },
+  { sev: "material", label: "Material" },
+  { sev: "noteworthy", label: "Noteworthy" },
+];
+
 export default function LeftSidebar({
-  tab,
-  onTab,
   findings,
   docs,
+  sessions,
+  activeSessionId,
   activeWs,
+  theme,
+  onSelectSession,
   onSelectFinding,
-  onStatus,
-  onNote,
+  onOpenSource,
 }: Props) {
-  const db = findings.filter((f) => f.sev === "deal-breaker");
-  const mat = findings.filter((f) => f.sev === "material");
-  const nw = findings.filter((f) => f.sev === "noteworthy");
+  const c = ddTheme(theme);
+  const isDark = theme === "dark";
+  const totalPages = docs.reduce((sum, doc) => sum + doc.pages, 0);
+  const citedPages = docs.reduce((sum, doc) => sum + doc.cited, 0);
+  const coveragePct = totalPages > 0 ? Math.round((citedPages / totalPages) * 100) : 0;
+  const visibleSessions = [...sessions]
+    .sort((a, b) => sessionTime(b) - sessionTime(a))
+    .slice(0, 5);
+  const hiddenSessionCount = Math.max(0, sessions.length - visibleSessions.length);
 
   return (
-    <div
-      className="flex flex-col dd-scroll"
+    <aside
+      className="dd-scroll"
       style={{
         width: 272,
         flexShrink: 0,
-        background: "#0f172a",
-        borderRight: "1px solid #1e293b",
-        overflow: "hidden",
+        background: c.surfaceAlt,
+        borderRight: `1px solid ${c.border}`,
+        overflowY: "auto",
+        padding: 14,
       }}
     >
-      {/* Tabs */}
-      <div
-        className="flex flex-shrink-0"
-        style={{ borderBottom: "1px solid #1e293b" }}
-      >
-        <TabButton
-          active={tab === "flags"}
-          onClick={() => onTab("flags")}
-          label="Red Flags"
-          count={db.length}
-        />
-        <TabButton
-          active={tab === "docs"}
-          onClick={() => onTab("docs")}
-          label="Coverage"
-        />
-      </div>
-
-      <div className="flex-1 overflow-y-auto dd-scroll">
-        {tab === "flags" ? (
-          <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 14 }}>
-            {findings.length === 0 && (
-              <div style={{ padding: 20, textAlign: "center" }}>
-                <div style={{ fontSize: 12, color: "#475569", marginBottom: 6 }}>
-                  No findings yet
-                </div>
-                <div style={{ fontSize: 11, color: "#334155", lineHeight: 1.5 }}>
-                  Press <kbd className="font-mono-dm" style={{ fontSize: 10, padding: "1px 4px", background: "#1e293b", borderRadius: 3 }}>⌘K</kbd> to ask the agent to surface red flags.
-                </div>
-              </div>
-            )}
-            <Group
-              severity="deal-breaker"
-              label="Deal-Breakers"
-              dot="#ef4444"
-              textColor="#fca5a5"
-              items={db}
-              activeWs={activeWs}
-              onSelect={onSelectFinding}
-              onStatus={onStatus}
-              onNote={onNote}
-            />
-            <Group
-              severity="material"
-              label="Material"
-              dot="#f59e0b"
-              textColor="#fde68a"
-              items={mat}
-              activeWs={activeWs}
-              onSelect={onSelectFinding}
-              onStatus={onStatus}
-              onNote={onNote}
-            />
-            <Group
-              severity="noteworthy"
-              label="Noteworthy"
-              dot="#60a5fa"
-              textColor="#93c5fd"
-              items={nw}
-              activeWs={activeWs}
-              onSelect={onSelectFinding}
-              onStatus={onStatus}
-              onNote={onNote}
-            />
-          </div>
-        ) : (
-          <DocsCoverage docs={docs} />
+      <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+        <SectionLabel color={c.t3} marginBottom={0}>Agent Sessions</SectionLabel>
+        {sessions.length > 0 && (
+          <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, padding: "1px 6px", background: c.surface, borderRadius: 99 }}>
+            {visibleSessions.length}/{sessions.length}
+          </span>
         )}
       </div>
-    </div>
+
+      {sessions.length === 0 ? (
+        <div style={{ padding: "8px", fontSize: 12, color: c.t3, lineHeight: 1.45 }}>
+          No saved sessions yet. Start with the AI agent to create a persisted thread.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+          {visibleSessions.map((session) => (
+            <SessionRow
+              key={session.id}
+              session={session}
+              active={session.id === activeSessionId}
+              theme={theme}
+              onSelect={onSelectSession}
+            />
+          ))}
+          {hiddenSessionCount > 0 && (
+            <div style={{ padding: "3px 8px", fontSize: 10, color: c.t3 }}>
+              {hiddenSessionCount} older session{hiddenSessionCount > 1 ? "s" : ""} hidden
+            </div>
+          )}
+        </div>
+      )}
+
+      <div
+        style={{
+          margin: "10px 0 16px",
+          padding: 10,
+          background: c.surface,
+          borderRadius: 8,
+          border: `1px solid ${c.border}`,
+        }}
+      >
+        <div className="flex items-center justify-between" style={{ marginBottom: 5 }}>
+          <span style={{ fontSize: 10, color: c.t3 }}>Coverage</span>
+          <span className="font-mono-dm" style={{ fontSize: 11, fontWeight: 700, color: c.t1 }}>{coveragePct}%</span>
+        </div>
+        <div style={{ height: 3, borderRadius: 99, background: c.border, overflow: "hidden" }}>
+          <div style={{ width: `${coveragePct}%`, height: "100%", background: ACCENT, borderRadius: 99 }} />
+        </div>
+        <div style={{ fontSize: 10, color: c.t3, marginTop: 4 }}>
+          {citedPages} of {totalPages} pages cited
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+        <SectionLabel color={c.t3} marginBottom={0}>Findings</SectionLabel>
+        <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, padding: "1px 6px", background: c.surface, borderRadius: 99 }}>
+          {findings.length}
+        </span>
+      </div>
+
+      {findings.length === 0 && (
+        <div style={{ padding: "8px", fontSize: 12, color: c.t3, lineHeight: 1.45 }}>
+          No findings yet. Ask the agent to scan the deal room.
+        </div>
+      )}
+
+      {SEVERITY_ORDER.map(({ sev, label }) => {
+        const items = findings.filter((finding) => finding.sev === sev);
+        if (items.length === 0) return null;
+        const meta = SEV_COLOR[sev];
+        const sevText = isDark ? meta.textDark : meta.color;
+        return (
+          <div key={sev} style={{ marginBottom: 12 }}>
+            <div className="flex items-center" style={{ gap: 5, marginBottom: 5 }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: meta.dot }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: sevText, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {label}
+              </span>
+              <span style={{ fontSize: 10, color: c.t3, fontWeight: 600 }}>{items.length}</span>
+            </div>
+            {items.map((finding) => (
+              <FindingRow
+                key={finding.id}
+                finding={finding}
+                active={finding.ws === activeWs}
+                theme={theme}
+                onSelect={onSelectFinding}
+                onOpenSource={onOpenSource}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </aside>
   );
 }
 
-function TabButton({
+function SessionRow({
+  session,
   active,
-  onClick,
-  label,
-  count,
+  theme,
+  onSelect,
 }: {
+  session: InvestigationSummary;
   active: boolean;
-  onClick: () => void;
-  label: string;
-  count?: number;
+  theme: "light" | "dark";
+  onSelect: (sessionId: string) => void;
 }) {
+  const c = ddTheme(theme);
+  const isDark = theme === "dark";
+  const date = formatSessionDate(session.updated_at || session.created_at);
+  const statusColor = session.status === "complete" ? "#22c55e" : session.status === "error" ? "#ef4444" : "#f59e0b";
+  const bg = active ? (isDark ? "#1e293b" : "#ffffff") : "transparent";
+
   return (
     <button
-      onClick={onClick}
-      className="flex items-center justify-center gap-1.5"
+      type="button"
+      title={session.goal || "Agent session"}
+      onClick={() => onSelect(session.id)}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = isDark ? c.surface : "#ffffff";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = bg;
+      }}
       style={{
-        flex: 1,
-        padding: "9px 6px",
-        fontSize: 12,
-        fontWeight: 600,
-        color: active ? "#f1f5f9" : "#475569",
-        background: "none",
-        border: "none",
-        borderBottom: active ? "2px solid #3b82f6" : "2px solid transparent",
+        width: "100%",
+        display: "block",
+        padding: "8px 9px",
+        background: bg,
+        border: `1px solid ${active ? `${ACCENT}55` : "transparent"}`,
+        borderRadius: 7,
         cursor: "pointer",
+        textAlign: "left",
+        transition: "background .1s, border-color .1s",
       }}
     >
-      {label}
-      {count != null && (
-        <span
-          style={{
-            padding: "1px 5px",
-            borderRadius: 99,
-            background: active ? "#dc2626" : "#1e293b",
-            color: active ? "white" : "#64748b",
-            fontSize: 10,
-            fontWeight: 700,
-          }}
-        >
-          {count}
+      <span style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor, flexShrink: 0 }} />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {session.goal || "General diligence investigation"}
         </span>
-      )}
+      </span>
+      <span style={{ display: "flex", alignItems: "center", gap: 7, color: c.t3, fontSize: 10 }}>
+        <span>{date}</span>
+        <span className="font-mono-dm">{session.finding_count} flags</span>
+        {session.followup_count > 0 && <span className="font-mono-dm">{session.followup_count} replies</span>}
+      </span>
     </button>
   );
 }
 
-function Group({
-  severity,
-  label,
-  dot,
-  textColor,
-  items,
-  activeWs,
+function FindingRow({
+  finding,
+  active,
+  theme,
   onSelect,
-  onStatus,
-  onNote,
+  onOpenSource,
 }: {
-  severity: string;
-  label: string;
-  dot: string;
-  textColor: string;
-  items: Finding[];
-  activeWs: string;
-  onSelect: (f: Finding) => void;
-  onStatus: (id: string, status: FindingStatus) => void;
-  onNote: (id: string, note: string | null) => void;
+  finding: Finding;
+  active: boolean;
+  theme: "light" | "dark";
+  onSelect: (finding: Finding) => void;
+  onOpenSource: (finding: Finding) => void;
 }) {
-  if (items.length === 0) return null;
+  const c = ddTheme(theme);
+  const isDark = theme === "dark";
+  const meta = SEV_COLOR[finding.sev];
+  const isDealBreaker = finding.sev === "deal-breaker";
+  const dealBreakerPreview = finding.detail.length > 120 ? `${finding.detail.slice(0, 117)}...` : finding.detail;
+  const baseBg =
+    isDealBreaker
+      ? isDark ? "rgba(127,29,29,.2)" : "#fef2f2"
+      : active
+      ? isDark ? "#1e293b" : "#ffffff"
+      : "transparent";
+
   return (
-    <div>
-      <div className="flex items-center gap-1.5" style={{ marginBottom: 7 }}>
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot }} />
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(finding)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(finding);
+        }
+      }}
+      onMouseEnter={(e) => {
+        if (isDealBreaker) e.currentTarget.style.background = isDark ? "rgba(127,29,29,.3)" : "#fee2e2";
+        else e.currentTarget.style.background = isDark ? c.surface : "#ffffff";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = baseBg;
+      }}
+      className="flex items-start"
+      style={{
+        width: "100%",
+        gap: 8,
+        padding: 8,
+        borderRadius: 6,
+        marginBottom: 3,
+        cursor: "pointer",
+        background: baseBg,
+        border: isDealBreaker ? `1px solid ${isDark ? "#7f1d1d" : "#fecaca"}` : "none",
+        borderLeft: isDealBreaker ? `3px solid ${meta.dot}` : "none",
+        textAlign: "left",
+        transition: "background .1s",
+      }}
+    >
+      <span style={{ width: isDealBreaker ? 8 : 7, height: isDealBreaker ? 8 : 7, borderRadius: "50%", background: meta.dot, flexShrink: 0, marginTop: isDealBreaker ? 5 : 4 }} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        {isDealBreaker && (
+          <span style={{ display: "inline-block", marginBottom: 3, padding: "1px 5px", borderRadius: 99, background: isDark ? "#7f1d1d" : "#fee2e2", color: isDark ? "#fecaca" : "#b91c1c", fontSize: 9, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            Deal breaker
+          </span>
+        )}
         <span
           style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: textColor,
-            textTransform: "uppercase",
-            letterSpacing: "0.07em",
+            display: "block",
+            fontSize: isDealBreaker ? 13 : 12,
+            fontWeight: isDealBreaker ? 800 : 500,
+            color: isDealBreaker ? (isDark ? "#fecaca" : "#991b1b") : c.t1,
+            lineHeight: 1.35,
           }}
         >
-          {label}
+          {finding.title}
         </span>
-        <span style={{ fontSize: 10, color: "#334155", fontWeight: 600 }}>{items.length}</span>
-      </div>
-      {items.map((f) => (
-        <FlagItem
-          key={f.id}
-          f={f}
-          active={f.ws === activeWs}
-          onSelect={onSelect}
-          onStatus={onStatus}
-          onNote={onNote}
-        />
-      ))}
+        {isDealBreaker && dealBreakerPreview && (
+          <span style={{ display: "block", fontSize: 11, color: isDark ? "#fca5a5" : "#7f1d1d", marginTop: 3, lineHeight: 1.35 }}>
+            {dealBreakerPreview}
+          </span>
+        )}
+        <span
+          role={finding.sourceCitation ? "button" : undefined}
+          title={finding.sourceCitation ? "Open source evidence" : undefined}
+          onClick={(e) => {
+            if (!finding.sourceCitation) return;
+            e.stopPropagation();
+            onOpenSource(finding);
+          }}
+          onMouseEnter={(e) => {
+            if (finding.sourceCitation) e.currentTarget.style.color = "#60a5fa";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = c.t3;
+          }}
+          style={{
+            display: "block",
+            fontSize: 10,
+            color: c.t3,
+            marginTop: 2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            textDecoration: finding.sourceCitation ? "underline" : "none",
+            textUnderlineOffset: 2,
+            cursor: finding.sourceCitation ? "pointer" : "inherit",
+          }}
+        >
+          {finding.src}
+        </span>
+      </span>
     </div>
   );
 }
 
-function DocsCoverage({ docs }: { docs: DocCoverage[] }) {
-  const totalPg = docs.reduce((s, d) => s + d.pages, 0);
-  const citedPg = docs.reduce((s, d) => s + d.cited, 0);
-  const pct = totalPg > 0 ? Math.round((citedPg / totalPg) * 100) : 0;
+function formatSessionDate(raw: string | null): string {
+  if (!raw) return "Saved";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "Saved";
+  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
+function sessionTime(session: InvestigationSummary): number {
+  const raw = session.updated_at || session.created_at;
+  if (!raw) return 0;
+  const parsed = new Date(raw).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function SectionLabel({
+  children,
+  color,
+  marginBottom = 8,
+}: {
+  children: React.ReactNode;
+  color: string;
+  marginBottom?: number;
+}) {
   return (
-    <div style={{ padding: 12 }}>
-      {/* Overall */}
-      <div style={{ padding: 10, background: "#1e293b", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ fontSize: 10, color: "#64748b", marginBottom: 5 }}>
-          Deal room coverage
-        </div>
-        <div className="flex items-center gap-2">
-          <div
-            style={{
-              flex: 1,
-              height: 4,
-              background: "#334155",
-              borderRadius: 99,
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${pct}%`,
-                height: "100%",
-                background: "#2563eb",
-                borderRadius: 99,
-              }}
-            />
-          </div>
-          <span
-            className="font-mono-dm"
-            style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}
-          >
-            {pct}%
-          </span>
-        </div>
-        <div style={{ fontSize: 10, color: "#475569", marginTop: 3 }}>
-          {citedPg} of {totalPg} pages cited
-        </div>
-      </div>
-
-      {docs.length === 0 && (
-        <div style={{ padding: 20, textAlign: "center" }}>
-          <div style={{ fontSize: 12, color: "#475569", marginBottom: 6 }}>No documents yet</div>
-          <div style={{ fontSize: 11, color: "#334155", lineHeight: 1.5 }}>
-            Upload CIMs, QoE reports, legal DD and financials to begin analysis.
-          </div>
-        </div>
-      )}
-
-      {docs.map((d) => {
-        const p = d.pages > 0 ? Math.round((d.cited / d.pages) * 100) : 0;
-        return (
-          <div
-            key={d.id}
-            style={{
-              padding: "8px 10px",
-              marginBottom: 5,
-              background: d.uncovered ? "rgba(127,29,29,.25)" : "#1e293b",
-              border: `1px solid ${d.uncovered ? "#7f1d1d" : "#334155"}`,
-              borderRadius: 6,
-            }}
-          >
-            <div className="flex items-center gap-1.5" style={{ marginBottom: 5 }}>
-              {d.uncovered && <span style={{ fontSize: 11 }}>⚠</span>}
-              <span
-                title={d.name}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: d.uncovered ? "#fca5a5" : "#e2e8f0",
-                  flex: 1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {d.short}
-              </span>
-              <span
-                className="font-mono-dm"
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: d.uncovered ? "#ef4444" : p > 50 ? "#22c55e" : "#f59e0b",
-                }}
-              >
-                {p}%
-              </span>
-            </div>
-            <div
-              style={{
-                height: 3,
-                background: "#334155",
-                borderRadius: 99,
-                overflow: "hidden",
-                marginBottom: 4,
-              }}
-            >
-              <div
-                style={{
-                  width: `${p}%`,
-                  height: "100%",
-                  borderRadius: 99,
-                  background: d.uncovered ? "#ef4444" : p > 50 ? "#22c55e" : "#f59e0b",
-                }}
-              />
-            </div>
-            <div className="flex justify-between">
-              <span style={{ fontSize: 10, color: "#475569" }}>
-                {d.cited}/{d.pages} pgs
-              </span>
-              {d.uncovered && (
-                <span style={{ fontSize: 10, color: "#ef4444", fontWeight: 700 }}>
-                  NOT ANALYZED
-                </span>
-              )}
-              {d.flags > 0 && (
-                <span style={{ fontSize: 10, color: "#fca5a5", fontWeight: 600 }}>
-                  {d.flags} flag{d.flags > 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      })}
+    <div style={{ fontSize: 10, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom }}>
+      {children}
     </div>
   );
 }

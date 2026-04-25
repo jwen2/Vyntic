@@ -41,6 +41,28 @@ body {
 }
 .dd-spin { animation: dd-spin 0.8s linear infinite; transform-origin: center; }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.3s ease-out both; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.slide-in { animation: slideIn 0.2s ease-out both; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 /* Thin dark scrollbars on the DD workspace dark panels */
 .dd-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
 .dd-scroll::-webkit-scrollbar-track { background: transparent; }

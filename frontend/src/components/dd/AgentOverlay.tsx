@@ -1,12 +1,21 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import type { AgentFinding, InvestigationEvent } from "@/lib/api";
+import { askFollowup, startInvestigation } from "@/lib/api";
 import type { AgentPhase, AgentPlanTask, Finding } from "./types";
 import { ACCENT } from "./types";
 
 interface Props {
+  dealId: string;
   onClose: () => void;
   onComplete: (findings: Finding[]) => void;
   docShortNames: string[];
+}
+
+interface FollowupTurn {
+  role: "user" | "assistant";
+  content: string;
+  streaming?: boolean;
 }
 
 const SUGGESTIONS = [
@@ -30,23 +39,84 @@ function etaToSeconds(eta: string): number {
   return (m ? parseInt(m[1], 10) * 60 : 0) + (s ? parseInt(s[1], 10) : 0);
 }
 
-export default function AgentOverlay({ onClose, onComplete, docShortNames: _docShortNames }: Props) {
+function BoldText({ text }: { text: string }) {
+  if (!text) return null;
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.startsWith("**") && p.endsWith("**") ? (
+          <strong key={i} style={{ fontWeight: 700, color: "#0f172a" }}>
+            {p.slice(2, -2)}
+          </strong>
+        ) : (
+          <span key={i}>{p}</span>
+        )
+      )}
+    </>
+  );
+}
+
+function mapAgentFinding(finding: AgentFinding, index: number): Finding {
+  const primaryCitation = finding.citations?.[0];
+  const src = primaryCitation
+    ? `${primaryCitation.source_file} · p.${primaryCitation.page}`
+    : "Agent investigation";
+  const category = finding.category.toLowerCase();
+  const ws =
+    category.includes("legal") ? "legal" :
+    category.includes("commercial") || category.includes("market") || category.includes("customer") ? "commercial" :
+    category.includes("financial") || category.includes("revenue") || category.includes("ebitda") ? "financial" :
+    category.includes("operational") || category.includes("supplier") || category.includes("management") ? "operational" :
+    "risk";
+
+  return {
+    id: `agent-${Date.now()}-${index}`,
+    sev: finding.severity === "red_flag" ? "material" : "noteworthy",
+    title: finding.category || "Agent finding",
+    detail: finding.claim,
+    src,
+    ws,
+    qid: null,
+    conf: finding.severity === "red_flag" ? 86 : finding.severity === "watch" ? 74 : 62,
+    status: null,
+    note: null,
+    origin: "agent",
+  };
+}
+
+export default function AgentOverlay({ dealId, onClose, onComplete, docShortNames: _docShortNames }: Props) {
   const [step, setStep] = useState<AgentPhase>("prompt");
   const [prompt, setPrompt] = useState("");
   const [plan, setPlan] = useState<AgentPlanTask[]>(DEFAULT_PLAN);
   const [progress, setProgress] = useState(0);
-  const timersRef = useRef<number[]>([]);
+  const [completedFindings, setCompletedFindings] = useState<Finding[]>([]);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [followups, setFollowups] = useState<FollowupTurn[]>([]);
+  const [followupDraft, setFollowupDraft] = useState("");
+  const [followupStreaming, setFollowupStreaming] = useState(false);
+  const investigationIdRef = useRef<string | null>(null);
+  const investigationControllerRef = useRef<AbortController | null>(null);
+  const followupControllerRef = useRef<AbortController | null>(null);
+  const eventProgressRef = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (step === "prompt") inputRef.current?.focus();
   }, [step]);
 
-  useEffect(() => () => clearTimers(), []);
+  useEffect(() => () => clearStreams(), []);
 
-  function clearTimers() {
-    timersRef.current.forEach((t) => window.clearTimeout(t));
-    timersRef.current = [];
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ block: "nearest" });
+  }, [followups]);
+
+  function clearStreams() {
+    investigationControllerRef.current?.abort();
+    investigationControllerRef.current = null;
+    followupControllerRef.current?.abort();
+    followupControllerRef.current = null;
   }
 
   function submit(text?: string) {
@@ -61,38 +131,110 @@ export default function AgentOverlay({ onClose, onComplete, docShortNames: _docS
   }
 
   function runAnalysis() {
+    clearStreams();
     setStep("running");
     setProgress(0);
-    const total = plan.length;
-    plan.forEach((_, i) => {
-      timersRef.current.push(
-        window.setTimeout(() => setProgress(i + 1), (i + 1) * 650)
-      );
-    });
-    timersRef.current.push(
-      window.setTimeout(() => {
-        // TODO(P0): wire to real agent investigation endpoint with streaming
-        // status instead of simulated timers. For now, we surface a single
-        // deterministic placeholder finding so the UX end-state is demo-able.
-        const fid = `agent-${Date.now()}`;
-        onComplete([
-          {
-            id: fid,
-            sev: "material",
-            title: "Supplier concentration risk: 1 vendor = 43% of COGS",
-            detail:
-              "AWS is sole infrastructure provider. No documented DR plan for regional failure.",
-            src: "Ops DD · p.28",
-            ws: "operational",
-            qid: null,
-            conf: 82,
-            status: null,
-            note: null,
-            origin: "agent",
-          },
-        ]);
+    setCompletedFindings([]);
+    setAgentError(null);
+    setFollowups([]);
+    setFollowupDraft("");
+    setFollowupStreaming(false);
+    investigationIdRef.current = null;
+    eventProgressRef.current = 0;
+
+    investigationControllerRef.current = startInvestigation(
+      dealId,
+      prompt || undefined,
+      handleInvestigationEvent,
+      undefined,
+      (err) => {
+        setAgentError(err.message || String(err));
+        setProgress(plan.length);
         setStep("done");
-      }, total * 650 + 300)
+      }
+    );
+  }
+
+  function handleInvestigationEvent(event: InvestigationEvent) {
+    if (event.type === "status" && event.investigation_id) {
+      investigationIdRef.current = event.investigation_id;
+    }
+
+    if (event.type === "status" && event.status === "writing_memo") {
+      setProgress(plan.length);
+      return;
+    }
+
+    if (event.type === "tool_result" || event.type === "finding") {
+      eventProgressRef.current = Math.min(plan.length - 1, eventProgressRef.current + 1);
+      setProgress(eventProgressRef.current);
+      return;
+    }
+
+    if (event.type === "done") {
+      const mapped = (event.findings || []).map(mapAgentFinding);
+      setCompletedFindings(mapped);
+      setProgress(plan.length);
+      onComplete(mapped);
+      setStep("done");
+      return;
+    }
+
+    if (event.type === "error") {
+      setAgentError(event.error);
+      setProgress(plan.length);
+      setStep("done");
+    }
+  }
+
+  function updateStreamingFollowup(content: string, streaming: boolean) {
+    setFollowups((prev) =>
+      prev.map((turn, i) =>
+        i === prev.length - 1 ? { ...turn, content, streaming } : turn
+      )
+    );
+  }
+
+  function sendFollowup() {
+    const q = followupDraft.trim();
+    if (!q || followupStreaming || !investigationIdRef.current) return;
+
+    setFollowupDraft("");
+    setFollowups((prev) => [
+      ...prev,
+      { role: "user", content: q },
+      { role: "assistant", content: "", streaming: true },
+    ]);
+    setFollowupStreaming(true);
+
+    followupControllerRef.current = askFollowup(
+      dealId,
+      investigationIdRef.current,
+      q,
+      (event) => {
+        if (event.type === "token") {
+          setFollowups((prev) =>
+            prev.map((turn, i) =>
+              i === prev.length - 1
+                ? { ...turn, content: turn.content + event.token }
+                : turn
+            )
+          );
+        }
+        if (event.type === "done") {
+          updateStreamingFollowup(event.content, false);
+          setFollowupStreaming(false);
+        }
+        if (event.type === "error") {
+          updateStreamingFollowup(`Error: ${event.error}`, false);
+          setFollowupStreaming(false);
+        }
+      },
+      undefined,
+      (err) => {
+        updateStreamingFollowup(`Error: ${err.message || String(err)}`, false);
+        setFollowupStreaming(false);
+      }
     );
   }
 
@@ -119,7 +261,7 @@ export default function AgentOverlay({ onClose, onComplete, docShortNames: _docS
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(680px, 92vw)",
-          maxHeight: "78vh",
+          maxHeight: "88vh",
           background: "white",
           borderRadius: 12,
           boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
@@ -390,36 +532,175 @@ export default function AgentOverlay({ onClose, onComplete, docShortNames: _docS
                 );
               })}
               {step === "done" && (
-                <div
-                  style={{
-                    marginTop: 16,
-                    padding: 14,
-                    background: "#ecfdf5",
-                    border: "1px solid #a7f3d0",
-                    borderRadius: 8,
-                  }}
-                >
+                <>
                   <div
                     style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "#065f46",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 8,
+                      marginTop: 16,
+                      padding: 14,
+                      background: agentError ? "#fff1f2" : "#ecfdf5",
+                      border: `1px solid ${agentError ? "#fecdd3" : "#a7f3d0"}`,
+                      borderRadius: 8,
                     }}
                   >
-                    Synthesis
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: agentError ? "#9f1239" : "#065f46",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Synthesis
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: agentError ? "#9f1239" : "#064e3b",
+                        lineHeight: 1.6,
+                        marginBottom: completedFindings.length > 0 ? 10 : 0,
+                      }}
+                    >
+                      {agentError ? (
+                        <>The agent run could not complete: {agentError}</>
+                      ) : (
+                        <>
+                          Scanned {plan.length} workstream task{plan.length !== 1 ? "s" : ""} across the
+                          deal room. Surfaced{" "}
+                          <strong>
+                            {completedFindings.length} new finding{completedFindings.length !== 1 ? "s" : ""}
+                          </strong>
+                          {completedFindings.length > 0 ? "." : " requiring no immediate sidebar action."}
+                        </>
+                      )}
+                    </div>
+                    {completedFindings.length > 0 && (
+                      <div style={{ fontSize: 11, color: "#065f46" }}>
+                        New finding{completedFindings.length !== 1 ? "s" : ""} added to{" "}
+                        <strong>Red Flags</strong> in the sidebar.
+                      </div>
+                    )}
                   </div>
-                  <div style={{ fontSize: 12, color: "#064e3b", lineHeight: 1.6, marginBottom: 10 }}>
-                    Scanned {plan.length} workstream task{plan.length !== 1 ? "s" : ""} across the
-                    deal room. Surfaced <strong>1 new material finding</strong> — supplier
-                    concentration risk on infrastructure.
+
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    margin: "16px 0 10px",
+                  }}>
+                    <div style={{ height: 1, flex: 1, background: "#e2e8f0" }} />
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "#94a3b8",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}>
+                      Follow-up questions
+                    </span>
+                    <div style={{ height: 1, flex: 1, background: "#e2e8f0" }} />
                   </div>
-                  <div style={{ fontSize: 11, color: "#065f46" }}>
-                    New finding added to <strong>Red Flags → Material</strong> in the sidebar.
-                  </div>
-                </div>
+
+                  {followups.length === 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+                      {[
+                        "What is the implied valuation impact if MegaCorp churns at renewal?",
+                        "How does the EBITDA add-back discrepancy affect the purchase price?",
+                        "What should we ask management about the IP litigation on the next call?",
+                      ].map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setFollowupDraft(s)}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#f1f5f9";
+                            e.currentTarget.style.borderColor = "#cbd5e1";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "#f8fafc";
+                            e.currentTarget.style.borderColor = "#e2e8f0";
+                          }}
+                          style={{
+                            textAlign: "left",
+                            padding: "7px 10px",
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 6,
+                            fontSize: 11,
+                            color: "#475569",
+                            cursor: "pointer",
+                            transition: "all .1s",
+                          }}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {followups.map((turn, i) => (
+                    <div key={i} style={{ marginBottom: 8 }}>
+                      {turn.role === "user" ? (
+                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                          <div style={{
+                            maxWidth: "82%",
+                            padding: "8px 12px",
+                            background: "#eff6ff",
+                            border: "1px solid #bfdbfe",
+                            borderRadius: "10px 10px 4px 10px",
+                            fontSize: 12,
+                            color: "#1e3a8a",
+                            lineHeight: 1.55,
+                          }}>
+                            {turn.content}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                          <div style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: "50%",
+                            background: ACCENT,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                            marginTop: 2,
+                          }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                            </svg>
+                          </div>
+                          <div style={{
+                            flex: 1,
+                            padding: "8px 12px",
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "10px 10px 10px 4px",
+                            fontSize: 12,
+                            color: "#334155",
+                            lineHeight: 1.65,
+                          }}>
+                            <BoldText text={turn.content} />
+                            {turn.streaming && (
+                              <span style={{
+                                display: "inline-block",
+                                width: 2,
+                                height: 12,
+                                background: "#2563eb",
+                                marginLeft: 2,
+                                verticalAlign: "text-bottom",
+                                animation: "pulse .8s ease-in-out infinite",
+                              }} />
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <div ref={chatEndRef} />
+                </>
               )}
             </>
           )}
@@ -431,109 +712,163 @@ export default function AgentOverlay({ onClose, onComplete, docShortNames: _docS
           style={{
             padding: "10px 14px",
             borderTop: "1px solid #e2e8f0",
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 8,
             background: "#f8fafc",
           }}
         >
-          <span style={{ fontSize: 11, color: "#94a3b8" }}>
-            {step === "prompt" && "↵ Enter to continue · Shift+Enter for new line"}
-            {step === "plan" && "× to remove a task · you can add follow-ups after the run"}
-            {step === "running" && `${progress} / ${plan.length} tasks complete`}
-            {step === "done" && "Findings synced to workspace"}
-          </span>
-          <div style={{ flex: 1 }} />
-
-          {step === "prompt" && (
-            <button
-              onClick={() => submit()}
-              disabled={!prompt.trim()}
-              style={{
-                padding: "6px 14px",
-                background: prompt.trim() ? ACCENT : "#e2e8f0",
-                color: prompt.trim() ? "white" : "#94a3b8",
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 600,
-                border: "none",
-                cursor: prompt.trim() ? "pointer" : "default",
-              }}
-            >
-              Review plan →
-            </button>
-          )}
-
-          {step === "plan" && (
+          {step === "done" ? (
             <>
-              <button
-                onClick={() => setStep("prompt")}
-                style={{
-                  padding: "6px 12px",
-                  background: "white",
-                  color: "#64748b",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  border: "1px solid #e2e8f0",
-                  cursor: "pointer",
+              {followups.length === 0 && (
+                <button
+                  onClick={onClose}
+                  style={{
+                    padding: "8px 12px",
+                    height: 36,
+                    background: "white",
+                    color: "#64748b",
+                    borderRadius: 7,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    border: "1px solid #e2e8f0",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Back to workspace →
+                </button>
+              )}
+              <textarea
+                value={followupDraft}
+                onChange={(e) => setFollowupDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendFollowup();
+                  }
                 }}
-              >
-                ← Edit prompt
-              </button>
-              <button
-                onClick={runAnalysis}
-                disabled={plan.length === 0}
+                placeholder={
+                  investigationIdRef.current
+                    ? "Ask a follow-up grounded in these findings..."
+                    : "Follow-ups are available after a completed agent run."
+                }
+                rows={2}
+                disabled={followupStreaming || !investigationIdRef.current}
                 style={{
-                  padding: "6px 14px",
-                  background: plan.length ? ACCENT : "#e2e8f0",
-                  color: plan.length ? "white" : "#94a3b8",
-                  borderRadius: 6,
+                  flex: 1,
+                  padding: "8px 12px",
+                  fontSize: 12,
+                  color: "#0f172a",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: 8,
+                  outline: "none",
+                  resize: "none",
+                  lineHeight: 1.5,
+                  fontFamily: "'DM Sans', sans-serif",
+                  background: followupStreaming ? "#f8fafc" : "white",
+                }}
+              />
+              <button
+                onClick={sendFollowup}
+                disabled={!followupDraft.trim() || followupStreaming || !investigationIdRef.current}
+                style={{
+                  padding: "8px 14px",
+                  height: 36,
+                  background: followupDraft.trim() && !followupStreaming && investigationIdRef.current ? ACCENT : "#e2e8f0",
+                  color: followupDraft.trim() && !followupStreaming && investigationIdRef.current ? "white" : "#94a3b8",
+                  borderRadius: 7,
                   fontSize: 12,
                   fontWeight: 600,
                   border: "none",
-                  cursor: plan.length ? "pointer" : "default",
+                  cursor: followupDraft.trim() && !followupStreaming && investigationIdRef.current ? "pointer" : "default",
                 }}
               >
-                Run analysis →
+                {followupStreaming ? "..." : "Send"}
               </button>
             </>
-          )}
-
-          {step === "running" && (
-            <button
-              onClick={() => {
-                clearTimers();
-                onClose();
-              }}
-              style={{
-                padding: "6px 12px",
-                background: "white",
-                color: "#64748b",
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 500,
-                border: "1px solid #e2e8f0",
-                cursor: "pointer",
-              }}
-            >
-              Run in background
-            </button>
-          )}
-
-          {step === "done" && (
-            <button
-              onClick={onClose}
-              style={{
-                padding: "6px 14px",
-                background: ACCENT,
-                color: "white",
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 600,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Back to workspace →
-            </button>
+          ) : (
+            <>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                {step === "prompt" && "↵ Enter to continue · Shift+Enter for new line"}
+                {step === "plan" && "× to remove a task"}
+                {step === "running" && `${progress} / ${plan.length} tasks complete`}
+              </span>
+              <div style={{ flex: 1 }} />
+              {step === "prompt" && (
+                <button
+                  onClick={() => submit()}
+                  disabled={!prompt.trim()}
+                  style={{
+                    padding: "6px 14px",
+                    background: prompt.trim() ? ACCENT : "#e2e8f0",
+                    color: prompt.trim() ? "white" : "#94a3b8",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    border: "none",
+                    cursor: prompt.trim() ? "pointer" : "default",
+                  }}
+                >
+                  Review plan →
+                </button>
+              )}
+              {step === "plan" && (
+                <>
+                  <button
+                    onClick={() => setStep("prompt")}
+                    style={{
+                      padding: "6px 12px",
+                      background: "white",
+                      color: "#64748b",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      border: "1px solid #e2e8f0",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ← Edit prompt
+                  </button>
+                  <button
+                    onClick={runAnalysis}
+                    disabled={plan.length === 0}
+                    style={{
+                      padding: "6px 14px",
+                      background: plan.length ? ACCENT : "#e2e8f0",
+                      color: plan.length ? "white" : "#94a3b8",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      border: "none",
+                      cursor: plan.length ? "pointer" : "default",
+                    }}
+                  >
+                    Run analysis →
+                  </button>
+                </>
+              )}
+              {step === "running" && (
+                <button
+                  onClick={() => {
+                    clearStreams();
+                    onClose();
+                  }}
+                  style={{
+                    padding: "6px 12px",
+                    background: "white",
+                    color: "#64748b",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    border: "1px solid #e2e8f0",
+                    cursor: "pointer",
+                  }}
+                >
+                  Stop and close
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

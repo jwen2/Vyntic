@@ -14,11 +14,12 @@ function djb2(s: string): string {
   return (h >>> 0).toString(36);
 }
 
-const SEVERITY_TAG = /(?:\*\*)?\[(DEAL-BREAKER|MATERIAL|NOTEWORTHY)\](?:\*\*)?/g;
+const SEVERITY_TAG = /(?:\*\*)?\[\s*(DEAL[\s-]?BREAKER|MATERIAL|NOTEWORTHY)\s*\](?:\*\*)?/gi;
 
 function tagToSeverity(tag: string): FindingSeverity {
-  if (tag === "DEAL-BREAKER") return "deal-breaker";
-  if (tag === "MATERIAL") return "material";
+  const normalized = tag.trim().toUpperCase().replace(/\s+/g, "-");
+  if (normalized === "DEAL-BREAKER" || normalized === "DEALBREAKER") return "deal-breaker";
+  if (normalized === "MATERIAL") return "material";
   return "noteworthy";
 }
 
@@ -62,10 +63,12 @@ function extractFromAnswer(
     const srcMatch = body.match(/\[Source\s+(\d+)\]/);
     let src = label;
     let conf = 68;
+    let sourceCitation: Citation | null = null;
     if (srcMatch) {
       const idx = parseInt(srcMatch[1], 10) - 1;
       const c: Citation | null | undefined = citations[idx];
       if (c) {
+        sourceCitation = c;
         src = `${shortDocName(c.source_file)} · p.${c.page}`;
         conf = 86;
       }
@@ -86,6 +89,8 @@ function extractFromAnswer(
       status: null,
       note: null,
       origin: "scan",
+      sourceCitation,
+      producerId: "proactive_scan",
     });
   }
   return findings;
