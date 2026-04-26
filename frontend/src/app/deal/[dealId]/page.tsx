@@ -25,6 +25,7 @@ import DDWorkstreamView from "@/components/dd/DDWorkstreamView";
 import CitationPanel from "@/components/dd/CitationPanel";
 import AgentWorkspaceView from "@/components/dd/AgentWorkspaceView";
 import WorkstreamListView from "@/components/dd/WorkstreamListView";
+import DocumentDetailView from "@/components/dd/DocumentDetailView";
 import { useFindings } from "@/components/dd/useFindings";
 import { computeCoverage } from "@/components/dd/coverage";
 import { extractScanFindings } from "@/components/dd/extractScanFindings";
@@ -106,6 +107,8 @@ export default function DealWorkspacePage() {
   const [selectedAgentRunId, setSelectedAgentRunId] = useState<string | null>(null);
   const [agentFocusNonce, setAgentFocusNonce] = useState(0);
   const [agentHistory, setAgentHistory] = useState<InvestigationSummary[]>([]);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [pendingAgentPrompt, setPendingAgentPrompt] = useState<{ prompt: string; signal: number } | null>(null);
   const [showReport, setShowReport] = useState(false);
   const [resultCache, setResultCache] = useState<WorkstreamCache>({});
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
@@ -254,6 +257,7 @@ export default function DealWorkspacePage() {
       setSelectedWorkstream(null);
       setSelectedQuestion(null);
       setActiveCit(null);
+      setSelectedDocId(null);
     } else {
       setSelectedAgentRunId(null);
     }
@@ -264,8 +268,22 @@ export default function DealWorkspacePage() {
     setSelectedWorkstream(null);
     setSelectedQuestion(null);
     setActiveCit(null);
+    setSelectedDocId(null);
     setSelectedAgentRunId(sessionId);
     setAgentFocusNonce((nonce) => nonce + 1);
+  }, []);
+
+  const handleAskAboutDocument = useCallback((docName: string, prompt: string) => {
+    const trimmed = prompt.trim();
+    if (!trimmed) return;
+    const scoped = `Focus exclusively on the document "${docName}". ${trimmed}`;
+    setMode("agent");
+    setSelectedWorkstream(null);
+    setSelectedQuestion(null);
+    setSelectedAgentRunId(null);
+    setActiveCit(null);
+    setSelectedDocId(null);
+    setPendingAgentPrompt({ prompt: scoped, signal: Date.now() });
   }, []);
 
   if (loading) {
@@ -319,13 +337,23 @@ export default function DealWorkspacePage() {
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <LeftSidebar
+          mode={mode}
           findings={findings}
           docs={docCoverage}
           sessions={agentHistory}
           activeSessionId={selectedAgentRunId}
           activeWs={selectedWorkstream}
+          activeDocId={selectedDocId}
           theme={theme}
           onSelectSession={handleSelectAgentSession}
+          onSelectDocument={(docId) => {
+            setSelectedDocId(docId);
+            if (docId) {
+              setSelectedWorkstream(null);
+              setSelectedQuestion(null);
+              setActiveCit(null);
+            }
+          }}
           onSelectFinding={onSelectFinding}
           onOpenSource={onOpenFindingSource}
         />
@@ -341,7 +369,25 @@ export default function DealWorkspacePage() {
               focusInvestigationId={selectedAgentRunId}
               focusSignal={agentFocusNonce}
               onHistoryChange={fetchAgentHistory}
+              pendingPrompt={pendingAgentPrompt?.prompt ?? null}
+              pendingPromptSignal={pendingAgentPrompt?.signal ?? 0}
             />
+          ) : selectedDocId ? (
+            (() => {
+              const doc = docCoverage.find((d) => d.id === selectedDocId);
+              if (!doc) return null;
+              return (
+                <DocumentDetailView
+                  doc={doc}
+                  findings={findings}
+                  theme={theme}
+                  onBack={() => setSelectedDocId(null)}
+                  onSelectFinding={onSelectFinding}
+                  onOpenSource={onOpenFindingSource}
+                  onAsk={(prompt) => handleAskAboutDocument(doc.name, prompt)}
+                />
+              );
+            })()
           ) : activeWorkstream ? (
             <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden", borderRight: activeCit ? `1px solid ${c.border}` : "none" }}>
               <DDWorkstreamView

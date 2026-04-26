@@ -6,13 +6,16 @@ import type { Finding, DocCoverage, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 
 interface Props {
+  mode: "agent" | "workstreams";
   findings: Finding[];
   docs: DocCoverage[];
   sessions: InvestigationSummary[];
   activeSessionId: string | null;
   activeWs: string | null;
+  activeDocId: string | null;
   theme: "light" | "dark";
   onSelectSession: (sessionId: string) => void;
+  onSelectDocument: (docId: string | null) => void;
   onSelectFinding: (f: Finding) => void;
   onOpenSource: (f: Finding) => void;
 }
@@ -24,13 +27,16 @@ const SEVERITY_ORDER: Array<{ sev: FindingSeverity; label: string }> = [
 ];
 
 export default function LeftSidebar({
+  mode,
   findings,
   docs,
   sessions,
   activeSessionId,
   activeWs,
+  activeDocId,
   theme,
   onSelectSession,
+  onSelectDocument,
   onSelectFinding,
   onOpenSource,
 }: Props) {
@@ -56,36 +62,69 @@ export default function LeftSidebar({
         padding: 14,
       }}
     >
-      <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-        <SectionLabel color={c.t3} marginBottom={0}>Agent Sessions</SectionLabel>
-        {sessions.length > 0 && (
-          <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, padding: "1px 6px", background: c.surface, borderRadius: 99 }}>
-            {visibleSessions.length}/{sessions.length}
-          </span>
-        )}
-      </div>
+      {mode === "workstreams" ? (
+        <>
+          <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+            <SectionLabel color={c.t3} marginBottom={0}>Documents</SectionLabel>
+            {docs.length > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, padding: "1px 6px", background: c.surface, borderRadius: 99 }}>
+                {docs.length}
+              </span>
+            )}
+          </div>
 
-      {sessions.length === 0 ? (
-        <div style={{ padding: "8px", fontSize: 12, color: c.t3, lineHeight: 1.45 }}>
-          No saved sessions yet. Start with the AI agent to create a persisted thread.
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
-          {visibleSessions.map((session) => (
-            <SessionRow
-              key={session.id}
-              session={session}
-              active={session.id === activeSessionId}
-              theme={theme}
-              onSelect={onSelectSession}
-            />
-          ))}
-          {hiddenSessionCount > 0 && (
-            <div style={{ padding: "3px 8px", fontSize: 10, color: c.t3 }}>
-              {hiddenSessionCount} older session{hiddenSessionCount > 1 ? "s" : ""} hidden
+          {docs.length === 0 ? (
+            <div style={{ padding: "8px", fontSize: 12, color: c.t3, lineHeight: 1.45 }}>
+              No documents in this deal yet.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+              {docs.map((doc) => (
+                <DocRow
+                  key={doc.id}
+                  doc={doc}
+                  active={doc.id === activeDocId}
+                  theme={theme}
+                  onSelect={onSelectDocument}
+                />
+              ))}
             </div>
           )}
-        </div>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+            <SectionLabel color={c.t3} marginBottom={0}>Agent Sessions</SectionLabel>
+            {sessions.length > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, padding: "1px 6px", background: c.surface, borderRadius: 99 }}>
+                {visibleSessions.length}/{sessions.length}
+              </span>
+            )}
+          </div>
+
+          {sessions.length === 0 ? (
+            <div style={{ padding: "8px", fontSize: 12, color: c.t3, lineHeight: 1.45 }}>
+              No saved sessions yet. Start with the AI agent to create a persisted thread.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+              {visibleSessions.map((session) => (
+                <SessionRow
+                  key={session.id}
+                  session={session}
+                  active={session.id === activeSessionId}
+                  theme={theme}
+                  onSelect={onSelectSession}
+                />
+              ))}
+              {hiddenSessionCount > 0 && (
+                <div style={{ padding: "3px 8px", fontSize: 10, color: c.t3 }}>
+                  {hiddenSessionCount} older session{hiddenSessionCount > 1 ? "s" : ""} hidden
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       <div
@@ -203,6 +242,73 @@ function SessionRow({
         <span>{date}</span>
         <span className="font-mono-dm">{session.finding_count} flags</span>
         {session.followup_count > 0 && <span className="font-mono-dm">{session.followup_count} replies</span>}
+      </span>
+    </button>
+  );
+}
+
+function DocRow({
+  doc,
+  active,
+  theme,
+  onSelect,
+}: {
+  doc: DocCoverage;
+  active: boolean;
+  theme: "light" | "dark";
+  onSelect: (docId: string | null) => void;
+}) {
+  const c = ddTheme(theme);
+  const isDark = theme === "dark";
+  const pct = doc.pages > 0 ? Math.round((doc.cited / doc.pages) * 100) : 0;
+  const barColor = doc.uncovered ? "#ef4444" : pct > 50 ? "#22c55e" : pct > 0 ? "#f59e0b" : c.border;
+  const pctColor = doc.uncovered ? "#ef4444" : pct > 50 ? "#16a34a" : pct > 0 ? "#b45309" : c.t3;
+  const baseBg = active ? (isDark ? "#1e293b" : "#ffffff") : "transparent";
+
+  return (
+    <button
+      type="button"
+      title={doc.name}
+      onClick={() => onSelect(active ? null : doc.id)}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = isDark ? c.surface : "#ffffff";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = baseBg;
+      }}
+      style={{
+        width: "100%",
+        display: "block",
+        padding: "8px 9px",
+        background: baseBg,
+        border: `1px solid ${active ? `${ACCENT}55` : "transparent"}`,
+        borderRadius: 7,
+        cursor: "pointer",
+        textAlign: "left",
+        transition: "background .1s, border-color .1s",
+      }}
+    >
+      <span style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {doc.short}
+        </span>
+        <span className="font-mono-dm" style={{ fontSize: 10, fontWeight: 700, color: pctColor }}>
+          {pct}%
+        </span>
+      </span>
+      <span style={{ display: "block", height: 3, borderRadius: 99, background: c.border, overflow: "hidden", marginBottom: 5 }}>
+        <span style={{ display: "block", width: `${pct}%`, height: "100%", background: barColor, borderRadius: 99 }} />
+      </span>
+      <span style={{ display: "flex", alignItems: "center", gap: 7, color: c.t3, fontSize: 10 }}>
+        <span className="font-mono-dm">{doc.cited}/{doc.pages} pgs</span>
+        {doc.uncovered && (
+          <span style={{ color: "#ef4444", fontWeight: 700, letterSpacing: "0.04em" }}>NOT ANALYZED</span>
+        )}
+        {doc.flags > 0 && (
+          <span style={{ color: isDark ? "#fca5a5" : "#b91c1c", fontWeight: 600 }}>
+            {doc.flags} flag{doc.flags > 1 ? "s" : ""}
+          </span>
+        )}
       </span>
     </button>
   );
