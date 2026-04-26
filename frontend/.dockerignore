@@ -3,5 +3,6 @@ node_modules
 .next-dev
 .next-docker
 .next-dev-docker
+.tsconfig-docker.json
 *.tsbuildinfo
 .DS_Store

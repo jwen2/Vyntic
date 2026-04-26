@@ -5,8 +5,11 @@ import DealListItem from "./DealListItem";
 interface Props {
   deals: Deal[];
   filteredDeals: Deal[];
+  selectedDealId?: string | null;
   search: string;
   onSearch: (q: string) => void;
+  onSelectDeal?: (deal: Deal) => void;
+  onInvestigateDeal?: (deal: Deal) => void;
   onDeleteDeal: (deal: Deal) => void;
   onUploadFiles: (dealId: string, files: File[]) => void;
   onUpdateDeal: (
@@ -20,8 +23,11 @@ interface Props {
 export default function HomeSidebar({
   deals,
   filteredDeals,
+  selectedDealId,
   search,
   onSearch,
+  onSelectDeal,
+  onInvestigateDeal,
   onDeleteDeal,
   onUploadFiles,
   onUpdateDeal,
@@ -162,6 +168,11 @@ export default function HomeSidebar({
             <DealListItem
               key={deal.deal_id}
               deal={deal}
+              selected={deal.deal_id === selectedDealId}
+              onSelect={onSelectDeal ? () => onSelectDeal(deal) : undefined}
+              onInvestigate={
+                onInvestigateDeal ? () => onInvestigateDeal(deal) : undefined
+              }
               onDelete={() => onDeleteDeal(deal)}
               onUploadFiles={onUploadFiles}
               onUpdateDeal={onUpdateDeal}

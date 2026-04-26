@@ -24,6 +24,9 @@ const SECTOR_TAGS = [
 
 interface Props {
   deal: Deal;
+  selected?: boolean;
+  onSelect?: () => void;
+  onInvestigate?: () => void;
   onDelete: () => void;
   onUploadFiles: (dealId: string, files: File[]) => void;
   onUpdateDeal: (
@@ -36,6 +39,9 @@ interface Props {
 
 export default function DealListItem({
   deal,
+  selected = false,
+  onSelect,
+  onInvestigate,
   onDelete,
   onUploadFiles,
   onUpdateDeal,
@@ -103,11 +109,13 @@ export default function DealListItem({
         marginBottom: 4,
         background: dragging
           ? "rgba(37,99,235,.15)"
+          : selected
+          ? "#1e3a8a"
           : hov
           ? "#1e293b"
           : "#0b1220",
         border: `1px solid ${
-          dragging ? "#2563eb" : hov ? "#334155" : "#1e293b"
+          dragging ? "#2563eb" : selected ? "#3b82f6" : hov ? "#334155" : "#1e293b"
         }`,
         borderRadius: 6,
         transition: "all .12s",
@@ -116,7 +124,10 @@ export default function DealListItem({
       {/* Header: name + delete */}
       <div className="flex items-start justify-between gap-2">
         <button
-          onClick={() => router.push(`/deal/${deal.deal_id}`)}
+          onClick={() => {
+            if (onSelect) onSelect();
+            else router.push(`/deal/${deal.deal_id}`);
+          }}
           style={{
             background: "none",
             border: "none",
@@ -155,6 +166,40 @@ export default function DealListItem({
             {deal.document_count !== 1 ? "s" : ""}
           </div>
         </button>
+        {onInvestigate && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onInvestigate();
+            }}
+            title={`Open agent and workstreams for ${deal.name}`}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "#bfdbfe";
+              e.currentTarget.style.borderColor = "#3b82f6";
+              e.currentTarget.style.background = "#1e3a8a";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = selected ? "#bfdbfe" : "#60a5fa";
+              e.currentTarget.style.borderColor = selected ? "#3b82f6" : "#1e40af";
+              e.currentTarget.style.background = selected ? "#1e40af" : "transparent";
+            }}
+            style={{
+              flexShrink: 0,
+              marginTop: 1,
+              padding: "2px 6px",
+              background: selected ? "#1e40af" : "transparent",
+              color: selected ? "#bfdbfe" : "#60a5fa",
+              border: `1px solid ${selected ? "#3b82f6" : "#1e40af"}`,
+              borderRadius: 4,
+              fontSize: 9,
+              fontWeight: 700,
+              lineHeight: 1.4,
+              cursor: "pointer",
+            }}
+          >
+            Analyze
+          </button>
+        )}
         {!readOnly && hov && (
           <button
             onClick={onDelete}

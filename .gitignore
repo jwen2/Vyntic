@@ -16,6 +16,7 @@ node_modules/
 .next-dev/
 .next-docker/
 .next-dev-docker/
+.tsconfig-docker.json
 *.tsbuildinfo
 
 # Data (ChromaDB, uploaded docs)

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { getAuthToken } from "@/lib/api";
+import CitationSnippet from "./dd/CitationSnippet";
 
 interface Props {
   dealId: string;
@@ -22,8 +23,12 @@ export default function DocumentViewer({
   const isExcel = lower.endsWith(".xlsx") || lower.endsWith(".xls");
   const isPreviewable = isPdf || isExcel;
   const token = getAuthToken();
-  const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
-  const viewUrl = `/api/deals/${encodeURIComponent(dealId)}/documents/${encodeURIComponent(filename)}/view${tokenParam}`;
+  const params = new URLSearchParams();
+  if (token) params.set("token", token);
+  if (isExcel && page > 0) params.set("sheet", String(Math.max(0, page - 1)));
+  const query = params.toString();
+  const viewUrl = `/api/deals/${encodeURIComponent(dealId)}/documents/${encodeURIComponent(filename)}/view${query ? `?${query}` : ""}`;
+  const locatorLabel = isExcel ? "Sheet" : "Page";
 
   // Close on Escape key
   useEffect(() => {
@@ -55,7 +60,7 @@ export default function DocumentViewer({
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
           <div className="min-w-0">
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{filename}</h3>
-            <span className="text-sm text-gray-500 dark:text-gray-400">Page {page}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">{locatorLabel} {page}</span>
           </div>
           <button
             onClick={onClose}
@@ -69,7 +74,7 @@ export default function DocumentViewer({
         {/* Citation snippet */}
         <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-900 text-sm shrink-0">
           <span className="font-medium text-amber-800 dark:text-amber-300">Referenced text:</span>
-          <p className="mt-1 text-gray-700 dark:text-gray-300 leading-relaxed">{snippet}</p>
+          <CitationSnippet sourceFile={filename} text={snippet} variant="viewer" />
         </div>
 
         {/* Document content */}
@@ -78,7 +83,7 @@ export default function DocumentViewer({
             <iframe
               src={isPdf ? `${viewUrl}#page=${page}` : viewUrl}
               className="w-full h-full border-0"
-              title={`${filename}${isPdf ? ` - Page ${page}` : ""}`}
+              title={`${filename}${isPreviewable ? ` - Page ${page}` : ""}`}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-500 dark:text-gray-400">
