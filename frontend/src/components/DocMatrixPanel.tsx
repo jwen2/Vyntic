@@ -105,6 +105,24 @@ export default function DocMatrixPanel({
   const [sortConfig, setSortConfig] = useState<{ col: "doc" | number; dir: "asc" | "desc" } | null>(null);
   const [colFilters, setColFilters] = useState<Record<string, string>>({});
 
+  // Density preference (compact vs comfortable column widths)
+  type Density = "compact" | "comfortable";
+  const DENSITY_KEY = "vyntic_doc_matrix_density";
+  const [density, setDensity] = useState<Density>("comfortable");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DENSITY_KEY);
+      if (saved === "compact" || saved === "comfortable") setDensity(saved);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem(DENSITY_KEY, density); } catch {}
+  }, [density]);
+
+  const COL_DOC = 240;
+  const COL_QUERY = density === "compact" ? 480 : 720;
+  const COL_ADD = 360;
+
   const setColFilter = (col: "doc" | number, value: string) => {
     setColFilters((prev) => ({ ...prev, [String(col)]: value }));
   };
@@ -489,23 +507,72 @@ export default function DocMatrixPanel({
           {documents.length} document{documents.length !== 1 ? "s" : ""} &middot;{" "}
           {queries.length} quer{queries.length !== 1 ? "ies" : "y"}
         </span>
-        <span className="text-gray-300 dark:text-gray-600">
-          Add questions as columns to analyze each document independently
-        </span>
+        <div className="flex items-center gap-3">
+          <div
+            className="inline-flex items-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0.5"
+            role="group"
+            aria-label="Column density"
+          >
+            <button
+              type="button"
+              onClick={() => setDensity("compact")}
+              aria-pressed={density === "compact"}
+              className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
+                density === "compact"
+                  ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 font-medium"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              }`}
+              title="Narrower columns, see more at once"
+            >
+              Compact
+            </button>
+            <button
+              type="button"
+              onClick={() => setDensity("comfortable")}
+              aria-pressed={density === "comfortable"}
+              className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
+                density === "comfortable"
+                  ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 font-medium"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              }`}
+              title="Wider columns, easier to read"
+            >
+              Comfortable
+            </button>
+          </div>
+          <span className="text-gray-300 dark:text-gray-600">
+            Add questions as columns to analyze each document independently
+          </span>
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-900/50">
+      <div className="overflow-auto rounded-lg shadow dark:shadow-gray-900/50 bg-white dark:bg-gray-900 max-h-[calc(100vh-220px)]">
+        <table
+          className="border-collapse"
+          style={{
+            tableLayout: "fixed",
+            width: queries.length === 0
+              ? "100%"
+              : COL_DOC + queries.length * COL_QUERY + COL_ADD,
+          }}
+        >
+          <colgroup>
+            <col style={{ width: COL_DOC }} />
+            {queries.map((_, i) => (
+              <col key={i} style={{ width: COL_QUERY }} />
+            ))}
+            {queries.length === 0 ? <col /> : <col style={{ width: COL_ADD }} />}
+          </colgroup>
           <thead>
-            <tr className="bg-gray-100 dark:bg-gray-800">
-              {/* Document column header with Excel-like dropdown */}
+            <tr>
+              {/* Document column header with Excel-like dropdown — sticky top + left (corner) */}
               <th
-                className={`p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[220px] sticky left-0 z-10 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${isColFiltered("doc") ? "bg-blue-50 dark:bg-blue-950/40" : "bg-gray-100 dark:bg-gray-800"}`}
+                className={`p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#374151] sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${isColFiltered("doc") ? "bg-blue-50 dark:bg-blue-950/40" : "bg-gray-100 dark:bg-gray-800"}`}
                 onClick={(e) => openColMenu("doc", e.currentTarget)}
               >
                 <DocColumnHeaderLabel label="Document" col="doc" sortConfig={sortConfig} filterValue={getColFilter("doc")} />
               </th>
-              {/* Query column headers */}
+              {/* Query column headers — sticky top */}
               {queries.map((q, i) => (
                 <th
                   key={i}
@@ -514,10 +581,14 @@ export default function DocMatrixPanel({
                   onDragOver={(e) => handleColDragOver(e, i)}
                   onDrop={() => handleColDrop(i)}
                   onDragEnd={handleColDragEnd}
-                  className={`p-3 text-left font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 min-w-[280px] max-w-[400px] group cursor-grab active:cursor-grabbing transition-colors ${
+                  className={`p-3 text-left font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#374151] sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
                     dragColIndex === i ? "opacity-50" : ""
-                  } ${dragOverColIndex === i && dragColIndex !== i ? "bg-blue-50 dark:bg-blue-950/40" : ""} ${
-                    isColFiltered(i) ? "bg-blue-50/50 dark:bg-blue-950/30" : ""
+                  } ${
+                    dragOverColIndex === i && dragColIndex !== i
+                      ? "bg-blue-50 dark:bg-blue-950/40"
+                      : isColFiltered(i)
+                      ? "bg-blue-50/80 dark:bg-blue-950/40"
+                      : "bg-gray-100 dark:bg-gray-800"
                   }`}
                 >
                   {editingColIndex === i ? (
@@ -589,8 +660,8 @@ export default function DocMatrixPanel({
                   )}
                 </th>
               ))}
-              {/* Add query column */}
-              <th className="p-3 border border-gray-200 dark:border-gray-700 min-w-[320px]">
+              {/* Add query column — sticky top */}
+              <th className="p-3 border border-gray-200 dark:border-gray-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#374151] sticky top-0 z-20 bg-gray-100 dark:bg-gray-800">
                 <div className="flex gap-2 items-center">
                   <input
                     type="text"
