@@ -1,5 +1,6 @@
 "use client";
 import type { Citation } from "@/lib/api";
+import CitationSnippet, { SPREADSHEET_FILE_RE } from "./CitationSnippet";
 
 interface Props {
   citation: Citation;
@@ -8,13 +9,15 @@ interface Props {
 }
 
 export default function CitationPanel({ citation, onClose, onOpenDocument }: Props) {
+  const isSpreadsheet = SPREADSHEET_FILE_RE.test(citation.source_file);
+  const locatorLabel = isSpreadsheet ? "Sheet" : "Page";
   const docType = citation.source_file.includes("CIM")
     ? "CIM (Primary)"
     : citation.source_file.includes("QoE")
     ? "QoE Report (Primary)"
     : citation.source_file.includes("Legal")
     ? "Legal DD"
-    : /\.(xlsx|xls|csv)$/i.test(citation.source_file)
+    : isSpreadsheet
     ? "Financial Model"
     : citation.source_file.includes("Operational") || citation.source_file.includes("Ops")
     ? "Operational DD"
@@ -67,7 +70,7 @@ export default function CitationPanel({ citation, onClose, onOpenDocument }: Pro
           >
             {citation.source_file}
           </div>
-          <div style={{ fontSize: 12, color: "#64748b" }}>Page {citation.page}</div>
+          <div style={{ fontSize: 12, color: "#64748b" }}>{locatorLabel} {citation.page}</div>
         </div>
         <button
           onClick={onClose}
@@ -109,7 +112,7 @@ export default function CitationPanel({ citation, onClose, onOpenDocument }: Pro
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
-          <span style={{ fontSize: 10, color: "#64748b" }}>Page {citation.page}</span>
+          <span style={{ fontSize: 10, color: "#64748b" }}>{locatorLabel} {citation.page}</span>
         </div>
         <div style={{ padding: 14 }}>
           {[80, 65, 90, 72].map((w, i) => (
@@ -153,9 +156,7 @@ export default function CitationPanel({ citation, onClose, onOpenDocument }: Pro
             >
               Cited passage
             </div>
-            <p style={{ fontSize: 11.5, color: "#1e293b", lineHeight: 1.65 }}>
-              {citation.text_snippet || "(No snippet text was returned for this citation.)"}
-            </p>
+            <CitationSnippet sourceFile={citation.source_file} text={citation.text_snippet} />
           </div>
 
           {[60, 75].map((w, i) => (
@@ -189,7 +190,7 @@ export default function CitationPanel({ citation, onClose, onOpenDocument }: Pro
         </div>
         {([
           ["Document", citation.source_file],
-          ["Page", String(citation.page)],
+          [locatorLabel, String(citation.page)],
           ["Source type", docType],
         ] as const).map(([l, v]) => (
           <div

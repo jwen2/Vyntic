@@ -1,6 +1,7 @@
 """Deal CRUD routes."""
 import os
 import shutil
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -92,7 +93,13 @@ async def delete_deal(deal_id: str, current_user: UserRow = Depends(get_current_
 
 
 @router.get("/{deal_id}/documents/{filename}/view")
-async def view_document(deal_id: str, filename: str, sheet: int | None = None, current_user: UserRow = Depends(get_current_user_or_query_token)):
+async def view_document(
+    deal_id: str,
+    filename: str,
+    sheet: int | None = None,
+    token: str | None = None,
+    current_user: UserRow = Depends(get_current_user_or_query_token),
+):
     require_deal_access(current_user, deal_id)
     """Serve an original uploaded document file for inline viewing (not download).
 
@@ -107,7 +114,7 @@ async def view_document(deal_id: str, filename: str, sheet: int | None = None, c
 
     # Excel files: convert to HTML table for inline preview
     if lower.endswith((".xlsx", ".xls")):
-        return _excel_to_html_response(file_path, filename, active_sheet=sheet)
+        return _excel_to_html_response(file_path, filename, active_sheet=sheet, token=token)
 
     if lower.endswith(".pdf"):
         media_type = "application/pdf"
@@ -131,7 +138,12 @@ async def view_document(deal_id: str, filename: str, sheet: int | None = None, c
 MAX_PREVIEW_ROWS = 500
 
 
-def _excel_to_html_response(file_path: str, filename: str, active_sheet: int | None = None):
+def _excel_to_html_response(
+    file_path: str,
+    filename: str,
+    active_sheet: int | None = None,
+    token: str | None = None,
+):
     """Convert an Excel file to a styled HTML page for inline viewing.
 
     Only renders the active sheet (default: first). Truncates at MAX_PREVIEW_ROWS
@@ -179,8 +191,11 @@ def _excel_to_html_response(file_path: str, filename: str, active_sheet: int | N
         for i, name in enumerate(sheet_names):
             active_cls = "active" if i == active_idx else ""
             # Build URL that swaps the sheet param
+            query = {"sheet": i}
+            if token:
+                query["token"] = token
             html_parts.append(
-                f"<a class='sheet-tab {active_cls}' href='?sheet={i}'>{name}</a>"
+                f"<a class='sheet-tab {active_cls}' href='?{urlencode(query)}'>{name}</a>"
             )
         html_parts.append("</div>")
 

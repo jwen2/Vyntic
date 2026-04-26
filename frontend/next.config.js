@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: process.env.NODE_ENV === "production" ? process.env.NEXT_DIST_DIR || ".next" : ".next",
+  typescript: {
+    tsconfigPath: process.env.NEXT_TSCONFIG_PATH || "tsconfig.json",
+  },
   skipTrailingSlashRedirect: true,
   experimental: {
     proxyTimeout: 300_000, // 5 minutes — LLM inference can be slow

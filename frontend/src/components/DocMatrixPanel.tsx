@@ -4,15 +4,10 @@ import {
   useCallback,
   useRef,
   useEffect,
-  Children,
-  isValidElement,
-  cloneElement,
   useMemo,
   forwardRef,
 } from "react";
 import { createPortal } from "react-dom";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   DocumentMetadata,
   Citation,
@@ -20,10 +15,10 @@ import {
   docMatrixStream,
 } from "@/lib/api";
 import { QUERY_TEMPLATES } from "@/lib/queryTemplates";
-import InlineCitation from "./InlineCitation";
 import DocumentViewer from "./DocumentViewer";
 import ConfirmDialog from "./ConfirmDialog";
 import { fixMarkdownTables } from "@/lib/markdownUtils";
+import AnswerText, { CitBadge } from "@/components/dd/AnswerText";
 
 // ── Types ──
 
@@ -47,71 +42,18 @@ interface Props {
   documents: DocumentMetadata[];
   dealId: string;
   onViewDocument: (citation: Citation) => void;
+  activeCitationId?: string | null;
+  onInspectCitation?: (citation: Citation, id: string) => void;
 }
 
 // ── Helpers ──
 
-const SOURCE_PATTERN = /\[Source\s+(\d+)\]/g;
-
-function renderTextWithCitations(
-  text: string,
-  citations: (Citation | null)[],
-  onViewDocument?: (citation: Citation) => void
-): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  const re = new RegExp(SOURCE_PATTERN);
-
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    const idx = parseInt(match[1], 10);
-    parts.push(
-      <InlineCitation
-        key={`src-${match.index}`}
-        index={idx}
-        citation={citations[idx - 1]}
-        onViewDocument={onViewDocument}
-      />
-    );
-    lastIndex = re.lastIndex;
-  }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-  return parts;
-}
-
-function processCitations(
-  children: React.ReactNode,
-  citations: (Citation | null)[],
-  onViewDocument?: (citation: Citation) => void
-): React.ReactNode {
-  return Children.map(children, (child) => {
-    if (typeof child === "string") {
-      if (new RegExp(SOURCE_PATTERN).test(child)) {
-        return <>{renderTextWithCitations(child, citations, onViewDocument)}</>;
-      }
-      return child;
-    }
-    if (
-      isValidElement(child) &&
-      child.props &&
-      (child.props as Record<string, unknown>).children
-    ) {
-      const nested = (child.props as Record<string, unknown>)
-        .children as React.ReactNode;
-      const processed = processCitations(nested, citations, onViewDocument);
-      return cloneElement(child, {}, processed);
-    }
-    return child;
-  });
-}
-
 function stripThinkTags(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
+function citationId(citation: Citation, index: number) {
+  return `${citation.source_file}_p${citation.page}_${index}`;
 }
 
 function fileTypeIcon(filename: string) {
@@ -136,6 +78,8 @@ export default function DocMatrixPanel({
   documents,
   dealId,
   onViewDocument,
+  activeCitationId = null,
+  onInspectCitation,
 }: Props) {
   const [queries, setQueries] = useState<string[]>([]);
   const [cells, setCells] = useState<
@@ -335,22 +279,6 @@ export default function DocMatrixPanel({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showTemplates]);
-
-  const handleCitationClick = useCallback(
-    (citation: Citation) => {
-      onViewDocument(citation);
-    },
-    [onViewDocument]
-  );
-
-  const handleLocalCitationClick = useCallback((citation: Citation) => {
-    setViewerState({
-      dealId: citation.deal_id || "",
-      filename: citation.source_file,
-      page: citation.page,
-      snippet: citation.text_snippet || "",
-    });
-  }, []);
 
   // Column management handlers
   const removeQuery = useCallback((index: number) => {
@@ -793,7 +721,11 @@ export default function DocMatrixPanel({
                     key={i}
                     cell={cells[doc.doc_id]?.[q]}
                     dealId={dealId}
-                    onCitationClick={handleLocalCitationClick}
+                    activeCitationId={activeCitationId}
+                    onCitationClick={(citation, id) => {
+                      if (onInspectCitation) onInspectCitation(citation, id);
+                      else onViewDocument(citation);
+                    }}
                   />
                 ))}
                 {/* Empty cell under add-query column */}
@@ -863,12 +795,13 @@ export default function DocMatrixPanel({
 
 function DocMatrixCell({
   cell,
-  dealId,
+  activeCitationId,
   onCitationClick,
 }: {
   cell: DocResult | undefined;
   dealId: string;
-  onCitationClick: (citation: Citation) => void;
+  activeCitationId: string | null;
+  onCitationClick: (citation: Citation, id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -877,12 +810,8 @@ function DocMatrixCell({
     [cell?.answer]
   );
 
-  const handleViewDocument = useCallback(
-    (citation: Citation) => {
-      onCitationClick(citation);
-    },
-    [onCitationClick]
-  );
+  const citations = cell?.citations || [];
+  const nonNullCitations = citations.filter((c): c is Citation => c !== null);
 
   if (!cell || cell.status === "idle") {
     return (
@@ -917,10 +846,13 @@ function DocMatrixCell({
     }
     return (
       <td className="p-3 border border-gray-200 dark:border-gray-700 text-sm align-top max-w-xs">
-        <div className="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 line-clamp-6">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {cleanAnswer}
-          </ReactMarkdown>
+        <div className="max-w-none text-gray-800 dark:text-gray-200 line-clamp-6">
+          <AnswerText
+            text={cleanAnswer}
+            citations={citations}
+            activeCitId={activeCitationId}
+            onCit={onCitationClick}
+          />
         </div>
         <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
       </td>
@@ -941,80 +873,35 @@ function DocMatrixCell({
   return (
     <td className="p-3 border border-gray-200 dark:border-gray-700 text-sm max-w-xs align-top">
       <div
-        className={`prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 ${clampClass}`}
+        className={`max-w-none text-gray-800 dark:text-gray-200 ${clampClass}`}
       >
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            table: ({ children }) => (
-              <div className="not-prose overflow-x-auto my-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
-                <table className="text-xs border-collapse w-full min-w-[280px]">
-                  {children}
-                </table>
-              </div>
-            ),
-            thead: ({ children }) => (
-              <thead className="bg-gradient-to-b from-slate-50 to-slate-100/80 dark:from-gray-800 dark:to-gray-800/80">
-                {children}
-              </thead>
-            ),
-            th: ({ children }) => (
-              <th className="border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0 px-3 py-2 text-[11px] font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                {children}
-              </th>
-            ),
-            tr: ({ children }) => (
-              <tr className="even:bg-slate-50/40 dark:even:bg-gray-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0">
-                {children}
-              </tr>
-            ),
-            td: ({ children }) => (
-              <td className="border-r border-gray-100 dark:border-gray-800 last:border-r-0 px-3 py-2 text-xs text-gray-700 dark:text-gray-300">
-                {processCitations(
-                  children,
-                  cell.citations,
-                  handleViewDocument
-                )}
-              </td>
-            ),
-            p: ({ children }) => (
-              <p className="my-1.5 text-sm leading-relaxed">
-                {processCitations(
-                  children,
-                  cell.citations,
-                  handleViewDocument
-                )}
-              </p>
-            ),
-            ul: ({ children }) => (
-              <ul className="my-1.5 ml-4 list-disc space-y-0.5 text-sm">
-                {children}
-              </ul>
-            ),
-            ol: ({ children }) => (
-              <ol className="my-1.5 ml-4 list-decimal space-y-0.5 text-sm">
-                {children}
-              </ol>
-            ),
-            li: ({ children }) => (
-              <li className="text-sm leading-relaxed">
-                {processCitations(
-                  children,
-                  cell.citations,
-                  handleViewDocument
-                )}
-              </li>
-            ),
-            strong: ({ children }) => (
-              <strong className="font-semibold text-gray-900 dark:text-gray-100">
-                {children}
-              </strong>
-            ),
-          }}
-        >
-          {cleanAnswer}
-        </ReactMarkdown>
+        <AnswerText
+          text={cleanAnswer}
+          citations={citations}
+          activeCitId={activeCitationId}
+          onCit={onCitationClick}
+        />
       </div>
+
+      {nonNullCitations.length > 0 && (
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap border-t border-gray-100 pt-2 dark:border-gray-800">
+          <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500">
+            Sources
+          </span>
+          {nonNullCitations.map((citation, index) => {
+            const id = citationId(citation, index);
+            return (
+              <CitBadge
+                key={id}
+                cit={citation}
+                id={id}
+                active={activeCitationId === id}
+                onClick={() => onCitationClick(citation, id)}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* Expand toggle */}
       {cleanAnswer.length > 200 && (
