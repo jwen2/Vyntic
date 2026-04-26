@@ -36,6 +36,8 @@ interface Props {
   focusInvestigationId?: string | null;
   focusSignal?: number;
   onHistoryChange?: () => void | Promise<void>;
+  pendingPrompt?: string | null;
+  pendingPromptSignal?: number;
 }
 
 function initialRunState(documents: DocumentMetadata[]): RunState {
@@ -97,6 +99,8 @@ export default function AgentWorkspaceView({
   focusInvestigationId,
   focusSignal = 0,
   onHistoryChange,
+  pendingPrompt,
+  pendingPromptSignal = 0,
 }: Props) {
   const docs = useMemo(() => buildAgentDocs(documents), [documents]);
   const [inputPrompt, setInputPrompt] = useState("");
@@ -110,6 +114,7 @@ export default function AgentWorkspaceView({
   const findingsRef = useRef<AgentLocalFinding[]>([]);
   const investigationIdRef = useRef<string | null>(null);
   const lastFocusRef = useRef<string | null>(null);
+  const lastPendingSignalRef = useRef<number>(0);
 
   const refreshHistory = useCallback(() => {
     void onHistoryChange?.();
@@ -330,6 +335,15 @@ export default function AgentWorkspaceView({
     // loadRun intentionally stays outside deps; it closes over current deal/docs state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusInvestigationId, focusSignal]);
+
+  useEffect(() => {
+    if (!pendingPrompt || !pendingPromptSignal) return;
+    if (lastPendingSignalRef.current === pendingPromptSignal) return;
+    lastPendingSignalRef.current = pendingPromptSignal;
+    submit(pendingPrompt);
+    // submit closes over current state; intentionally not in deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPrompt, pendingPromptSignal]);
 
   function reset() {
     abortRef.current?.abort();
