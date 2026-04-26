@@ -1,0 +1,7 @@
+node_modules
+.next
+.next-dev
+.next-docker
+.next-dev-docker
+*.tsbuildinfo
+.DS_Store
