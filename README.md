@@ -1,8 +1,8 @@
 # Vyntic
 
-Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired by Hebbia's matrix-based reasoning approach.
+AI-native diligence workspace for private equity. Multi-tenant RAG application that lets analysts compare deals in a matrix, run a per-document prompt sheet against a single deal, and unleash an autonomous diligence agent that hunts for red flags across an entire data room.
 
-**Powered by Google Gemini AI Studio** — uses Gemini 2.0 Flash Lite for fast inference with Gemma 3 27B as automatic fallback.
+**Powered by Google Gemini AI Studio** — primary `gemini-3.1-flash-lite-preview`, fallback `gemini-3-flash-preview`, embeddings via `gemini-embedding-001` (3072-dim).
 
 ## Landing Page
 
@@ -10,105 +10,149 @@ Multi-tenant RAG application for PE deal comparison in a matrix format. Inspired
 |------|---------|
 | ![Landing Hero](docs/screenshots/landing-hero.png) | ![Pricing](docs/screenshots/landing-pricing.png) |
 
-Live at **`/landing`** — dark-mode hero with product demo preview, logo strip, feature cards, testimonials, how-it-works steps, pricing tiers (Free / Pro $99/mo / Enterprise), and a final CTA.
+Live at **`/landing`** — public marketing page with hero, logo strip, feature cards, testimonials, three-tier pricing (Free / Pro $99/mo / Enterprise), and a final CTA.
 
 ---
 
 ## Why Vyntic?
 
-Private equity analysts spend hundreds of hours during due diligence manually reading CIMs, quality-of-earnings reports, and financial models — often across multiple competing deals simultaneously. The core challenge isn't access to data; it's the time it takes to extract, compare, and synthesize insights across deal rooms that can contain thousands of pages. Vyntic solves this by letting analysts ask natural-language questions across all active deals at once, returning cited, side-by-side answers in a matrix format. Instead of spending a week building a comparison spreadsheet, an analyst can populate it in minutes — with every claim traceable back to the exact page and document it came from. This applies equally to any finance workflow involving multi-document analysis: M&A due diligence, credit underwriting, equity research, or portfolio monitoring.
+Private equity analysts spend hundreds of hours during due diligence manually reading CIMs, quality-of-earnings reports, and financial models — often across multiple competing deals simultaneously. The bottleneck isn't access to data; it's the time it takes to extract, compare, and synthesize insights across deal rooms that can contain thousands of pages.
+
+Vyntic compresses that work into three surfaces:
+
+1. **Deal-scoped document matrix** — drop in a question, get a row per document with cited answers.
+2. **Workstream playbooks** — pre-built Financial / Commercial / Operational / Legal DD question sets that auto-run against a deal and produce IC-ready memos.
+3. **Diligence agent + Proactive Sweep** — autonomous investigation that plans, searches, reads, and flags risks the analyst never thought to ask about.
+
+Every claim ties back to the exact page and snippet it came from.
 
 ## Architecture
 
 ```
-+-----------------------------------------------------+
-|                    Frontend (Next.js)                |
-|  +----------------------------------------------+   |
-|  |        Matrix Grid (Deals x Queries)         |   |
-|  |  Deal A  |  EBITDA?  |  Revenue?  |  + col   |   |
-|  |  Deal B  |  $12M     |  $45M      |          |   |
-|  |  Deal C  |  $8M      |  $30M      |          |   |
-|  +----------------------------------------------+   |
-+------------------+------------------------------------+
-                   | SSE /matrix/compare/stream
-+------------------v------------------------------------+
-|                 Backend (FastAPI)                      |
-|                                                       |
-|  +------------------------------------------+        |
-|  |        LangGraph Comparison Engine        |        |
-|  |                                           |        |
-|  |  +----------+  +----------+               |        |
-|  |  | Worker A  |  | Worker B  |  (parallel)  |        |
-|  |  | col:deal_a|  | col:deal_b|              |        |
-|  |  +-----+----+  +-----+----+              |        |
-|  |        +-------+------+                   |        |
-|  |          +-----v---+                      |        |
-|  |          |Synthesis|                      |        |
-|  |          +---------+                      |        |
-|  +------------------------------------------+        |
-|                                                       |
-|  ChromaDB (collection isolation per deal)             |
-|  +----------+ +----------+ +----------+               |
-|  |col:deal_a| |col:deal_b| |col:deal_c|               |
-|  +----------+ +----------+ +----------+               |
-|                                                       |
-|  Google Gemini AI Studio                              |
-|  +----------------------+ +---------------------+     |
-|  | gemini-2.0-flash-lite| | gemini-embedding-001|     |
-|  +----------------------+ +---------------------+     |
-+-------------------------------------------------------+
++-----------------------------------------------------------------+
+|                       Frontend (Next.js 14)                     |
+|                                                                 |
+|  /             — Dashboard: deal sidebar + per-deal Doc Matrix  |
+|  /deal/[id]    — Workspace: Agent / Workstreams / Proactive Scan|
+|  /landing      — Public marketing page                          |
+|                                                                 |
++--------------------------------+--------------------------------+
+                                 | JWT + SSE
++--------------------------------v--------------------------------+
+|                     Backend (FastAPI, Python 3.12)              |
+|                                                                 |
+|  Routes: auth · deals · ingest · query · matrix · stream        |
+|          workstream · doc_matrix · sweep · agent · report       |
+|          conversation                                           |
+|                                                                 |
+|  Services:                                                      |
+|   parser (Docling subprocess) → chunker → embedder → vector_store
+|   deal_store · investigation_store · conversation_store         |
+|   report_generator (DOCX with footnoted citations)              |
+|                                                                 |
+|  ChromaDB — collection isolation per deal, doc_id metadata      |
+|  filter for per-document retrieval                              |
+|                                                                 |
+|  SQLite — users, deals, deal access, conversation history,      |
+|  investigations + follow-ups                                    |
+|                                                                 |
+|  Google Gemini AI Studio                                        |
+|   gemini-3.1-flash-lite-preview (primary)                       |
+|   gemini-3-flash-preview        (fallback)                      |
+|   gemini-embedding-001          (3072-dim)                      |
++-----------------------------------------------------------------+
 ```
 
 ## Key Design Decisions
 
-- **Persistent Relational DB**: Deal metadata and user access bindings are stored in SQLite via SQLAlchemy (ready to scale to PostgreSQL).
-- **JWT Authentication & Tenant Isolation**: Secure user registration/login. Deal records are strictly bound to authorized users ensuring zero context leak dynamically.
-- **Collection Isolation**: Each deal uses a separate ChromaDB collection — reinforcing data containment per deal.
-- **Structural Parsing**: Docling for PDFs (high-quality table + text extraction), openpyxl for Excel
-- **LangGraph Orchestration**: Manager/Worker fan-out pattern for parallel multi-deal queries
-- **Streaming SSE**: Token-by-token LLM output streamed to the frontend for immediate feedback
-- **Citation Grounding**: Every answer includes source file and page number references
-- **Automatic Fallback**: If Gemini 2.0 Flash Lite hits rate limits, automatically falls back to Gemma 3 27B
+- **Per-deal vector isolation** — each deal gets its own ChromaDB collection, and per-document retrieval uses a `doc_id` metadata filter to guarantee zero context bleed.
+- **JWT auth + RBAC** — `admin` and `analyst` roles, per-deal access control via `DealAccessRow`. Admin-only actions (add/delete deals, upload docs, edit stage) are gated in both UI and API.
+- **Persistent SQLite via SQLAlchemy** — ready to swap for Postgres without code changes.
+- **Docling in subprocess** — PDF parsing runs in a spawned process with conservative CPU/thread/timeout defaults so macOS startup ingestion never crashes the API process.
+- **LangGraph manager/worker** — parallel fan-out for multi-deal matrix queries, with bounded concurrency.
+- **Streaming everywhere** — SSE for matrix cells, workstream answers, agent THOUGHT/ACTION traces, and final memos.
+- **Two-tier model fallback** — automatic switch from `gemini-3.1-flash-lite-preview` → `gemini-3-flash-preview` on rate-limit, with the serving model badged on every cell.
+- **Production frontend in Docker** — port 3100 runs `npm run build && npm run start` for reliable static chunk delivery; port 3200 runs `next dev` for hot reload.
 
 ## Features
 
-### Core Analysis
-- **Matrix comparison grid** — Ask questions across multiple deals simultaneously
-- **Streaming responses** — LLM output streams token-by-token with a live cursor
-- **Synthesis row** — Automatic cross-deal comparative analysis for each query
-- **Inline citations** — Clickable blue badges that show source document, page, and snippet
-- **Markdown rendering** — Bold, tables, bullets rendered inline; bar charts for numeric data
-- **Query templates** — Pre-built PE question library (Financials, Risk, Commercial, Deal Thesis)
-- **CSV export** — Download the matrix as a clean spreadsheet for IC distribution
+### Document Matrix (per deal)
+- Rows = documents, columns = prompts. Add a prompt → it streams an answer per document.
+- **Locked column widths** with horizontal scroll instead of squish — table-layout: fixed with `<colgroup>`-driven sizing.
+- **Compact (480px) / Comfortable (720px) density toggle**, persisted to localStorage.
+- **Sticky top header + sticky left document column** with z-stacked corner cell.
+- Empty state stretches the prompt input to fill the page.
+- Excel-like per-column sort/filter dropdowns, drag-to-reorder, double-click rename.
+- Inline `[Source N]` citation badges that open a slide-over PDF/Excel preview at the exact page.
+- Spreadsheet citations render as compact tables in both source panel and document viewer.
+- Result cache in localStorage so prompts survive a page refresh.
 
-### Deal Management
-- **Drag-and-drop upload** — Drop PDF/Excel files directly onto deal cards
-- **Multi-file upload** — Upload an entire data room in one drop
-- **Document deletion** — Remove documents with hover-to-reveal delete button and confirmation dialog
-- **Pipeline stages** — Track deals through Screening, Due Diligence, IC Review, Closed
-- **Sector tags** — Tag deals by sector (Technology, Healthcare, Industrials, etc.)
-- **Excel-style selection** — Click, Ctrl+click, Shift+click to select which deals to query
+### Cross-Deal Matrix (legacy dashboard view)
+- Ask one prompt across multiple deals at once with a synthesis row that compares them.
+- Markdown tables, bar charts for numeric values, model-served + duration badge per cell.
+- CSV export for IC distribution.
 
-### Data Quality
-- **Auto-seed sample data** — Three sample PE deals load automatically on startup
-- **PE-optimized prompts** — LLM instructed to lead with insight, flag red flags, contextualize metrics
-- **Zero context leak** — Verified isolation between deal namespaces
+### Diligence Workspace (`/deal/[dealId]`)
+- Unified **Agent** / **Workstreams** experience with saved agent sessions and red-flag tracking in the dark left rail.
+- ⌘K **Ask Agent** overlay with a 4-phase animated trace.
+- Coverage chips and dismissible red-flag banner on the dark TopBar; banner CTA is context-aware (Run Proactive Scan vs. View all findings).
+- 336px right-side citation panel reused across the matrix and DD views.
+- Workstreams sidebar shows a per-document coverage bar, page counts, and flag counts; click a doc to open a scoped DocumentDetailView with three suggested prompts.
+
+### Workstream Playbooks
+- Four pre-built DD playbooks — **Financial**, **Commercial**, **Operational**, **Legal** — plus a **Risk Scorecard** with 9 calibrated 1–5 risk questions and color-coded progress bars.
+- "Run Full Workstream" with bounded-concurrency SSE streaming and session-level result caching.
+- QCard layout: severity pills, confidence bars, inline `[Source N]` badges, and source evidence cards.
+- Anti-hallucination guardrails: prompts hard-stop when no relevant info is found; citations are post-verified.
+
+### Proactive Deal Sweep
+- Iterates **every chunk** in the deal's collection (not top-K) so the model can find what nobody asked about — buried footnotes, related-party transactions, contingent liabilities, carve-out complications.
+- Findings come back as a severity-ranked feed (`[DEAL-BREAKER]` / `[MATERIAL]` / `[NOTEWORTHY]`) with linked citations.
+
+### Diligence Agent (Investigate)
+- Autonomous per-deal investigation. THOUGHT/ACTION JSON planner over scoped tools: `search_deal`, `search_document`, `list_documents`, `read_pages`, `flag_finding`, `finish`.
+- Streams plan → tool calls → findings → final memo token-by-token.
+- **History + persistence**: every run is saved to `investigations` / `investigation_followups`. Open a past run read-only with its original transcript, findings, and memo. Delete from the panel.
+- **Follow-up Q&A** grounded in memo + findings + evidence digest.
+- Document-scoped runs auto-prefix the goal with `Focus exclusively on the document "<filename>"`.
+
+### IC Report Export
+- Generate IC Report → configure (title + workstreams) → preview (rendered with styled tables and citation badges) → download `.docx`.
+- Word document includes title page, executive summary table, per-workstream Q&A, markdown-as-Word tables with delta coloring (green/red), and **footnoted** citations (source file, page, snippet) for every `[Source N]`.
+
+### Multi-tenancy & Auth
+- JWT login/logout, default admin auto-provisioned on startup.
+- Admin and analyst roles. Analyst-mode UI hides admin actions.
+- Per-deal access control — analysts only see deals they've been granted access to.
+- Conversation history persisted server-side, browsable from the deal workspace.
+
+### Theming & UX
+- Dark mode end-to-end via `ThemeProvider` + Tailwind `darkMode: "class"`. Persisted in localStorage.
+- DM Sans / DM Mono via `next/font`.
+- Slate dark surfaces (`#020617` / `#0f172a`) with `#1e293b` borders.
+
+### Document Viewing
+- Slide-over PDF preview at the exact cited page (`#page=N`).
+- Authenticated Excel previews with sheet tabs and HTML-table rendering.
+- Iframe-friendly auth via `?token=` query-param fallback.
 
 ## Tech Stack
 
 | Component | Technology |
 |-----------|-----------|
-| **LLM** | Gemini 2.0 Flash Lite (via Google AI Studio) |
-| **LLM Fallback** | Gemma 3 27B (automatic on rate limit) |
+| **LLM (primary)** | Gemini 3.1 Flash Lite (preview) via Google AI Studio |
+| **LLM (fallback)** | Gemini 3 Flash (preview) — automatic on rate limit |
+| **Embeddings** | `gemini-embedding-001`, 3072-dim |
 | **Orchestration** | LangGraph (manager/worker state graph) |
-| **Relational DB** | SQLite (via SQLAlchemy) |
-| **Vector DB** | ChromaDB (embedded, collection-per-deal isolation) |
-| **Embeddings** | Gemini Embedding 001 (via Google AI Studio) |
-| **PDF Parsing** | Docling (local, table-aware, high-quality extraction) |
+| **Agent loop** | THOUGHT/ACTION JSON planner with scoped tools |
+| **Relational DB** | SQLite via SQLAlchemy |
+| **Vector DB** | ChromaDB (embedded, collection-per-deal) |
+| **PDF Parsing** | Docling (subprocess, configurable CPU/threads/timeout) |
 | **Excel Parsing** | openpyxl |
+| **DOCX Generation** | python-docx with custom XML for footnotes |
 | **Backend** | FastAPI (Python 3.12) |
-| **Authentication**| JWT (python-jose, passlib) |
-| **Frontend** | Next.js 14, React 18, TailwindCSS |
+| **Auth** | JWT (python-jose, passlib/bcrypt) |
+| **Frontend** | Next.js 14, React 18, TailwindCSS, DM Sans |
 | **Streaming** | Server-Sent Events (SSE) |
 
 ---
@@ -118,9 +162,8 @@ Private equity analysts spend hundreds of hours during due diligence manually re
 ### Prerequisites
 
 - **Docker Desktop** with at least **8 GB memory** allocated
-  - Docker Desktop > Settings > Resources > Memory > 8 GB+
-- **Git** (to clone the repo)
-- **Google AI Studio API key** — get one free at [aistudio.google.com](https://aistudio.google.com)
+- **Git**
+- **Google AI Studio API key** — free at [aistudio.google.com](https://aistudio.google.com)
 
 ### Step 1: Configure your API key
 
@@ -143,60 +186,46 @@ DOCLING_TIMEOUT_SECONDS=180
 ### Step 2: Start the services
 
 ```bash
-cd vyntic
-
 docker compose up --build -d
 ```
 
-This starts 2 containers:
-- `backend` — FastAPI API (port 8000)
-- `frontend` — Next.js UI (port 3100)
+This starts three containers:
+- `backend` — FastAPI API on **port 8000**
+- `frontend` — Production Next build (`build && start`) on **port 3100**
+- `frontend-dev` — `next dev` with hot reload on **port 3200**
 
-### Step 3: Verify everything is running
+### Step 3: Verify
 
 ```bash
-# Check backend
 curl http://localhost:8000/health
 # -> {"status":"ok","service":"vyntic"}
 ```
 
-### Step 4: Open the UI and Log in
+### Step 4: Log in
 
-Open **http://localhost:3100** in your browser. 
+Open **http://localhost:3100** and authenticate with the auto-provisioned admin:
 
-The application is secured. You will be redirected to the login page.
-Use the default administrator credentials auto-provisioned during startup:
 - **Email:** `admin@vyntic.com`
 - **Password:** `admin`
 
-Once logged in, the dashboard will load. Three sample deals (Acme Cloud, Pinnacle Healthcare, Summit Manufacturing) auto-load with documents on startup and are automatically assigned to this default admin account in the database.
+Three sample deals (Acme Cloud, Pinnacle Healthcare, Summit Manufacturing) seed automatically with documents and are bound to the admin account.
+
+### Restarting after frontend changes
+
+Port 3100 runs a production build, so changes require a rebuild:
+
+```bash
+docker compose restart frontend         # rebuilds via start-prod.sh
+docker compose up -d --build frontend   # full image rebuild if needed
+```
+
+Port 3200 hot-reloads — use it during active development.
 
 ---
 
 ## Testing
 
-### E2E Test (full pipeline)
-
-The E2E test creates deals, uploads documents, runs queries, and verifies zero context leak across the full pipeline.
-
-```bash
-cd sample_data
-
-# Generate sample documents (first time)
-python3 generate_samples.py
-
-# Run the full E2E test
-python3 test_e2e.py
-
-# Options
-python3 test_e2e.py --skip-upload    # Skip document upload (if already done)
-python3 test_e2e.py --skip-matrix    # Skip matrix comparison (faster)
-python3 test_e2e.py --base-url http://localhost:8000  # Custom URL
-```
-
-### Backend Unit Tests (pytest)
-
-Tests cover the streaming SSE endpoint, deal CRUD with stage/tags, multi-file batch upload, and error handling.
+### Backend (pytest)
 
 ```bash
 cd backend
@@ -207,48 +236,38 @@ pytest -v
 | Test File | What It Covers |
 |-----------|---------------|
 | `tests/test_streaming.py` | SSE event format, token streaming, multi-deal interleaving, error events |
-| `tests/test_deal_management.py` | Deal stage/tag PATCH, batch upload, doc count, partial failure, CRUD regression |
+| `tests/test_deal_management.py` | Deal stage/tag PATCH, batch upload, doc count, partial failure, CRUD |
+| `tests/test_parser_docling_safety.py` | Docling subprocess isolation and timeout behavior |
 
-### Frontend Unit Tests (Jest)
-
-Tests cover query template validation, CSV export logic, and SSE event parsing.
+### Frontend (Jest)
 
 ```bash
 cd frontend
 npm test
 ```
 
-| Test File | What It Covers |
-|-----------|---------------|
-| `src/__tests__/streamingApi.test.ts` | SSE parsing, interleaved events, malformed JSON handling |
-| `src/__tests__/queryTemplates.test.ts` | Template structure, uniqueness, required categories |
-| `src/__tests__/exportMatrix.test.ts` | Markdown stripping, CSV escaping, matrix row generation |
+Covers SSE parsing, query template structure, and CSV export logic.
+
+### End-to-End
+
+```bash
+cd sample_data
+python3 generate_samples.py    # first time only
+python3 test_e2e.py            # creates deals, uploads, queries, asserts isolation
+```
 
 ---
 
-## Manual Testing via UI
+## Manual Smoke Test
 
-### 1. Create a deal
-
-1. Open http://localhost:3100/landing
-2. Click **"+ Add Deal"** in the top-right
-3. Fill in Deal ID, Name, and Description
-4. Click **Create**
-
-### 2. Upload documents
-
-Drag PDF/Excel files directly onto any deal card in the sidebar, or click **"Drop files or click to upload"** to browse. Multiple files are supported in a single drop.
-
-### 3. Ask questions
-
-- Type a question in the **"Ask away..."** input and press Enter
-- Or click the template icon (list button) to pick from pre-built PE questions
-- Results stream in token-by-token across all selected deals
-- Click blue citation badges to see the source document and page
-
-### 4. Export results
-
-Click **"Export CSV"** above the matrix to download results as a spreadsheet.
+1. **Log in** — http://localhost:3100, admin credentials above.
+2. **Pick a deal** — Acme Cloud is pre-seeded with a CIM, financials, financial DD, legal DD, operational DD, and HR DD.
+3. **Document Matrix** — type a prompt in the "Ask a question" column, watch each document stream a cited answer. Add a second and third prompt — columns hold their width and the table scrolls horizontally.
+4. **Open the Diligence Workspace** — click a deal name (or use the inline Analyze action).
+5. **Run a workstream** — Financial → "Run Full Workstream" → watch all questions stream in parallel.
+6. **Run a Proactive Scan** — surfaces risks no one asked about, ranked by severity.
+7. **Investigate** — open the Agent tab, give it a goal, watch THOUGHT/ACTION trace, then a final memo.
+8. **Generate IC Report** — pick workstreams, preview, download `.docx`.
 
 ---
 
@@ -256,46 +275,60 @@ Click **"Export CSV"** above the matrix to download results as a spreadsheet.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/auth/login` | Authenticate and receive JWT |
-| POST | `/auth/register` | Create a new user account |
-| GET | `/auth/me` | Get current user profile |
+| POST | `/auth/login` | Authenticate, receive JWT |
+| POST | `/auth/register` | Create account |
+| GET | `/auth/me` | Current user profile |
 | GET | `/health` | Health check |
-| POST | `/deals` | Create a new deal |
-| GET | `/deals` | List all deals |
-| GET | `/deals/{deal_id}` | Get a single deal |
-| PATCH | `/deals/{deal_id}` | Update deal stage/tags |
-| DELETE | `/deals/{deal_id}` | Delete a deal and its vectors |
-| POST | `/deals/{deal_id}/documents` | Upload and index a document |
-| POST | `/deals/{deal_id}/documents/batch` | Upload multiple documents at once |
-| GET | `/deals/{deal_id}/documents` | List documents for a deal |
-| DELETE | `/deals/{deal_id}/documents/{doc_id}` | Delete a document and its vectors |
-| POST | `/deals/{deal_id}/query` | Query a single deal (RAG) |
-| POST | `/matrix/compare` | Compare multiple deals (batch) |
-| POST | `/matrix/compare/stream` | Compare deals with SSE streaming |
-| GET | `/deals/metadata/stages` | List valid pipeline stages |
-| GET | `/deals/metadata/tags` | List suggested sector tags |
+| POST | `/deals` | Create deal |
+| GET | `/deals` | List deals |
+| GET | `/deals/{id}` | Get deal |
+| PATCH | `/deals/{id}` | Update stage/tags |
+| DELETE | `/deals/{id}` | Delete deal + vectors |
+| POST | `/deals/{id}/documents` | Upload + index a document |
+| POST | `/deals/{id}/documents/batch` | Upload multiple |
+| GET | `/deals/{id}/documents` | List documents |
+| DELETE | `/deals/{id}/documents/{doc_id}` | Delete a document + vectors |
+| GET | `/deals/{id}/documents/{filename}/view` | Stream original file (Authorization header **or** `?token=` query) |
+| POST | `/deals/{id}/query` | RAG query against single deal |
+| POST | `/deals/{id}/query/document/{doc_id}` | RAG query against a single document (per-doc isolation) |
+| POST | `/matrix/compare` | Multi-deal comparison (batch) |
+| POST | `/matrix/compare/stream` | Multi-deal comparison (SSE) |
+| POST | `/workstream/run` | Run a DD workstream (SSE) |
+| POST | `/workstream/question` | Single workstream question (SSE) |
+| POST | `/sweep/run` | Proactive Deal Sweep (SSE) |
+| POST | `/agent/investigate` | Diligence Agent run (SSE: THOUGHT/ACTION/MEMO) |
+| GET | `/agent/investigations` | List saved investigations |
+| GET | `/agent/investigations/{id}` | Load a saved investigation |
+| DELETE | `/agent/investigations/{id}` | Delete investigation |
+| POST | `/agent/investigations/{id}/followup` | Follow-up Q&A grounded in memo |
+| POST | `/report/generate` | Generate IC Report `.docx` |
+| GET | `/conversation/{deal_id}` | Conversation history |
 
-## Sample Queries to Try
+---
+
+## Sample Queries
 
 | Query | What it tests |
 |-------|--------------|
 | "What is the EBITDA and EBITDA margin?" | Table extraction, financial metrics |
-| "What are the change of control provisions?" | Long-form text comprehension |
-| "What is the customer concentration risk?" | Risk analysis across document sections |
+| "What are the change-of-control provisions?" | Long-form text comprehension |
+| "What is the customer concentration risk?" | Risk analysis across sections |
 | "What is the revenue growth trajectory?" | Multi-year trend analysis |
-| "What are the key investment highlights?" | Thesis-level synthesis |
+| "Find any related-party transactions or unusual clauses" | Best run via Proactive Sweep |
 
-## Roadmap
-
-See [ROADMAP.md](./ROADMAP.md) for the full product roadmap, including completed features, upcoming phases, and prioritization rationale.
+---
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Backend won't start | Check Docker memory is >= 8 GB |
-| "invalid argument" from Gemini | Verify your `GEMINI_API_KEY` in `.env` is correct |
-| Rate limit errors | The app auto-falls back to Gemma 3 27B. Wait a minute and retry |
-| Empty query results | Ensure documents were uploaded first (check deal doc count) |
-| Port 8000 in use | Run `lsof -i :8000 -t | xargs kill` then retry |
-| Matrix query timeout | LLM inference can take 60+ seconds. The proxy timeout is set to 5 minutes |
+| Backend won't start | Docker memory ≥ 8 GB |
+| `invalid argument` from Gemini | Check `GEMINI_API_KEY` in `.env` |
+| Rate-limit errors | Auto-falls back to `gemini-3-flash-preview`; wait and retry |
+| Empty query results | Confirm documents uploaded (deal doc count > 0) |
+| Port 8000/3100/3200 in use | `lsof -i :PORT -t \| xargs kill` |
+| Frontend serves stale JS on 3100 | `docker compose restart frontend` (re-runs production build) or `docker compose up -d --build frontend` |
+| `next dev` fails to load chunks on 3200 | `docker compose up -d --build --force-recreate --renew-anon-volumes frontend-dev` |
+| ChromaDB dimension mismatch | Ensure `EMBEDDING_DIM=3072` matches `gemini-embedding-001` output |
+| Docling crashes on macOS | Keep `DOCLING_SUBPROCESS_ENABLED=true`, `DOCLING_DEVICE=cpu` |
+| PDF preview shows "Not authenticated" | Hard-refresh; iframe uses `?token=` query — confirm token isn't expired |
