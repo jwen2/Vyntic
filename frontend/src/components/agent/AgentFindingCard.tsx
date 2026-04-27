@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ddTheme } from "@/components/dd/types";
+import { ACCENT, ddTheme } from "@/components/dd/types";
 import { useTheme } from "@/components/ThemeProvider";
 import type { AgentLocalCitation, AgentLocalFinding, AgentTask } from "./types";
 import { SEV } from "./types";
@@ -12,6 +12,7 @@ interface Props {
   tasks: AgentTask[];
   activeCitationId: string | null;
   onCitation: (citation: AgentLocalCitation) => void;
+  focused?: boolean;
 }
 
 function SevBadge({ sev }: { sev: AgentLocalFinding["sev"] }) {
@@ -38,7 +39,7 @@ function SevBadge({ sev }: { sev: AgentLocalFinding["sev"] }) {
   );
 }
 
-export default function AgentFindingCard({ finding, index, tasks, activeCitationId, onCitation }: Props) {
+export default function AgentFindingCard({ finding, index, tasks, activeCitationId, onCitation, focused = false }: Props) {
   const { theme } = useTheme();
   const c = ddTheme(theme);
   const isDark = theme === "dark";
@@ -50,10 +51,12 @@ export default function AgentFindingCard({ finding, index, tasks, activeCitation
     <div className="fade-up" style={{
       animationDelay: `${index * 0.05}s`,
       background: c.surface,
-      border: `1px solid ${isDark ? `${s.dot}44` : s.border}`,
+      border: `1px solid ${focused ? ACCENT : isDark ? `${s.dot}44` : s.border}`,
+      boxShadow: focused ? `0 0 0 3px ${ACCENT}22` : "none",
       borderRadius: 10,
       overflow: "hidden",
       borderLeft: `3px solid ${s.dot}`,
+      transition: "border-color .2s, box-shadow .2s",
     }}>
       <div
         onClick={() => setOpen((value) => !value)}

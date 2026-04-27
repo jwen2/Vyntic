@@ -401,6 +401,31 @@ export const DD_WORKSTREAMS: Workstream[] = [
       "AI-powered sweep of ALL documents to find hidden risks, buried clauses, and items you might miss",
     templates: [
       {
+        label: "Deal snapshot",
+        query:
+          "Create a concise DEAL SNAPSHOT from the full VDR. Use this exact field format with one field per line where evidence exists, and write \"Not found\" when the VDR does not support the field: Target: [company name]\nCompany: [one-sentence description]\nSector: [sector/subsector]\nBusiness model: [how the company makes money]\nGeography: [HQ and operating footprint]\nSeller: [seller/sponsor/advisor if disclosed]\nStage: [process stage or document date context]. Include [Source N] citations for the most important fields.",
+      },
+      {
+        label: "Proposed transaction",
+        query:
+          "Extract WHAT IS BEING PROPOSED in this deal from the full VDR. Use this exact field format with one field per line where evidence exists, and write \"Not found\" when the VDR does not support the field: Transaction type: [platform acquisition/add-on/minority investment/recap/carve-out/etc.]\nPurchase price: [amount if disclosed]\nEnterprise value: [amount if disclosed]\nOwnership: [stake or control position]\nValuation: [EV/Revenue, EV/EBITDA, ARR multiple, or other disclosed multiple]\nFinancing: [debt/equity assumptions if disclosed]\nTiming: [LOI, exclusivity, bid process, close timing, or key dates]. Include [Source N] citations for the most important fields.",
+      },
+      {
+        label: "Key financial highlights",
+        query:
+          "Extract ALL KEY FINANCIAL DATA from the VDR that a PE analyst would want in a first-pass deal brief. If an income statement, QoE table, financial model, or monthly/quarterly financials are available, present the financials in Yahoo Finance style markdown tables: first an \"Annual Financials\" table with rows for Revenue, Gross Profit/Gross Margin, EBITDA, Adjusted EBITDA, EBITDA Margin, Net Income if available, Capex, Free Cash Flow, Net Debt/Cash, and other relevant metrics; then a \"Quarterly Financials\" table for available quarters using the same row style. Columns should be years or quarters, newest period on the left where possible. Include [Source N] citations in the relevant table cells or row labels. After the tables, add a compact \"Other Key Metrics\" table for ARR/MRR, growth, retention/churn, customer concentration, working capital, and valuation multiples. Do not invent unavailable metrics; write \"Not found\" in table cells when a critical metric is missing.",
+      },
+      {
+        label: "Investment thesis",
+        query:
+          "Synthesize the INVESTMENT THESIS for this deal grounded only in the VDR. Use these exact section headings on their own lines, each followed by 3-5 short bullet points starting with \"- \". Keep each bullet to one sentence and include [Source N] citations where the VDR supports the claim:\nThesis: [why this is an attractive acquisition — market position, growth, durable economics]\nValue creation levers: [pricing, cost takeout, M&A roll-up, ops improvements, channel/geo expansion]\nExit considerations: [likely exit paths, comparable multiples or buyer universe, time-to-exit assumptions]\nRisks to thesis: [key risks that could break the thesis — concentration, regulatory, key-person, cyclicality]\nIf a section has no support in the VDR, write a single bullet \"- Not found\" under that heading. Do not invent claims.",
+      },
+      {
+        label: "Analyst next actions",
+        query:
+          "Based on the full VDR, propose the top 5 NEXT DILIGENCE ACTIONS for a PE analyst. Focus on practical asks: documents to request, numbers to reconcile, customer/management questions to ask, legal provisions to review, and model sensitivities to run. Each action should be one sentence and cite the source or gap that motivated it where possible using [Source N].",
+      },
+      {
         label: "Hidden financial risks",
         query:
           "Scan these deal documents for HIDDEN FINANCIAL RISKS that a deal team might overlook. Focus on: unusual EBITDA adjustments or add-backs that inflate profitability, one-time items presented as recurring, aggressive revenue recognition, off-balance-sheet obligations, related-party transactions, working capital anomalies, or any financial metrics qualified by footnotes or caveats that weaken the headline numbers. List each finding with its severity.",
