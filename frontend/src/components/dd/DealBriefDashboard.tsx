@@ -992,7 +992,6 @@ function FindingsPanel({
                 <span style={{ fontSize: 10, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{finding.src}</span>
               </div>
               <div style={{ fontSize: 12, fontWeight: 650, color: c.t1, lineHeight: 1.35 }}>{finding.title}</div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: ACCENT, marginTop: 7 }}>Open analysis</div>
             </button>
           ))}
         </div>
