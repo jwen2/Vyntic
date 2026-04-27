@@ -436,11 +436,14 @@ export default function DealWorkspacePage() {
             </div>
           ) : (
             <WorkstreamListView
+              dealId={dealId}
               workstreams={DD_WORKSTREAMS}
               resultCache={resultCache}
               findings={findings}
               theme={theme}
               onSelectFinding={onSelectFinding}
+              onCit={handleCit}
+              onCacheUpdate={updateCacheForWorkstream}
               onSelect={(workstreamId) => {
                 setSelectedWorkstream(workstreamId);
                 setSelectedQuestion(null);

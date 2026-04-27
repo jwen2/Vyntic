@@ -87,6 +87,7 @@ export default function DDWorkstreamView({
             model: event.model,
             fallback: event.fallback,
             duration_ms: event.duration_ms,
+            completed_at: Date.now(),
           },
         }));
         setExpanded((s) => {

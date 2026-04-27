@@ -88,6 +88,7 @@ export interface QuestionResult {
   model?: string;
   fallback?: boolean;
   duration_ms?: number;
+  completed_at?: number;
 }
 
 interface Props {

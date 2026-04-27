@@ -1,31 +1,69 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Workstream } from "@/lib/queryTemplates";
 import type { QuestionResult } from "@/components/WorkstreamPanel";
+import type { Citation, WorkstreamEvent } from "@/lib/api";
+import { workstreamStream } from "@/lib/api";
 import type { Finding, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 
 type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
+type OverrideStore = Record<string, Record<string, string>>;
+
+const OVERRIDE_KEY_PREFIX = "vyntic_brief_overrides_";
+const DIFF_KEY_PREFIX = "vyntic_brief_diff_";
+
+interface FieldDiff {
+  panel: "snapshot" | "transaction";
+  panelLabel: string;
+  label: string;
+  before: string;
+  after: string;
+  kind: "changed" | "added" | "removed";
+}
+
+interface BriefDiffSnapshot {
+  changes: FieldDiff[];
+  at: number;
+  previousAt?: number;
+}
 
 interface Props {
+  dealId: string;
   workstreams: Workstream[];
   resultCache: WorkstreamCache;
   findings: Finding[];
   theme: "light" | "dark";
   onOpenProactiveScan: () => void;
   onSelectFinding: (finding: Finding) => void;
+  onCit?: (citation: Citation, id: string) => void;
+  onCacheUpdate?: (workstreamId: string, results: Record<string, QuestionResult>) => void;
 }
 
 interface BriefField {
   label: string;
   value: string;
+  sourceIdx?: number;
+  override?: boolean;
 }
 
 interface Metric {
   label: string;
   value: string;
   context: string;
+}
+
+interface ThesisBullet {
+  text: string;
+  sourceIdx?: number;
+}
+
+interface ThesisSections {
+  thesis: ThesisBullet[];
+  levers: ThesisBullet[];
+  exit: ThesisBullet[];
+  risks: ThesisBullet[];
 }
 
 interface FinancialTable {
@@ -50,6 +88,7 @@ interface ChartSeries {
 const DEAL_SNAPSHOT_LABEL = "Deal snapshot";
 const PROPOSED_TRANSACTION_LABEL = "Proposed transaction";
 const FINANCIAL_HIGHLIGHTS_LABEL = "Key financial highlights";
+const INVESTMENT_THESIS_LABEL = "Investment thesis";
 const NEXT_ACTIONS_LABEL = "Analyst next actions";
 
 const SNAPSHOT_FIELDS = [
@@ -95,12 +134,15 @@ const METRIC_KEYWORDS = [
 const VALUE_PATTERN = /(?:[$€£]\s?\d[\d,.]*(?:\s?(?:m|mm|bn|k))?|\d+(?:\.\d+)?\s?%|\d+(?:\.\d+)?x)/gi;
 
 export default function DealBriefDashboard({
+  dealId,
   workstreams,
   resultCache,
   findings,
   theme,
   onOpenProactiveScan,
   onSelectFinding,
+  onCit,
+  onCacheUpdate,
 }: Props) {
   const c = ddTheme(theme);
   const scanWorkstream = workstreams.find((w) => w.id === "proactive_scan");
@@ -111,20 +153,207 @@ export default function DealBriefDashboard({
   const scanStarted = Object.values(scanResults).some((result) => result.status !== "pending");
   const isLoading = Object.values(scanResults).some((result) => result.status === "loading");
 
+  const [overrides, setOverrides] = useState<OverrideStore>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(OVERRIDE_KEY_PREFIX + dealId);
+      setOverrides(raw ? JSON.parse(raw) : {});
+    } catch {
+      setOverrides({});
+    }
+  }, [dealId]);
+
+  const setOverride = useCallback(
+    (panelKey: string, label: string, value: string | null) => {
+      setOverrides((prev) => {
+        const panel = { ...(prev[panelKey] || {}) };
+        const trimmed = value?.trim() ?? "";
+        if (!trimmed) {
+          delete panel[label];
+        } else {
+          panel[label] = trimmed;
+        }
+        const next: OverrideStore = { ...prev };
+        if (Object.keys(panel).length > 0) next[panelKey] = panel;
+        else delete next[panelKey];
+        try {
+          if (typeof window !== "undefined") {
+            if (Object.keys(next).length > 0) localStorage.setItem(OVERRIDE_KEY_PREFIX + dealId, JSON.stringify(next));
+            else localStorage.removeItem(OVERRIDE_KEY_PREFIX + dealId);
+          }
+        } catch {}
+        return next;
+      });
+    },
+    [dealId]
+  );
+
   const snapshotResult = resultByLabel(scanWorkstream, scanResults, DEAL_SNAPSHOT_LABEL);
   const transactionResult = resultByLabel(scanWorkstream, scanResults, PROPOSED_TRANSACTION_LABEL);
   const financialResult = resultByLabel(scanWorkstream, scanResults, FINANCIAL_HIGHLIGHTS_LABEL);
+  const thesisResult = resultByLabel(scanWorkstream, scanResults, INVESTMENT_THESIS_LABEL);
   const nextActionsResult = resultByLabel(scanWorkstream, scanResults, NEXT_ACTIONS_LABEL);
 
-  const snapshotFields = extractFields(snapshotResult?.answer, SNAPSHOT_FIELDS);
-  const transactionFields = extractFields(transactionResult?.answer, TRANSACTION_FIELDS);
+  const snapshotFields = mergeOverrides(
+    extractFields(snapshotResult?.answer, SNAPSHOT_FIELDS),
+    overrides.snapshot,
+    SNAPSHOT_FIELDS
+  );
+  const transactionFields = mergeOverrides(
+    extractFields(transactionResult?.answer, TRANSACTION_FIELDS),
+    overrides.transaction,
+    TRANSACTION_FIELDS
+  );
+
+  const lastScanAt = useMemo(() => {
+    let max = 0;
+    for (const result of Object.values(scanResults)) {
+      if (result.status === "complete" && result.completed_at && result.completed_at > max) {
+        max = result.completed_at;
+      }
+    }
+    return max || null;
+  }, [scanResults]);
+
+  const [rerunning, setRerunning] = useState(false);
+  const [diff, setDiff] = useState<BriefDiffSnapshot | null>(null);
+  const [diffOpen, setDiffOpen] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
+  const beforeSnapshotRef = useRef<{
+    snapshot: BriefField[];
+    transaction: BriefField[];
+    previousAt?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(DIFF_KEY_PREFIX + dealId);
+      setDiff(raw ? (JSON.parse(raw) as BriefDiffSnapshot) : null);
+    } catch {
+      setDiff(null);
+    }
+    setDiffOpen(false);
+  }, [dealId]);
+
+  useEffect(() => {
+    return () => {
+      controllerRef.current?.abort();
+    };
+  }, []);
+
+  const persistDiff = useCallback(
+    (next: BriefDiffSnapshot | null) => {
+      setDiff(next);
+      if (typeof window === "undefined") return;
+      try {
+        if (next) localStorage.setItem(DIFF_KEY_PREFIX + dealId, JSON.stringify(next));
+        else localStorage.removeItem(DIFF_KEY_PREFIX + dealId);
+      } catch {}
+    },
+    [dealId]
+  );
+
+  const handleRerun = useCallback(() => {
+    if (rerunning || !scanWorkstream || !onCacheUpdate) return;
+    const queries = scanWorkstream.templates.map((t) => t.query);
+    if (queries.length === 0) return;
+
+    beforeSnapshotRef.current = {
+      snapshot: snapshotFields.map((f) => ({ ...f })),
+      transaction: transactionFields.map((f) => ({ ...f })),
+      previousAt: lastScanAt ?? undefined,
+    };
+
+    let working: Record<string, QuestionResult> = {};
+    for (const q of queries) {
+      working[q] = { answer: "", citations: [], status: "loading" };
+    }
+    onCacheUpdate("proactive_scan", working);
+    setRerunning(true);
+
+    const handleEvent = (event: WorkstreamEvent) => {
+      const q = event.question;
+      if (event.type === "token") {
+        const prev = working[q] || { answer: "", citations: [], status: "loading" };
+        working = {
+          ...working,
+          [q]: { ...prev, answer: prev.answer + event.token, status: "loading" },
+        };
+      } else if (event.type === "done") {
+        working = {
+          ...working,
+          [q]: {
+            answer: event.answer,
+            citations: event.citations,
+            status: "complete",
+            model: event.model,
+            fallback: event.fallback,
+            duration_ms: event.duration_ms,
+            completed_at: Date.now(),
+          },
+        };
+      } else if (event.type === "error") {
+        working = { ...working, [q]: { answer: event.error, citations: [], status: "error" } };
+      }
+      onCacheUpdate("proactive_scan", working);
+    };
+
+    controllerRef.current?.abort();
+    controllerRef.current = workstreamStream(
+      dealId,
+      "proactive_scan",
+      queries,
+      handleEvent,
+      () => {
+        setRerunning(false);
+        const before = beforeSnapshotRef.current;
+        if (!before) return;
+        const newSnapshotFields = mergeOverrides(
+          extractFields(working[scanWorkstream.templates.find((t) => t.label === DEAL_SNAPSHOT_LABEL)?.query || ""]?.answer, SNAPSHOT_FIELDS),
+          overrides.snapshot,
+          SNAPSHOT_FIELDS
+        );
+        const newTransactionFields = mergeOverrides(
+          extractFields(working[scanWorkstream.templates.find((t) => t.label === PROPOSED_TRANSACTION_LABEL)?.query || ""]?.answer, TRANSACTION_FIELDS),
+          overrides.transaction,
+          TRANSACTION_FIELDS
+        );
+        const changes = [
+          ...diffPanel("snapshot", "Deal Snapshot", before.snapshot, newSnapshotFields),
+          ...diffPanel("transaction", "Proposed Transaction", before.transaction, newTransactionFields),
+        ];
+        const next: BriefDiffSnapshot = { changes, at: Date.now(), previousAt: before.previousAt };
+        persistDiff(next);
+        if (changes.length > 0) setDiffOpen(true);
+      },
+      (err) => {
+        console.error("brief rerun error:", err);
+        setRerunning(false);
+      }
+    );
+  }, [dealId, lastScanAt, onCacheUpdate, overrides.snapshot, overrides.transaction, persistDiff, rerunning, scanWorkstream, snapshotFields, transactionFields]);
+
+  const dismissDiff = useCallback(() => {
+    persistDiff(null);
+    setDiffOpen(false);
+  }, [persistDiff]);
   const metrics = extractMetrics(financialResult?.answer);
   const financialTables = extractFinancialTables(financialResult?.answer);
+  const thesisSections = extractThesisSections(thesisResult?.answer);
   const nextActions = extractActionItems(nextActionsResult?.answer, findings);
   const topFindings = findings.slice().sort(compareFindingSeverity).slice(0, 4);
   const gapCount = findings.filter(isGapFinding).length;
   const inconsistencyCount = findings.filter(isInconsistencyFinding).length;
-  const sourceCount = countSources([snapshotResult, transactionResult, financialResult, nextActionsResult]);
+  const sourceCount = countSources([snapshotResult, transactionResult, financialResult, thesisResult, nextActionsResult]);
+
+  const handleCit = (sourceIdx: number | undefined, citations: (Citation | null)[], idPrefix: string) => {
+    if (!onCit || !sourceIdx) return;
+    const citation = citations[sourceIdx - 1];
+    if (citation) onCit(citation, `${idPrefix}-src-${sourceIdx}`);
+  };
 
   return (
     <section
@@ -146,9 +375,18 @@ export default function DealBriefDashboard({
         }}
       >
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="flex items-center" style={{ gap: 8, marginBottom: 4 }}>
+          <div className="flex items-center" style={{ gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: c.t1 }}>Deal Brief</span>
-            <StatusPill completed={completed} total={total} loading={isLoading} theme={theme} />
+            <StatusPill completed={completed} total={total} loading={isLoading || rerunning} theme={theme} />
+            {lastScanAt && <FreshnessPill at={lastScanAt} theme={theme} />}
+            {diff && diff.changes.length > 0 && (
+              <DiffPill
+                count={diff.changes.length}
+                theme={theme}
+                onClick={() => setDiffOpen((v) => !v)}
+                active={diffOpen}
+              />
+            )}
           </div>
           <div style={{ fontSize: 12, color: c.t2 }}>
             Snapshot, proposed transaction, financial highlights, findings, and next diligence actions
@@ -156,6 +394,25 @@ export default function DealBriefDashboard({
         </div>
         <div className="flex items-center" style={{ gap: 8, flexShrink: 0 }}>
           {sourceCount > 0 && <SourcePill count={sourceCount} theme={theme} />}
+          {scanStarted && onCacheUpdate && (
+            <button
+              onClick={handleRerun}
+              disabled={rerunning}
+              title="Re-run the proactive scan"
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: rerunning ? c.t3 : c.t1,
+                background: theme === "dark" ? "#0f172a" : "#f8fafc",
+                border: `1px solid ${c.border}`,
+                borderRadius: 6,
+                padding: "6px 10px",
+                cursor: rerunning ? "default" : "pointer",
+              }}
+            >
+              {rerunning ? "Re-running…" : "↻ Re-run"}
+            </button>
+          )}
           <button
             onClick={onOpenProactiveScan}
             style={{
@@ -174,18 +431,51 @@ export default function DealBriefDashboard({
         </div>
       </div>
 
+      {diff && diffOpen && diff.changes.length > 0 && (
+        <DiffPanel diff={diff} theme={theme} onDismiss={dismissDiff} onClose={() => setDiffOpen(false)} />
+      )}
+
       <div style={{ padding: 18 }}>
         {!scanStarted ? (
           <EmptyBrief theme={theme} onOpenProactiveScan={onOpenProactiveScan} />
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginBottom: 12 }}>
-              <BriefPanel title="What Is The Deal?" fields={snapshotFields} fallback={snapshotResult?.answer} theme={theme} />
-              <BriefPanel title="What Is Being Proposed?" fields={transactionFields} fallback={transactionResult?.answer} theme={theme} />
-              <FinancialPanel metrics={metrics} tables={financialTables} fallback={financialResult?.answer} theme={theme} />
+              <BriefPanel
+                title="What Is The Deal?"
+                panelKey="snapshot"
+                fields={snapshotFields}
+                fallback={snapshotResult?.answer}
+                theme={theme}
+                onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, snapshotResult?.citations || [], "snapshot") : undefined}
+                onOverride={setOverride}
+              />
+              <BriefPanel
+                title="What Is Being Proposed?"
+                panelKey="transaction"
+                fields={transactionFields}
+                fallback={transactionResult?.answer}
+                theme={theme}
+                onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, transactionResult?.citations || [], "transaction") : undefined}
+                onOverride={setOverride}
+              />
+              <FinancialPanel
+                metrics={metrics}
+                tables={financialTables}
+                fallback={financialResult?.answer}
+                theme={theme}
+              />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+            <ThesisPanel
+              sections={thesisSections}
+              fallback={thesisResult?.answer}
+              theme={theme}
+              onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, thesisResult?.citations || [], "thesis") : undefined}
+              loading={thesisResult?.status === "loading"}
+            />
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, marginTop: 12 }}>
               <FindingsPanel
                 findings={topFindings}
                 gapCount={gapCount}
@@ -193,7 +483,11 @@ export default function DealBriefDashboard({
                 theme={theme}
                 onSelectFinding={onSelectFinding}
               />
-              <ActionsPanel actions={nextActions} theme={theme} />
+              <ActionsPanel
+                actions={nextActions}
+                theme={theme}
+                onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, nextActionsResult?.citations || [], "actions") : undefined}
+              />
             </div>
           </>
         )}
@@ -242,14 +536,20 @@ function EmptyBrief({ theme, onOpenProactiveScan }: { theme: "light" | "dark"; o
 
 function BriefPanel({
   title,
+  panelKey,
   fields,
   fallback,
   theme,
+  onCit,
+  onOverride,
 }: {
   title: string;
+  panelKey: string;
   fields: BriefField[];
   fallback?: string;
   theme: "light" | "dark";
+  onCit?: (sourceIdx: number) => void;
+  onOverride?: (panelKey: string, label: string, value: string | null) => void;
 }) {
   const c = ddTheme(theme);
   const fallbackItems = fields.length === 0 ? extractBullets(fallback).slice(0, 4) : [];
@@ -260,10 +560,13 @@ function BriefPanel({
       {fields.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           {fields.slice(0, 6).map((field) => (
-            <div key={`${title}-${field.label}`} style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: "uppercase" }}>{field.label}</div>
-              <div style={{ fontSize: 12, color: c.t1, lineHeight: 1.35, overflowWrap: "anywhere" }}>{field.value}</div>
-            </div>
+            <EditableField
+              key={`${panelKey}-${field.label}`}
+              field={field}
+              theme={theme}
+              onCit={onCit}
+              onSave={onOverride ? (value) => onOverride(panelKey, field.label, value) : undefined}
+            />
           ))}
         </div>
       ) : fallbackItems.length > 0 ? (
@@ -272,6 +575,136 @@ function BriefPanel({
         <Placeholder text="Awaiting scan output" theme={theme} />
       )}
     </div>
+  );
+}
+
+function EditableField({
+  field,
+  theme,
+  onCit,
+  onSave,
+}: {
+  field: BriefField;
+  theme: "light" | "dark";
+  onCit?: (sourceIdx: number) => void;
+  onSave?: (value: string | null) => void;
+}) {
+  const c = ddTheme(theme);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(field.value);
+  const [hover, setHover] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setDraft(field.value);
+  }, [field.value, editing]);
+
+  const editable = Boolean(onSave);
+
+  const commit = () => {
+    if (!onSave) return;
+    setEditing(false);
+    const next = draft.trim();
+    if (next === field.value) return;
+    onSave(next || null);
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setDraft(field.value);
+  };
+
+  return (
+    <div
+      style={{ minWidth: 0 }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      <div className="flex items-center" style={{ gap: 6 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: "uppercase" }}>{field.label}</span>
+        {field.override && <OverrideBadge theme={theme} />}
+        <span style={{ flex: 1 }} />
+        {editable && !editing && (hover || field.override) && (
+          <button
+            onClick={() => setEditing(true)}
+            title="Edit value"
+            style={{ background: "transparent", border: "none", color: c.t3, cursor: "pointer", padding: 0, fontSize: 11, lineHeight: 1 }}
+          >
+            ✎
+          </button>
+        )}
+        {editable && !editing && hover && field.override && (
+          <button
+            onClick={() => onSave?.(null)}
+            title="Reset to scan output"
+            style={{ background: "transparent", border: "none", color: c.t3, cursor: "pointer", padding: 0, fontSize: 11, lineHeight: 1 }}
+          >
+            ↺
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            else if (e.key === "Escape") cancel();
+          }}
+          style={{
+            width: "100%",
+            marginTop: 2,
+            padding: "4px 6px",
+            fontSize: 12,
+            color: c.t1,
+            background: theme === "dark" ? "#020617" : "#ffffff",
+            border: `1px solid ${ACCENT}`,
+            borderRadius: 4,
+            outline: "none",
+            fontFamily: "inherit",
+          }}
+        />
+      ) : (
+        <div
+          onClick={editable ? () => setEditing(true) : undefined}
+          style={{
+            fontSize: 12,
+            color: field.override ? c.t1 : c.t1,
+            lineHeight: 1.35,
+            overflowWrap: "anywhere",
+            cursor: editable ? "text" : "default",
+            fontStyle: field.override ? "normal" : undefined,
+          }}
+        >
+          {field.value}
+          {field.sourceIdx !== undefined && (
+            <SourceChip index={field.sourceIdx} onClick={onCit ? () => onCit(field.sourceIdx!) : undefined} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OverrideBadge({ theme }: { theme: "light" | "dark" }) {
+  return (
+    <span
+      title="Analyst override"
+      style={{
+        fontSize: 9,
+        fontWeight: 700,
+        color: theme === "dark" ? "#fcd34d" : "#b45309",
+        background: theme === "dark" ? "#78350f55" : "#fef3c7",
+        border: `1px solid ${theme === "dark" ? "#92400e" : "#fde68a"}`,
+        borderRadius: 3,
+        padding: "0 4px",
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+      }}
+    >
+      ✎ override
+    </span>
   );
 }
 
@@ -290,16 +723,26 @@ function FinancialPanel({
   const fallbackItems = metrics.length === 0 ? extractBullets(fallback).slice(0, 4) : [];
   const annualTable = tables.find((table) => /annual|year|income statement/i.test(table.title)) || tables[0];
   const quarterlyTable = tables.find((table) => /quarter|q[1-4]/i.test(table.title));
-  const [view, setView] = useState<FinancialView>(annualTable ? "annual" : quarterlyTable ? "quarterly" : "metrics");
+  // Auto-pick the best view from whatever data is available right now; if the user
+  // clicks a tab we honor their choice via `userView`.
+  const autoView: FinancialView = annualTable
+    ? "annual"
+    : quarterlyTable
+    ? "quarterly"
+    : "metrics";
+  const [userView, setUserView] = useState<FinancialView | null>(null);
+  const view: FinancialView = userView ?? autoView;
   const activeTable = view === "quarterly" ? quarterlyTable : view === "annual" ? annualTable : null;
   const chartSeries = useMemo(() => (activeTable ? buildChartSeries(activeTable) : []), [activeTable]);
   const hasStructuredData = Boolean(activeTable) || metrics.length > 0 || fallbackItems.length > 0;
 
+  // If a user-selected tab loses its underlying data (e.g. table disappears after re-run),
+  // fall back to auto-pick.
   useEffect(() => {
-    if (view === "annual" && !annualTable) setView(quarterlyTable ? "quarterly" : "metrics");
-    if (view === "quarterly" && !quarterlyTable) setView(annualTable ? "annual" : "metrics");
-    if (view === "metrics" && metrics.length === 0 && fallbackItems.length === 0 && annualTable) setView("annual");
-  }, [annualTable, fallbackItems.length, metrics.length, quarterlyTable, view]);
+    if (userView === "annual" && !annualTable) setUserView(null);
+    if (userView === "quarterly" && !quarterlyTable) setUserView(null);
+    if (userView === "metrics" && metrics.length === 0 && fallbackItems.length === 0) setUserView(null);
+  }, [annualTable, fallbackItems.length, metrics.length, quarterlyTable, userView]);
 
   return (
     <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#0f172a" : "#f8fafc", minHeight: 168 }}>
@@ -313,7 +756,7 @@ function FinancialPanel({
             { id: "metrics", label: "Metrics", disabled: metrics.length === 0 && fallbackItems.length === 0 },
           ]}
           value={view}
-          onChange={setView}
+          onChange={setUserView}
           theme={theme}
         />
       </div>
@@ -560,7 +1003,136 @@ function FindingsPanel({
   );
 }
 
-function ActionsPanel({ actions, theme }: { actions: string[]; theme: "light" | "dark" }) {
+function ThesisPanel({
+  sections,
+  fallback,
+  theme,
+  onCit,
+  loading,
+}: {
+  sections: ThesisSections;
+  fallback?: string;
+  theme: "light" | "dark";
+  onCit?: (sourceIdx: number) => void;
+  loading: boolean;
+}) {
+  const c = ddTheme(theme);
+  const blocks: Array<{ id: keyof ThesisSections; label: string; accent: string; bullets: ThesisBullet[] }> = [
+    { id: "thesis", label: "Thesis", accent: ACCENT, bullets: sections.thesis },
+    { id: "levers", label: "Value Creation Levers", accent: "#16a34a", bullets: sections.levers },
+    { id: "exit", label: "Exit Considerations", accent: "#a855f7", bullets: sections.exit },
+    { id: "risks", label: "Risks To Thesis", accent: "#f97316", bullets: sections.risks },
+  ];
+  const hasAny = blocks.some((b) => b.bullets.length > 0);
+  const fallbackBullets: ThesisBullet[] = hasAny ? [] : extractBulletsWithSources(fallback).slice(0, 6);
+
+  return (
+    <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
+      <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: c.t1 }}>Investment Thesis</div>
+        {loading && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6" }}>Synthesizing…</span>
+        )}
+      </div>
+      {hasAny ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+          {blocks.map((block) => (
+            <ThesisColumn key={block.id} label={block.label} accent={block.accent} bullets={block.bullets} theme={theme} onCit={onCit} />
+          ))}
+        </div>
+      ) : fallbackBullets.length > 0 ? (
+        <ThesisColumn label="Synthesis" accent={ACCENT} bullets={fallbackBullets} theme={theme} onCit={onCit} />
+      ) : (
+        <Placeholder text="Thesis synthesis will appear here once the scan completes" theme={theme} />
+      )}
+    </div>
+  );
+}
+
+function ThesisColumn({
+  label,
+  accent,
+  bullets,
+  theme,
+  onCit,
+}: {
+  label: string;
+  accent: string;
+  bullets: ThesisBullet[];
+  theme: "light" | "dark";
+  onCit?: (sourceIdx: number) => void;
+}) {
+  const c = ddTheme(theme);
+  if (bullets.length === 0) {
+    return (
+      <div style={{ padding: 10, borderRadius: 6, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#111827" : "#ffffff", minHeight: 92 }}>
+        <ThesisColumnHeader label={label} accent={accent} theme={theme} />
+        <div style={{ fontSize: 11, color: c.t3, fontStyle: "italic" }}>Not synthesized</div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ padding: 10, borderRadius: 6, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#111827" : "#ffffff" }}>
+      <ThesisColumnHeader label={label} accent={accent} theme={theme} />
+      <ul style={{ display: "flex", flexDirection: "column", gap: 7, margin: 0, padding: 0, listStyle: "none" }}>
+        {bullets.slice(0, 5).map((bullet, idx) => (
+          <li key={`${label}-${idx}`} className="flex" style={{ gap: 7, alignItems: "flex-start", fontSize: 12, color: c.t1, lineHeight: 1.4 }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: accent, marginTop: 6, flexShrink: 0 }} />
+            <span style={{ minWidth: 0, flex: 1 }}>
+              {bullet.text}
+              {bullet.sourceIdx !== undefined && (
+                <SourceChip index={bullet.sourceIdx} onClick={onCit ? () => onCit(bullet.sourceIdx!) : undefined} />
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ThesisColumnHeader({ label, accent, theme }: { label: string; accent: string; theme: "light" | "dark" }) {
+  const c = ddTheme(theme);
+  return (
+    <div className="flex items-center" style={{ gap: 6, marginBottom: 7 }}>
+      <span style={{ width: 4, height: 12, borderRadius: 2, background: accent }} />
+      <span style={{ fontSize: 10, fontWeight: 700, color: c.t2, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
+    </div>
+  );
+}
+
+function SourceChip({ index, onClick }: { index: number; onClick?: () => void }) {
+  const interactive = Boolean(onClick);
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        if (!onClick) return;
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={!interactive}
+      title={`Source ${index}`}
+      style={{
+        marginLeft: 4,
+        padding: "0 4px",
+        fontSize: 9,
+        fontWeight: 700,
+        color: "#1d4ed8",
+        background: "#dbeafe",
+        border: "none",
+        borderRadius: 3,
+        cursor: interactive ? "pointer" : "default",
+        verticalAlign: "super",
+        lineHeight: 1.2,
+      }}
+    >
+      [{index}]
+    </button>
+  );
+}
+
+function ActionsPanel({ actions, theme, onCit }: { actions: ThesisBullet[]; theme: "light" | "dark"; onCit?: (sourceIdx: number) => void }) {
   const c = ddTheme(theme);
   return (
     <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
@@ -568,11 +1140,16 @@ function ActionsPanel({ actions, theme }: { actions: string[]; theme: "light" | 
       {actions.length > 0 ? (
         <ol style={{ display: "flex", flexDirection: "column", gap: 8, margin: 0, padding: 0, listStyle: "none" }}>
           {actions.slice(0, 5).map((action, idx) => (
-            <li key={`${action}-${idx}`} className="flex" style={{ gap: 8, alignItems: "flex-start" }}>
+            <li key={`${action.text}-${idx}`} className="flex" style={{ gap: 8, alignItems: "flex-start" }}>
               <span className="font-mono-dm" style={{ width: 18, height: 18, borderRadius: "50%", background: theme === "dark" ? "#1e293b" : "#e2e8f0", color: c.t2, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 {idx + 1}
               </span>
-              <span style={{ fontSize: 12, color: c.t1, lineHeight: 1.4 }}>{action}</span>
+              <span style={{ fontSize: 12, color: c.t1, lineHeight: 1.4, minWidth: 0, flex: 1 }}>
+                {action.text}
+                {action.sourceIdx !== undefined && (
+                  <SourceChip index={action.sourceIdx} onClick={onCit ? () => onCit(action.sourceIdx!) : undefined} />
+                )}
+              </span>
             </li>
           ))}
         </ol>
@@ -581,6 +1158,190 @@ function ActionsPanel({ actions, theme }: { actions: string[]; theme: "light" | 
       )}
     </div>
   );
+}
+
+function FreshnessPill({ at, theme }: { at: number; theme: "light" | "dark" }) {
+  const c = ddTheme(theme);
+  const [, force] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => force((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span
+      title={new Date(at).toLocaleString()}
+      style={{
+        fontSize: 10,
+        fontWeight: 600,
+        color: c.t2,
+        padding: "2px 7px",
+        borderRadius: 99,
+        background: theme === "dark" ? "#0f172a" : "#f8fafc",
+        border: `1px solid ${c.border}`,
+      }}
+    >
+      Last scan {formatRelativeTime(at)}
+    </span>
+  );
+}
+
+function DiffPill({ count, theme, onClick, active }: { count: number; theme: "light" | "dark"; onClick: () => void; active: boolean }) {
+  const accent = active ? "#1d4ed8" : "#2563eb";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        color: "white",
+        padding: "2px 8px",
+        borderRadius: 99,
+        background: accent,
+        border: "none",
+        cursor: "pointer",
+      }}
+    >
+      {count} change{count === 1 ? "" : "s"}
+    </button>
+  );
+}
+
+function DiffPanel({
+  diff,
+  theme,
+  onDismiss,
+  onClose,
+}: {
+  diff: BriefDiffSnapshot;
+  theme: "light" | "dark";
+  onDismiss: () => void;
+  onClose: () => void;
+}) {
+  const c = ddTheme(theme);
+  return (
+    <div
+      style={{
+        background: theme === "dark" ? "#0b1220" : "#eff6ff",
+        borderBottom: `1px solid ${c.border}`,
+        padding: "12px 18px",
+      }}
+    >
+      <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: c.t1, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Changes since {diff.previousAt ? formatRelativeTime(diff.previousAt) : "previous run"}
+        </span>
+        <span style={{ flex: 1 }} />
+        <button
+          onClick={onClose}
+          style={{ background: "transparent", border: "none", color: c.t3, cursor: "pointer", fontSize: 11 }}
+        >
+          Hide
+        </button>
+        <button
+          onClick={onDismiss}
+          style={{ background: "transparent", border: "none", color: c.t3, cursor: "pointer", fontSize: 11 }}
+        >
+          Dismiss
+        </button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 8 }}>
+        {diff.changes.map((change, idx) => (
+          <DiffRow key={`${change.panel}-${change.label}-${idx}`} change={change} theme={theme} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DiffRow({ change, theme }: { change: FieldDiff; theme: "light" | "dark" }) {
+  const c = ddTheme(theme);
+  const tone = change.kind === "added" ? "#16a34a" : change.kind === "removed" ? "#ef4444" : "#f59e0b";
+  return (
+    <div
+      style={{
+        padding: "8px 10px",
+        borderRadius: 6,
+        background: theme === "dark" ? "#0f172a" : "#ffffff",
+        border: `1px solid ${c.borderLight}`,
+        minWidth: 0,
+      }}
+    >
+      <div className="flex items-center" style={{ gap: 6, marginBottom: 4 }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: tone, flexShrink: 0 }} />
+        <span style={{ fontSize: 9, fontWeight: 700, color: tone, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          {change.kind}
+        </span>
+        <span style={{ fontSize: 10, color: c.t3 }}>{change.panelLabel}</span>
+      </div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: c.t1, marginBottom: 4 }}>{change.label}</div>
+      {change.kind !== "added" && (
+        <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.35, textDecoration: "line-through", overflowWrap: "anywhere" }}>{change.before}</div>
+      )}
+      {change.kind !== "removed" && (
+        <div style={{ fontSize: 11, color: c.t1, lineHeight: 1.35, overflowWrap: "anywhere" }}>{change.after}</div>
+      )}
+    </div>
+  );
+}
+
+function formatRelativeTime(ms: number): string {
+  const diff = Date.now() - ms;
+  if (diff < 0) return "just now";
+  const seconds = Math.round(diff / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  const date = new Date(ms);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function diffPanel(
+  panel: "snapshot" | "transaction",
+  panelLabel: string,
+  before: BriefField[],
+  after: BriefField[]
+): FieldDiff[] {
+  const beforeMap = new Map(before.map((f) => [f.label.toLowerCase(), f]));
+  const afterMap = new Map(after.map((f) => [f.label.toLowerCase(), f]));
+  const changes: FieldDiff[] = [];
+
+  for (const [key, afterField] of Array.from(afterMap.entries())) {
+    const beforeField = beforeMap.get(key);
+    if (!beforeField) {
+      if (!isNotFound(afterField.value)) {
+        changes.push({ panel, panelLabel, label: afterField.label, before: "", after: afterField.value, kind: "added" });
+      }
+      continue;
+    }
+    if (afterField.override || beforeField.override) continue; // analyst-controlled fields don't count as scan changes
+    if (normalizeForCompare(beforeField.value) !== normalizeForCompare(afterField.value)) {
+      const beforeNF = isNotFound(beforeField.value);
+      const afterNF = isNotFound(afterField.value);
+      if (beforeNF && afterNF) continue;
+      if (beforeNF) changes.push({ panel, panelLabel, label: afterField.label, before: "", after: afterField.value, kind: "added" });
+      else if (afterNF) changes.push({ panel, panelLabel, label: afterField.label, before: beforeField.value, after: "", kind: "removed" });
+      else changes.push({ panel, panelLabel, label: afterField.label, before: beforeField.value, after: afterField.value, kind: "changed" });
+    }
+  }
+  for (const [key, beforeField] of Array.from(beforeMap.entries())) {
+    if (afterMap.has(key)) continue;
+    if (isNotFound(beforeField.value)) continue;
+    changes.push({ panel, panelLabel, label: beforeField.label, before: beforeField.value, after: "", kind: "removed" });
+  }
+  return changes;
+}
+
+function normalizeForCompare(value: string): string {
+  return value.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function isNotFound(value: string): boolean {
+  return /^not\s+found$/i.test(value.trim());
 }
 
 function StatusPill({ completed, total, loading, theme }: { completed: number; total: number; loading: boolean; theme: "light" | "dark" }) {
@@ -671,9 +1432,10 @@ function cleanText(text = ""): string {
 }
 
 function extractFields(answer: string | undefined, preferredLabels: string[]): BriefField[] {
-  const text = cleanText(answer);
-  if (!text) return [];
-  const normalizedText = text.replace(
+  if (!answer) return [];
+  const cleaned = answer.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/\*\*/g, "").trim();
+  if (!cleaned) return [];
+  const normalizedText = cleaned.replace(
     new RegExp(`;\\s*(?=(?:${preferredLabels.map(escapeRegExp).join("|")})\\s*:)`, "gi"),
     "\n"
   );
@@ -688,10 +1450,12 @@ function extractFields(answer: string | undefined, preferredLabels: string[]): B
       .split(/[:-]/)[0]
       .trim();
     const label = titleCase(rawLabel);
-    const value = normalizeValue(match[1]);
+    const rawValue = match[1];
+    const sourceIdx = extractFirstSourceIdx(rawValue);
+    const value = normalizeValue(rawValue.replace(/\[Source\s+\d+\]/gi, ""));
     if (!value || seen.has(label.toLowerCase())) continue;
     seen.add(label.toLowerCase());
-    fields.push({ label, value });
+    fields.push({ label, value, sourceIdx });
   }
   return fields.slice(0, 7);
 }
@@ -870,27 +1634,137 @@ function extractBullets(answer: string | undefined): string[] {
     .slice(0, 6);
 }
 
-function extractActionItems(answer: string | undefined, findings: Finding[]): string[] {
-  const explicit = extractBullets(answer).slice(0, 5);
+function mergeOverrides(
+  fields: BriefField[],
+  overridesForPanel: Record<string, string> | undefined,
+  preferredOrder: string[]
+): BriefField[] {
+  if (!overridesForPanel || Object.keys(overridesForPanel).length === 0) return fields;
+  const lower = (s: string) => s.toLowerCase();
+  const remaining = new Map<string, { label: string; value: string }>();
+  for (const [label, value] of Object.entries(overridesForPanel)) {
+    remaining.set(lower(label), { label, value });
+  }
+  const merged = fields.map((field) => {
+    const hit = remaining.get(lower(field.label));
+    if (!hit) return field;
+    remaining.delete(lower(field.label));
+    return { ...field, value: hit.value, sourceIdx: undefined, override: true };
+  });
+  // Append remaining overrides in preferred-label order first, then anything left
+  for (const label of preferredOrder) {
+    const hit = remaining.get(lower(label));
+    if (!hit) continue;
+    merged.push({ label: hit.label, value: hit.value, override: true });
+    remaining.delete(lower(label));
+  }
+  for (const { label, value } of Array.from(remaining.values())) {
+    merged.push({ label, value, override: true });
+  }
+  return merged;
+}
+
+function extractFirstSourceIdx(text: string): number | undefined {
+  const match = text.match(/\[Source\s+(\d+)\]/i);
+  if (!match) return undefined;
+  const idx = Number.parseInt(match[1], 10);
+  return Number.isFinite(idx) && idx > 0 ? idx : undefined;
+}
+
+function extractBulletsWithSources(answer: string | undefined): ThesisBullet[] {
+  if (!answer) return [];
+  const sanitized = answer
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/\*\*/g, "")
+    .trim();
+  if (!sanitized) return [];
+  const lines = sanitized
+    .split("\n")
+    .map((line) => line.replace(/^\s*(?:[-*]|\d+\.)\s*/, "").trim())
+    .filter((line) => line.length > 12 && !/^#+\s/.test(line) && !/^[A-Z][A-Za-z ]+:\s*$/.test(line));
+  const bullets: ThesisBullet[] = [];
+  for (const raw of lines) {
+    const sourceIdx = extractFirstSourceIdx(raw);
+    const text = raw.replace(/\[Source\s+\d+\]/gi, "").replace(/\s+/g, " ").trim();
+    if (!text || /^not\s+found$/i.test(text)) continue;
+    const truncated = text.length > 180 ? text.slice(0, 177) + "..." : text;
+    bullets.push({ text: truncated, sourceIdx });
+  }
+  return bullets;
+}
+
+const THESIS_SECTION_HEADINGS: Array<{ key: keyof ThesisSections; pattern: RegExp }> = [
+  { key: "thesis", pattern: /^thesis\b/i },
+  { key: "levers", pattern: /^value\s*creation\s*levers\b/i },
+  { key: "exit", pattern: /^exit\s*considerations\b/i },
+  { key: "risks", pattern: /^risks?\s*(?:to\s*thesis)?\b/i },
+];
+
+function extractThesisSections(answer: string | undefined): ThesisSections {
+  const empty: ThesisSections = { thesis: [], levers: [], exit: [], risks: [] };
+  if (!answer) return empty;
+  const sanitized = answer
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/\*\*/g, "")
+    .trim();
+  if (!sanitized) return empty;
+
+  const sections: ThesisSections = { thesis: [], levers: [], exit: [], risks: [] };
+  let current: keyof ThesisSections | null = null;
+  for (const rawLine of sanitized.split("\n")) {
+    const trimmed = rawLine.trim();
+    if (!trimmed) continue;
+    const heading = trimmed.replace(/^\s*[-*]\s*/, "").replace(/^#+\s*/, "");
+    const matched = THESIS_SECTION_HEADINGS.find((h) => h.pattern.test(heading));
+    if (matched && /:|—|–/.test(heading) === false && /^[A-Za-z ]+$/.test(heading.split(/[:—–]/)[0])) {
+      // pure heading line like "Thesis" or "Value creation levers"
+      current = matched.key;
+      continue;
+    }
+    if (matched && /^[A-Za-z][^:]+:/.test(heading)) {
+      // heading with inline content e.g. "Thesis: foo" — switch section and treat the rest as the first bullet
+      current = matched.key;
+      const inline = heading.split(/:\s*/).slice(1).join(": ").trim();
+      if (inline) {
+        const sourceIdx = extractFirstSourceIdx(inline);
+        const text = inline.replace(/\[Source\s+\d+\]/gi, "").trim();
+        if (text && !/^not\s+found$/i.test(text)) sections[current].push({ text, sourceIdx });
+      }
+      continue;
+    }
+    if (!current) continue;
+    const bulletText = trimmed.replace(/^\s*(?:[-*]|\d+\.)\s*/, "").trim();
+    if (!bulletText || /^not\s+found$/i.test(bulletText)) continue;
+    const sourceIdx = extractFirstSourceIdx(bulletText);
+    const text = bulletText.replace(/\[Source\s+\d+\]/gi, "").replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    const truncated = text.length > 180 ? text.slice(0, 177) + "..." : text;
+    sections[current].push({ text: truncated, sourceIdx });
+  }
+  return sections;
+}
+
+function extractActionItems(answer: string | undefined, findings: Finding[]): ThesisBullet[] {
+  const explicit = extractBulletsWithSources(answer).slice(0, 5);
   if (explicit.length > 0) return explicit;
 
-  const actions: string[] = [];
+  const fallbacks: ThesisBullet[] = [];
   if (findings.some((finding) => finding.sev === "deal-breaker")) {
-    actions.push("Validate deal-breaker findings against source documents and size the potential downside.");
+    fallbacks.push({ text: "Validate deal-breaker findings against source documents and size the potential downside." });
   }
   if (findings.some((finding) => finding.sev === "material")) {
-    actions.push("Build mitigation asks for material findings before the next deal team discussion.");
+    fallbacks.push({ text: "Build mitigation asks for material findings before the next deal team discussion." });
   }
   if (findings.some(isGapFinding)) {
-    actions.push("Request missing VDR materials and unresolved disclosures flagged by the scan.");
+    fallbacks.push({ text: "Request missing VDR materials and unresolved disclosures flagged by the scan." });
   }
   if (findings.some(isInconsistencyFinding)) {
-    actions.push("Reconcile conflicting metrics across the CIM, financials, QoE, and model.");
+    fallbacks.push({ text: "Reconcile conflicting metrics across the CIM, financials, QoE, and model." });
   }
-  if (actions.length === 0 && findings.length > 0) {
-    actions.push("Review scan findings and route each item to the relevant diligence workstream.");
+  if (fallbacks.length === 0 && findings.length > 0) {
+    fallbacks.push({ text: "Review scan findings and route each item to the relevant diligence workstream." });
   }
-  return actions;
+  return fallbacks;
 }
 
 function countSources(results: Array<QuestionResult | undefined>): number {

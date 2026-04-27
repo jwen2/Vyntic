@@ -2,6 +2,7 @@
 
 import type { Workstream, WorkstreamId } from "@/lib/queryTemplates";
 import type { QuestionResult } from "@/components/WorkstreamPanel";
+import type { Citation } from "@/lib/api";
 import type { Finding, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 import DealBriefDashboard from "./DealBriefDashboard";
@@ -9,36 +10,42 @@ import DealBriefDashboard from "./DealBriefDashboard";
 type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
 
 interface Props {
+  dealId: string;
   workstreams: Workstream[];
   resultCache: WorkstreamCache;
   findings: Finding[];
   theme: "light" | "dark";
   onSelect: (workstreamId: WorkstreamId) => void;
   onSelectFinding: (finding: Finding) => void;
+  onCit?: (citation: Citation, id: string) => void;
+  onCacheUpdate?: (workstreamId: string, results: Record<string, QuestionResult>) => void;
 }
 
 const WORKSTREAM_ORDER: WorkstreamId[] = ["proactive_scan", "financial", "commercial", "operational", "legal"];
 
-export default function WorkstreamListView({ workstreams, resultCache, findings, theme, onSelect, onSelectFinding }: Props) {
+export default function WorkstreamListView({ dealId, workstreams, resultCache, findings, theme, onSelect, onSelectFinding, onCit, onCacheUpdate }: Props) {
   const c = ddTheme(theme);
   const displayWorkstreams = WORKSTREAM_ORDER
     .map((id) => workstreams.find((workstream) => workstream.id === id))
     .filter((workstream): workstream is Workstream => Boolean(workstream));
 
   return (
-    <div className="dd-scroll" style={{ flex: 1, overflowY: "auto", padding: "24px 28px", background: c.bg }}>
+    <div className="dd-scroll" style={{ flex: 1, overflowY: "auto", padding: "24px 28px", background: c.bg, minWidth: 0 }}>
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: c.t1, marginBottom: 4 }}>Workstreams</h2>
         <p style={{ fontSize: 13, color: c.t2 }}>Run the proactive scan once, then drill into focused diligence tracks</p>
       </div>
 
       <DealBriefDashboard
+        dealId={dealId}
         workstreams={workstreams}
         resultCache={resultCache}
         findings={findings}
         theme={theme}
         onOpenProactiveScan={() => onSelect("proactive_scan")}
         onSelectFinding={onSelectFinding}
+        onCit={onCit}
+        onCacheUpdate={onCacheUpdate}
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
