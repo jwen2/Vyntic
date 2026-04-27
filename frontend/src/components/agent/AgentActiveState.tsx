@@ -8,11 +8,14 @@ import AgentMemoText from "./AgentMemoText";
 import AgentFindingCard from "./AgentFindingCard";
 import type { AgentDoc, AgentFollowupTurn, AgentLocalCitation, RunState } from "./types";
 import { SEV } from "./types";
+import type { Finding } from "@/components/dd/types";
 
 interface Props {
   runState: RunState;
   docs: AgentDoc[];
   activeCitationId: string | null;
+  focusFinding?: Finding | null;
+  focusSignal?: number;
   followups: AgentFollowupTurn[];
   followupDraft: string;
   followupStreaming: boolean;
@@ -41,6 +44,8 @@ export default function AgentActiveState({
   runState,
   docs,
   activeCitationId,
+  focusFinding,
+  focusSignal = 0,
   followups,
   followupDraft,
   followupStreaming,
@@ -54,6 +59,7 @@ export default function AgentActiveState({
   const c = ddTheme(theme);
   const isDark = theme === "dark";
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const focusedFindingRef = useRef<HTMLDivElement | null>(null);
   const isRunning = runState.phase === "running";
   const isDone = runState.phase === "complete";
   const completedTasks = runState.tasks.filter((task) => task.status === "complete").length;
@@ -62,6 +68,11 @@ export default function AgentActiveState({
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ block: "nearest" });
   }, [followups]);
+
+  useEffect(() => {
+    if (!focusFinding) return;
+    focusedFindingRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [focusFinding, focusSignal, runState.findings.length]);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: c.bg }}>
@@ -179,16 +190,21 @@ export default function AgentActiveState({
                 </span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {runState.findings.map((finding, index) => (
-                  <AgentFindingCard
-                    key={finding.id}
-                    finding={finding}
-                    index={index}
-                    tasks={runState.tasks}
-                    activeCitationId={activeCitationId}
-                    onCitation={onCitation}
-                  />
-                ))}
+                {runState.findings.map((finding, index) => {
+                  const isFocused = isSameFinding(focusFinding, finding);
+                  return (
+                    <div key={finding.id} ref={isFocused ? focusedFindingRef : undefined}>
+                      <AgentFindingCard
+                        finding={finding}
+                        index={index}
+                        tasks={runState.tasks}
+                        activeCitationId={activeCitationId}
+                        onCitation={onCitation}
+                        focused={isFocused}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -319,4 +335,29 @@ export default function AgentActiveState({
       )}
     </div>
   );
+}
+
+function normalizeForMatch(value: string | undefined | null): string {
+  return (value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function isSameFinding(target: Finding | null | undefined, candidate: RunState["findings"][number]): boolean {
+  if (!target) return false;
+  const targetTitle = normalizeForMatch(target.title);
+  const targetDetail = normalizeForMatch(target.detail);
+  const candidateTitle = normalizeForMatch(candidate.title);
+  const candidateSummary = normalizeForMatch(candidate.summary);
+
+  if (targetTitle && candidateTitle && (targetTitle === candidateTitle || candidateTitle.includes(targetTitle) || targetTitle.includes(candidateTitle))) {
+    return true;
+  }
+  if (targetDetail && candidateSummary) {
+    const shortTarget = targetDetail.slice(0, 80);
+    const shortCandidate = candidateSummary.slice(0, 80);
+    return shortTarget.length > 20 && shortCandidate.length > 20 && (shortTarget.includes(shortCandidate) || shortCandidate.includes(shortTarget));
+  }
+  return false;
 }

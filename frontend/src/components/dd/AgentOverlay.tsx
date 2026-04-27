@@ -82,6 +82,13 @@ function mapAgentFinding(finding: AgentFinding, index: number): Finding {
     status: null,
     note: null,
     origin: "agent",
+    sourceCitation: primaryCitation
+      ? {
+          source_file: primaryCitation.source_file,
+          page: primaryCitation.page,
+          text_snippet: primaryCitation.snippet || finding.claim,
+        }
+      : null,
   };
 }
 

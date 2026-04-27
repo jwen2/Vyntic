@@ -105,6 +105,7 @@ export default function DealWorkspacePage() {
   const [selectedWorkstream, setSelectedWorkstream] = useState<WorkstreamId | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [selectedAgentRunId, setSelectedAgentRunId] = useState<string | null>(null);
+  const [selectedAgentFinding, setSelectedAgentFinding] = useState<Finding | null>(null);
   const [agentFocusNonce, setAgentFocusNonce] = useState(0);
   const [agentHistory, setAgentHistory] = useState<InvestigationSummary[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -151,6 +152,17 @@ export default function DealWorkspacePage() {
       snippet: citation.text_snippet || "",
     });
   }, [dealId]);
+
+  const citationFromFinding = useCallback((finding: Finding): Citation | null => {
+    if (finding.sourceCitation) return finding.sourceCitation;
+    const match = finding.src.match(/^(.+?)\s+[·-]\s+p\.?(\d+)$/i);
+    if (!match) return null;
+    return {
+      source_file: match[1].trim(),
+      page: Number.parseInt(match[2], 10),
+      text_snippet: finding.detail,
+    };
+  }, []);
 
   const handleCit = useCallback((citation: Citation, id: string) => {
     setActiveCit((prev) => (prev?.id === id ? null : { c: citation, id }));
@@ -232,11 +244,24 @@ export default function DealWorkspacePage() {
   const onSelectFinding = useCallback((finding: Finding) => {
     setActiveCit(null);
     setSelectedQuestion(finding.qid);
+    setSelectedAgentFinding(null);
 
     if (finding.origin === "agent") {
+      if (!finding.producerId) {
+        const citation = citationFromFinding(finding);
+        if (citation) {
+          handleViewDocument(citation);
+          return;
+        }
+        setMode("workstreams");
+        setSelectedAgentRunId(null);
+        setSelectedWorkstream(LINKABLE_WORKSTREAMS.includes(finding.ws) ? finding.ws : null);
+        return;
+      }
       setMode("agent");
       setSelectedWorkstream(null);
       setSelectedAgentRunId(finding.producerId || null);
+      setSelectedAgentFinding(finding);
       setAgentFocusNonce((nonce) => nonce + 1);
       return;
     }
@@ -244,7 +269,7 @@ export default function DealWorkspacePage() {
     setMode("workstreams");
     setSelectedAgentRunId(null);
     setSelectedWorkstream(LINKABLE_WORKSTREAMS.includes(finding.ws) ? finding.ws : null);
-  }, []);
+  }, [citationFromFinding, handleViewDocument]);
 
   const onOpenFindingSource = useCallback((finding: Finding) => {
     if (!finding.sourceCitation) return;
@@ -256,6 +281,7 @@ export default function DealWorkspacePage() {
     if (nextMode === "agent") {
       setSelectedWorkstream(null);
       setSelectedQuestion(null);
+      setSelectedAgentFinding(null);
       setActiveCit(null);
       setSelectedDocId(null);
     } else {
@@ -267,6 +293,7 @@ export default function DealWorkspacePage() {
     setMode("agent");
     setSelectedWorkstream(null);
     setSelectedQuestion(null);
+    setSelectedAgentFinding(null);
     setActiveCit(null);
     setSelectedDocId(null);
     setSelectedAgentRunId(sessionId);
@@ -280,6 +307,7 @@ export default function DealWorkspacePage() {
     setMode("agent");
     setSelectedWorkstream(null);
     setSelectedQuestion(null);
+    setSelectedAgentFinding(null);
     setSelectedAgentRunId(null);
     setActiveCit(null);
     setSelectedDocId(null);
@@ -367,6 +395,7 @@ export default function DealWorkspacePage() {
               onOpenDocument={handleViewDocument}
               onExport={() => setShowReport(true)}
               focusInvestigationId={selectedAgentRunId}
+              focusFinding={selectedAgentFinding}
               focusSignal={agentFocusNonce}
               onHistoryChange={fetchAgentHistory}
               pendingPrompt={pendingAgentPrompt?.prompt ?? null}
@@ -411,6 +440,7 @@ export default function DealWorkspacePage() {
               resultCache={resultCache}
               findings={findings}
               theme={theme}
+              onSelectFinding={onSelectFinding}
               onSelect={(workstreamId) => {
                 setSelectedWorkstream(workstreamId);
                 setSelectedQuestion(null);

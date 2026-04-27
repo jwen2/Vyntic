@@ -34,6 +34,7 @@ interface Props {
   onOpenDocument?: (citation: Citation) => void;
   onExport: () => void;
   focusInvestigationId?: string | null;
+  focusFinding?: Finding | null;
   focusSignal?: number;
   onHistoryChange?: () => void | Promise<void>;
   pendingPrompt?: string | null;
@@ -97,6 +98,7 @@ export default function AgentWorkspaceView({
   onOpenDocument,
   onExport,
   focusInvestigationId,
+  focusFinding,
   focusSignal = 0,
   onHistoryChange,
   pendingPrompt,
@@ -422,6 +424,8 @@ export default function AgentWorkspaceView({
             runState={runState}
             docs={docs}
             activeCitationId={activeCitation?.id || null}
+            focusFinding={focusFinding}
+            focusSignal={focusSignal}
             followups={followups}
             followupDraft={followupDraft}
             followupStreaming={followupStreaming}
