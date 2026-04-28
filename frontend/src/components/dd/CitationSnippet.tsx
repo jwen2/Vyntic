@@ -1,6 +1,9 @@
 "use client";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export const SPREADSHEET_FILE_RE = /\.(xlsx|xls|csv)$/i;
+const MARKDOWN_TABLE_RE = /^\s*\|.*\|\s*$/m;
 
 const PERIOD_CELL_RE = /^(?:FY)?\d{4}[EA]?$/i;
 
@@ -87,10 +90,14 @@ export default function CitationSnippet({ sourceFile, text, variant = "panel" }:
   const parsed = SPREADSHEET_FILE_RE.test(sourceFile) ? parseSpreadsheetSnippet(text) : null;
 
   if (!parsed) {
+    const isViewer = variant === "viewer";
+    if (text && MARKDOWN_TABLE_RE.test(text)) {
+      return <MarkdownSnippet text={text} isViewer={isViewer} />;
+    }
     return (
       <p
-        className={variant === "viewer" ? "mt-1 text-gray-700 dark:text-gray-300 leading-relaxed" : undefined}
-        style={variant === "panel" ? { fontSize: 11.5, color: "#1e293b", lineHeight: 1.65 } : undefined}
+        className={isViewer ? "mt-1 text-gray-700 dark:text-gray-300 leading-relaxed" : undefined}
+        style={!isViewer ? { fontSize: 11.5, color: "#1e293b", lineHeight: 1.65 } : undefined}
       >
         {fallback}
       </p>
@@ -196,6 +203,82 @@ export default function CitationSnippet({ sourceFile, text, variant = "panel" }:
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function MarkdownSnippet({ text, isViewer }: { text: string; isViewer: boolean }) {
+  const cellPad = isViewer ? "6px 9px" : "4px 7px";
+  const fontSize = isViewer ? 12 : 10.5;
+  const headerFontSize = isViewer ? 11 : 9.5;
+
+  return (
+    <div
+      className={isViewer ? "text-gray-700 dark:text-gray-300 leading-relaxed" : undefined}
+      style={!isViewer ? { fontSize: 11.5, color: "#1e293b", lineHeight: 1.55 } : undefined}
+    >
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ node, ...props }) => (
+            <p style={{ margin: "0 0 6px" }} {...props} />
+          ),
+          ul: ({ node, ...props }) => (
+            <ul style={{ margin: "0 0 6px", paddingLeft: 18 }} {...props} />
+          ),
+          ol: ({ node, ...props }) => (
+            <ol style={{ margin: "0 0 6px", paddingLeft: 18 }} {...props} />
+          ),
+          li: ({ node, ...props }) => (
+            <li style={{ marginBottom: 2, lineHeight: 1.5 }} {...props} />
+          ),
+          table: ({ node, ...props }) => (
+            <div style={{ overflowX: "auto", margin: "4px 0", border: "1px solid #fde68a", borderRadius: 4 }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+                {...props}
+              />
+            </div>
+          ),
+          thead: ({ node, ...props }) => (
+            <thead style={{ background: "#fffbeb" }} {...props} />
+          ),
+          th: ({ node, style, ...props }) => (
+            <th
+              style={{
+                padding: cellPad,
+                textAlign: "left",
+                fontSize: headerFontSize,
+                fontWeight: 700,
+                color: "#92400e",
+                borderBottom: "1px solid #fde68a",
+                whiteSpace: "nowrap",
+                ...(style || {}),
+              }}
+              {...props}
+            />
+          ),
+          td: ({ node, style, ...props }) => (
+            <td
+              style={{
+                padding: cellPad,
+                color: isViewer ? "inherit" : "#334155",
+                borderTop: "1px solid #fef3c7",
+                whiteSpace: "nowrap",
+                ...(style || {}),
+              }}
+              {...props}
+            />
+          ),
+        }}
+      >
+        {text}
+      </ReactMarkdown>
     </div>
   );
 }

@@ -113,6 +113,20 @@ def _fix_table_newlines(text: str) -> str:
     return "\n".join(fixed_lines)
 
 
+def _select_snippet(content: str) -> str:
+    """Pick the most informative span of a chunk for citation display.
+
+    If the chunk contains a markdown table, return from the first table line
+    onward (capped at 600 chars) so the panel shows the actual data the LLM
+    likely cited. Otherwise fall back to the first 300 chars.
+    """
+    for i, line in enumerate(content.splitlines()):
+        if line.lstrip().startswith("|"):
+            tail = "\n".join(content.splitlines()[i:])
+            return tail[:600]
+    return content[:300]
+
+
 def extract_citations(answer: str, retrieved_chunks: list[dict], deal_id: str | None = None) -> tuple[str, list[Citation]]:
     """Extract [Source N] references from the answer and map to chunk metadata.
 
@@ -174,7 +188,7 @@ def extract_citations(answer: str, retrieved_chunks: list[dict], deal_id: str | 
         citations[idx] = Citation(
             source_file=chunk["source_file"],
             page=chunk["page"],
-            text_snippet=chunk["content"][:300],
+            text_snippet=_select_snippet(chunk["content"]),
             deal_id=deal_id or chunk.get("deal_id"),
         )
 

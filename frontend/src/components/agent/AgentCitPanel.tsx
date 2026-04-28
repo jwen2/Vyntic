@@ -2,6 +2,7 @@
 
 import type { Citation } from "@/lib/api";
 import type { AgentLocalCitation } from "./types";
+import CitationSnippet from "../dd/CitationSnippet";
 
 interface Props {
   citation: AgentLocalCitation;
@@ -51,7 +52,7 @@ export default function AgentCitPanel({ citation, onClose, onOpenDocument }: Pro
             <div style={{ position: "absolute", top: -8, left: 8, fontSize: 9, fontWeight: 700, color: "#a16207", background: "#fef9c3", padding: "1px 5px", borderRadius: 3, border: "1px solid #fde047", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Cited passage
             </div>
-            <p style={{ fontSize: 11.5, color: "#1e293b", lineHeight: 1.65 }}>{citation.snippet || "The agent cited this page as supporting evidence."}</p>
+            <CitationSnippet sourceFile={citation.source_file} text={citation.snippet || "The agent cited this page as supporting evidence."} />
           </div>
           {[60, 75].map((width, i) => (
             <div key={i} style={{ height: 7, background: "#e2e8f0", borderRadius: 2, marginBottom: 5, width: `${width}%` }} />

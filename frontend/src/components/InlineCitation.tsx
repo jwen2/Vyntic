@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Citation } from "@/lib/api";
+import CitationSnippet from "./dd/CitationSnippet";
 
 interface Props {
   index: number;
@@ -91,7 +92,7 @@ export default function InlineCitation({ index, citation, onViewDocument }: Prop
               {citation.source_file} — Page {citation.page}
             </div>
             <div className="text-xs text-gray-600 leading-relaxed max-h-40 overflow-y-auto">
-              {citation.text_snippet}
+              <CitationSnippet sourceFile={citation.source_file} text={citation.text_snippet} />
             </div>
             {onViewDocument && (
               <button

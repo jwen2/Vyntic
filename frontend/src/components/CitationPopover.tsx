@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { Citation } from "@/lib/api";
+import CitationSnippet from "./dd/CitationSnippet";
 
 interface Props {
   citations: Citation[];
@@ -56,7 +57,7 @@ export default function CitationPopover({ citations, children, onViewDocument }:
                 )}
               </div>
               <div className="text-gray-600 leading-relaxed select-text">
-                {c.text_snippet}
+                <CitationSnippet sourceFile={c.source_file} text={c.text_snippet} />
               </div>
             </div>
           ))}
