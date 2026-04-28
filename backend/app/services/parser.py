@@ -159,20 +159,36 @@ def _build_pdf_sections(
     deal_id: str,
     pages: list[dict],
 ) -> list[ParsedSection]:
+    # Emit prose and each table as separate sections so a citation can point
+    # at the specific table the LLM used, instead of a mixed page blob whose
+    # snippet would only show the page preamble.
     sections = []
     for page_data in pages:
-        parts = page_data["text"] + page_data["tables"]
-        content = "\n\n".join(parts)
-
-        if content.strip():
-            section_type = "table" if page_data["has_table"] else "text"
+        text_content = "\n\n".join(page_data["text"]).strip()
+        if text_content:
             sections.append(
                 ParsedSection(
-                    content=content,
+                    content=text_content,
                     metadata={
                         "source_file": filename,
                         "page_number": page_data["page_number"],
-                        "section_type": section_type,
+                        "section_type": "text",
+                        "deal_id": deal_id,
+                        "doc_id": doc_id,
+                    },
+                )
+            )
+        for table_md in page_data["tables"]:
+            table_content = table_md.strip()
+            if not table_content:
+                continue
+            sections.append(
+                ParsedSection(
+                    content=table_content,
+                    metadata={
+                        "source_file": filename,
+                        "page_number": page_data["page_number"],
+                        "section_type": "table",
                         "deal_id": deal_id,
                         "doc_id": doc_id,
                     },
