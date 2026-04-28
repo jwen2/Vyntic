@@ -217,7 +217,14 @@ export default function AgentActiveState({
                 {runState.synthDone && <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>✓ Complete</span>}
               </div>
               <div style={{ background: c.surface, border: `1px solid ${runState.error ? "#fecdd3" : c.border}`, borderRadius: 10, padding: "16px 18px", color: runState.error ? "#fca5a5" : c.t1 }}>
-                {runState.error ? runState.error : <AgentMemoText text={runState.synthText} />}
+                {runState.error ? runState.error : (
+                  <AgentMemoText
+                    text={runState.synthText}
+                    evidence={runState.evidence}
+                    onCitation={onCitation}
+                    activeCitId={activeCitationId}
+                  />
+                )}
                 {isRunning && !runState.synthDone && !runState.error && (
                   <span style={{ display: "inline-block", width: 2, height: 14, background: "#2563eb", animation: "blink 0.8s step-end infinite", marginLeft: 2, verticalAlign: "text-bottom" }} />
                 )}

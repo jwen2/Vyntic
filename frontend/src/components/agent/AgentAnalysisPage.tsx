@@ -22,7 +22,7 @@ import AgentActiveState from "./AgentActiveState";
 import AgentCitPanel from "./AgentCitPanel";
 import AgentIdleState from "./AgentIdleState";
 import AgentLeftSidebar from "./AgentLeftSidebar";
-import type { AgentFollowupTurn, AgentLocalCitation, RunState } from "./types";
+import type { AgentEvidenceItem, AgentFollowupTurn, AgentLocalCitation, RunState } from "./types";
 import {
   agentFindingToLocal,
   buildAgentDocs,
@@ -44,11 +44,23 @@ function initialRunState(documents: DocumentMetadata[]): RunState {
     prompt: "",
     tasks: buildDefaultTasks(docs),
     findings: [],
+    evidence: [],
     synthText: "",
     synthDone: false,
     investigationId: null,
     error: null,
   };
+}
+
+function normalizeEvidence(raw: Array<Record<string, unknown>> | undefined): AgentEvidenceItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => ({
+      source_file: typeof item.source_file === "string" ? item.source_file : "",
+      page: typeof item.page === "number" ? item.page : Number(item.page) || 0,
+      chunk: typeof item.chunk === "string" ? item.chunk : "",
+    }))
+    .filter((item) => item.source_file);
 }
 
 function Spinner({ size = 10, color = "#22c55e" }: { size?: number; color?: string }) {
@@ -182,6 +194,7 @@ export default function AgentAnalysisPage({ deal, documents, onOpenDocument }: P
           synthText: event.memo || prev.synthText,
           synthDone: true,
           findings: hasStreamedFindings ? prev.findings : (event.findings || []).map(agentFindingToLocal),
+          evidence: normalizeEvidence(event.evidence),
           tasks: completeAllTasks(prev.tasks),
         };
       });
@@ -218,6 +231,7 @@ export default function AgentAnalysisPage({ deal, documents, onOpenDocument }: P
       prompt: q,
       tasks: buildDefaultTasks(docs),
       findings: [],
+      evidence: [],
       synthText: "",
       synthDone: false,
       investigationId: null,
@@ -262,6 +276,7 @@ export default function AgentAnalysisPage({ deal, documents, onOpenDocument }: P
         prompt: record.goal || "General diligence investigation",
         tasks: completeAllTasks(buildDefaultTasks(docs)),
         findings: (record.findings || []).map(agentFindingToLocal),
+        evidence: normalizeEvidence(record.evidence as Array<Record<string, unknown>> | undefined),
         synthText: record.memo || "",
         synthDone: true,
         investigationId: record.id,

@@ -273,14 +273,15 @@ PRIORITY ORDER: List DEAL-BREAKER items first, then MATERIAL, then NOTEWORTHY.
 
 DO NOT:
 - Repeat prominently featured information that the deal team has clearly already seen
-- Fabricate findings — if a scan area is clean, say "No notable findings in this area."
+- Fabricate findings — if a scan area is clean, your ENTIRE response is exactly: "No notable findings in this area." with no other sentences, no document categories enumerated, and no [Source N] citations.
 - Provide generic commentary — every finding must cite a specific [Source N]
 - Use prior knowledge or assumptions — ONLY use the provided context
 
 CITATION RULES:
 1. Cite each finding with [Source N] referencing the CONTEXT DOCUMENTS below.
 2. ONLY use [Source N] if there is a matching [Source N] in the context. NEVER fabricate source references.
-3. If the context is empty, respond with: "No documents available for scanning."
+3. Citations support AFFIRMATIVE findings only. Sentences that describe what the documents do NOT contain, do NOT disclose, or where information is missing/unavailable MUST have NO [Source N] references. If you cannot make an affirmative finding, omit the sentence entirely — do not narrate the absence of evidence with citations attached.
+4. If the context is empty, respond with: "No documents available for scanning."
 
 CONTEXT DOCUMENTS:
 {context}
