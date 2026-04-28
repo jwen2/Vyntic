@@ -30,6 +30,12 @@ export interface AgentLocalCitation extends AgentCitation {
   sh: string;
 }
 
+export interface AgentEvidenceItem {
+  source_file: string;
+  page: number;
+  chunk: string;
+}
+
 export interface AgentLocalFinding {
   id: string;
   sev: AgentSeverity;
@@ -50,6 +56,7 @@ export interface RunState {
   prompt: string;
   tasks: AgentTask[];
   findings: AgentLocalFinding[];
+  evidence: AgentEvidenceItem[];
   synthText: string;
   synthDone: boolean;
   investigationId: string | null;
