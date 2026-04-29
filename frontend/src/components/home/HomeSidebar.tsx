@@ -1,5 +1,5 @@
 "use client";
-import { Deal, User } from "@/lib/api";
+import { Deal, UploadProgress, User } from "@/lib/api";
 import DealListItem from "./DealListItem";
 
 interface Props {
@@ -17,6 +17,7 @@ interface Props {
     data: { stage?: string; tags?: string[] }
   ) => void;
   uploading: boolean;
+  uploadProgressByDeal?: Record<string, UploadProgress>;
   user: User | null;
 }
 
@@ -32,6 +33,7 @@ export default function HomeSidebar({
   onUploadFiles,
   onUpdateDeal,
   uploading,
+  uploadProgressByDeal = {},
   user,
 }: Props) {
   return (
@@ -176,7 +178,8 @@ export default function HomeSidebar({
               onDelete={() => onDeleteDeal(deal)}
               onUploadFiles={onUploadFiles}
               onUpdateDeal={onUpdateDeal}
-              uploading={uploading}
+              uploading={uploading && Boolean(uploadProgressByDeal[deal.deal_id])}
+              uploadProgress={uploadProgressByDeal[deal.deal_id]}
               readOnly={!user?.is_admin}
             />
           ))

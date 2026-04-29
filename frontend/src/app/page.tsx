@@ -12,6 +12,7 @@ import {
   getMe,
   getAuthToken,
   clearAuthToken,
+  deleteDocument,
   listDocuments,
 } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
@@ -48,7 +49,9 @@ export default function Home() {
     addDeal,
     removeDeal,
     uploadDocs,
+    uploadProgressByDeal,
     editDeal,
+    refresh: refreshDeals,
   } = useDeals();
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [confirmDeleteDeal, setConfirmDeleteDeal] = useState<Deal | null>(null);
@@ -174,6 +177,23 @@ export default function Home() {
     }
   }
 
+  async function handleDeleteDocument(doc: DocumentMetadata) {
+    if (!selectedDealId) return;
+    await deleteDocument(selectedDealId, doc.doc_id);
+    setDocuments((prev) => prev.filter((d) => d.doc_id !== doc.doc_id));
+    setActiveCitation((prev) =>
+      prev?.citation.source_file === doc.filename ? null : prev
+    );
+    setViewerState((prev) =>
+      prev?.filename === doc.filename ? null : prev
+    );
+    try {
+      const docs = await listDocuments(selectedDealId);
+      setDocuments(docs);
+    } catch {}
+    await refreshDeals();
+  }
+
   function handleViewDocument(citation: Citation) {
     setViewerState({
       dealId: selectedDealId ?? citation.deal_id ?? "",
@@ -240,6 +260,7 @@ export default function Home() {
           onUploadFiles={handleUploadFiles}
           onUpdateDeal={editDeal}
           uploading={dealsLoading}
+          uploadProgressByDeal={uploadProgressByDeal}
           user={user}
         />
 
@@ -334,6 +355,7 @@ export default function Home() {
                   dealId={selectedDeal.deal_id}
                   documents={documents}
                   onViewDocument={handleViewDocument}
+                  onDeleteDocument={handleDeleteDocument}
                   activeCitationId={activeCitation?.id ?? null}
                   onInspectCitation={(citation, id) =>
                     setActiveCitation((prev) =>

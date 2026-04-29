@@ -6,13 +6,18 @@ import os
 import uuid
 import gc
 import json
+import asyncio
 import multiprocessing
 import tempfile
 import traceback
+import threading
 from pathlib import Path
+from collections.abc import Callable
 
 from app.config import settings
 from app.models.document import ParsedSection, DocumentMetadata
+
+_docling_job_semaphore = threading.Semaphore(max(1, settings.docling_max_concurrent_jobs))
 
 
 def _configure_docling_runtime() -> None:
@@ -24,7 +29,16 @@ def _configure_docling_runtime() -> None:
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 
-def _docling_convert_pdf(file_path: str) -> list[dict]:
+def _set_docling_option(options, name: str, value) -> None:
+    """Set a Docling option only when the installed version exposes it."""
+    if hasattr(options, name):
+        setattr(options, name, value)
+
+
+def _docling_convert_pdf(
+    file_path: str,
+    page_range: tuple[int, int] | None = None,
+) -> list[dict]:
     """Run Docling and return plain page data that can cross process boundaries."""
     _configure_docling_runtime()
 
@@ -50,17 +64,30 @@ def _docling_convert_pdf(file_path: str) -> list[dict]:
         ),
         document_timeout=settings.docling_timeout_seconds,
         do_ocr=settings.docling_ocr_enabled,
-        ocr_batch_size=1,
-        layout_batch_size=1,
-        table_batch_size=1,
-        queue_max_size=8,
     )
+    for option_name, option_value in {
+        "ocr_batch_size": 1,
+        "layout_batch_size": 1,
+        "table_batch_size": 1,
+        "queue_max_size": settings.docling_queue_max_size,
+        "generate_page_images": False,
+        "generate_picture_images": False,
+        "generate_table_images": False,
+        "generate_parsed_pages": False,
+        "images_scale": 0.5,
+        "force_backend_text": True,
+    }.items():
+        _set_docling_option(pipeline_options, option_name, option_value)
+
     converter = DocumentConverter(
         format_options={
             InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
         }
     )
-    result = converter.convert(file_path)
+    convert_kwargs = {}
+    if page_range is not None:
+        convert_kwargs["page_range"] = page_range
+    result = converter.convert(file_path, **convert_kwargs)
     doc = result.document
 
     pages: dict[int, dict] = {}
@@ -94,9 +121,20 @@ def _docling_convert_pdf(file_path: str) -> list[dict]:
     ]
 
 
-def _docling_worker(file_path: str, output_path: str) -> None:
+def _docling_worker(
+    file_path: str,
+    output_path: str,
+    page_start: int | None = None,
+    page_end: int | None = None,
+) -> None:
     try:
-        payload = {"status": "ok", "pages": _docling_convert_pdf(file_path)}
+        page_range = None
+        if page_start is not None and page_end is not None:
+            page_range = (page_start, page_end)
+        payload = {
+            "status": "ok",
+            "pages": _docling_convert_pdf(file_path, page_range=page_range),
+        }
     except Exception:
         payload = {"status": "error", "error": traceback.format_exc()}
     Path(output_path).write_text(json.dumps(payload), encoding="utf-8")
@@ -117,18 +155,25 @@ def _docling_process_context() -> multiprocessing.context.BaseContext:
     return multiprocessing.get_context("spawn")
 
 
-def _convert_pdf_isolated(file_path: Path) -> list[dict]:
+def _run_docling_worker(
+    file_path: Path,
+    page_range: tuple[int, int] | None = None,
+) -> list[dict]:
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp:
         output_path = Path(tmp.name)
 
     try:
+        page_start = page_range[0] if page_range else None
+        page_end = page_range[1] if page_range else None
         ctx = _docling_process_context()
         proc = ctx.Process(
             target=_docling_worker,
-            args=(str(file_path), str(output_path)),
+            args=(str(file_path), str(output_path), page_start, page_end),
         )
         proc.start()
-        proc.join(settings.docling_timeout_seconds + 30)
+        proc.join(
+            settings.docling_timeout_seconds + settings.docling_worker_grace_seconds
+        )
 
         if proc.is_alive():
             proc.terminate()
@@ -151,6 +196,113 @@ def _convert_pdf_isolated(file_path: Path) -> list[dict]:
             output_path.unlink()
         except FileNotFoundError:
             pass
+
+
+def _count_pdf_pages(file_path: Path) -> int | None:
+    try:
+        import pypdfium2 as pdfium
+
+        pdf = pdfium.PdfDocument(str(file_path))
+        try:
+            return len(pdf)
+        finally:
+            close = getattr(pdf, "close", None)
+            if close:
+                close()
+    except Exception:
+        return None
+
+
+def _convert_pdf_range_with_retries(
+    file_path: Path,
+    start_page: int,
+    end_page: int,
+) -> list[dict]:
+    try:
+        return _run_docling_worker(file_path, page_range=(start_page, end_page))
+    except Exception:
+        if start_page >= end_page:
+            raise
+
+        midpoint = (start_page + end_page) // 2
+        return (
+            _convert_pdf_range_with_retries(file_path, start_page, midpoint)
+            + _convert_pdf_range_with_retries(file_path, midpoint + 1, end_page)
+        )
+
+
+def _dedupe_pages(pages: list[dict]) -> list[dict]:
+    deduped: dict[int, dict] = {}
+    for page in pages:
+        page_number = int(page["page_number"])
+        if page_number not in deduped:
+            deduped[page_number] = page
+            continue
+        deduped[page_number]["text"].extend(page.get("text", []))
+        deduped[page_number]["tables"].extend(page.get("tables", []))
+        deduped[page_number]["has_table"] = (
+            deduped[page_number]["has_table"] or page.get("has_table", False)
+        )
+    return [deduped[page_num] for page_num in sorted(deduped)]
+
+
+def _convert_pdf_isolated(file_path: Path) -> list[dict]:
+    page_count = _count_pdf_pages(file_path)
+    batch_size = max(1, settings.docling_page_batch_size)
+
+    if not page_count or page_count <= batch_size:
+        return _run_docling_worker(file_path)
+
+    pages: list[dict] = []
+    for start_page in range(1, page_count + 1, batch_size):
+        end_page = min(start_page + batch_size - 1, page_count)
+        pages.extend(
+            _convert_pdf_range_with_retries(file_path, start_page, end_page)
+        )
+
+    return _dedupe_pages(pages)
+
+
+def _convert_pdf_isolated_with_progress(
+    file_path: Path,
+    progress_callback: Callable[[float, str], None] | None = None,
+) -> list[dict]:
+    page_count = _count_pdf_pages(file_path)
+    batch_size = max(1, settings.docling_page_batch_size)
+
+    if not page_count or page_count <= batch_size:
+        pages = _run_docling_worker(file_path)
+        if progress_callback:
+            progress_callback(1.0, "Parsed document")
+        return pages
+
+    pages: list[dict] = []
+    total_batches = (page_count + batch_size - 1) // batch_size
+    for batch_index, start_page in enumerate(range(1, page_count + 1, batch_size), 1):
+        end_page = min(start_page + batch_size - 1, page_count)
+        pages.extend(
+            _convert_pdf_range_with_retries(file_path, start_page, end_page)
+        )
+        if progress_callback:
+            progress_callback(
+                batch_index / total_batches,
+                f"Parsed pages {start_page}-{end_page} of {page_count}",
+            )
+
+    return _dedupe_pages(pages)
+
+
+def _convert_pdf_isolated_with_lock(
+    file_path: Path,
+    progress_callback: Callable[[float, str], None] | None = None,
+) -> list[dict]:
+    with _docling_job_semaphore:
+        return _convert_pdf_isolated_with_progress(file_path, progress_callback)
+
+
+def _docling_convert_pdf_with_lock(file_path: str) -> list[dict]:
+    with _docling_job_semaphore:
+        return _docling_convert_pdf(file_path)
 
 
 def _build_pdf_sections(
@@ -201,20 +353,32 @@ async def parse_pdf_path(
     file_path: Path,
     filename: str,
     deal_id: str,
+    progress_callback: Callable[[float, str], None] | None = None,
 ) -> tuple[DocumentMetadata, list[ParsedSection]]:
     """Parse a PDF file using Docling with memory-conscious defaults."""
     doc_id = f"{deal_id}_{uuid.uuid4().hex[:8]}"
     if settings.docling_subprocess_enabled:
-        pages = _convert_pdf_isolated(file_path)
+        pages = await asyncio.to_thread(
+            _convert_pdf_isolated_with_lock,
+            file_path,
+            progress_callback,
+        )
     else:
-        pages = _docling_convert_pdf(str(file_path))
+        pages = await asyncio.to_thread(_docling_convert_pdf_with_lock, str(file_path))
+        if progress_callback:
+            progress_callback(1.0, "Parsed document")
 
     sections = _build_pdf_sections(doc_id, filename, deal_id, pages)
+    detected_page_count = _count_pdf_pages(file_path)
+    parsed_page_count = max(
+        (int(page["page_number"]) for page in pages),
+        default=0,
+    )
     metadata = DocumentMetadata(
         doc_id=doc_id,
         deal_id=deal_id,
         filename=filename,
-        page_count=len(sections),
+        page_count=detected_page_count or parsed_page_count,
     )
 
     return metadata, sections
@@ -317,12 +481,13 @@ async def parse_document_path(
     file_path: Path,
     filename: str,
     deal_id: str,
+    progress_callback: Callable[[float, str], None] | None = None,
 ) -> tuple[DocumentMetadata, list[ParsedSection]]:
     """Route to the appropriate parser for a file already on disk."""
     ext = Path(filename).suffix.lower()
 
     if ext == ".pdf":
-        return await parse_pdf_path(file_path, filename, deal_id)
+        return await parse_pdf_path(file_path, filename, deal_id, progress_callback)
     elif ext in (".xlsx", ".xls"):
         return await parse_excel(file_path.read_bytes(), filename, deal_id)
     else:

@@ -16,6 +16,7 @@ interface Props {
   theme: "light" | "dark";
   onSelectSession: (sessionId: string) => void;
   onSelectDocument: (docId: string | null) => void;
+  onDeleteDocument?: (doc: DocCoverage) => void;
   onSelectFinding: (f: Finding) => void;
   onOpenSource: (f: Finding) => void;
 }
@@ -37,6 +38,7 @@ export default function LeftSidebar({
   theme,
   onSelectSession,
   onSelectDocument,
+  onDeleteDocument,
   onSelectFinding,
   onOpenSource,
 }: Props) {
@@ -86,6 +88,7 @@ export default function LeftSidebar({
                   active={doc.id === activeDocId}
                   theme={theme}
                   onSelect={onSelectDocument}
+                  onDelete={onDeleteDocument}
                 />
               ))}
             </div>
@@ -252,11 +255,13 @@ function DocRow({
   active,
   theme,
   onSelect,
+  onDelete,
 }: {
   doc: DocCoverage;
   active: boolean;
   theme: "light" | "dark";
   onSelect: (docId: string | null) => void;
+  onDelete?: (doc: DocCoverage) => void;
 }) {
   const c = ddTheme(theme);
   const isDark = theme === "dark";
@@ -266,10 +271,17 @@ function DocRow({
   const baseBg = active ? (isDark ? "#1e293b" : "#ffffff") : "transparent";
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       title={doc.name}
       onClick={() => onSelect(active ? null : doc.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(active ? null : doc.id);
+        }
+      }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = isDark ? c.surface : "#ffffff";
       }}
@@ -292,6 +304,38 @@ function DocRow({
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {doc.short}
         </span>
+        {onDelete && (
+          <button
+            type="button"
+            title={`Delete ${doc.name}`}
+            aria-label={`Delete ${doc.name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(doc);
+            }}
+            style={{
+              width: 20,
+              height: 20,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: `1px solid ${isDark ? "#7f1d1d55" : "#fecaca"}`,
+              borderRadius: 5,
+              background: isDark ? "#7f1d1d22" : "#fff1f2",
+              color: isDark ? "#fca5a5" : "#dc2626",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 6h18" />
+              <path d="M8 6V4h8v2" />
+              <path d="M19 6l-1 14H6L5 6" />
+              <path d="M10 11v5" />
+              <path d="M14 11v5" />
+            </svg>
+          </button>
+        )}
         <span className="font-mono-dm" style={{ fontSize: 10, fontWeight: 700, color: pctColor }}>
           {pct}%
         </span>
@@ -310,7 +354,7 @@ function DocRow({
           </span>
         )}
       </span>
-    </button>
+    </div>
   );
 }
 

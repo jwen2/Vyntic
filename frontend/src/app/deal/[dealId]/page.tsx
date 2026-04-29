@@ -8,6 +8,7 @@ import {
   listDeals,
   listDocuments,
   listInvestigations,
+  deleteDocument,
   DocumentMetadata,
   getMe,
   getAuthToken,
@@ -16,6 +17,7 @@ import type { InvestigationSummary } from "@/lib/api";
 import { DD_WORKSTREAMS, WorkstreamId } from "@/lib/queryTemplates";
 import DocumentViewer from "@/components/DocumentViewer";
 import ReportModal from "@/components/ReportModal";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useTheme } from "@/components/ThemeProvider";
 import type { QuestionResult } from "@/components/WorkstreamPanel";
 
@@ -30,7 +32,7 @@ import { useFindings } from "@/components/dd/useFindings";
 import { computeCoverage } from "@/components/dd/coverage";
 import { extractScanFindings } from "@/components/dd/extractScanFindings";
 import { ddTheme } from "@/components/dd/types";
-import type { Finding } from "@/components/dd/types";
+import type { DocCoverage, Finding } from "@/components/dd/types";
 
 type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
 type NavState = { mode: DealWorkspaceMode; selectedWorkstream: WorkstreamId | null };
@@ -111,6 +113,9 @@ export default function DealWorkspacePage() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [pendingAgentPrompt, setPendingAgentPrompt] = useState<{ prompt: string; signal: number } | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<DocCoverage | null>(null);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [deleteDocError, setDeleteDocError] = useState<string | null>(null);
   const [resultCache, setResultCache] = useState<WorkstreamCache>({});
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
   const { findings, addFindings, syncScanFindings } = useFindings(dealId);
@@ -314,6 +319,26 @@ export default function DealWorkspacePage() {
     setPendingAgentPrompt({ prompt: scoped, signal: Date.now() });
   }, []);
 
+  const handleDeleteDocument = useCallback(async () => {
+    if (!confirmDeleteDoc) return;
+    setDeletingDocId(confirmDeleteDoc.id);
+    setDeleteDocError(null);
+    try {
+      await deleteDocument(dealId, confirmDeleteDoc.id);
+      setDocuments((prev) => prev.filter((doc) => doc.doc_id !== confirmDeleteDoc.id));
+      if (selectedDocId === confirmDeleteDoc.id) setSelectedDocId(null);
+      setViewerState((prev) =>
+        prev?.filename === confirmDeleteDoc.name ? null : prev
+      );
+      setConfirmDeleteDoc(null);
+      await Promise.all([fetchDeal(), fetchDocuments()]);
+    } catch (err) {
+      setDeleteDocError(err instanceof Error ? err.message : "Failed to delete document");
+    } finally {
+      setDeletingDocId(null);
+    }
+  }, [confirmDeleteDoc, dealId, fetchDeal, fetchDocuments, selectedDocId]);
+
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: c.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -382,6 +407,7 @@ export default function DealWorkspacePage() {
               setActiveCit(null);
             }
           }}
+          onDeleteDocument={(doc) => setConfirmDeleteDoc(doc)}
           onSelectFinding={onSelectFinding}
           onOpenSource={onOpenFindingSource}
         />
@@ -478,6 +504,23 @@ export default function DealWorkspacePage() {
           deal={deal}
           resultCache={resultCache}
           onClose={() => setShowReport(false)}
+        />
+      )}
+
+      {confirmDeleteDoc && (
+        <ConfirmDialog
+          title="Delete Document"
+          message={
+            deleteDocError ||
+            `Remove "${confirmDeleteDoc.name}" and all of its indexed chunks? This cannot be undone.`
+          }
+          confirmLabel={deletingDocId === confirmDeleteDoc.id ? "Deleting..." : "Delete"}
+          onConfirm={handleDeleteDocument}
+          onCancel={() => {
+            if (deletingDocId) return;
+            setDeleteDocError(null);
+            setConfirmDeleteDoc(null);
+          }}
         />
       )}
     </div>

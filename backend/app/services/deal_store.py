@@ -99,6 +99,17 @@ def add_document(deal_id: str, doc: DocumentMetadata):
         db.close()
 
 
+def document_exists(deal_id: str, filename: str) -> bool:
+    db = SessionLocal()
+    try:
+        return db.query(DocumentRow).filter(
+            DocumentRow.deal_id == deal_id,
+            DocumentRow.filename == filename,
+        ).first() is not None
+    finally:
+        db.close()
+
+
 def list_documents(deal_id: str) -> list[DocumentMetadata]:
     db = SessionLocal()
     try:

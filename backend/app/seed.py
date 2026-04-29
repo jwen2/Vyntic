@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 SEED_BATCH_SIZE = 1  # How many files to process at a time
 BATCH_PAUSE_SECONDS = 2  # Pause between batches to let CPU cool down
+BACKGROUND_SEED_MIN_PAGES = 100
+_seed_in_progress: set[tuple[str, str]] = set()
 
 SAMPLE_DEALS = [
     {
@@ -53,6 +55,18 @@ SAMPLE_DEALS = [
         "tags": ["Industrials"],
         "files": ["summit_industrial_cim.pdf", "summit_industrial_financials.xlsx"],
     },
+    {
+        "deal_id": "activision_blizzard",
+        "name": "Activision Blizzard",
+        "description": "Video game publisher seeded from FinanceBench filings",
+        "stage": "Due Diligence",
+        "tags": ["Technology", "Consumer"],
+        "background_ingest": True,
+        "files": [
+            "ACTIVSIONBLIZZARD_2023Q2_10Q.pdf",
+            "ACTIVISIONBLIZZARD_2022_10K.pdf",
+        ],
+    },
 ]
 
 
@@ -69,11 +83,17 @@ def _find_sample_dir() -> Path | None:
 
 async def _ingest_file(sample_dir: Path, deal_id: str, filename: str) -> bool:
     """Parse, chunk, and embed a single file. Returns True on success."""
+    seed_key = (deal_id, filename)
+    if seed_key in _seed_in_progress or deal_store.document_exists(deal_id, filename):
+        logger.info(f"  Seed already ingested or in progress: {filename}")
+        return False
+
     filepath = sample_dir / filename
     if not filepath.exists():
         logger.warning(f"  File not found: {filepath}")
         return False
 
+    _seed_in_progress.add(seed_key)
     try:
         # Persist original file for document viewer
         deal_upload_dir = Path(settings.uploads_dir) / deal_id
@@ -83,6 +103,10 @@ async def _ingest_file(sample_dir: Path, deal_id: str, filename: str) -> bool:
         doc_metadata, sections = await parse_document_path(
             filepath, filename, deal_id
         )
+        if deal_store.document_exists(deal_id, filename):
+            logger.info(f"  Seed completed by another worker: {filename}")
+            return False
+
         chunks = chunk_sections(sections, deal_id, doc_metadata.doc_id)
         doc_metadata.chunk_count = len(chunks)
         await upsert_chunks(deal_id, chunks)
@@ -93,6 +117,63 @@ async def _ingest_file(sample_dir: Path, deal_id: str, filename: str) -> bool:
     except Exception as e:
         logger.error(f"  Failed to ingest {filename}: {e}")
         return False
+    finally:
+        _seed_in_progress.discard(seed_key)
+
+
+def _count_pdf_pages(filepath: Path) -> int | None:
+    if filepath.suffix.lower() != ".pdf":
+        return None
+    try:
+        import pypdfium2 as pdfium
+
+        pdf = pdfium.PdfDocument(str(filepath))
+        try:
+            return len(pdf)
+        finally:
+            close = getattr(pdf, "close", None)
+            if close:
+                close()
+    except Exception:
+        return None
+
+
+async def _ingest_pending_files(
+    sample_dir: Path,
+    deal_id: str,
+    pending: list[str],
+) -> None:
+    for i in range(0, len(pending), SEED_BATCH_SIZE):
+        batch = pending[i : i + SEED_BATCH_SIZE]
+        logger.info(
+            f"  Batch {i // SEED_BATCH_SIZE + 1}: ingesting {batch}"
+        )
+        for filename in batch:
+            await _ingest_file(sample_dir, deal_id, filename)
+
+        # Pause between batches to reduce peak CPU/memory pressure
+        if i + SEED_BATCH_SIZE < len(pending):
+            logger.info(
+                f"  Pausing {BATCH_PAUSE_SECONDS}s before next batch..."
+            )
+            await asyncio.sleep(BATCH_PAUSE_SECONDS)
+
+
+def _background_seed(sample_dir: Path, deal_id: str, pending: list[str]) -> None:
+    async def _run_in_thread() -> None:
+        await asyncio.to_thread(
+            lambda: asyncio.run(_ingest_pending_files(sample_dir, deal_id, pending))
+        )
+
+    task = asyncio.create_task(_run_in_thread())
+
+    def _log_failure(done: asyncio.Task) -> None:
+        try:
+            done.result()
+        except Exception:
+            logger.exception("Background seed ingestion failed")
+
+    task.add_done_callback(_log_failure)
 
 
 async def seed_sample_data(admin_user_id: int | None = None):
@@ -139,21 +220,26 @@ async def seed_sample_data(admin_user_id: int | None = None):
             if f not in existing_docs
         ]
 
-        # Ingest in batches of SEED_BATCH_SIZE
-        for i in range(0, len(pending), SEED_BATCH_SIZE):
-            batch = pending[i : i + SEED_BATCH_SIZE]
-            logger.info(
-                f"  Batch {i // SEED_BATCH_SIZE + 1}: ingesting {batch}"
-            )
-            for filename in batch:
-                await _ingest_file(sample_dir, deal_id, filename)
+        if deal_info.get("background_ingest"):
+            foreground_pending = []
+            background_pending = pending
+        else:
+            foreground_pending = []
+            background_pending = []
+            for filename in pending:
+                page_count = _count_pdf_pages(sample_dir / filename)
+                if page_count and page_count >= BACKGROUND_SEED_MIN_PAGES:
+                    background_pending.append(filename)
+                else:
+                    foreground_pending.append(filename)
 
-            # Pause between batches to reduce peak CPU/memory pressure
-            if i + SEED_BATCH_SIZE < len(pending):
-                logger.info(
-                    f"  Pausing {BATCH_PAUSE_SECONDS}s before next batch..."
-                )
-                await asyncio.sleep(BATCH_PAUSE_SECONDS)
+        await _ingest_pending_files(sample_dir, deal_id, foreground_pending)
+
+        if background_pending:
+            logger.info(
+                f"  Scheduling background ingestion for large files: {background_pending}"
+            )
+            _background_seed(sample_dir, deal_id, background_pending)
 
         # Copy store-only files to uploads dir (no parsing/chunking)
         for filename in deal_info.get("store_only_files", []):

@@ -128,33 +128,99 @@ export async function deleteDeal(deal_id: string): Promise<void> {
   if (!res.ok) throw new Error(await res.text());
 }
 
+export interface UploadProgress {
+  upload_id: string;
+  status: "uploading" | "processing" | "complete" | "error";
+  stage: string;
+  percent: number;
+  filename?: string | null;
+  detail?: string;
+}
+
+interface UploadOptions {
+  uploadId?: string;
+  onUploadProgress?: (percent: number) => void;
+}
+
+function xhrUpload<T>(
+  url: string,
+  form: FormData,
+  options: UploadOptions = {}
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+
+    const token = getAuthToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !options.onUploadProgress) return;
+      options.onUploadProgress(Math.round((event.loaded / event.total) * 100));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 401) {
+        clearAuthToken();
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+        reject(new Error("Not authenticated"));
+        return;
+      }
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(xhr.responseText || `Upload failed with status ${xhr.status}`));
+        return;
+      }
+
+      if (!xhr.responseText) {
+        resolve(undefined as T);
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(xhr.responseText) as T);
+      } catch {
+        resolve(xhr.responseText as T);
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Upload failed"));
+    xhr.send(form);
+  });
+}
+
 export async function uploadDocument(
   deal_id: string,
-  file: File
+  file: File,
+  options: UploadOptions = {}
 ): Promise<void> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents`, {
-    method: "POST",
-    body: form,
-  });
-  if (!res.ok) throw new Error(await res.text());
+  const params = options.uploadId ? `?upload_id=${encodeURIComponent(options.uploadId)}` : "";
+  await xhrUpload<DocumentMetadata>(
+    `${API_BASE}/deals/${deal_id}/documents${params}`,
+    form,
+    options
+  );
 }
 
 export async function uploadDocumentsBatch(
   deal_id: string,
-  files: File[]
+  files: File[],
+  options: UploadOptions = {}
 ): Promise<DocumentMetadata[]> {
   const form = new FormData();
   for (const file of files) {
     form.append("files", file);
   }
-  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents/batch`, {
-    method: "POST",
-    body: form,
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  const params = options.uploadId ? `?upload_id=${encodeURIComponent(options.uploadId)}` : "";
+  return xhrUpload<DocumentMetadata[]>(
+    `${API_BASE}/deals/${deal_id}/documents/batch${params}`,
+    form,
+    options
+  );
 }
 
 export async function updateDeal(
@@ -176,6 +242,17 @@ export interface DocumentMetadata {
   filename: string;
   page_count: number;
   chunk_count: number;
+}
+
+export async function getUploadProgress(
+  deal_id: string,
+  uploadId: string
+): Promise<UploadProgress> {
+  const res = await fetchWrapper(
+    `${API_BASE}/deals/${deal_id}/documents/progress/${encodeURIComponent(uploadId)}`
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 export async function deleteDocument(

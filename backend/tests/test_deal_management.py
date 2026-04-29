@@ -123,7 +123,7 @@ class TestMultiFileUpload:
         # FastAPI returns 422 for missing required field
         assert resp.status_code == 422
 
-    @patch("app.api.routes_ingest.parse_document", new_callable=AsyncMock)
+    @patch("app.api.routes_ingest.parse_document_path", new_callable=AsyncMock)
     @patch("app.api.routes_ingest.upsert_chunks", new_callable=AsyncMock)
     def test_batch_upload_multiple_files(self, mock_upsert, mock_parse, client, sample_deal):
         """Batch upload processes multiple files and returns metadata list."""
@@ -158,7 +158,7 @@ class TestMultiFileUpload:
         assert data[0]["filename"] == "doc1.pdf"
         assert data[1]["filename"] == "doc2.pdf"
 
-    @patch("app.api.routes_ingest.parse_document", new_callable=AsyncMock)
+    @patch("app.api.routes_ingest.parse_document_path", new_callable=AsyncMock)
     @patch("app.api.routes_ingest.upsert_chunks", new_callable=AsyncMock)
     def test_batch_upload_increments_doc_count(self, mock_upsert, mock_parse, client, sample_deal):
         """Batch upload increments deal document_count for each file."""
@@ -185,7 +185,7 @@ class TestMultiFileUpload:
         resp = client.get(f"/deals/{sample_deal.deal_id}")
         assert resp.json()["document_count"] == 2
 
-    @patch("app.api.routes_ingest.parse_document", new_callable=AsyncMock)
+    @patch("app.api.routes_ingest.parse_document_path", new_callable=AsyncMock)
     def test_batch_upload_partial_failure(self, mock_parse, client, sample_deal):
         """Batch upload with all files failing returns 400."""
         mock_parse.side_effect = ValueError("Unsupported format")

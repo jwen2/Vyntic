@@ -4,6 +4,7 @@ Each deal_id maps to a separate ChromaDB collection, ensuring
 zero context leak between deals (equivalent to Pinecone namespaces).
 """
 from __future__ import annotations
+from collections.abc import Callable
 from typing import Optional
 
 import chromadb
@@ -31,7 +32,11 @@ def _get_collection(deal_id: str) -> chromadb.Collection:
     )
 
 
-async def upsert_chunks(deal_id: str, chunks: list[Chunk]) -> int:
+async def upsert_chunks(
+    deal_id: str,
+    chunks: list[Chunk],
+    progress_callback: Callable[[float, str], None] | None = None,
+) -> int:
     """
     Embed and upsert chunks into the deal's collection.
     ISOLATION: Only writes to the deal_id's collection.
@@ -40,39 +45,42 @@ async def upsert_chunks(deal_id: str, chunks: list[Chunk]) -> int:
     if not chunks:
         return 0
 
-    texts = [c.content for c in chunks]
-    embeddings = await embed_texts(texts)
-
     collection = _get_collection(deal_id)
 
-    ids = []
-    documents = []
-    metadatas = []
-
-    for chunk, embedding in zip(chunks, embeddings):
-        ids.append(chunk.chunk_id)
-        documents.append(chunk.content)
-        metadatas.append({
-            "deal_id": chunk.deal_id,
-            "doc_id": chunk.doc_id,
-            "source_file": chunk.source_file,
-            "page": chunk.page,
-            "section_type": chunk.section_type,
-            "chunk_index": chunk.chunk_index,
-        })
-
-    # Upsert in batches of 500 (ChromaDB batch limit)
-    batch_size = 500
+    # Embed and write in bounded batches so large PDFs do not retain all
+    # vectors in process memory at once. ChromaDB accepts up to 500 per add.
+    batch_size = max(1, min(settings.embedding_batch_size, 500))
     total = 0
-    for i in range(0, len(ids), batch_size):
+    for i in range(0, len(chunks), batch_size):
         end = i + batch_size
+        batch = chunks[i:end]
+        texts = [c.content for c in batch]
+        embeddings = await embed_texts(texts)
+        ids = []
+        documents = []
+        metadatas = []
+
+        for chunk in batch:
+            ids.append(chunk.chunk_id)
+            documents.append(chunk.content)
+            metadatas.append({
+                "deal_id": chunk.deal_id,
+                "doc_id": chunk.doc_id,
+                "source_file": chunk.source_file,
+                "page": chunk.page,
+                "section_type": chunk.section_type,
+                "chunk_index": chunk.chunk_index,
+            })
+
         collection.add(
-            ids=ids[i:end],
-            embeddings=embeddings[i:end],
-            documents=documents[i:end],
-            metadatas=metadatas[i:end],
+            ids=ids,
+            embeddings=embeddings,
+            documents=documents,
+            metadatas=metadatas,
         )
-        total += len(ids[i:end])
+        total += len(ids)
+        if progress_callback:
+            progress_callback(total / len(chunks), f"Embedded {total} of {len(chunks)} chunks")
 
     return total
 
