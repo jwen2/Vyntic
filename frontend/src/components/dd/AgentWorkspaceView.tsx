@@ -24,6 +24,7 @@ import {
   buildDefaultTasks,
   completeAllTasks,
   mapToolToTask,
+  normalizeEvidence,
 } from "@/components/agent/agentUtils";
 import type { Finding } from "./types";
 
@@ -314,7 +315,7 @@ export default function AgentWorkspaceView({
         prompt: record.goal || "General diligence investigation",
         tasks: completeAllTasks(buildDefaultTasks(docs)),
         findings: localFindings,
-        evidence: [],
+        evidence: normalizeEvidence(record.evidence as Array<Record<string, unknown>> | undefined),
         synthText: record.memo || "",
         synthDone: true,
         investigationId: record.id,
