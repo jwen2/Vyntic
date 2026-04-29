@@ -8,10 +8,12 @@ services:
       - GEMINI_MODEL=gemini-3.1-flash-lite-preview
       - GEMINI_FALLBACK_MODEL=gemini-3-flash-preview
       - EMBEDDING_MODEL=models/gemini-embedding-001
+      - DATABASE_URL=sqlite:////app/data/vyntic.db
       - CHROMA_PERSIST_DIR=/app/data/chroma
+      - UPLOADS_DIR=/app/data/uploads
       - AGENTIC_FEATURES=${AGENTIC_FEATURES:-true}
     volumes:
-      - ./backend:/app
+      - ./backend/app:/app/app
       - ./data:/app/data
       - ./sample_data:/app/sample_data:ro
     restart: unless-stopped
