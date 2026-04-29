@@ -24,6 +24,7 @@ import {
   buildDefaultTasks,
   completeAllTasks,
   mapToolToTask,
+  normalizeEvidence,
 } from "@/components/agent/agentUtils";
 import type { Finding } from "./types";
 
@@ -48,6 +49,7 @@ function initialRunState(documents: DocumentMetadata[]): RunState {
     prompt: "",
     tasks: buildDefaultTasks(docs),
     findings: [],
+    evidence: [],
     synthText: "",
     synthDone: false,
     investigationId: null,
@@ -266,6 +268,7 @@ export default function AgentWorkspaceView({
       prompt: q,
       tasks: buildDefaultTasks(docs),
       findings: [],
+      evidence: [],
       synthText: "",
       synthDone: false,
       investigationId: null,
@@ -312,6 +315,7 @@ export default function AgentWorkspaceView({
         prompt: record.goal || "General diligence investigation",
         tasks: completeAllTasks(buildDefaultTasks(docs)),
         findings: localFindings,
+        evidence: normalizeEvidence(record.evidence as Array<Record<string, unknown>> | undefined),
         synthText: record.memo || "",
         synthDone: true,
         investigationId: record.id,
