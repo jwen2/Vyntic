@@ -42,6 +42,7 @@ interface Props {
   documents: DocumentMetadata[];
   dealId: string;
   onViewDocument: (citation: Citation) => void;
+  onDeleteDocument?: (doc: DocumentMetadata) => Promise<void> | void;
   activeCitationId?: string | null;
   onInspectCitation?: (citation: Citation, id: string) => void;
 }
@@ -78,6 +79,7 @@ export default function DocMatrixPanel({
   documents,
   dealId,
   onViewDocument,
+  onDeleteDocument,
   activeCitationId = null,
   onInspectCitation,
 }: Props) {
@@ -89,6 +91,9 @@ export default function DocMatrixPanel({
   const [loading, setLoading] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [viewerState, setViewerState] = useState<ViewerState | null>(null);
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<DocumentMetadata | null>(null);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [deleteDocError, setDeleteDocError] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   // Column management state
@@ -104,6 +109,20 @@ export default function DocMatrixPanel({
   const menuRef = useRef<HTMLDivElement>(null);
   const [sortConfig, setSortConfig] = useState<{ col: "doc" | number; dir: "asc" | "desc" } | null>(null);
   const [colFilters, setColFilters] = useState<Record<string, string>>({});
+
+  const handleDeleteDocument = async () => {
+    if (!confirmDeleteDoc || !onDeleteDocument) return;
+    setDeletingDocId(confirmDeleteDoc.doc_id);
+    setDeleteDocError(null);
+    try {
+      await onDeleteDocument(confirmDeleteDoc);
+      setConfirmDeleteDoc(null);
+    } catch (err) {
+      setDeleteDocError(err instanceof Error ? err.message : "Failed to delete document");
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
 
   // Density preference (compact vs comfortable column widths)
   type Density = "compact" | "comfortable";
@@ -784,6 +803,32 @@ export default function DocMatrixPanel({
                         <span>{doc.chunk_count} chunks</span>
                       </div>
                     </div>
+                    {onDeleteDocument && (
+                      <button
+                        type="button"
+                        title={`Delete ${doc.filename}`}
+                        aria-label={`Delete ${doc.filename}`}
+                        disabled={deletingDocId === doc.doc_id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeleteDocError(null);
+                          setConfirmDeleteDoc(doc);
+                        }}
+                        className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded border border-red-100 bg-red-50 text-red-600 transition-colors hover:bg-red-100 hover:border-red-200 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40"
+                      >
+                        {deletingDocId === doc.doc_id ? (
+                          <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v5" />
+                            <path d="M14 11v5" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </td>
                 {/* Query result cells */}
@@ -856,6 +901,23 @@ export default function DocMatrixPanel({
             setConfirmDeleteCol(null);
           }}
           onCancel={() => setConfirmDeleteCol(null)}
+        />
+      )}
+
+      {confirmDeleteDoc && (
+        <ConfirmDialog
+          title="Delete Document"
+          message={
+            deleteDocError ||
+            `Remove "${confirmDeleteDoc.filename}" and all of its indexed chunks? This cannot be undone.`
+          }
+          confirmLabel={deletingDocId === confirmDeleteDoc.doc_id ? "Deleting..." : "Delete"}
+          onConfirm={handleDeleteDocument}
+          onCancel={() => {
+            if (deletingDocId) return;
+            setDeleteDocError(null);
+            setConfirmDeleteDoc(null);
+          }}
         />
       )}
     </div>

@@ -30,12 +30,21 @@ class Settings(BaseSettings):
     docling_num_threads: int = 1
     docling_device: str = "cpu"
     docling_ocr_enabled: bool = False
+    docling_page_batch_size: int = 10
+    docling_queue_max_size: int = 2
+    docling_worker_grace_seconds: int = 30
+    docling_max_concurrent_jobs: int = 1
+    ingest_background_min_pages: int = 25
 
     # ChromaDB
     chroma_persist_dir: str = "./data/chroma"
 
+    # Embeddings
+    embedding_batch_size: int = 64
+
     # Chunking
     chunk_size: int = 1000
+    chunk_overlap_ratio: float = 0.2
     chunk_overlap: int = 200
 
     # Retrieval

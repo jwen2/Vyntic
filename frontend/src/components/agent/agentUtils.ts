@@ -8,6 +8,15 @@ export function classifyDoc(filename: string): string {
   const lower = filename.toLowerCase();
   if (lower.includes("cim")) return "cim";
   if (lower.includes("qoe") || lower.includes("quality")) return "qoe";
+  if (
+    lower.includes("10k") ||
+    lower.includes("10-k") ||
+    lower.includes("10q") ||
+    lower.includes("10-q") ||
+    lower.includes("annual") ||
+    lower.includes("quarterly") ||
+    lower.includes("sec")
+  ) return "filing";
   if (lower.includes("fin") || lower.includes("model") || lower.includes("lbo")) return "fin";
   if (lower.includes("legal") || lower.includes("ip")) return "legal";
   if (lower.includes("ops") || lower.includes("operational") || lower.includes("hr")) return "ops";
@@ -18,6 +27,12 @@ export function shortDocName(filename: string): string {
   const kind = classifyDoc(filename);
   if (kind === "cim") return "CIM";
   if (kind === "qoe") return "QoE";
+  if (kind === "filing") {
+    const lower = filename.toLowerCase();
+    if (lower.includes("10k") || lower.includes("10-k")) return "10-K";
+    if (lower.includes("10q") || lower.includes("10-q")) return "10-Q";
+    return "SEC Filing";
+  }
   if (kind === "fin") return "Financials";
   if (kind === "legal") return "Legal DD";
   if (kind === "ops") return "Ops DD";
@@ -48,16 +63,66 @@ function pagesForKinds(docs: AgentDoc[], kinds: string[]): number {
 }
 
 export function buildDefaultTasks(docs: AgentDoc[]): AgentTask[] {
-  const base = [
-    { id: "commercial", label: "Scan CIM for commercial & market risks", docs: ["cim"], color: "#2563eb" },
-    { id: "financial", label: "Cross-reference QoE with raw financials", docs: ["qoe", "fin"], color: "#7c3aed" },
-    { id: "legal", label: "Deep-scan Legal DD for litigation exposure", docs: ["legal"], color: "#b45309" },
-    { id: "ops", label: "Management & operational risk assessment", docs: ["ops"], color: "#059669" },
-    { id: "xdoc", label: "Cross-document consistency validation", docs: ["cim", "qoe", "fin"], color: "#0891b2" },
-    { id: "synth", label: "Synthesizing findings & generating report", docs: ["all"], color: "#64748b", isSynth: true },
-  ];
+  const hasKind = (kind: string) => docs.some((doc) => classifyDoc(doc.name) === kind);
+  const tasks: Array<{
+    id: string;
+    label: string;
+    docs: string[];
+    color: string;
+    isSynth?: boolean;
+  }> = [];
 
-  return base.map((task) => ({
+  if (hasKind("cim")) {
+    tasks.push({ id: "commercial", label: "Scan CIM for commercial & market risks", docs: ["cim"], color: "#2563eb" });
+  }
+
+  const hasFinancialDocs = hasKind("qoe") || hasKind("fin") || hasKind("filing");
+  if (hasFinancialDocs) {
+    const financialDocs = ["qoe", "fin", "filing"].filter(hasKind);
+    tasks.push({
+      id: "financial",
+      label: hasKind("filing") && !hasKind("qoe") && !hasKind("fin")
+        ? "Analyze SEC filing financials & risk factors"
+        : "Cross-reference financial materials",
+      docs: financialDocs,
+      color: "#7c3aed",
+    });
+  }
+
+  if (hasKind("legal")) {
+    tasks.push({ id: "legal", label: "Deep-scan Legal DD for litigation exposure", docs: ["legal"], color: "#b45309" });
+  }
+
+  if (hasKind("ops")) {
+    tasks.push({ id: "ops", label: "Management & operational risk assessment", docs: ["ops"], color: "#059669" });
+  }
+
+  if (docs.length > 1) {
+    tasks.push({
+      id: "xdoc",
+      label: "Cross-document consistency validation",
+      docs: ["all"],
+      color: "#0891b2",
+    });
+  } else if (!tasks.length && docs.length === 1) {
+    tasks.push({
+      id: "xdoc",
+      label: `Scan ${docs[0].short} for key risks and disclosures`,
+      docs: ["all"],
+      color: "#0891b2",
+    });
+  } else if (!tasks.length) {
+    tasks.push({
+      id: "xdoc",
+      label: "Waiting for uploaded documents",
+      docs: ["all"],
+      color: "#0891b2",
+    });
+  }
+
+  tasks.push({ id: "synth", label: "Synthesizing findings & generating report", docs: ["all"], color: "#64748b", isSynth: true });
+
+  return tasks.map((task) => ({
     ...task,
     pagesTotal: task.isSynth ? 0 : pagesForKinds(docs, task.docs),
     pagesRead: 0,

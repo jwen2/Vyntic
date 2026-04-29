@@ -67,6 +67,7 @@ export const DOC_COLORS: Record<string, string> = {
   cim: "#2563eb",
   qoe: "#7c3aed",
   fin: "#0891b2",
+  filing: "#7c3aed",
   legal: "#b45309",
   ops: "#059669",
   all: "#64748b",

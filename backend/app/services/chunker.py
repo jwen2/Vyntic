@@ -9,6 +9,13 @@ from app.models.document import ParsedSection, Chunk
 from app.config import settings
 
 
+def _effective_chunk_overlap(chunk_size: int, explicit_overlap: int) -> int:
+    ratio = getattr(settings, "chunk_overlap_ratio", 0)
+    if ratio and ratio > 0:
+        return round(chunk_size * min(ratio, 0.9))
+    return explicit_overlap
+
+
 def chunk_sections(sections: list[ParsedSection], deal_id: str, doc_id: str) -> list[Chunk]:
     """Split parsed sections into retrieval-ready chunks, preserving table integrity."""
     chunks = []
@@ -38,7 +45,10 @@ def chunk_sections(sections: list[ParsedSection], deal_id: str, doc_id: str) -> 
             text_chunks = _chunk_text(
                 content,
                 chunk_size=settings.chunk_size,
-                chunk_overlap=settings.chunk_overlap,
+                chunk_overlap=_effective_chunk_overlap(
+                    settings.chunk_size,
+                    settings.chunk_overlap,
+                ),
             )
             for tc in text_chunks:
                 chunks.append(Chunk(
@@ -60,6 +70,8 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
     """Simple recursive character splitter with overlap."""
     if len(text) <= chunk_size:
         return [text] if text.strip() else []
+
+    chunk_overlap = max(0, min(chunk_overlap, chunk_size - 1))
 
     # Find nearest heading context
     current_heading = ""
@@ -89,6 +101,8 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
         if heading_matches:
             current_heading = heading_matches[-1]
 
+        if end >= len(text):
+            break
         start = end - chunk_overlap
 
     return chunks

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Deal } from "@/lib/api";
+import { Deal, UploadProgress } from "@/lib/api";
 
 const STAGE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
   Screening: { bg: "#422006", fg: "#fdba74", border: "#7c2d12" },
@@ -34,6 +34,7 @@ interface Props {
     data: { stage?: string; tags?: string[] }
   ) => void;
   uploading: boolean;
+  uploadProgress?: UploadProgress;
   readOnly?: boolean;
 }
 
@@ -46,6 +47,7 @@ export default function DealListItem({
   onUploadFiles,
   onUpdateDeal,
   uploading,
+  uploadProgress,
   readOnly,
 }: Props) {
   const router = useRouter();
@@ -449,22 +451,73 @@ export default function DealListItem({
       )}
 
       {/* Upload progress */}
-      {uploading && (
-        <div
-          className="flex items-center gap-2"
-          style={{ marginTop: 6, fontSize: 11, color: "#60a5fa" }}
-        >
+      {(uploading || uploadProgress) && (
+        <div style={{ marginTop: 8 }}>
           <div
-            className="animate-spin"
+            className="flex items-center justify-between gap-2"
+            style={{ marginBottom: 5, fontSize: 10, color: "#93c5fd" }}
+          >
+            <span
+              title={uploadProgress?.detail || uploadProgress?.filename || ""}
+              style={{
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontWeight: 700,
+              }}
+            >
+              {uploadProgress?.stage || "Indexing"}
+            </span>
+            <span style={{ color: "#60a5fa", fontVariantNumeric: "tabular-nums" }}>
+              {uploadProgress ? `${uploadProgress.percent}%` : ""}
+            </span>
+          </div>
+          <div
+            aria-label="Upload and embedding progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={uploadProgress?.percent ?? 0}
+            role="progressbar"
             style={{
-              width: 10,
-              height: 10,
-              border: "1.5px solid #2563eb",
-              borderTopColor: "transparent",
-              borderRadius: "50%",
+              height: 5,
+              width: "100%",
+              overflow: "hidden",
+              borderRadius: 999,
+              background: "#1e293b",
+              border: "1px solid #334155",
             }}
-          />
-          Indexing...
+          >
+            <div
+              style={{
+                width: `${uploadProgress?.percent ?? 12}%`,
+                height: "100%",
+                borderRadius: 999,
+                background:
+                  uploadProgress?.status === "error"
+                    ? "#ef4444"
+                    : uploadProgress?.status === "complete"
+                    ? "#22c55e"
+                    : "#3b82f6",
+                transition: "width .25s ease",
+              }}
+            />
+          </div>
+          {uploadProgress?.detail && (
+            <div
+              title={uploadProgress.detail}
+              style={{
+                marginTop: 4,
+                fontSize: 10,
+                color: uploadProgress.status === "error" ? "#fca5a5" : "#64748b",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {uploadProgress.detail}
+            </div>
+          )}
         </div>
       )}
 
