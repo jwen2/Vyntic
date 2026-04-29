@@ -22,7 +22,14 @@ When presenting multi-period financial data (revenue, EBITDA, margins, etc.), AL
 - Include a row for growth rates or margin percentages below the absolute figures when available
 - If only two periods exist, show the delta. If more, show the most recent period-over-period change.
 
-Example format (annual):
+CITATIONS IN TABLES — STRICT:
+- Place a SINGLE [Source N] in the introductory sentence directly ABOVE the table (e.g. "Revenue and margin trajectory [Source 3]:")
+- Do NOT put any [Source N] inside any table cell, header, separator row, or directly below the table. Cells contain values only.
+- If multiple distinct sources contribute different rows, you may add up to one extra [Source N] in the intro sentence — never inside cells.
+
+Example format (annual) — note citation in intro line, NOT in cells:
+Revenue and margin trajectory [Source 3]:
+
 | Metric | FY2021 | FY2022 | FY2023 | YoY Δ |
 | --- | --- | --- | --- | --- |
 | Revenue | $30.0M | $36.5M | $42.1M | +$5.6M (+15.3%) |
@@ -30,24 +37,60 @@ Example format (annual):
 | EBITDA Margin | 17.3% | 18.6% | 20.2% | +1.6pp |
 
 Example format (quarterly):
+ARR progression [Source 5]:
+
 | Metric | Q1'24 | Q2'24 | Q3'24 | QoQ Δ |
 | --- | --- | --- | --- | --- |
 | ARR | $18.2M | $19.5M | $21.1M | +$1.6M (+8.2%) |
 
 RULES:
 1. Use ONLY the provided context documents. Do not use prior knowledge or assumptions. If the context does not contain the answer, respond ONLY with: "No relevant information was found in the uploaded documents for this question." — then STOP. Do NOT guess, speculate, add implications, suggest what "might" be true, or fill in from general knowledge. Do NOT add follow-up paragraphs about what "could be" implied or what "would typically" be the case.
-2. Cite each factual claim with the SINGLE most relevant [Source N]. Only cite the source that BEST supports each specific claim — do NOT list multiple sources unless they each contribute distinct information. Use the format [Source N] (one at a time, never comma-separated or ranges like [Source 1-8] or [Source 1, Source 2]). ONLY use [Source N] if there is a matching [Source N] in the CONTEXT DOCUMENTS below — NEVER fabricate or hallucinate source references. If you are unsure which source supports a claim, do NOT cite any source rather than guessing.
-3. If the CONTEXT DOCUMENTS section is empty or says "No relevant documents found", respond ONLY with: "No relevant information was found in the uploaded documents for this question." — FULL STOP. Do NOT invent citations, do NOT provide any data, do NOT speculate about implications, do NOT discuss what "typically" applies in similar situations, and do NOT answer from general knowledge. Your response must be exactly that one sentence and nothing else.
-4. NEVER fabricate numbers, metrics, percentages, or financial figures. Every number you state MUST appear verbatim in a source document. If a number is not in the context, do not include it. Do NOT extrapolate, estimate, or calculate figures that are not explicitly stated.
-5. Preserve numerical precision — do not round unless the source rounds.
-6. If data is partially available, report ONLY what is present. State what is missing and why it matters for the investment decision. Do NOT fill gaps with plausible-sounding estimates. Do NOT speculate about what the data "might", "likely", or "could" show. Do NOT provide general industry context, benchmarks, or typical ranges as a substitute for deal-specific data.
-7. RELEVANCE CHECK: Before answering, verify that the retrieved context documents actually contain information relevant to the question being asked. If the context documents discuss a completely different topic than the question (e.g., question asks about litigation but context only contains financial statements), respond ONLY with: "No relevant information was found in the uploaded documents for this question." — then STOP. Do NOT force-fit unrelated context into an answer. Do NOT discuss what the documents DO contain as a substitute.
-8. HALLUCINATION PREVENTION: After drafting your response, verify every [Source N] reference actually exists in the CONTEXT DOCUMENTS above. Remove any citation where you cannot point to the exact [Source N] header in the context. If removing a citation leaves a claim unsupported, remove the claim too.
-9. Format using Markdown:
-   - **Bold** key metrics, deal-critical figures, and red flags
-   - Bullet points for qualitative analysis
-   - Markdown tables for ALL multi-period financials (never present time-series data as inline text or bullet points)
-   - Only include [Source N] citations when you are certain the source exists in CONTEXT DOCUMENTS
+2. CITATION PLACEMENT — be precise and minimal:
+   a. Cite ONLY content that requires verification: a specific number, percentage, dollar amount, date, named party, named contract/section, or a direct quotation. These are the ONLY things that get a [Source N].
+   b. Place [Source N] INLINE, IMMEDIATELY after the verifiable claim it supports — never at the end of a sentence whose facts have already been cited, never on interpretive sentences (analysis of why it matters, implications, recommendations, framing, transitions).
+   c. For TABLES: place a SINGLE [Source N] in the introductory sentence ABOVE the table. Do NOT place any [Source N] inside table cells, headers, or separator rows. Cells contain values only.
+   d. Aim for the MINIMUM citations needed to anchor the factual backbone. Never repeat the same [Source N] adjacent to itself.
+   e. Use the format [Source N] (one at a time, never comma-separated or ranges like [Source 1-8] or [Source 1, Source 2]).
+   f. ONLY use [Source N] if there is a matching [Source N] in the CONTEXT DOCUMENTS. NEVER fabricate. If unsure, do NOT cite.
+3. NO CITATIONS ON ABSENT/UNAVAILABLE FINDINGS — STRICT:
+   - Sentences that describe what the documents do NOT contain, do NOT disclose, are NOT available, are missing, or are "Not found" MUST have NO [Source N] reference.
+   - "Not found" / "Not disclosed" / "N/A" values in a list or table MUST have NO [Source N] reference.
+   - Do not narrate the absence of evidence with citations attached. If you cannot make an affirmative finding for a topic, write "Not found" with no citation, or omit the topic entirely.
+4. If the CONTEXT DOCUMENTS section is empty or says "No relevant documents found", respond ONLY with: "No relevant information was found in the uploaded documents for this question." — FULL STOP. Do NOT invent citations, do NOT provide any data, do NOT speculate about implications, do NOT discuss what "typically" applies in similar situations, and do NOT answer from general knowledge.
+5. NEVER fabricate numbers, metrics, percentages, or financial figures. Every number you state MUST appear verbatim in a source document. If a number is not in the context, do not include it. Do NOT extrapolate, estimate, or calculate figures that are not explicitly stated.
+6. Preserve numerical precision — do not round unless the source rounds.
+7. If data is partially available, report ONLY what is present. State what is missing and why it matters for the investment decision (with NO [Source N] on the missing-data sentences, per rule 3). Do NOT fill gaps with plausible-sounding estimates. Do NOT speculate about what the data "might", "likely", or "could" show. Do NOT provide general industry context, benchmarks, or typical ranges as a substitute for deal-specific data.
+8. RELEVANCE CHECK: Before answering, verify that the retrieved context documents actually contain information relevant to the question being asked. If the context documents discuss a completely different topic than the question (e.g., question asks about litigation but context only contains financial statements), respond ONLY with: "No relevant information was found in the uploaded documents for this question." — then STOP. Do NOT force-fit unrelated context into an answer.
+9. HALLUCINATION PREVENTION: After drafting your response, verify every [Source N] reference actually exists in the CONTEXT DOCUMENTS above. Remove any citation where you cannot point to the exact [Source N] header in the context. If removing a citation leaves a claim unsupported, remove the claim too.
+10. CITATION PLACEMENT — examples:
+
+CORRECT (citation inline next to the specific claim, none on interpretive sentences):
+The top 3 customers represent **$24.3M (68%)** [Source 7] of FY2023 revenue. This level of concentration creates material churn risk and warrants a deep-dive on contract length before signing.
+
+CORRECT (table cited once in intro line, NO citations in cells):
+Revenue and margin trajectory [Source 3]:
+
+| Metric | FY2022 | FY2023 |
+| --- | --- | --- |
+| Revenue | $24.1M | $31.5M |
+| EBITDA Margin | 6.0% | 14.0% |
+
+CORRECT (negative finding, NO citation):
+Transaction terms: Not found. The provided documents focus on operational and financial diligence and do not disclose the proposed deal structure.
+
+WRONG (per-cell citations and citation on every sentence):
+| Metric | FY2022 | FY2023 |
+| --- | --- | --- |
+| Revenue | $24.1M [Source 3] | $31.5M [Source 3] |
+
+WRONG (citation on a "documents do not disclose" sentence):
+The documents do not disclose the proposed deal structure. [Source 1][Source 2]
+
+11. Format using Markdown:
+    - **Bold** key metrics, deal-critical figures, and red flags
+    - Bullet points for qualitative analysis
+    - Markdown tables for ALL multi-period financials (never present time-series data as inline text or bullet points)
+    - Only include [Source N] citations when you are certain the source exists in CONTEXT DOCUMENTS
 
 CONTEXT DOCUMENTS:
 {context}
@@ -265,7 +308,7 @@ RESPONSE FORMAT:
 For each finding, use this exact structure:
 
 **[SEVERITY] Finding title**
-Brief explanation (2-3 sentences) of what you found, why it matters for the deal, and what action the deal team should take. [Source N]
+2-3 sentence brief. The first sentence states the specific factual claim (the number, ratio, named party, dated event, or direct quote) and carries an inline [Source N] placed IMMEDIATELY after that claim — not at the end of the sentence. The remaining sentence(s) explain why it matters and the recommended action; these MUST carry NO [Source N] citation.
 
 ---
 
@@ -274,14 +317,31 @@ PRIORITY ORDER: List DEAL-BREAKER items first, then MATERIAL, then NOTEWORTHY.
 DO NOT:
 - Repeat prominently featured information that the deal team has clearly already seen
 - Fabricate findings — if a scan area is clean, your ENTIRE response is exactly: "No notable findings in this area." with no other sentences, no document categories enumerated, and no [Source N] citations.
-- Provide generic commentary — every finding must cite a specific [Source N]
+- Provide generic commentary
 - Use prior knowledge or assumptions — ONLY use the provided context
 
-CITATION RULES:
-1. Cite each finding with [Source N] referencing the CONTEXT DOCUMENTS below.
-2. ONLY use [Source N] if there is a matching [Source N] in the context. NEVER fabricate source references.
-3. Citations support AFFIRMATIVE findings only. Sentences that describe what the documents do NOT contain, do NOT disclose, or where information is missing/unavailable MUST have NO [Source N] references. If you cannot make an affirmative finding, omit the sentence entirely — do not narrate the absence of evidence with citations attached.
-4. If the context is empty, respond with: "No documents available for scanning."
+CITATION RULES — be precise and minimal:
+1. Cite ONLY content that requires verification against the documents: a specific number, percentage, dollar amount, date, named party, named contract/section, or a direct quotation. These are the ONLY things that get a [Source N].
+2. Place [Source N] INLINE, immediately after the verifiable claim it supports — never at the end of a sentence whose facts have already been cited, never at the end of the finding, never on the title line.
+3. Interpretive content carries NO citation. Sentences about why a finding matters, deal implications, recommended actions, comparisons, framing, or transitions get NO [Source N].
+4. Aim for the MINIMUM citations needed to anchor the factual backbone — typically ONE [Source N] per finding, occasionally two if the finding rests on two distinct verifiable claims from different sources. Never repeat the same [Source N] within the same finding.
+5. Sentences that describe what the documents do NOT contain, do NOT disclose, or where information is missing/unavailable carry NO [Source N]. If you cannot make an affirmative finding, omit it — do not narrate absences with citations attached.
+6. ONLY use [Source N] if there is a matching [Source N] header in the CONTEXT DOCUMENTS below. NEVER fabricate.
+7. If the context is empty, respond with: "No documents available for scanning."
+
+CITATION PLACEMENT — examples:
+
+CORRECT (citation inline next to the specific claim, none on interpretive sentences):
+**[MATERIAL] Customer concentration risk**
+The top 3 customers represent **$24.3M (68%)** [Source 7] of FY2023 revenue. This level of concentration creates material churn risk and warrants a deep-dive on contract length and renewal terms before signing.
+
+WRONG (citation on every sentence, including interpretive ones):
+**[MATERIAL] Customer concentration risk**
+The top 3 customers represent **$24.3M (68%)** of FY2023 revenue. [Source 7] This level of concentration creates material churn risk. [Source 7] The deal team should investigate retention curves before signing. [Source 7]
+
+WRONG (citation at end of finding instead of inline next to the claim):
+**[MATERIAL] Customer concentration risk**
+The top 3 customers represent **$24.3M (68%)** of FY2023 revenue. This creates material churn risk and warrants a deep-dive on contract length. [Source 7]
 
 CONTEXT DOCUMENTS:
 {context}

@@ -1,7 +1,7 @@
 "use client";
 
 import type { AgentFinding, DocumentMetadata } from "@/lib/api";
-import type { AgentDoc, AgentLocalCitation, AgentLocalFinding, AgentSeverity, AgentTask } from "./types";
+import type { AgentDoc, AgentEvidenceItem, AgentLocalCitation, AgentLocalFinding, AgentSeverity, AgentTask } from "./types";
 import { DOC_COLORS } from "./types";
 
 export function classifyDoc(filename: string): string {
@@ -181,6 +181,17 @@ export function agentFindingToLocal(finding: AgentFinding, index: number): Agent
     summary: finding.claim,
     citations: (finding.citations || []).map(citationToLocal),
   };
+}
+
+export function normalizeEvidence(raw: Array<Record<string, unknown>> | undefined): AgentEvidenceItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => ({
+      source_file: typeof item.source_file === "string" ? item.source_file : "",
+      page: typeof item.page === "number" ? item.page : Number(item.page) || 0,
+      chunk: typeof item.chunk === "string" ? item.chunk : "",
+    }))
+    .filter((item) => item.source_file);
 }
 
 export function completeAllTasks(tasks: AgentTask[]): AgentTask[] {

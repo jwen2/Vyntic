@@ -113,6 +113,123 @@ def _fix_table_newlines(text: str) -> str:
     return "\n".join(fixed_lines)
 
 
+# Markers that almost always indicate a sentence describing absent / unavailable
+# information rather than an affirmative factual claim. Citations attached to
+# such sentences are over-citation per the prompt rules.
+_ABSENT_FINDING_MARKERS = (
+    "not found",
+    "not disclosed",
+    "are not disclosed",
+    "is not disclosed",
+    "do not disclose",
+    "does not disclose",
+    "did not disclose",
+    "do not contain",
+    "does not contain",
+    "did not contain",
+    "no relevant information",
+    "no information was found",
+    "no specific information",
+    "not available",
+    "is not available",
+    "are not available",
+    "n/a",
+)
+
+
+_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$")
+
+
+def _split_prose_glued_to_table_header(text: str) -> str:
+    """Insert a newline when the LLM glues prose onto a markdown table header.
+
+    Pattern handled:
+        Other Key Metrics [Source 2]| Metric | Value |
+        | --- | --- |
+    becomes:
+        Other Key Metrics [Source 2]
+        | Metric | Value |
+        | --- | --- |
+
+    Detection: a line that starts with non-pipe content, contains a markdown
+    table row fragment (3+ pipes), AND is immediately followed by a markdown
+    table separator row. The next-line check keeps this conservative so we
+    don't split sentences that happen to mention `|`.
+    """
+    lines = text.split("\n")
+    out: list[str] = []
+    for i, line in enumerate(lines):
+        first_pipe = line.find("|")
+        next_line = lines[i + 1] if i + 1 < len(lines) else ""
+        if (
+            first_pipe > 0
+            and line.count("|") >= 3
+            and _TABLE_SEPARATOR_RE.match(next_line)
+        ):
+            prose = line[:first_pipe].rstrip()
+            tail = line[first_pipe:].lstrip()
+            if prose:
+                out.append(prose)
+            out.append(tail)
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
+def _drop_citations(line: str) -> str:
+    """Remove every [Source N] marker from a line and tidy resulting spacing.
+
+    Important: do NOT consume leading whitespace along with the citation. If a
+    citation sits between two clauses (e.g. "A. [Source 1]B. ..."), eating the
+    leading space would merge the clauses ("A.B."). Instead, we strip only the
+    bracket text, then collapse any resulting double spaces and remove the
+    space that may now sit before sentence-ending punctuation.
+    """
+    line = re.sub(r"\[Source\s+\d+\]", "", line)
+    # Collapse runs of internal spaces created by the strip.
+    line = re.sub(r"  +", " ", line)
+    # Remove a space that now precedes sentence-ending punctuation.
+    line = re.sub(r" +([.,;:!?])", r"\1", line)
+    # Tidy trailing whitespace; preserve any leading indentation.
+    return line.rstrip()
+
+
+def _strip_table_cell_citations(answer: str) -> str:
+    """Remove [Source N] markers from inside markdown table rows.
+
+    Per the prompt, table citations belong in the introductory sentence above
+    the table, not inside cells. This is a safety net for when the LLM
+    over-cites within table cells anyway.
+    """
+    lines = answer.split("\n")
+    out: list[str] = []
+    for line in lines:
+        stripped = line.lstrip()
+        # Markdown table rows begin with `|` and contain at least one more `|`.
+        if stripped.startswith("|") and stripped.count("|") >= 2:
+            line = _drop_citations(line)
+        out.append(line)
+    return "\n".join(out)
+
+
+def _strip_absent_finding_citations(answer: str) -> str:
+    """Remove [Source N] from sentences/lines that describe missing information.
+
+    Citations should only support affirmative findings. A sentence saying the
+    documents 'do not disclose X' or a value of 'Not found' must not carry a
+    [Source N]. We scan line-by-line; if any absent-finding marker appears in
+    the line (case-insensitive), we strip every [Source N] from that line.
+    """
+    lines = answer.split("\n")
+    out: list[str] = []
+    for line in lines:
+        lowered = line.lower()
+        if any(marker in lowered for marker in _ABSENT_FINDING_MARKERS):
+            line = _drop_citations(line)
+        out.append(line)
+    return "\n".join(out)
+
+
 def _select_snippet(content: str) -> str:
     """Pick the most informative span of a chunk for citation display.
 
@@ -137,6 +254,16 @@ def extract_citations(answer: str, retrieved_chunks: list[dict], deal_id: str | 
     """
     # Fix malformed table formatting from LLMs that omit newlines between rows
     answer = _fix_table_newlines(answer)
+
+    # Fix tables where prose is glued to the header row on the same line
+    # (e.g. "Other Key Metrics [Source 2]| Metric | Value |\n| --- | --- |").
+    # Run before the cell-citation strip so the new header line is recognised.
+    answer = _split_prose_glued_to_table_header(answer)
+
+    # Defensive: strip citations from places they should never appear
+    # (table cells and sentences describing absent / unavailable info).
+    answer = _strip_table_cell_citations(answer)
+    answer = _strip_absent_finding_citations(answer)
 
     # First strip any hallucinated source references
     cleaned = strip_invalid_sources(answer, len(retrieved_chunks))
