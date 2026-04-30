@@ -114,5 +114,99 @@ export function fixMarkdownTables(text: string): string {
     final.push(output[i]);
   }
 
-  return final.join("\n");
+  // ── Third pass: split body rows that glued multiple records together ──
+  // Once a separator establishes the column count N, any subsequent body row
+  // with k*N cells (k >= 2) is split into k rows. If the row has extra cells
+  // that look like non-table markdown (heading, blockquote, list), peel them
+  // off and emit them after the table — models sometimes glue the next
+  // section's content onto the last table row.
+  const split: string[] = [];
+  const looksLikeBlock = /^(#{1,6}\s|>\s?|[-*]\s|\d+\.\s|```)/;
+  let cols = 0;
+  for (const line of final) {
+    const trimmed = line.trim();
+    const sepMatch = trimmed.match(
+      /^\|\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|$/
+    );
+    if (sepMatch) {
+      cols = (trimmed.match(/-{3,}/g) || []).length;
+      split.push(line);
+      continue;
+    }
+    if (
+      cols >= 2 &&
+      trimmed.startsWith("|") &&
+      trimmed.endsWith("|") &&
+      !trimmed.includes("---")
+    ) {
+      const cells = trimmed
+        .slice(1, -1)
+        .split("|")
+        .map((c) => c.trim());
+      if (cells.length > cols) {
+        if (cells.length % cols === 0) {
+          for (let j = 0; j < cells.length; j += cols) {
+            split.push("| " + cells.slice(j, j + cols).join(" | ") + " |");
+          }
+          continue;
+        }
+        const trailing = cells.slice(cols);
+        if (trailing.some((c) => looksLikeBlock.test(c))) {
+          split.push("| " + cells.slice(0, cols).join(" | ") + " |");
+          split.push("");
+          trailing.forEach((c) => split.push(c));
+          cols = 0;
+          continue;
+        }
+      }
+    } else if (trimmed === "" || !trimmed.startsWith("|")) {
+      cols = 0;
+    }
+    split.push(line);
+  }
+
+  // ── Fourth pass: drop tables where every value column is "Not found"-like ──
+  // For a table with N >= 2 columns, treat column 0 as the label and columns
+  // 1..N-1 as values. If every body row has every value cell match the empty
+  // pattern, replace the whole table with a brief placeholder so the section
+  // doesn't render as a wall of "Not found" rows.
+  const emptyValue = /^(not\s*found|n\/?a|none|null|—|–|-+|tbd|unknown|)$/i;
+  const cleaned: string[] = [];
+  let i = 0;
+  while (i < split.length) {
+    const trimmed = split[i].trim();
+    const next = i + 1 < split.length ? split[i + 1].trim() : "";
+    const isHeader = trimmed.startsWith("|") && trimmed.endsWith("|");
+    const isSep = /^\|\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|$/.test(next);
+    if (isHeader && isSep) {
+      const tableCols = trimmed.slice(1, -1).split("|").length;
+      const bodyStart = i + 2;
+      let bodyEnd = bodyStart;
+      while (bodyEnd < split.length) {
+        const bt = split[bodyEnd].trim();
+        if (!bt.startsWith("|") || !bt.endsWith("|")) break;
+        bodyEnd++;
+      }
+      let allEmpty = bodyEnd > bodyStart && tableCols >= 2;
+      for (let r = bodyStart; r < bodyEnd && allEmpty; r++) {
+        const cells = split[r]
+          .trim()
+          .slice(1, -1)
+          .split("|")
+          .map((c) => c.trim());
+        for (let c = 1; c < tableCols && allEmpty; c++) {
+          if (!emptyValue.test(cells[c] || "")) allEmpty = false;
+        }
+      }
+      if (allEmpty) {
+        cleaned.push("_No data found in scanned documents._");
+        i = bodyEnd;
+        continue;
+      }
+    }
+    cleaned.push(split[i]);
+    i++;
+  }
+
+  return cleaned.join("\n");
 }
