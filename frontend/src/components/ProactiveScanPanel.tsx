@@ -4,6 +4,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Citation, SweepEvent, WorkstreamEvent, sweepStream } from "@/lib/api";
 import { Workstream } from "@/lib/queryTemplates";
+import { fixMarkdownTables } from "@/lib/markdownUtils";
+import { useTableState } from "@/lib/useTableState";
 import InlineCitation from "./InlineCitation";
 import { QuestionResult } from "./WorkstreamPanel";
 
@@ -336,7 +338,8 @@ function ScanAreaRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const hasResult = result && result.status !== "pending";
-  const cleanAnswer = result?.answer ? stripThinkTags(result.answer) : "";
+  const tableState = useTableState();
+  const cleanAnswer = result?.answer ? fixMarkdownTables(stripThinkTags(result.answer)) : "";
   const sourceCount = result?.citations
     ? result.citations.filter((c) => c !== null).length
     : 0;
@@ -539,43 +542,67 @@ function ScanAreaRow({
                         <hr className="my-3 border-gray-200 dark:border-gray-700" />
                       ),
                       h1: ({ children }) => (
-                        <h3 className="text-base font-bold mt-3 mb-1.5 text-gray-900 dark:text-gray-100">{children}</h3>
+                        <h3 className="text-base font-bold mt-3 mb-1.5 text-gray-900 dark:text-gray-100">
+                          {processCitations(children, result.citations, onViewDocument)}
+                        </h3>
                       ),
                       h2: ({ children }) => (
-                        <h4 className="text-sm font-bold mt-2.5 mb-1 text-gray-900 dark:text-gray-100">{children}</h4>
+                        <h4 className="text-sm font-bold mt-2.5 mb-1 text-gray-900 dark:text-gray-100">
+                          {processCitations(children, result.citations, onViewDocument)}
+                        </h4>
                       ),
                       h3: ({ children }) => (
-                        <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-800 dark:text-gray-200">{children}</h5>
+                        <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-800 dark:text-gray-200">
+                          {processCitations(children, result.citations, onViewDocument)}
+                        </h5>
                       ),
                       blockquote: ({ children }) => (
                         <blockquote className="border-l-3 border-amber-300 dark:border-amber-600 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
                           {children}
                         </blockquote>
                       ),
-                      table: ({ children }) => (
-                        <div className="not-prose overflow-x-auto my-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
-                          <table className="text-xs border-collapse w-full min-w-[280px]">
-                            {children}
-                          </table>
-                        </div>
-                      ),
+                      table: ({ children }) => {
+                        tableState.reset();
+                        return (
+                          <div className="not-prose overflow-x-auto my-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
+                            <table className="text-xs border-collapse w-full min-w-[280px]">
+                              {children}
+                            </table>
+                          </div>
+                        );
+                      },
                       thead: ({ children }) => (
                         <thead className="bg-gradient-to-b from-slate-50 to-slate-100/80 dark:from-gray-800 dark:to-gray-800/80">
                           {children}
                         </thead>
                       ),
-                      th: ({ children }) => (
-                        <th className="border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0 px-3 py-2.5 text-[11px] font-semibold whitespace-nowrap tracking-wide text-gray-700 dark:text-gray-300">
-                          {children}
-                        </th>
-                      ),
-                      tr: ({ children }) => (
-                        <tr className="even:bg-slate-50/40 dark:even:bg-gray-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0">
-                          {children}
-                        </tr>
-                      ),
+                      th: ({ children }) => {
+                        tableState.recordHeaderCol();
+                        return (
+                          <th className="border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0 px-3 py-2.5 text-[11px] font-semibold tracking-wide text-gray-700 dark:text-gray-300 break-words">
+                            {children}
+                          </th>
+                        );
+                      },
+                      tr: ({ children }) => {
+                        const trClass =
+                          "even:bg-slate-50/40 dark:even:bg-gray-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0";
+                        const rows = tableState.processRow(children);
+                        if (rows === null) return <tr className={trClass}>{children}</tr>;
+                        if (rows.length === 1)
+                          return <tr className={trClass}>{rows[0]}</tr>;
+                        return (
+                          <>
+                            {rows.map((cells, i) => (
+                              <tr key={i} className={trClass}>
+                                {cells}
+                              </tr>
+                            ))}
+                          </>
+                        );
+                      },
                       td: ({ children }) => (
-                        <td className="border-r border-gray-100 dark:border-gray-800 last:border-r-0 px-3 py-2 text-xs text-gray-700 dark:text-gray-300">
+                        <td className="border-r border-gray-100 dark:border-gray-800 last:border-r-0 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 break-words align-top">
                           {processCitations(children, result.citations, onViewDocument)}
                         </td>
                       ),
