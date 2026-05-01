@@ -40,6 +40,7 @@ interface Props {
   onHistoryChange?: () => void | Promise<void>;
   pendingPrompt?: string | null;
   pendingPromptSignal?: number;
+  onProactiveScan?: () => void;
 }
 
 function initialRunState(documents: DocumentMetadata[]): RunState {
@@ -105,6 +106,7 @@ export default function AgentWorkspaceView({
   onHistoryChange,
   pendingPrompt,
   pendingPromptSignal = 0,
+  onProactiveScan,
 }: Props) {
   const docs = useMemo(() => buildAgentDocs(documents), [documents]);
   const [inputPrompt, setInputPrompt] = useState("");
@@ -422,6 +424,7 @@ export default function AgentWorkspaceView({
             prompt={inputPrompt}
             setPrompt={setInputPrompt}
             onSubmit={submit}
+            onProactiveScan={onProactiveScan}
           />
         ) : (
           <AgentActiveState

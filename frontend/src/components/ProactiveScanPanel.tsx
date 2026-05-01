@@ -93,6 +93,12 @@ interface Props {
   cachedResults: Record<string, QuestionResult>;
   onResultsChange: (results: Record<string, QuestionResult>) => void;
   onViewDocument?: (citation: Citation) => void;
+  /**
+   * When this number changes (and is > 0), the panel kicks off a full scan
+   * automatically. Used by the agent chat to delegate "Run Proactive Scan"
+   * into this tab without the user clicking the button.
+   */
+  autoRunSignal?: number;
 }
 
 export default function ProactiveScanPanel({
@@ -101,6 +107,7 @@ export default function ProactiveScanPanel({
   cachedResults,
   onResultsChange,
   onViewDocument,
+  autoRunSignal,
 }: Props) {
   const [results, setResults] = useState<Record<string, QuestionResult>>(cachedResults);
   const [runningAll, setRunningAll] = useState(false);
@@ -140,6 +147,24 @@ export default function ProactiveScanPanel({
       setScanMeta({ totalChunks: event.total_chunks });
       return;
     }
+    if (event.type === "sweep_done") {
+      // Single batched call — model/timing applies to every scan area.
+      updateResults((prev) => {
+        const next = { ...prev };
+        for (const key of Object.keys(next)) {
+          if (next[key]?.status === "complete") {
+            next[key] = {
+              ...next[key],
+              model: event.model,
+              fallback: event.fallback,
+              duration_ms: event.duration_ms,
+            };
+          }
+        }
+        return next;
+      });
+      return;
+    }
     const wsEvent = event as WorkstreamEvent;
     const q = wsEvent.question;
     if (wsEvent.type === "token") {
@@ -159,8 +184,6 @@ export default function ProactiveScanPanel({
           answer: wsEvent.answer,
           citations: wsEvent.citations,
           status: "complete",
-          model: wsEvent.model,
-          fallback: wsEvent.fallback,
           duration_ms: wsEvent.duration_ms,
         },
       }));
@@ -202,6 +225,18 @@ export default function ProactiveScanPanel({
       }
     );
   }, [dealId, workstream, handleEvent, updateResults]);
+
+  // Auto-run when the signal increments (used by agent chat → tab redirect).
+  // Tracks the last seen signal so the initial mount doesn't trigger a run,
+  // and a stale signal isn't replayed if the user re-mounts the panel.
+  const lastAutoRunSignalRef = useRef<number | undefined>(autoRunSignal);
+  useEffect(() => {
+    if (autoRunSignal === undefined || autoRunSignal === 0) return;
+    if (lastAutoRunSignalRef.current === autoRunSignal) return;
+    lastAutoRunSignalRef.current = autoRunSignal;
+    if (runningAll) return;
+    runFullScan();
+  }, [autoRunSignal, runFullScan, runningAll]);
 
   return (
     <div className="flex flex-col h-full">
