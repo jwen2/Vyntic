@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.services import deal_store
-from app.services.vector_store import query_document
+from app.services.vector_store import query_document, get_document_chunks
 from app.database import UserRow
 from app.auth import get_current_user, require_deal_access
 from app.utils.citations import build_context_string, extract_citations
@@ -64,7 +64,17 @@ async def _stream_doc_answer(deal_id: str, doc_id: str, query: str):
                     "done": False,
                 }
 
-        cleaned_answer, citations = extract_citations(full_answer, retrieved, deal_id=deal_id)
+        # Pull every chunk for the cited document so citation snippets can be
+        # enriched with same-page context — Docling sometimes captures table
+        # headers in one chunk and the row values as text in another, and
+        # top-k retrieval may not include both. (See citations._select_snippet.)
+        full_doc_chunks = get_document_chunks(deal_id, doc_id)
+        cleaned_answer, citations = extract_citations(
+            full_answer,
+            retrieved,
+            deal_id=deal_id,
+            page_context_chunks=full_doc_chunks,
+        )
         meta = get_last_meta()
         yield {
             "doc_id": doc_id,
