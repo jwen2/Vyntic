@@ -509,7 +509,15 @@ export interface SweepMetaEvent {
   total_questions: number;
 }
 
-export type SweepEvent = WorkstreamEvent | SweepMetaEvent;
+export interface SweepDoneEvent {
+  type: "sweep_done";
+  deal_id: string;
+  model: string;
+  fallback: boolean;
+  duration_ms: number;
+}
+
+export type SweepEvent = WorkstreamEvent | SweepMetaEvent | SweepDoneEvent;
 
 /**
  * Opens a streaming SSE connection to run a proactive sweep scan on a deal.

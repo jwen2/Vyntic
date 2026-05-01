@@ -138,6 +138,24 @@ export default function ProactiveScanPanel({
       setScanMeta({ totalChunks: event.total_chunks });
       return;
     }
+    if (event.type === "sweep_done") {
+      // Single batched call — model/timing applies to every scan area.
+      updateResults((prev) => {
+        const next = { ...prev };
+        for (const key of Object.keys(next)) {
+          if (next[key]?.status === "complete") {
+            next[key] = {
+              ...next[key],
+              model: event.model,
+              fallback: event.fallback,
+              duration_ms: event.duration_ms,
+            };
+          }
+        }
+        return next;
+      });
+      return;
+    }
     const wsEvent = event as WorkstreamEvent;
     const q = wsEvent.question;
     if (wsEvent.type === "token") {
@@ -157,8 +175,6 @@ export default function ProactiveScanPanel({
           answer: wsEvent.answer,
           citations: wsEvent.citations,
           status: "complete",
-          model: wsEvent.model,
-          fallback: wsEvent.fallback,
           duration_ms: wsEvent.duration_ms,
         },
       }));

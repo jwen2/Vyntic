@@ -34,9 +34,10 @@ interface Props {
   prompt: string;
   setPrompt: (value: string) => void;
   onSubmit: (prompt?: string) => void;
+  onProactiveScan?: () => void;
 }
 
-export default function AgentIdleState({ dealName, totalPages, documentCount, prompt, setPrompt, onSubmit }: Props) {
+export default function AgentIdleState({ dealName, totalPages, documentCount, prompt, setPrompt, onSubmit, onProactiveScan }: Props) {
   const { theme } = useTheme();
   const c = ddTheme(theme);
   const isDark = theme === "dark";
@@ -133,7 +134,13 @@ export default function AgentIdleState({ dealName, totalPages, documentCount, pr
         </div>
 
         <button
-          onClick={() => onSubmit("Run proactive scan across all documents to find hidden risks, buried clauses, and data room gaps.")}
+          onClick={() => {
+            if (onProactiveScan) {
+              onProactiveScan();
+            } else {
+              onSubmit("Run proactive scan across all documents to find hidden risks, buried clauses, and data room gaps.");
+            }
+          }}
           onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#f59e0b")}
           onMouseLeave={(e) => (e.currentTarget.style.borderColor = isDark ? "#92400e44" : "#fde68a")}
           className="flex items-center"

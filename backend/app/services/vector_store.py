@@ -196,11 +196,12 @@ def get_document_chunks(deal_id: str, doc_id: str) -> list[dict]:
     return chunks
 
 
-async def get_all_chunks(deal_id: str, limit: int = 150) -> list[dict]:
+async def get_all_chunks(deal_id: str, limit: int | None = None) -> list[dict]:
     """
     Get all chunks from a deal's collection for proactive scanning.
     Unlike query_deal() which uses embedding similarity, this returns
     ALL chunks so the LLM can find things the user hasn't asked about.
+    Paginates via Chroma's offset to avoid loading huge result sets at once.
     Returns chunks sorted by source file and page for coherent context.
     """
     collection = _get_collection(deal_id)
@@ -208,13 +209,18 @@ async def get_all_chunks(deal_id: str, limit: int = 150) -> list[dict]:
     if count == 0:
         return []
 
-    results = collection.get(
-        limit=min(limit, count),
-        include=["documents", "metadatas"],
-    )
+    target = count if limit is None else min(limit, count)
+    page_size = 1000
+    chunks: list[dict] = []
 
-    chunks = []
-    if results and results["documents"]:
+    for offset in range(0, target, page_size):
+        results = collection.get(
+            limit=min(page_size, target - offset),
+            offset=offset,
+            include=["documents", "metadatas"],
+        )
+        if not results or not results.get("documents"):
+            break
         for doc, meta in zip(results["documents"], results["metadatas"]):
             chunks.append({
                 "content": doc,
@@ -223,7 +229,6 @@ async def get_all_chunks(deal_id: str, limit: int = 150) -> list[dict]:
                 "section_type": meta.get("section_type", "text"),
             })
 
-    # Sort by file then page for coherent context
     chunks.sort(key=lambda c: (c["source_file"], c["page"]))
     return chunks
 
