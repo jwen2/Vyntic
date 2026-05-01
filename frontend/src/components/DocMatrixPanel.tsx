@@ -94,14 +94,24 @@ export default function DocMatrixPanel({
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<DocumentMetadata | null>(null);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const [deleteDocError, setDeleteDocError] = useState<string | null>(null);
-  const controllerRef = useRef<AbortController | null>(null);
+  const controllersRef = useRef<Map<string, AbortController>>(new Map());
 
   // Column management state
   const [editingColIndex, setEditingColIndex] = useState<number | null>(null);
   const [editingColValue, setEditingColValue] = useState("");
   const [confirmDeleteCol, setConfirmDeleteCol] = useState<number | null>(null);
+  const [pendingRename, setPendingRename] = useState<{
+    index: number;
+    oldQuery: string;
+    newName: string;
+  } | null>(null);
   const [dragColIndex, setDragColIndex] = useState<number | null>(null);
   const [dragOverColIndex, setDragOverColIndex] = useState<number | null>(null);
+
+  // Per-column width overrides (key: "doc" or the query string). Falls back to
+  // density-driven defaults when no override is set.
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const [resizingKey, setResizingKey] = useState<string | null>(null);
 
   // Unified Excel-like header filter/sort for all columns
   const [openMenu, setOpenMenu] = useState<"doc" | number | null>(null);
@@ -141,6 +151,40 @@ export default function DocMatrixPanel({
   const COL_DOC = 240;
   const COL_QUERY = density === "compact" ? 480 : 720;
   const COL_ADD = 360;
+  const MIN_COL_WIDTH = 140;
+  const MAX_COL_WIDTH = 1200;
+
+  const getColWidth = useCallback(
+    (key: string, fallback: number) => colWidths[key] ?? fallback,
+    [colWidths]
+  );
+
+  const startColResize = useCallback(
+    (e: React.MouseEvent, key: string, startWidth: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      setResizingKey(key);
+
+      const onMove = (mv: MouseEvent) => {
+        const delta = mv.clientX - startX;
+        const next = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, startWidth + delta));
+        setColWidths((prev) => ({ ...prev, [key]: next }));
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        setResizingKey(null);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    []
+  );
 
   const setColFilter = (col: "doc" | number, value: string) => {
     setColFilters((prev) => ({ ...prev, [String(col)]: value }));
@@ -192,6 +236,24 @@ export default function DocMatrixPanel({
 
   // ── Persistence Setup ──
   const CACHE_KEY = useMemo(() => `vyntic_doc_matrix_${dealId}`, [dealId]);
+  const WIDTH_KEY = useMemo(() => `vyntic_doc_matrix_widths_${dealId}`, [dealId]);
+
+  // Load + persist column-width overrides per deal
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(WIDTH_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") setColWidths(parsed);
+      }
+    } catch {}
+  }, [WIDTH_KEY]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WIDTH_KEY, JSON.stringify(colWidths));
+    } catch {}
+  }, [colWidths, WIDTH_KEY]);
 
   const latestState = useRef({ queries, cells });
   useEffect(() => {
@@ -265,8 +327,10 @@ export default function DocMatrixPanel({
 
   // Cleanup on unmount
   useEffect(() => {
+    const controllers = controllersRef.current;
     return () => {
-      controllerRef.current?.abort();
+      controllers.forEach((c) => c.abort());
+      controllers.clear();
     };
   }, []);
 
@@ -317,11 +381,109 @@ export default function DocMatrixPanel({
     return () => document.removeEventListener("mousedown", handler);
   }, [showTemplates]);
 
+  // Streaming runner — kicks off a doc-matrix sweep for `query` against the given
+  // documents (defaults to all current documents) and writes results into cells
+  // under that query key. Concurrent runs are tracked per controllerKey so we can
+  // cancel just one stream (e.g. column rename, single-cell retry) without
+  // disturbing other in-flight work. `controllerKey` defaults to the query — pass
+  // a unique key (e.g. `${query}::${docId}`) for per-cell retries so they don't
+  // clobber a column-wide stream.
+  const runQueryStream = useCallback(
+    (
+      query: string,
+      opts?: { docIds?: string[]; controllerKey?: string }
+    ) => {
+      const docIds = opts?.docIds ?? documents.map((d) => d.doc_id);
+      const controllerKey = opts?.controllerKey ?? query;
+      if (docIds.length === 0) return;
+
+      // If a stream is already running for this controller key, abort it first
+      controllersRef.current.get(controllerKey)?.abort();
+
+      setLoading(true);
+
+      const controller = docMatrixStream(
+        dealId,
+        docIds,
+        query,
+        (event: DocMatrixEvent) => {
+          setCells((prev) => {
+            const updated = { ...prev };
+            const docCells = { ...(updated[event.doc_id] || {}) };
+
+            if (event.type === "token") {
+              const current = docCells[query] || {
+                answer: "",
+                citations: [],
+                status: "loading" as const,
+              };
+              docCells[query] = {
+                ...current,
+                answer: current.answer + event.token,
+                status: "loading",
+              };
+            } else if (event.type === "done") {
+              docCells[query] = {
+                answer: event.answer,
+                citations: event.citations,
+                status: "complete",
+                model: event.model,
+                fallback: event.fallback,
+                duration_ms: event.duration_ms,
+              };
+            } else if (event.type === "error") {
+              docCells[query] = {
+                answer: event.error,
+                citations: [],
+                status: "error",
+              };
+            }
+
+            updated[event.doc_id] = docCells;
+            return updated;
+          });
+        },
+        () => {
+          controllersRef.current.delete(controllerKey);
+          if (controllersRef.current.size === 0) setLoading(false);
+        },
+        (err) => {
+          console.error("Doc matrix stream error:", err);
+          controllersRef.current.delete(controllerKey);
+          if (controllersRef.current.size === 0) setLoading(false);
+        }
+      );
+
+      controllersRef.current.set(controllerKey, controller);
+    },
+    [dealId, documents]
+  );
+
+  const retryCell = useCallback(
+    (docId: string, query: string) => {
+      setCells((prev) => {
+        const next = { ...prev };
+        const docCells = { ...(next[docId] || {}) };
+        docCells[query] = { answer: "", citations: [], status: "loading" };
+        next[docId] = docCells;
+        return next;
+      });
+      runQueryStream(query, {
+        docIds: [docId],
+        controllerKey: `${query}::${docId}`,
+      });
+    },
+    [runQueryStream]
+  );
+
   // Column management handlers
   const removeQuery = useCallback((index: number) => {
     setQueries((prev) => {
       const query = prev[index];
       if (!query) return prev;
+      // Cancel any in-flight stream for the removed column
+      controllersRef.current.get(query)?.abort();
+      controllersRef.current.delete(query);
       setCells((prevCells) => {
         const newCells = { ...prevCells };
         for (const docId of Object.keys(newCells)) {
@@ -331,32 +493,53 @@ export default function DocMatrixPanel({
         }
         return newCells;
       });
+      setColWidths((prev) => {
+        if (!(query in prev)) return prev;
+        const next = { ...prev };
+        delete next[query];
+        return next;
+      });
       return prev.filter((_, i) => i !== index);
     });
   }, []);
 
-  const renameQuery = useCallback((index: number, newName: string) => {
-    setQueries((prev) => {
-      const oldQuery = prev[index];
-      if (!oldQuery || !newName.trim() || oldQuery === newName) return prev;
-      if (prev.includes(newName)) return prev;
-      const newQueries = [...prev];
-      newQueries[index] = newName;
-      setCells((prevCells) => {
-        const newCells = { ...prevCells };
-        for (const docId of Object.keys(newCells)) {
-          const docCells = { ...newCells[docId] };
-          if (docCells[oldQuery]) {
-            docCells[newName] = docCells[oldQuery];
-            delete docCells[oldQuery];
-          }
-          newCells[docId] = docCells;
-        }
-        return newCells;
+  const renameQuery = useCallback(
+    (index: number, newName: string) => {
+      const trimmed = newName.trim();
+      const oldQuery = queries[index];
+      if (!oldQuery || !trimmed || oldQuery === trimmed) return;
+      if (queries.includes(trimmed)) return;
+      if (documents.length === 0) return;
+
+      // The old query's results no longer apply — cancel its in-flight stream
+      controllersRef.current.get(oldQuery)?.abort();
+      controllersRef.current.delete(oldQuery);
+
+      setQueries((prev) => {
+        const next = [...prev];
+        next[index] = trimmed;
+        return next;
       });
-      return newQueries;
-    });
-  }, []);
+      setColWidths((prev) => {
+        if (!(oldQuery in prev)) return prev;
+        const { [oldQuery]: w, ...rest } = prev;
+        return { ...rest, [trimmed]: w };
+      });
+      setCells((prev) => {
+        const next = { ...prev };
+        for (const doc of documents) {
+          const docCells = { ...(next[doc.doc_id] || {}) };
+          delete docCells[oldQuery];
+          docCells[trimmed] = { answer: "", citations: [], status: "loading" };
+          next[doc.doc_id] = docCells;
+        }
+        return next;
+      });
+
+      runQueryStream(trimmed);
+    },
+    [queries, documents, runQueryStream]
+  );
 
   const reorderQueries = useCallback((fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
@@ -374,11 +557,29 @@ export default function DocMatrixPanel({
   };
 
   const commitRename = () => {
-    if (editingColIndex !== null && editingColValue.trim()) {
-      renameQuery(editingColIndex, editingColValue.trim());
+    if (editingColIndex === null) {
+      setEditingColValue("");
+      return;
     }
+    const idx = editingColIndex;
+    const trimmed = editingColValue.trim();
+    // Close edit mode immediately so onBlur can't re-fire while a confirm dialog is up
     setEditingColIndex(null);
     setEditingColValue("");
+
+    const oldQuery = queries[idx];
+    if (!trimmed || !oldQuery || oldQuery === trimmed) return;
+    if (queries.includes(trimmed)) return;
+
+    // Confirm before discarding committed answers; loading-only columns re-run silently.
+    const hasCompleteAnswers = documents.some(
+      (doc) => cells[doc.doc_id]?.[oldQuery]?.status === "complete"
+    );
+    if (hasCompleteAnswers) {
+      setPendingRename({ index: idx, oldQuery, newName: trimmed });
+    } else {
+      renameQuery(idx, trimmed);
+    }
   };
 
   const handleColDragStart = (index: number) => {
@@ -422,61 +623,9 @@ export default function DocMatrixPanel({
         return updated;
       });
 
-      setLoading(true);
-
-      const docIds = documents.map((d) => d.doc_id);
-
-      const controller = docMatrixStream(
-        dealId,
-        docIds,
-        trimmed,
-        (event: DocMatrixEvent) => {
-          setCells((prev) => {
-            const updated = { ...prev };
-            const docCells = { ...(updated[event.doc_id] || {}) };
-
-            if (event.type === "token") {
-              const current = docCells[trimmed] || {
-                answer: "",
-                citations: [],
-                status: "loading" as const,
-              };
-              docCells[trimmed] = {
-                ...current,
-                answer: current.answer + event.token,
-                status: "loading",
-              };
-            } else if (event.type === "done") {
-              docCells[trimmed] = {
-                answer: event.answer,
-                citations: event.citations,
-                status: "complete",
-                model: event.model,
-                fallback: event.fallback,
-                duration_ms: event.duration_ms,
-              };
-            } else if (event.type === "error") {
-              docCells[trimmed] = {
-                answer: event.error,
-                citations: [],
-                status: "error",
-              };
-            }
-
-            updated[event.doc_id] = docCells;
-            return updated;
-          });
-        },
-        () => setLoading(false),
-        (err) => {
-          console.error("Doc matrix stream error:", err);
-          setLoading(false);
-        }
-      );
-
-      controllerRef.current = controller;
+      runQueryStream(trimmed);
     },
-    [dealId, documents, queries]
+    [documents, queries, runQueryStream]
   );
 
   const handleAddQuery = useCallback(() => {
@@ -572,13 +721,15 @@ export default function DocMatrixPanel({
             tableLayout: "fixed",
             width: queries.length === 0
               ? "100%"
-              : COL_DOC + queries.length * COL_QUERY + COL_ADD,
+              : getColWidth("doc", COL_DOC) +
+                queries.reduce((sum, q) => sum + getColWidth(q, COL_QUERY), 0) +
+                COL_ADD,
           }}
         >
           <colgroup>
-            <col style={{ width: COL_DOC }} />
-            {queries.map((_, i) => (
-              <col key={i} style={{ width: COL_QUERY }} />
+            <col style={{ width: getColWidth("doc", COL_DOC) }} />
+            {queries.map((q, i) => (
+              <col key={i} style={{ width: getColWidth(q, COL_QUERY) }} />
             ))}
             {queries.length === 0 ? <col /> : <col style={{ width: COL_ADD }} />}
           </colgroup>
@@ -590,6 +741,12 @@ export default function DocMatrixPanel({
                 onClick={(e) => openColMenu("doc", e.currentTarget)}
               >
                 <DocColumnHeaderLabel label="Document" col="doc" sortConfig={sortConfig} filterValue={getColFilter("doc")} />
+                <ColResizeHandle
+                  active={resizingKey === "doc"}
+                  onMouseDown={(e) =>
+                    startColResize(e, "doc", getColWidth("doc", COL_DOC))
+                  }
+                />
               </th>
               {/* Query column headers — sticky top */}
               {queries.map((q, i) => (
@@ -677,6 +834,12 @@ export default function DocMatrixPanel({
                       </div>
                     </div>
                   )}
+                  <ColResizeHandle
+                    active={resizingKey === q}
+                    onMouseDown={(e) =>
+                      startColResize(e, q, getColWidth(q, COL_QUERY))
+                    }
+                  />
                 </th>
               ))}
               {/* Add query column — sticky top */}
@@ -842,6 +1005,7 @@ export default function DocMatrixPanel({
                       if (onInspectCitation) onInspectCitation(citation, id);
                       else onViewDocument(citation);
                     }}
+                    onRetry={() => retryCell(doc.doc_id, q)}
                   />
                 ))}
                 {/* Empty cell under add-query column */}
@@ -920,7 +1084,61 @@ export default function DocMatrixPanel({
           }}
         />
       )}
+
+      {/* Confirm rename — discards committed answers and re-runs */}
+      {pendingRename && (
+        <ConfirmDialog
+          title="Re-run with new prompt?"
+          message={`This will discard existing answers for "${pendingRename.oldQuery}" and re-run "${pendingRename.newName}" against ${documents.length} document${documents.length !== 1 ? "s" : ""}.`}
+          confirmLabel="Re-run"
+          cancelLabel="Keep existing"
+          onConfirm={() => {
+            const { index, newName } = pendingRename;
+            setPendingRename(null);
+            renameQuery(index, newName);
+          }}
+          onCancel={() => setPendingRename(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// ── Column resize handle ──
+// A thin draggable strip on the right edge of a header cell. Stops propagation
+// so it doesn't trigger column drag-reorder or the header's filter dropdown.
+function ColResizeHandle({
+  active,
+  onMouseDown,
+}: {
+  active: boolean;
+  onMouseDown: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onDragStart={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      draggable={false}
+      title="Drag to resize"
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: 6,
+        cursor: "col-resize",
+        userSelect: "none",
+        background: active ? "rgba(59, 130, 246, 0.5)" : "transparent",
+        transition: "background 120ms",
+        zIndex: 5,
+      }}
+      className="hover:bg-blue-400/40"
+    />
   );
 }
 
@@ -930,11 +1148,13 @@ function DocMatrixCell({
   cell,
   activeCitationId,
   onCitationClick,
+  onRetry,
 }: {
   cell: DocResult | undefined;
   dealId: string;
   activeCitationId: string | null;
   onCitationClick: (citation: Citation, id: string) => void;
+  onRetry: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -995,8 +1215,20 @@ function DocMatrixCell({
   // Error
   if (cell.status === "error") {
     return (
-      <td className="p-3 border-r border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-sm">
-        {cell.answer}
+      <td className="p-3 border-r border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-950/30 text-sm align-top group">
+        <div className="flex items-start justify-between gap-2">
+          <div className="text-red-700 dark:text-red-400 flex-1 min-w-0">
+            {cell.answer}
+          </div>
+          <button
+            onClick={onRetry}
+            className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded border border-red-300 dark:border-red-800 bg-white dark:bg-red-950/50 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+            title="Re-run this question for this document"
+          >
+            <RetryIcon />
+            Retry
+          </button>
+        </div>
       </td>
     );
   }
@@ -1004,7 +1236,16 @@ function DocMatrixCell({
   // Complete
   const clampClass = expanded ? "" : "line-clamp-4";
   return (
-    <td className="p-3 border-r border-b border-gray-200 dark:border-gray-700 text-sm max-w-xs align-top">
+    <td className="p-3 border-r border-b border-gray-200 dark:border-gray-700 text-sm max-w-xs align-top group relative">
+      <button
+        onClick={onRetry}
+        className="absolute top-1.5 right-1.5 z-[1] inline-flex items-center justify-center w-6 h-6 rounded text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Re-run this question for this document"
+        aria-label="Retry this cell"
+      >
+        <RetryIcon />
+      </button>
+
       <div
         className={`max-w-none text-gray-800 dark:text-gray-200 ${clampClass}`}
       >
@@ -1069,6 +1310,25 @@ function DocMatrixCell({
         </div>
       )}
     </td>
+  );
+}
+
+function RetryIcon() {
+  return (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 4v6h6M20 20v-6h-6M5.07 9A8 8 0 0119.93 9M18.93 15A8 8 0 014.07 15"
+      />
+    </svg>
   );
 }
 

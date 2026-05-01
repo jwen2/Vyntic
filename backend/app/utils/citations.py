@@ -230,27 +230,82 @@ def _strip_absent_finding_citations(answer: str) -> str:
     return "\n".join(out)
 
 
-def _select_snippet(content: str) -> str:
+_TABLE_DATA_ROW_RE = re.compile(r"^\|[\s\-:|]+\|$")
+
+
+def _table_data_row_count(table_block: str) -> int:
+    """Count the number of data rows in a markdown table block.
+
+    A "data row" is a line starting with `|` that is not the header separator
+    (e.g. `| --- | --- |`). Lines before the first separator are treated as
+    header rows and excluded. If no separator is found, returns 0 conservatively
+    so single-row blocks aren't mistaken for data.
+    """
+    pipe_lines = [l for l in table_block.splitlines() if l.lstrip().startswith("|")]
+    if not pipe_lines:
+        return 0
+    sep_idx = next(
+        (i for i, l in enumerate(pipe_lines) if _TABLE_DATA_ROW_RE.match(l.strip())),
+        None,
+    )
+    if sep_idx is None:
+        return 0
+    return sum(
+        1
+        for l in pipe_lines[sep_idx + 1:]
+        if not _TABLE_DATA_ROW_RE.match(l.strip())
+    )
+
+
+def _select_snippet(content: str, same_page_extras: str | None = None) -> str:
     """Pick the most informative span of a chunk for citation display.
 
     If the chunk contains a markdown table, return from the first table line
     onward (capped at 600 chars) so the panel shows the actual data the LLM
     likely cited. Otherwise fall back to the first 300 chars.
+
+    Docling occasionally exports a financial table where the header is captured
+    as a markdown table but the row data ends up in adjacent text on the same
+    page. When that happens we get header-only chunks like:
+        | Three Months Ended June 30, | ... |
+        | --- | --- |
+        | 2023 | 2022 |
+    with no actual values. If `same_page_extras` is provided (text from other
+    chunks on the same source_file+page), we append it after the table so the
+    rendered citation includes the missing numbers.
     """
     for i, line in enumerate(content.splitlines()):
         if line.lstrip().startswith("|"):
             tail = "\n".join(content.splitlines()[i:])
-            return tail[:600]
+            base = tail[:600]
+            if same_page_extras and _table_data_row_count(tail) == 0:
+                # Header-only table — splice the same-page text in after the
+                # table block so CitationSnippet renders both.
+                budget = max(0, 1200 - len(base))
+                extras = same_page_extras.strip()[:budget]
+                if extras:
+                    return f"{base}\n\n{extras}"
+            return base
     return content[:300]
 
 
-def extract_citations(answer: str, retrieved_chunks: list[dict], deal_id: str | None = None) -> tuple[str, list[Citation]]:
+def extract_citations(
+    answer: str,
+    retrieved_chunks: list[dict],
+    deal_id: str | None = None,
+    page_context_chunks: list[dict] | None = None,
+) -> tuple[str, list[Citation]]:
     """Extract [Source N] references from the answer and map to chunk metadata.
 
     Returns (cleaned_answer, citations) where citations is a list indexed by
     source number (1-indexed in the text, 0-indexed in the list). Unused
     positions are filled with None so that citations[N-1] always corresponds
     to [Source N] in the answer text.
+
+    `page_context_chunks` is an optional broader chunk pool (typically the full
+    chunk set for the cited document) used only to enrich citation snippets
+    when the cited chunk is a header-only Docling table. It does not affect
+    the [Source N] index mapping, which is always based on `retrieved_chunks`.
     """
     # Fix malformed table formatting from LLMs that omit newlines between rows
     answer = _fix_table_newlines(answer)
@@ -308,6 +363,27 @@ def extract_citations(answer: str, retrieved_chunks: list[dict], deal_id: str | 
         if idx > max_idx:
             max_idx = idx
 
+    # Pre-index chunks' content by (source_file, page) so we can rescue
+    # header-only Docling tables by attaching surrounding same-page text. We
+    # prefer `page_context_chunks` (typically the full doc chunk set) when
+    # provided so this works even when same-page text wasn't in the top-k
+    # retrieval. Falls back to `retrieved_chunks` otherwise.
+    page_pool = page_context_chunks if page_context_chunks is not None else retrieved_chunks
+    same_page_index: dict[tuple[str, int], list[str]] = {}
+    for ch in page_pool:
+        key = (ch.get("source_file", ""), int(ch.get("page", 0) or 0))
+        same_page_index.setdefault(key, []).append(ch.get("content", "") or "")
+
+    def _page_extras_for(idx: int) -> str | None:
+        chunk = retrieved_chunks[idx]
+        key = (chunk.get("source_file", ""), int(chunk.get("page", 0) or 0))
+        peers = same_page_index.get(key, [])
+        if not peers:
+            return None
+        cited_content = chunk.get("content", "") or ""
+        extras = [c.strip() for c in peers if c.strip() and c != cited_content]
+        return "\n\n".join(extras) or None
+
     # Create positional citations list (None-padded so index matches source number)
     citations: list[Citation | None] = [None] * (max_idx + 1) if max_idx >= 0 else []
     for idx in valid_indices:
@@ -315,7 +391,7 @@ def extract_citations(answer: str, retrieved_chunks: list[dict], deal_id: str | 
         citations[idx] = Citation(
             source_file=chunk["source_file"],
             page=chunk["page"],
-            text_snippet=_select_snippet(chunk["content"]),
+            text_snippet=_select_snippet(chunk["content"], _page_extras_for(idx)),
             deal_id=deal_id or chunk.get("deal_id"),
         )
 

@@ -1,9 +1,11 @@
 "use client";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Citation } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
 import { citationReferenceLabel } from "@/lib/citationLabels";
 import { SEV_COLOR } from "./types";
+import CitationSnippet from "./CitationSnippet";
 
 interface Props {
   text: string;
@@ -325,31 +327,202 @@ export function CitBadge({
 }) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const showTimerRef = useRef<number | null>(null);
+  const hideTimerRef = useRef<number | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
+      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
+  const POPOVER_WIDTH = 420;
+  const POPOVER_MAX_HEIGHT = 320;
+
+  const computePos = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top =
+      spaceBelow >= POPOVER_MAX_HEIGHT + 8
+        ? rect.bottom + 6
+        : Math.max(8, rect.top - POPOVER_MAX_HEIGHT - 6);
+    const left = Math.max(
+      8,
+      Math.min(rect.left, window.innerWidth - POPOVER_WIDTH - 8)
+    );
+    return { top, left };
+  };
+
+  const cancelHide = () => {
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+
+  const showAfterDelay = () => {
+    cancelHide();
+    if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
+    showTimerRef.current = window.setTimeout(() => {
+      const pos = computePos();
+      if (pos) setPopoverPos(pos);
+    }, 180);
+  };
+
+  // Short delay before hiding so the user can move the cursor from the badge
+  // into the popover (e.g. to scroll a table) without it disappearing.
+  const scheduleHide = () => {
+    if (showTimerRef.current) {
+      window.clearTimeout(showTimerRef.current);
+      showTimerRef.current = null;
+    }
+    cancelHide();
+    hideTimerRef.current = window.setTimeout(() => {
+      setPopoverPos(null);
+    }, 140);
+  };
+
+  const hideImmediate = () => {
+    if (showTimerRef.current) {
+      window.clearTimeout(showTimerRef.current);
+      showTimerRef.current = null;
+    }
+    cancelHide();
+    setPopoverPos(null);
+  };
+
   return (
-    <button
-      onClick={onClick}
-      title={`${cit.source_file} — Page ${cit.page}`}
-      className="font-mono-dm"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "1px 6px",
-        borderRadius: 4,
-        background: active
-          ? isDark ? "#1e3a8a" : "#dbeafe"
-          : isDark ? "#172554" : "#eff6ff",
-        border: `1px solid ${active ? (isDark ? "#3b82f6" : "#93c5fd") : (isDark ? "#1d4ed8" : "#bfdbfe")}`,
-        color: active ? (isDark ? "#bfdbfe" : "#1d4ed8") : (isDark ? "#93c5fd" : "#3b82f6"),
-        fontSize: 10,
-        fontWeight: 500,
-        cursor: "pointer",
-        margin: "0 1px",
-        lineHeight: 1.4,
-        boxShadow: active ? `0 0 0 2px ${isDark ? "#1e40af" : "#bfdbfe"}` : "none",
-        transition: "all .15s",
-      }}
-    >
-      {citShort(cit)}
-    </button>
+    <>
+      <button
+        ref={buttonRef}
+        onClick={onClick}
+        onMouseEnter={showAfterDelay}
+        onMouseLeave={scheduleHide}
+        onFocus={showAfterDelay}
+        onBlur={hideImmediate}
+        aria-describedby={popoverPos ? `${id}-preview` : undefined}
+        className="font-mono-dm"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          padding: "1px 6px",
+          borderRadius: 4,
+          background: active
+            ? isDark ? "#1e3a8a" : "#dbeafe"
+            : isDark ? "#172554" : "#eff6ff",
+          border: `1px solid ${active ? (isDark ? "#3b82f6" : "#93c5fd") : (isDark ? "#1d4ed8" : "#bfdbfe")}`,
+          color: active ? (isDark ? "#bfdbfe" : "#1d4ed8") : (isDark ? "#93c5fd" : "#3b82f6"),
+          fontSize: 10,
+          fontWeight: 500,
+          cursor: "pointer",
+          margin: "0 1px",
+          lineHeight: 1.4,
+          boxShadow: active ? `0 0 0 2px ${isDark ? "#1e40af" : "#bfdbfe"}` : "none",
+          transition: "all .15s",
+        }}
+      >
+        {citShort(cit)}
+      </button>
+      {popoverPos &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            id={`${id}-preview`}
+            role="tooltip"
+            onMouseEnter={cancelHide}
+            onMouseLeave={scheduleHide}
+            style={{
+              position: "fixed",
+              top: popoverPos.top,
+              left: popoverPos.left,
+              width: POPOVER_WIDTH,
+              maxHeight: POPOVER_MAX_HEIGHT,
+              display: "flex",
+              flexDirection: "column",
+              background: isDark ? "#0f172a" : "#ffffff",
+              border: `1px solid ${isDark ? "#1e293b" : "#e2e8f0"}`,
+              borderRadius: 8,
+              boxShadow: isDark
+                ? "0 10px 28px rgba(0,0,0,0.55)"
+                : "0 10px 28px rgba(15,23,42,0.18)",
+              fontSize: 12,
+              lineHeight: 1.55,
+              color: isDark ? "#cbd5e1" : "#334155",
+              zIndex: 9998,
+              whiteSpace: "normal",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                gap: 8,
+                padding: "8px 11px",
+                borderBottom: `1px solid ${isDark ? "#1e293b" : "#f1f5f9"}`,
+                fontSize: 11,
+                fontWeight: 600,
+                color: isDark ? "#f1f5f9" : "#0f172a",
+                flexShrink: 0,
+              }}
+            >
+              <span
+                title={cit.source_file}
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                {cit.source_file}
+              </span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: isDark ? "#94a3b8" : "#64748b",
+                  flexShrink: 0,
+                }}
+              >
+                Page {cit.page}
+              </span>
+            </div>
+            <div
+              className="text-gray-700 dark:text-gray-300"
+              style={{
+                padding: "8px 11px",
+                overflow: "auto",
+                flex: 1,
+                minHeight: 0,
+              }}
+            >
+              <CitationSnippet
+                sourceFile={cit.source_file}
+                text={cit.text_snippet}
+                variant="viewer"
+              />
+            </div>
+            <div
+              style={{
+                padding: "5px 11px 7px",
+                borderTop: `1px solid ${isDark ? "#1e293b" : "#f1f5f9"}`,
+                fontSize: 10,
+                color: isDark ? "#64748b" : "#94a3b8",
+                flexShrink: 0,
+              }}
+            >
+              Click the badge to open in document viewer
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
