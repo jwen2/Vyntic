@@ -13,9 +13,6 @@ import {
   askFollowup,
   getInvestigation,
   startInvestigation,
-  sweepStream,
-  type SweepEvent,
-  type WorkstreamEvent,
 } from "@/lib/api";
 import AgentActiveState from "@/components/agent/AgentActiveState";
 import AgentCitPanel from "@/components/agent/AgentCitPanel";
@@ -29,11 +26,6 @@ import {
   mapToolToTask,
   normalizeEvidence,
 } from "@/components/agent/agentUtils";
-import {
-  emptyAccumulator,
-  getProactiveScanTemplates,
-  mergeSweepAnswer,
-} from "@/components/agent/sweepRun";
 import type { Finding } from "./types";
 
 interface Props {
@@ -48,6 +40,7 @@ interface Props {
   onHistoryChange?: () => void | Promise<void>;
   pendingPrompt?: string | null;
   pendingPromptSignal?: number;
+  onProactiveScan?: () => void;
 }
 
 function initialRunState(documents: DocumentMetadata[]): RunState {
@@ -113,6 +106,7 @@ export default function AgentWorkspaceView({
   onHistoryChange,
   pendingPrompt,
   pendingPromptSignal = 0,
+  onProactiveScan,
 }: Props) {
   const docs = useMemo(() => buildAgentDocs(documents), [documents]);
   const [inputPrompt, setInputPrompt] = useState("");
@@ -255,88 +249,6 @@ export default function AgentWorkspaceView({
         tasks: completeAllTasks(prev.tasks),
       }));
     }
-  }
-
-  function runProactiveScan() {
-    const templates = getProactiveScanTemplates();
-    if (templates.length === 0) return;
-
-    abortRef.current?.abort();
-    followupAbortRef.current?.abort();
-    findingsRef.current = [];
-    investigationIdRef.current = null;
-    setActiveCitation(null);
-    setInputPrompt("");
-    setFollowups([]);
-    setFollowupDraft("");
-    setFollowupStreaming(false);
-
-    setRunState({
-      phase: "running",
-      prompt: "Proactive scan across all documents",
-      tasks: buildDefaultTasks(docs),
-      findings: [],
-      evidence: [],
-      synthText: "",
-      synthDone: false,
-      investigationId: null,
-      error: null,
-    });
-
-    const queryToLabel = new Map<string, string>();
-    for (const t of templates) queryToLabel.set(t.query, t.label);
-    let acc = emptyAccumulator();
-
-    abortRef.current = sweepStream(
-      deal.deal_id,
-      templates.map((t) => t.query),
-      (event: SweepEvent) => {
-        if (event.type === "sweep_meta") return;
-        if (event.type === "sweep_done") {
-          setRunState((prev) => ({
-            ...prev,
-            phase: "complete",
-            synthDone: true,
-            tasks: completeAllTasks(prev.tasks),
-          }));
-          return;
-        }
-        const ws = event as WorkstreamEvent;
-        if (ws.type !== "done") return;
-        const label = queryToLabel.get(ws.question) ?? "Scan area";
-        acc = mergeSweepAnswer(acc, {
-          label,
-          answer: ws.answer,
-          citations: ws.citations,
-        });
-        setRunState((prev) => ({
-          ...prev,
-          synthText: acc.memo,
-          evidence: acc.evidence,
-        }));
-      },
-      () => {
-        setRunState((prev) =>
-          prev.phase === "error"
-            ? prev
-            : {
-                ...prev,
-                phase: "complete",
-                synthDone: true,
-                tasks: completeAllTasks(prev.tasks),
-              }
-        );
-      },
-      (err) => {
-        setRunState((prev) => ({
-          ...prev,
-          phase: "error",
-          error: err.message || String(err),
-          synthDone: true,
-          tasks: completeAllTasks(prev.tasks),
-        }));
-      }
-    );
   }
 
   function submit(promptOverride?: string) {
@@ -512,7 +424,7 @@ export default function AgentWorkspaceView({
             prompt={inputPrompt}
             setPrompt={setInputPrompt}
             onSubmit={submit}
-            onProactiveScan={runProactiveScan}
+            onProactiveScan={onProactiveScan}
           />
         ) : (
           <AgentActiveState

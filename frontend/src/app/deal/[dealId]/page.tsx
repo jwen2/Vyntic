@@ -28,6 +28,7 @@ import CitationPanel from "@/components/dd/CitationPanel";
 import AgentWorkspaceView from "@/components/dd/AgentWorkspaceView";
 import WorkstreamListView from "@/components/dd/WorkstreamListView";
 import DocumentDetailView from "@/components/dd/DocumentDetailView";
+import ProactiveScanPanel from "@/components/ProactiveScanPanel";
 import { useFindings } from "@/components/dd/useFindings";
 import { computeCoverage } from "@/components/dd/coverage";
 import { extractScanFindings } from "@/components/dd/extractScanFindings";
@@ -112,6 +113,7 @@ export default function DealWorkspacePage() {
   const [agentHistory, setAgentHistory] = useState<InvestigationSummary[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [pendingAgentPrompt, setPendingAgentPrompt] = useState<{ prompt: string; signal: number } | null>(null);
+  const [proactiveScanAutoRunSignal, setProactiveScanAutoRunSignal] = useState(0);
   const [showReport, setShowReport] = useState(false);
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<DocCoverage | null>(null);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
@@ -305,6 +307,17 @@ export default function DealWorkspacePage() {
     setAgentFocusNonce((nonce) => nonce + 1);
   }, []);
 
+  const handleAgentProactiveScan = useCallback(() => {
+    setMode("workstreams");
+    setSelectedWorkstream("proactive_scan");
+    setSelectedDocId(null);
+    setSelectedQuestion(null);
+    setSelectedAgentRunId(null);
+    setSelectedAgentFinding(null);
+    setActiveCit(null);
+    setProactiveScanAutoRunSignal((n) => n + 1);
+  }, []);
+
   const handleAskAboutDocument = useCallback((docName: string, prompt: string) => {
     const trimmed = prompt.trim();
     if (!trimmed) return;
@@ -426,6 +439,7 @@ export default function DealWorkspacePage() {
               onHistoryChange={fetchAgentHistory}
               pendingPrompt={pendingAgentPrompt?.prompt ?? null}
               pendingPromptSignal={pendingAgentPrompt?.signal ?? 0}
+              onProactiveScan={handleAgentProactiveScan}
             />
           ) : selectedDocId ? (
             (() => {
@@ -445,20 +459,31 @@ export default function DealWorkspacePage() {
             })()
           ) : activeWorkstream ? (
             <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden", borderRight: activeCit ? `1px solid ${c.border}` : "none" }}>
-              <DDWorkstreamView
-                dealId={dealId}
-                workstream={activeWorkstream}
-                cachedResults={resultCache[activeWorkstream.id] || {}}
-                onResultsChange={(results) => updateCacheForWorkstream(activeWorkstream.id, results)}
-                activeCitId={activeCit?.id ?? null}
-                onCit={handleCit}
-                focusQuery={selectedQuestion}
-                onBack={() => {
-                  setSelectedWorkstream(null);
-                  setSelectedQuestion(null);
-                  setActiveCit(null);
-                }}
-              />
+              {activeWorkstream.id === "proactive_scan" ? (
+                <ProactiveScanPanel
+                  dealId={dealId}
+                  workstream={activeWorkstream}
+                  cachedResults={resultCache[activeWorkstream.id] || {}}
+                  onResultsChange={(results) => updateCacheForWorkstream(activeWorkstream.id, results)}
+                  onViewDocument={handleViewDocument}
+                  autoRunSignal={proactiveScanAutoRunSignal}
+                />
+              ) : (
+                <DDWorkstreamView
+                  dealId={dealId}
+                  workstream={activeWorkstream}
+                  cachedResults={resultCache[activeWorkstream.id] || {}}
+                  onResultsChange={(results) => updateCacheForWorkstream(activeWorkstream.id, results)}
+                  activeCitId={activeCit?.id ?? null}
+                  onCit={handleCit}
+                  focusQuery={selectedQuestion}
+                  onBack={() => {
+                    setSelectedWorkstream(null);
+                    setSelectedQuestion(null);
+                    setActiveCit(null);
+                  }}
+                />
+              )}
             </div>
           ) : (
             <WorkstreamListView

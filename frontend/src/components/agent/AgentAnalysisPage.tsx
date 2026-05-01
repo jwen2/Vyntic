@@ -16,9 +16,6 @@ import {
   getInvestigation,
   listInvestigations,
   startInvestigation,
-  sweepStream,
-  type SweepEvent,
-  type WorkstreamEvent,
 } from "@/lib/api";
 import { ACCENT } from "@/components/dd/types";
 import AgentActiveState from "./AgentActiveState";
@@ -34,11 +31,6 @@ import {
   mapToolToTask,
   normalizeEvidence,
 } from "./agentUtils";
-import {
-  emptyAccumulator,
-  getProactiveScanTemplates,
-  mergeSweepAnswer,
-} from "./sweepRun";
 
 interface Props {
   deal: Deal;
@@ -209,87 +201,6 @@ export default function AgentAnalysisPage({ deal, documents, onOpenDocument }: P
         tasks: completeAllTasks(prev.tasks),
       }));
     }
-  }
-
-  function runProactiveScan() {
-    const templates = getProactiveScanTemplates();
-    if (templates.length === 0) return;
-
-    abortRef.current?.abort();
-    followupAbortRef.current?.abort();
-    setActiveCitation(null);
-    setSelectedRun(null);
-    setInputPrompt("");
-    setFollowups([]);
-    setFollowupDraft("");
-    setFollowupStreaming(false);
-
-    setRunState({
-      phase: "running",
-      prompt: "Proactive scan across all documents",
-      tasks: buildDefaultTasks(docs),
-      findings: [],
-      evidence: [],
-      synthText: "",
-      synthDone: false,
-      investigationId: null,
-      error: null,
-    });
-
-    const queryToLabel = new Map<string, string>();
-    for (const t of templates) queryToLabel.set(t.query, t.label);
-    let acc = emptyAccumulator();
-
-    abortRef.current = sweepStream(
-      deal.deal_id,
-      templates.map((t) => t.query),
-      (event: SweepEvent) => {
-        if (event.type === "sweep_meta") return;
-        if (event.type === "sweep_done") {
-          setRunState((prev) => ({
-            ...prev,
-            phase: "complete",
-            synthDone: true,
-            tasks: completeAllTasks(prev.tasks),
-          }));
-          return;
-        }
-        const ws = event as WorkstreamEvent;
-        if (ws.type !== "done") return;
-        const label = queryToLabel.get(ws.question) ?? "Scan area";
-        acc = mergeSweepAnswer(acc, {
-          label,
-          answer: ws.answer,
-          citations: ws.citations,
-        });
-        setRunState((prev) => ({
-          ...prev,
-          synthText: acc.memo,
-          evidence: acc.evidence,
-        }));
-      },
-      () => {
-        setRunState((prev) =>
-          prev.phase === "error"
-            ? prev
-            : {
-                ...prev,
-                phase: "complete",
-                synthDone: true,
-                tasks: completeAllTasks(prev.tasks),
-              }
-        );
-      },
-      (err) => {
-        setRunState((prev) => ({
-          ...prev,
-          phase: "error",
-          error: err.message || String(err),
-          synthDone: true,
-          tasks: completeAllTasks(prev.tasks),
-        }));
-      }
-    );
   }
 
   function submit(promptOverride?: string) {
@@ -483,7 +394,6 @@ export default function AgentAnalysisPage({ deal, documents, onOpenDocument }: P
               prompt={inputPrompt}
               setPrompt={setInputPrompt}
               onSubmit={submit}
-              onProactiveScan={runProactiveScan}
             />
           ) : (
             <AgentActiveState

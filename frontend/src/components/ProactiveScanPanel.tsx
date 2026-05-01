@@ -91,6 +91,12 @@ interface Props {
   cachedResults: Record<string, QuestionResult>;
   onResultsChange: (results: Record<string, QuestionResult>) => void;
   onViewDocument?: (citation: Citation) => void;
+  /**
+   * When this number changes (and is > 0), the panel kicks off a full scan
+   * automatically. Used by the agent chat to delegate "Run Proactive Scan"
+   * into this tab without the user clicking the button.
+   */
+  autoRunSignal?: number;
 }
 
 export default function ProactiveScanPanel({
@@ -99,6 +105,7 @@ export default function ProactiveScanPanel({
   cachedResults,
   onResultsChange,
   onViewDocument,
+  autoRunSignal,
 }: Props) {
   const [results, setResults] = useState<Record<string, QuestionResult>>(cachedResults);
   const [runningAll, setRunningAll] = useState(false);
@@ -216,6 +223,18 @@ export default function ProactiveScanPanel({
       }
     );
   }, [dealId, workstream, handleEvent, updateResults]);
+
+  // Auto-run when the signal increments (used by agent chat → tab redirect).
+  // Tracks the last seen signal so the initial mount doesn't trigger a run,
+  // and a stale signal isn't replayed if the user re-mounts the panel.
+  const lastAutoRunSignalRef = useRef<number | undefined>(autoRunSignal);
+  useEffect(() => {
+    if (autoRunSignal === undefined || autoRunSignal === 0) return;
+    if (lastAutoRunSignalRef.current === autoRunSignal) return;
+    lastAutoRunSignalRef.current = autoRunSignal;
+    if (runningAll) return;
+    runFullScan();
+  }, [autoRunSignal, runFullScan, runningAll]);
 
   return (
     <div className="flex flex-col h-full">
