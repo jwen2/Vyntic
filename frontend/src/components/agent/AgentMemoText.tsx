@@ -15,7 +15,8 @@ type MemoBlock =
 function normalizeMemoText(text: string): string {
   return text
     .replace(/\r\n/g, "\n")
-    .replace(/\s+(#{1,3}\s+)/g, "\n$1")
+    .replace(/([.!?)\]])(#{1,3}\s+)/g, "$1\n$2")
+    .replace(/([^\n])\s+(#{1,3}\s+)/g, "$1\n$2")
     .replace(/([^\n])\s+([*-]\s+)/g, "$1\n$2")
     .replace(/([^\n])\s+(\d+\.\s+)/g, "$1\n$2")
     .replace(/\n{3,}/g, "\n\n")
