@@ -1,67 +1,10 @@
 "use client";
-import { useState, useCallback, useRef, useMemo, useEffect, Children, isValidElement, cloneElement } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { Citation, SweepEvent, WorkstreamEvent, sweepStream } from "@/lib/api";
 import { Workstream } from "@/lib/queryTemplates";
 import { fixMarkdownTables } from "@/lib/markdownUtils";
-import { useTableState } from "@/lib/useTableState";
-import InlineCitation from "./InlineCitation";
 import { QuestionResult } from "./WorkstreamPanel";
-
-const SOURCE_PATTERN = /\[Source\s+(\d+)\]/g;
-
-function renderTextWithCitations(
-  text: string,
-  citations: (Citation | null)[],
-  onViewDocument?: (citation: Citation) => void
-): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  const re = new RegExp(SOURCE_PATTERN);
-
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    const idx = parseInt(match[1], 10);
-    parts.push(
-      <InlineCitation
-        key={`src-${match.index}`}
-        index={idx}
-        citation={citations[idx - 1]}
-        onViewDocument={onViewDocument}
-      />
-    );
-    lastIndex = re.lastIndex;
-  }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-  return parts;
-}
-
-function processCitations(
-  children: React.ReactNode,
-  citations: (Citation | null)[],
-  onViewDocument?: (citation: Citation) => void
-): React.ReactNode {
-  return Children.map(children, (child) => {
-    if (typeof child === "string") {
-      if (new RegExp(SOURCE_PATTERN).test(child)) {
-        return <>{renderTextWithCitations(child, citations, onViewDocument)}</>;
-      }
-      return child;
-    }
-    if (isValidElement(child) && child.props && (child.props as Record<string, unknown>).children) {
-      const nested = (child.props as Record<string, unknown>).children as React.ReactNode;
-      const processed = processCitations(nested, citations, onViewDocument);
-      return cloneElement(child, {}, processed);
-    }
-    return child;
-  });
-}
+import AnswerText from "@/components/dd/AnswerText";
 
 function stripThinkTags(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
@@ -372,8 +315,8 @@ function ScanAreaRow({
   onViewDocument?: (citation: Citation) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [activeCitationId, setActiveCitationId] = useState<string | null>(null);
   const hasResult = result && result.status !== "pending";
-  const tableState = useTableState();
   const cleanAnswer = result?.answer ? fixMarkdownTables(stripThinkTags(result.answer)) : "";
   const sourceCount = result?.citations
     ? result.citations.filter((c) => c !== null).length
@@ -399,6 +342,14 @@ function ScanAreaRow({
   useEffect(() => {
     if (result?.status === "complete" && areaTotal > 0) setExpanded(true);
   }, [result?.status, areaTotal]);
+
+  const handleCitation = useCallback(
+    (citation: Citation, id: string) => {
+      setActiveCitationId((prev) => (prev === id ? null : id));
+      onViewDocument?.(citation);
+    },
+    [onViewDocument]
+  );
 
   return (
     <div className="border-b border-gray-100 dark:border-gray-800">
@@ -523,128 +474,13 @@ function ScanAreaRow({
               </div>
             ) : (
               <>
-                <div className="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      p: ({ children }) => (
-                        <p className="my-1.5 text-sm leading-relaxed">
-                          {processCitations(children, result.citations, onViewDocument)}
-                        </p>
-                      ),
-                      ul: ({ children }) => (
-                        <ul className="my-1.5 ml-4 list-disc space-y-1 text-sm">{children}</ul>
-                      ),
-                      ol: ({ children }) => (
-                        <ol className="my-1.5 ml-4 list-decimal space-y-1 text-sm">{children}</ol>
-                      ),
-                      li: ({ children }) => (
-                        <li className="text-sm leading-relaxed">
-                          {processCitations(children, result.citations, onViewDocument)}
-                        </li>
-                      ),
-                      strong: ({ children }) => {
-                        const text = typeof children === "string" ? children : String(children ?? "");
-                        // Color severity badges
-                        if (text.includes("[DEAL-BREAKER]")) {
-                          return (
-                            <strong className="text-red-700 dark:text-red-400 font-semibold">
-                              {children}
-                            </strong>
-                          );
-                        }
-                        if (text.includes("[MATERIAL]")) {
-                          return (
-                            <strong className="text-amber-700 dark:text-amber-400 font-semibold">
-                              {children}
-                            </strong>
-                          );
-                        }
-                        if (text.includes("[NOTEWORTHY]")) {
-                          return (
-                            <strong className="text-blue-700 dark:text-blue-400 font-semibold">
-                              {children}
-                            </strong>
-                          );
-                        }
-                        return (
-                          <strong className="font-semibold text-gray-900 dark:text-gray-100">
-                            {children}
-                          </strong>
-                        );
-                      },
-                      hr: () => (
-                        <hr className="my-3 border-gray-200 dark:border-gray-700" />
-                      ),
-                      h1: ({ children }) => (
-                        <h3 className="text-base font-bold mt-3 mb-1.5 text-gray-900 dark:text-gray-100">
-                          {processCitations(children, result.citations, onViewDocument)}
-                        </h3>
-                      ),
-                      h2: ({ children }) => (
-                        <h4 className="text-sm font-bold mt-2.5 mb-1 text-gray-900 dark:text-gray-100">
-                          {processCitations(children, result.citations, onViewDocument)}
-                        </h4>
-                      ),
-                      h3: ({ children }) => (
-                        <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-800 dark:text-gray-200">
-                          {processCitations(children, result.citations, onViewDocument)}
-                        </h5>
-                      ),
-                      blockquote: ({ children }) => (
-                        <blockquote className="border-l-3 border-amber-300 dark:border-amber-600 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
-                          {children}
-                        </blockquote>
-                      ),
-                      table: ({ children }) => {
-                        tableState.reset();
-                        return (
-                          <div className="not-prose overflow-x-auto my-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
-                            <table className="text-xs border-collapse w-full min-w-[280px]">
-                              {children}
-                            </table>
-                          </div>
-                        );
-                      },
-                      thead: ({ children }) => (
-                        <thead className="bg-gradient-to-b from-slate-50 to-slate-100/80 dark:from-gray-800 dark:to-gray-800/80">
-                          {children}
-                        </thead>
-                      ),
-                      th: ({ children }) => {
-                        tableState.recordHeaderCol();
-                        return (
-                          <th className="border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0 px-3 py-2.5 text-[11px] font-semibold tracking-wide text-gray-700 dark:text-gray-300 break-words">
-                            {children}
-                          </th>
-                        );
-                      },
-                      tr: ({ children }) => {
-                        const trClass =
-                          "even:bg-slate-50/40 dark:even:bg-gray-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0";
-                        const rows = tableState.processRow(children);
-                        if (rows === null) return <tr className={trClass}>{children}</tr>;
-                        if (rows.length === 1)
-                          return <tr className={trClass}>{rows[0]}</tr>;
-                        return (
-                          <>
-                            {rows.map((cells, i) => (
-                              <tr key={i} className={trClass}>
-                                {cells}
-                              </tr>
-                            ))}
-                          </>
-                        );
-                      },
-                      td: ({ children }) => (
-                        <td className="border-r border-gray-100 dark:border-gray-800 last:border-r-0 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 break-words align-top">
-                          {processCitations(children, result.citations, onViewDocument)}
-                        </td>
-                      ),
-                    }}
-                  >
-                    {cleanAnswer}
-                  </ReactMarkdown>
+                <div className="max-w-none text-sm text-gray-800 dark:text-gray-200">
+                  <AnswerText
+                    text={cleanAnswer}
+                    citations={result.citations}
+                    activeCitId={activeCitationId}
+                    onCit={handleCitation}
+                  />
                 </div>
                 {result.status === "loading" && (
                   <span className="inline-block w-2 h-4 bg-amber-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />

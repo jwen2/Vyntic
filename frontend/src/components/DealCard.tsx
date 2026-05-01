@@ -45,7 +45,7 @@ export default function DealCard({
   uploading,
   readOnly = false,
 }: Props) {
-  const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC === "1";
+  const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC !== "0";
   const router = useRouter();
   const [dragging, setDragging] = useState(false);
   const [showStageMenu, setShowStageMenu] = useState(false);

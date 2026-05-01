@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Citation } from "@/lib/api";
 import CitationSnippet from "./dd/CitationSnippet";
+import { citationReferenceLabel } from "@/lib/citationLabels";
 
 interface Props {
   index: number;
@@ -53,6 +54,8 @@ export default function InlineCitation({ index, citation, onViewDocument }: Prop
     return null;
   }
 
+  const label = citationReferenceLabel(citation);
+
   const handleViewClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setOpen(false);
@@ -69,10 +72,10 @@ export default function InlineCitation({ index, citation, onViewDocument }: Prop
           e.stopPropagation();
           setOpen(!open);
         }}
-        className="inline text-[10px] bg-blue-100 text-blue-700 rounded px-1 hover:bg-blue-200 transition-colors font-mono cursor-pointer align-super leading-none"
+        className="inline-flex items-center text-[10px] bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 hover:bg-blue-200 transition-colors font-mono cursor-pointer align-baseline leading-none mx-0.5"
         title={`${citation.source_file} — Page ${citation.page}`}
       >
-        [{index}]
+        {label}
       </button>
       {open &&
         createPortal(
@@ -86,7 +89,7 @@ export default function InlineCitation({ index, citation, onViewDocument }: Prop
             }}
           >
             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
-              Source {index}
+              Source evidence
             </div>
             <div className="text-xs font-medium text-blue-700 mb-1.5">
               {citation.source_file} — Page {citation.page}
