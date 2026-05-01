@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ACCENT, ddTheme } from "@/components/dd/types";
 import { useTheme } from "@/components/ThemeProvider";
 import BoldText from "./BoldText";
@@ -64,6 +64,28 @@ export default function AgentActiveState({
   const isDone = runState.phase === "complete";
   const completedTasks = runState.tasks.filter((task) => task.status === "complete").length;
   const dealBreakers = runState.findings.filter((finding) => finding.sev === "deal-breaker").length;
+  const memoEvidence = useMemo(() => {
+    const seen = new Set<string>();
+    const combined = [...runState.evidence];
+
+    for (const item of combined) {
+      seen.add(`${item.source_file}:${item.page}`);
+    }
+    for (const finding of runState.findings) {
+      for (const citation of finding.citations) {
+        const key = `${citation.source_file}:${citation.page}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        combined.push({
+          source_file: citation.source_file,
+          page: citation.page,
+          chunk: citation.snippet || finding.summary,
+        });
+      }
+    }
+
+    return combined;
+  }, [runState.evidence, runState.findings]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ block: "nearest" });
@@ -220,7 +242,7 @@ export default function AgentActiveState({
                 {runState.error ? runState.error : (
                   <AgentMemoText
                     text={runState.synthText}
-                    evidence={runState.evidence}
+                    evidence={memoEvidence}
                     onCitation={onCitation}
                     activeCitId={activeCitationId}
                   />

@@ -120,6 +120,14 @@ function evidenceToCitation(item: AgentEvidenceItem, key: string): AgentLocalCit
   };
 }
 
+function parseCitationPages(rawPages: string): number[] {
+  const pages = rawPages
+    .match(/\d+/g)
+    ?.map((page) => parseInt(page, 10))
+    .filter((page) => Number.isFinite(page) && page > 0) || [];
+  return Array.from(new Set(pages));
+}
+
 interface InlineProps {
   text: string;
   evidence: AgentEvidenceItem[];
@@ -133,7 +141,7 @@ function InlineMemo({ text, evidence, onCitation, activeCitId, boldColor }: Inli
 
   // Single pass that interleaves bold (**...**) and citation tokens.
   const tokens: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*]+\*\*)|(\(([^()\s][^()]*?\.[A-Za-z0-9]+)\s+p\.?\s*(\d+)\))/g;
+  const pattern = /(\*\*[^*]+\*\*)|(\(([^()\s][^()]*?\.[A-Za-z0-9]+)\s+(?:pp?\.?\s*)?(\d+(?:\s*(?:,|and|&)\s*(?:pp?\.?\s*)?\d+)*)\))/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let key = 0;
@@ -152,24 +160,31 @@ function InlineMemo({ text, evidence, onCitation, activeCitId, boldColor }: Inli
     } else if (m[2]) {
       // Citation reference
       const filename = m[3];
-      const page = parseInt(m[4], 10);
-      const item = findEvidence(evidence, filename, page);
-      if (item && onCitation) {
-        const localCit = evidenceToCitation(item, String(key));
+      const pages = parseCitationPages(m[4]);
+      const citationNodes = pages.map((page, pageIndex) => {
+        const item = findEvidence(evidence, filename, page);
+        if (!item || !onCitation) {
+          return <span key={`c${key}-missing-${pageIndex}`}>({filename} p.{page})</span>;
+        }
+        const localCit = evidenceToCitation(item, `${key}-${pageIndex}`);
         const badgeCit: Citation = {
           source_file: item.source_file,
           page: item.page,
           text_snippet: item.chunk || "",
         };
-        tokens.push(
+        return (
           <CitBadge
-            key={`c${key++}`}
+            key={`c${key}-badge-${pageIndex}`}
             cit={badgeCit}
             id={localCit.id}
             active={activeCitId === localCit.id}
             onClick={() => onCitation(localCit)}
-          />,
+          />
         );
+      });
+      if (citationNodes.some((node) => React.isValidElement(node))) {
+        tokens.push(...citationNodes);
+        key += citationNodes.length;
       } else {
         // No matching evidence — keep the original text so info isn't lost.
         tokens.push(<span key={`c${key++}`}>{m[2]}</span>);
