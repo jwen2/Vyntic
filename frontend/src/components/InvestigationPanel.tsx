@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { AgentFinding, FollowupTurn, InvestigationSummary } from "@/lib/api";
+import AgentMemoText from "@/components/agent/AgentMemoText";
 import { useInvestigation } from "@/hooks/useInvestigation";
 
 interface Props {
@@ -120,6 +119,7 @@ export default function InvestigationPanel({
     sendFollowup(q);
     setFollowupDraft("");
   };
+  const handleMemoCitation = () => undefined;
 
   const hasActiveRun =
     state.status !== "idle" || !!state.investigationId || !!state.memo;
@@ -331,10 +331,8 @@ export default function InvestigationPanel({
             }
           >
             {state.memo ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {state.memo}
-                </ReactMarkdown>
+              <div className="max-w-none">
+                <AgentMemoText text={state.memo} onCitation={handleMemoCitation} />
                 {state.status === "writing_memo" && (
                   <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
                 )}
@@ -364,6 +362,7 @@ export default function InvestigationPanel({
                 }
                 error={state.followupError}
                 endRef={followupEndRef}
+                onCitation={handleMemoCitation}
               />
               <div className="mt-3 flex gap-2">
                 <textarea
@@ -474,12 +473,14 @@ function FollowupThread({
   isStreaming,
   error,
   endRef,
+  onCitation,
 }: {
   turns: FollowupTurn[];
   draftAnswer: string;
   isStreaming: boolean;
   error: string | null;
   endRef: React.RefObject<HTMLDivElement>;
+  onCitation: () => void;
 }) {
   if (turns.length === 0 && !isStreaming) {
     return (
@@ -501,8 +502,8 @@ function FollowupThread({
             {turn.role === "user" ? "You" : "Agent"}
           </div>
           {turn.role === "assistant" ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{turn.content}</ReactMarkdown>
+            <div className="max-w-none">
+              <AgentMemoText text={turn.content} onCitation={onCitation} />
             </div>
           ) : (
             <div className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
@@ -517,8 +518,8 @@ function FollowupThread({
             Agent
           </div>
           {draftAnswer ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{draftAnswer}</ReactMarkdown>
+            <div className="max-w-none">
+              <AgentMemoText text={draftAnswer} onCitation={onCitation} />
               <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
             </div>
           ) : (
