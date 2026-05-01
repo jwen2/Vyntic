@@ -114,13 +114,20 @@ export default function DealWorkspacePage() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [pendingAgentPrompt, setPendingAgentPrompt] = useState<{ prompt: string; signal: number } | null>(null);
   const [proactiveScanAutoRunSignal, setProactiveScanAutoRunSignal] = useState(0);
+  const [agentHistoryLoaded, setAgentHistoryLoaded] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<DocCoverage | null>(null);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const [deleteDocError, setDeleteDocError] = useState<string | null>(null);
   const [resultCache, setResultCache] = useState<WorkstreamCache>({});
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
-  const { findings, addFindings, syncScanFindings } = useFindings(dealId);
+  const {
+    findings,
+    addFindings,
+    clearAgentFindings,
+    syncScanFindings,
+    syncAgentFindings,
+  } = useFindings(dealId);
 
   const [viewerState, setViewerState] = useState<{
     dealId: string;
@@ -215,8 +222,10 @@ export default function DealWorkspacePage() {
     try {
       const items = await listInvestigations(dealId);
       setAgentHistory(items);
+      setAgentHistoryLoaded(true);
     } catch {
       setAgentHistory([]);
+      setAgentHistoryLoaded(true);
     }
   }, [dealId]);
 
@@ -247,6 +256,15 @@ export default function DealWorkspacePage() {
       DD_WORKSTREAMS.find((w) => w.id === "proactive_scan")?.templates || [];
     syncScanFindings(extractScanFindings(scanCache, templates));
   }, [scanCache, syncScanFindings]);
+
+  useEffect(() => {
+    setAgentHistoryLoaded(false);
+  }, [dealId]);
+
+  useEffect(() => {
+    if (!agentHistoryLoaded) return;
+    syncAgentFindings(new Set(agentHistory.map((session) => session.id)));
+  }, [agentHistory, agentHistoryLoaded, syncAgentFindings]);
 
   const onSelectFinding = useCallback((finding: Finding) => {
     setActiveCit(null);
@@ -306,6 +324,14 @@ export default function DealWorkspacePage() {
     setSelectedAgentRunId(sessionId);
     setAgentFocusNonce((nonce) => nonce + 1);
   }, []);
+
+  const handleMissingAgentSession = useCallback((sessionId: string) => {
+    setSelectedAgentRunId((current) => (current === sessionId ? null : current));
+    setSelectedAgentFinding((current) =>
+      current?.producerId === sessionId ? null : current
+    );
+    void fetchAgentHistory();
+  }, [fetchAgentHistory]);
 
   const handleAgentProactiveScan = useCallback(() => {
     setMode("workstreams");
@@ -433,10 +459,12 @@ export default function DealWorkspacePage() {
               onFindings={addFindings}
               onOpenDocument={handleViewDocument}
               onExport={() => setShowReport(true)}
+              onClearFindings={clearAgentFindings}
               focusInvestigationId={selectedAgentRunId}
               focusFinding={selectedAgentFinding}
               focusSignal={agentFocusNonce}
               onHistoryChange={fetchAgentHistory}
+              onMissingInvestigation={handleMissingAgentSession}
               pendingPrompt={pendingAgentPrompt?.prompt ?? null}
               pendingPromptSignal={pendingAgentPrompt?.signal ?? 0}
               onProactiveScan={handleAgentProactiveScan}

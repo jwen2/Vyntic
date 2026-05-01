@@ -37,6 +37,19 @@ function normalizeSeverityTag(raw: string): "DEAL-BREAKER" | "MATERIAL" | "NOTEW
   return "NOTEWORTHY";
 }
 
+function splitMarkdownTableRow(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function isMarkdownTableSeparator(line: string): boolean {
+  return /^\|\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|$/.test(line.trim());
+}
+
 /** Render a single line with inline formatting: **bold**, [SEVERITY], [Source N]. */
 function renderInline(
   str: string,
@@ -170,18 +183,19 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
       continue;
     }
     // Table
-    if (line.startsWith("|") && i + 1 < lines.length && lines[i + 1].includes("---")) {
-      const heads = line
-        .split("|")
-        .filter((c) => c.trim())
-        .map((c, j) => renderInline(c.trim(), `th${i}${j}`, citations, activeCitId, onCit, isDark));
+    if (line.trim().startsWith("|") && i + 1 < lines.length && isMarkdownTableSeparator(lines[i + 1])) {
+      const heads = splitMarkdownTableRow(line).map((c, j) =>
+        renderInline(c, `th${i}${j}`, citations, activeCitId, onCit, isDark)
+      );
+      const colCount = heads.length;
       i += 2;
       const rows: React.ReactNode[][] = [];
-      while (i < lines.length && lines[i].startsWith("|")) {
-        const cells = lines[i]
-          .split("|")
-          .filter((c) => c.trim())
-          .map((c, k) => renderInline(c.trim(), `td${i}${k}`, citations, activeCitId, onCit, isDark));
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        const rawCells = splitMarkdownTableRow(lines[i]);
+        const normalizedCells = Array.from({ length: colCount }, (_, k) => rawCells[k] || "");
+        const cells = normalizedCells.map((c, k) =>
+          renderInline(c, `td${i}${k}`, citations, activeCitId, onCit, isDark)
+        );
         rows.push(cells);
         i++;
       }
