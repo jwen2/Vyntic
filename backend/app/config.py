@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 200
 
     # Retrieval
-    top_k: int = 8
+    top_k: int = 20
 
     # LLM
     max_tokens: int = 4096

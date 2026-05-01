@@ -85,7 +85,7 @@ async def upsert_chunks(
     return total
 
 
-async def query_deal(deal_id: str, query_text: str, top_k: int = None) -> list[dict]:
+async def query_deal(deal_id: str, query_text: str, top_k: int | None = None) -> list[dict]:
     """
     Query vectors within a single deal's collection.
     Returns list of {content, source_file, page, section_type, score}.
@@ -126,13 +126,16 @@ async def query_deal(deal_id: str, query_text: str, top_k: int = None) -> list[d
     return retrieved
 
 
-async def query_document(deal_id: str, doc_id: str, query_text: str, top_k: int = 8) -> list[dict]:
+async def query_document(deal_id: str, doc_id: str, query_text: str, top_k: int | None = None) -> list[dict]:
     """
     Query vectors within a single document inside a deal's collection.
     Uses ChromaDB 'where' filter to pre-filter by doc_id, ensuring
     only chunks from the specified document are considered.
     Returns list of {content, source_file, page, section_type, score}.
     """
+    if top_k is None:
+        top_k = settings.top_k
+
     collection = _get_collection(deal_id)
 
     if collection.count() == 0:

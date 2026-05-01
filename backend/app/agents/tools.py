@@ -17,7 +17,8 @@ from app.services.vector_store import (
 )
 
 
-MAX_K = 10
+DEFAULT_SEARCH_K = 12
+MAX_K = 20
 MAX_READ_PAGES = 10
 
 
@@ -64,8 +65,8 @@ def make_tools(state: AgentState) -> dict[str, ToolFn]:
         return False
 
     # ── search_deal ──
-    async def search_deal(query: str, k: int = 6) -> ToolResult:
-        k = max(1, min(int(k or 6), MAX_K))
+    async def search_deal(query: str, k: int = DEFAULT_SEARCH_K) -> ToolResult:
+        k = max(1, min(int(k or DEFAULT_SEARCH_K), MAX_K))
         hits = await query_deal(deal_id, query, top_k=k)
         trimmed = [
             {
@@ -82,13 +83,13 @@ def make_tools(state: AgentState) -> dict[str, ToolFn]:
         return ToolResult(summary=summary, payload=trimmed)
 
     # ── search_document ──
-    async def search_document(doc_id: str, query: str, k: int = 6) -> ToolResult:
+    async def search_document(doc_id: str, query: str, k: int = DEFAULT_SEARCH_K) -> ToolResult:
         if not _assert_doc_in_deal(doc_id):
             return ToolResult(
                 summary=f"search_document: doc_id '{doc_id}' not in this deal",
                 payload={"error": "doc_not_in_deal"},
             )
-        k = max(1, min(int(k or 6), MAX_K))
+        k = max(1, min(int(k or DEFAULT_SEARCH_K), MAX_K))
         hits = await query_document(deal_id, doc_id, query, top_k=k)
         trimmed = [
             {
