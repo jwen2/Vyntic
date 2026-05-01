@@ -25,6 +25,7 @@ import {
 import CitationPopover from "./CitationPopover";
 import InlineCitation from "./InlineCitation";
 import { fixMarkdownTables } from "@/lib/markdownUtils";
+import { useTableState } from "@/lib/useTableState";
 
 const SOURCE_PATTERN = /\[Source\s+(\d+)\]/g;
 
@@ -262,6 +263,7 @@ export default function MatrixCell({
   const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC !== "0";
   const [expanded, setExpanded] = useState(synthesis);
   const [chartType, setChartType] = useState<"bar" | "line" | "area" | null>(null);
+  const tableState = useTableState();
 
   const cleanAnswer = useMemo(
     () => (cell?.answer ? fixMarkdownTables(stripThinkTags(cell.answer)) : ""),
@@ -353,22 +355,26 @@ export default function MatrixCell({
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-              table: ({ children }) => (
-                <div className="not-prose overflow-x-auto my-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
-                  <table className="text-xs border-collapse w-full min-w-[280px]">
-                    {children}
-                  </table>
-                </div>
-              ),
+              table: ({ children }) => {
+                tableState.reset();
+                return (
+                  <div className="not-prose overflow-x-auto my-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
+                    <table className="text-xs border-collapse w-full min-w-[280px]">
+                      {children}
+                    </table>
+                  </div>
+                );
+              },
               thead: ({ children }) => (
                 <thead className="bg-gradient-to-b from-slate-50 to-slate-100/80 dark:from-gray-800 dark:to-gray-800/80">{children}</thead>
               ),
               th: ({ children }) => {
+                tableState.recordHeaderCol();
                 const text = typeof children === "string" ? children : String(children ?? "");
                 const isDelta = isDeltaHeader(text);
                 return (
                   <th
-                    className={`border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0 px-3 py-2.5 text-[11px] font-semibold whitespace-nowrap tracking-wide ${
+                    className={`border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0 px-3 py-2.5 text-[11px] font-semibold tracking-wide break-words ${
                       isDelta
                         ? "text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/50 italic"
                         : "text-gray-700 dark:text-gray-300"
@@ -378,11 +384,22 @@ export default function MatrixCell({
                   </th>
                 );
               },
-              tr: ({ children }) => (
-                <tr className="even:bg-slate-50/40 dark:even:bg-gray-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0">
-                  {children}
-                </tr>
-              ),
+              tr: ({ children }) => {
+                const trClass =
+                  "even:bg-slate-50/40 dark:even:bg-gray-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0";
+                const rows = tableState.processRow(children);
+                if (rows === null) return <tr className={trClass}>{children}</tr>;
+                if (rows.length === 1) return <tr className={trClass}>{rows[0]}</tr>;
+                return (
+                  <>
+                    {rows.map((cells, i) => (
+                      <tr key={i} className={trClass}>
+                        {cells}
+                      </tr>
+                    ))}
+                  </>
+                );
+              },
               td: ({ children }) => {
                 const text = typeof children === "string" ? children : "";
                 const raw = Array.isArray(children)
@@ -392,7 +409,7 @@ export default function MatrixCell({
 
                 return (
                   <td
-                    className={`border-r border-gray-100 dark:border-gray-800 last:border-r-0 px-3 py-2 text-xs tabular-nums font-medium ${
+                    className={`border-r border-gray-100 dark:border-gray-800 last:border-r-0 px-3 py-2 text-xs tabular-nums font-medium break-words align-top ${
                       delta === "positive"
                         ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20"
                         : delta === "negative"
@@ -421,13 +438,19 @@ export default function MatrixCell({
                 </li>
               ),
               h1: ({ children }) => (
-                <h3 className="text-base font-bold mt-3 mb-1.5 text-gray-900 dark:text-gray-100">{children}</h3>
+                <h3 className="text-base font-bold mt-3 mb-1.5 text-gray-900 dark:text-gray-100">
+                  {processCitations(children, cell.citations, handleViewDocument)}
+                </h3>
               ),
               h2: ({ children }) => (
-                <h4 className="text-sm font-bold mt-2.5 mb-1 text-gray-900 dark:text-gray-100">{children}</h4>
+                <h4 className="text-sm font-bold mt-2.5 mb-1 text-gray-900 dark:text-gray-100">
+                  {processCitations(children, cell.citations, handleViewDocument)}
+                </h4>
               ),
               h3: ({ children }) => (
-                <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-800 dark:text-gray-200">{children}</h5>
+                <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-800 dark:text-gray-200">
+                  {processCitations(children, cell.citations, handleViewDocument)}
+                </h5>
               ),
               strong: ({ children }) => (
                 <strong className="font-semibold text-gray-900 dark:text-gray-100">{children}</strong>

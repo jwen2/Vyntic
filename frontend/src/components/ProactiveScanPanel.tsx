@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { Citation, SweepEvent, WorkstreamEvent, sweepStream } from "@/lib/api";
 import { Workstream } from "@/lib/queryTemplates";
+import { fixMarkdownTables } from "@/lib/markdownUtils";
 import { QuestionResult } from "./WorkstreamPanel";
 import AnswerText from "@/components/dd/AnswerText";
 
@@ -316,7 +317,7 @@ function ScanAreaRow({
   const [expanded, setExpanded] = useState(false);
   const [activeCitationId, setActiveCitationId] = useState<string | null>(null);
   const hasResult = result && result.status !== "pending";
-  const cleanAnswer = result?.answer ? stripThinkTags(result.answer) : "";
+  const cleanAnswer = result?.answer ? fixMarkdownTables(stripThinkTags(result.answer)) : "";
   const sourceCount = result?.citations
     ? result.citations.filter((c) => c !== null).length
     : 0;
