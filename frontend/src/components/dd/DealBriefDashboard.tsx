@@ -445,6 +445,7 @@ export default function DealBriefDashboard({
                 title="What Is The Deal?"
                 panelKey="snapshot"
                 fields={snapshotFields}
+                citations={snapshotResult?.citations || []}
                 fallback={snapshotResult?.answer}
                 theme={theme}
                 onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, snapshotResult?.citations || [], "snapshot") : undefined}
@@ -454,6 +455,7 @@ export default function DealBriefDashboard({
                 title="What Is Being Proposed?"
                 panelKey="transaction"
                 fields={transactionFields}
+                citations={transactionResult?.citations || []}
                 fallback={transactionResult?.answer}
                 theme={theme}
                 onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, transactionResult?.citations || [], "transaction") : undefined}
@@ -469,6 +471,7 @@ export default function DealBriefDashboard({
 
             <ThesisPanel
               sections={thesisSections}
+              citations={thesisResult?.citations || []}
               fallback={thesisResult?.answer}
               theme={theme}
               onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, thesisResult?.citations || [], "thesis") : undefined}
@@ -485,6 +488,7 @@ export default function DealBriefDashboard({
               />
               <ActionsPanel
                 actions={nextActions}
+                citations={nextActionsResult?.citations || []}
                 theme={theme}
                 onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, nextActionsResult?.citations || [], "actions") : undefined}
               />
@@ -538,6 +542,7 @@ function BriefPanel({
   title,
   panelKey,
   fields,
+  citations,
   fallback,
   theme,
   onCit,
@@ -546,6 +551,7 @@ function BriefPanel({
   title: string;
   panelKey: string;
   fields: BriefField[];
+  citations: (Citation | null)[];
   fallback?: string;
   theme: "light" | "dark";
   onCit?: (sourceIdx: number) => void;
@@ -559,10 +565,11 @@ function BriefPanel({
       <div style={{ fontSize: 12, fontWeight: 700, color: c.t1, marginBottom: 10 }}>{title}</div>
       {fields.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-          {fields.slice(0, 6).map((field) => (
+          {fields.slice(0, 7).map((field) => (
             <EditableField
               key={`${panelKey}-${field.label}`}
               field={field}
+              citation={field.sourceIdx ? citations[field.sourceIdx - 1] : undefined}
               theme={theme}
               onCit={onCit}
               onSave={onOverride ? (value) => onOverride(panelKey, field.label, value) : undefined}
@@ -580,11 +587,13 @@ function BriefPanel({
 
 function EditableField({
   field,
+  citation,
   theme,
   onCit,
   onSave,
 }: {
   field: BriefField;
+  citation?: Citation | null;
   theme: "light" | "dark";
   onCit?: (sourceIdx: number) => void;
   onSave?: (value: string | null) => void;
@@ -679,7 +688,7 @@ function EditableField({
         >
           {field.value}
           {field.sourceIdx !== undefined && (
-            <SourceChip index={field.sourceIdx} onClick={onCit ? () => onCit(field.sourceIdx!) : undefined} />
+            <SourceChip citation={citation} index={field.sourceIdx} onClick={onCit ? () => onCit(field.sourceIdx!) : undefined} />
           )}
         </div>
       )}
@@ -1004,12 +1013,14 @@ function FindingsPanel({
 
 function ThesisPanel({
   sections,
+  citations,
   fallback,
   theme,
   onCit,
   loading,
 }: {
   sections: ThesisSections;
+  citations: (Citation | null)[];
   fallback?: string;
   theme: "light" | "dark";
   onCit?: (sourceIdx: number) => void;
@@ -1036,11 +1047,11 @@ function ThesisPanel({
       {hasAny ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
           {blocks.map((block) => (
-            <ThesisColumn key={block.id} label={block.label} accent={block.accent} bullets={block.bullets} theme={theme} onCit={onCit} />
+            <ThesisColumn key={block.id} label={block.label} accent={block.accent} bullets={block.bullets} citations={citations} theme={theme} onCit={onCit} />
           ))}
         </div>
       ) : fallbackBullets.length > 0 ? (
-        <ThesisColumn label="Synthesis" accent={ACCENT} bullets={fallbackBullets} theme={theme} onCit={onCit} />
+        <ThesisColumn label="Synthesis" accent={ACCENT} bullets={fallbackBullets} citations={citations} theme={theme} onCit={onCit} />
       ) : (
         <Placeholder text="Thesis synthesis will appear here once the scan completes" theme={theme} />
       )}
@@ -1052,12 +1063,14 @@ function ThesisColumn({
   label,
   accent,
   bullets,
+  citations,
   theme,
   onCit,
 }: {
   label: string;
   accent: string;
   bullets: ThesisBullet[];
+  citations: (Citation | null)[];
   theme: "light" | "dark";
   onCit?: (sourceIdx: number) => void;
 }) {
@@ -1080,7 +1093,7 @@ function ThesisColumn({
             <span style={{ minWidth: 0, flex: 1 }}>
               {bullet.text}
               {bullet.sourceIdx !== undefined && (
-                <SourceChip index={bullet.sourceIdx} onClick={onCit ? () => onCit(bullet.sourceIdx!) : undefined} />
+                <SourceChip citation={citations[bullet.sourceIdx - 1]} index={bullet.sourceIdx} onClick={onCit ? () => onCit(bullet.sourceIdx!) : undefined} />
               )}
             </span>
           </li>
@@ -1100,8 +1113,9 @@ function ThesisColumnHeader({ label, accent, theme }: { label: string; accent: s
   );
 }
 
-function SourceChip({ index, onClick }: { index: number; onClick?: () => void }) {
+function SourceChip({ citation, index, onClick }: { citation?: Citation | null; index: number; onClick?: () => void }) {
   const interactive = Boolean(onClick);
+  const label = citation ? `p.${citation.page}` : `[${index}]`;
   return (
     <button
       type="button"
@@ -1111,7 +1125,7 @@ function SourceChip({ index, onClick }: { index: number; onClick?: () => void })
         onClick();
       }}
       disabled={!interactive}
-      title={`Source ${index}`}
+      title={citation ? `${citation.source_file} — Page ${citation.page}` : `Source ${index}`}
       style={{
         marginLeft: 4,
         padding: "0 4px",
@@ -1122,16 +1136,16 @@ function SourceChip({ index, onClick }: { index: number; onClick?: () => void })
         border: "none",
         borderRadius: 3,
         cursor: interactive ? "pointer" : "default",
-        verticalAlign: "super",
-        lineHeight: 1.2,
+        verticalAlign: "baseline",
+        lineHeight: 1.25,
       }}
     >
-      [{index}]
+      {label}
     </button>
   );
 }
 
-function ActionsPanel({ actions, theme, onCit }: { actions: ThesisBullet[]; theme: "light" | "dark"; onCit?: (sourceIdx: number) => void }) {
+function ActionsPanel({ actions, citations, theme, onCit }: { actions: ThesisBullet[]; citations: (Citation | null)[]; theme: "light" | "dark"; onCit?: (sourceIdx: number) => void }) {
   const c = ddTheme(theme);
   return (
     <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
@@ -1146,7 +1160,7 @@ function ActionsPanel({ actions, theme, onCit }: { actions: ThesisBullet[]; them
               <span style={{ fontSize: 12, color: c.t1, lineHeight: 1.4, minWidth: 0, flex: 1 }}>
                 {action.text}
                 {action.sourceIdx !== undefined && (
-                  <SourceChip index={action.sourceIdx} onClick={onCit ? () => onCit(action.sourceIdx!) : undefined} />
+                  <SourceChip citation={citations[action.sourceIdx - 1]} index={action.sourceIdx} onClick={onCit ? () => onCit(action.sourceIdx!) : undefined} />
                 )}
               </span>
             </li>
@@ -1434,22 +1448,16 @@ function extractFields(answer: string | undefined, preferredLabels: string[]): B
   if (!answer) return [];
   const cleaned = answer.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/\*\*/g, "").trim();
   if (!cleaned) return [];
-  const normalizedText = cleaned.replace(
-    new RegExp(`;\\s*(?=(?:${preferredLabels.map(escapeRegExp).join("|")})\\s*:)`, "gi"),
-    "\n"
-  );
+  const normalizedText = insertFieldBreaks(cleaned, preferredLabels);
   const fields: BriefField[] = [];
   const seen = new Set<string>();
   const labelPattern = preferredLabels.map(escapeRegExp).join("|");
-  const regex = new RegExp(`(?:^|\\n)\\s*(?:[-*]\\s*)?(?:${labelPattern})\\s*[:-]\\s*([^\\n]+)`, "gi");
+  const regex = new RegExp(`(?:^|\\n)\\s*(?:[-*]\\s*)?(${labelPattern})\\s*[:-]\\s*([^\\n]+)`, "gi");
   let match: RegExpExecArray | null;
   while ((match = regex.exec(normalizedText)) !== null) {
-    const rawLabel = match[0]
-      .replace(/^\s*[-*]\s*/, "")
-      .split(/[:-]/)[0]
-      .trim();
+    const rawLabel = match[1];
     const label = titleCase(rawLabel);
-    const rawValue = match[1];
+    const rawValue = match[2];
     const sourceIdx = extractFirstSourceIdx(rawValue);
     const value = normalizeValue(rawValue.replace(/\[Source\s+\d+\]/gi, ""));
     if (!value || seen.has(label.toLowerCase())) continue;
@@ -1457,6 +1465,13 @@ function extractFields(answer: string | undefined, preferredLabels: string[]): B
     fields.push({ label, value, sourceIdx });
   }
   return fields.slice(0, 7);
+}
+
+function insertFieldBreaks(text: string, preferredLabels: string[]): string {
+  const labelPattern = preferredLabels.map(escapeRegExp).join("|");
+  return text
+    .replace(new RegExp(`;\\s*(?=(?:${labelPattern})\\s*:)`, "gi"), "\n")
+    .replace(new RegExp(`([^\\n])\\s+(?=(?:${labelPattern})\\s*:)`, "gi"), "$1\n");
 }
 
 function extractMetrics(answer: string | undefined): Metric[] {

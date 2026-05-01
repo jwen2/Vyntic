@@ -2,6 +2,7 @@
 import React from "react";
 import type { Citation } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
+import { citationReferenceLabel } from "@/lib/citationLabels";
 import { SEV_COLOR } from "./types";
 
 interface Props {
@@ -16,6 +17,7 @@ type Block =
   | { kind: "heading"; level: number; content: React.ReactNode }
   | { kind: "list"; ordered: boolean; items: React.ReactNode[] }
   | { kind: "table"; heads: React.ReactNode[]; rows: React.ReactNode[][] }
+  | { kind: "rule" }
   | { kind: "spacer" };
 
 function citId(c: Citation, idx: number) {
@@ -23,15 +25,7 @@ function citId(c: Citation, idx: number) {
 }
 
 function citShort(c: Citation): string {
-  const name = c.source_file;
-  const short =
-    name.includes("CIM") ? "CIM" :
-    name.includes("QoE") ? "QoE" :
-    name.includes("Legal") ? "Legal" :
-    name.includes("Fin") || /\.(xlsx|xls|csv)$/i.test(name) ? "Fin" :
-    name.includes("Ops") || name.includes("Operational") ? "Ops" :
-    name.replace(/\.[^.]+$/, "").slice(0, 8);
-  return `${short}·p${c.page}`;
+  return citationReferenceLabel(c);
 }
 
 function normalizeSeverityTag(raw: string): "DEAL-BREAKER" | "MATERIAL" | "NOTEWORTHY" {
@@ -51,18 +45,20 @@ function renderInline(
   isDark: boolean
 ): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  const re = /\*\*\[\s*(DEAL[\s-]?BREAKER|MATERIAL|NOTEWORTHY)\s*\]\*\*|\[\s*(DEAL[\s-]?BREAKER|MATERIAL|NOTEWORTHY)\s*\]|\*\*(.+?)\*\*|\[Source\s+(\d+)\]/gi;
+  const re = /\*\*\[\s*(DEAL[\s-]?BREAKER|MATERIAL|NOTEWORTHY)\s*\]\s*(.+?)\*\*|\*\*\[\s*(DEAL[\s-]?BREAKER|MATERIAL|NOTEWORTHY)\s*\]\*\*|\[\s*(DEAL[\s-]?BREAKER|MATERIAL|NOTEWORTHY)\s*\]|\*\*(.+?)\*\*|\[Source\s+(\d+)\]/gi;
   let last = 0;
   let m: RegExpExecArray | null;
   let k = 0;
   while ((m = re.exec(str)) !== null) {
     if (m.index > last) parts.push(<span key={`${key}-t${k++}`}>{str.slice(last, m.index)}</span>);
-    const sev1 = m[1],
-      sev2 = m[2],
-      bold = m[3],
-      srcN = m[4];
-    if (sev1 || sev2) {
-      const raw = normalizeSeverityTag(sev1 || sev2);
+    const sevWithTitle = m[1],
+      sevTitle = m[2],
+      sev1 = m[3],
+      sev2 = m[4],
+      bold = m[5],
+      srcN = m[6];
+    if (sevWithTitle || sev1 || sev2) {
+      const raw = normalizeSeverityTag(sevWithTitle || sev1 || sev2);
       const sv =
         raw === "DEAL-BREAKER"
           ? "deal-breaker"
@@ -91,6 +87,17 @@ function renderInline(
           {label}
         </span>
       );
+      if (sevTitle) {
+        parts.push(
+          <strong
+            key={`${key}-bt${k++}`}
+            style={{ fontWeight: 650, color: isDark ? "#f8fafc" : "#0f172a" }}
+          >
+            {" "}
+            {sevTitle.trim()}
+          </strong>
+        );
+      }
     } else if (bold) {
       parts.push(
         <strong
@@ -138,6 +145,11 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
+    if (/^\s*---+\s*$/.test(line)) {
+      blocks.push({ kind: "rule" });
+      i++;
+      continue;
+    }
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
       blocks.push({
@@ -205,6 +217,18 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
     <>
       {blocks.map((b, idx) => {
         if (b.kind === "spacer") return <div key={idx} style={{ height: 6 }} />;
+        if (b.kind === "rule") {
+          return (
+            <div
+              key={idx}
+              style={{
+                height: 1,
+                background: rowBorder,
+                margin: "12px 0",
+              }}
+            />
+          );
+        }
         if (b.kind === "p")
           return (
             <div key={idx} style={{ lineHeight: 1.7, marginBottom: 3 }}>

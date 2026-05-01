@@ -70,7 +70,7 @@ export default function Home() {
     citation: Citation;
     id: string;
   } | null>(null);
-  const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC === "1";
+  const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC !== "0";
   const { theme, toggleTheme } = useTheme();
 
   const filteredDeals = useMemo(() => {
