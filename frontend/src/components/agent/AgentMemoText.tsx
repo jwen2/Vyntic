@@ -194,7 +194,7 @@ function InlineMemo({ text, evidence, onCitation, activeCitId, boldColor }: Inli
 
   // Single pass that interleaves bold (**...**) and citation tokens.
   const tokens: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*]+\*\*)|(\(([^()\s][^()]*?\.[A-Za-z0-9]+)\s*,?\s*(?:pp?\.?\s*)?(\d+(?:\s*(?:,|and|&)\s*(?:pp?\.?\s*)?\d+)*)\))/g;
+  const pattern = /(\*\*[^*]+\*\*)|(\(?\b([A-Za-z0-9][A-Za-z0-9._/-]*?\.(?:pdf|xlsx?|csv|docx?))\s*,?\s*(?:pp?\.?\s*)?(\d+(?:\s*(?:,|and|&)\s*(?:pp?\.?\s*)?\d+)*)\)?)/gi;
   let last = 0;
   let m: RegExpExecArray | null;
   let key = 0;
