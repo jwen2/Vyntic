@@ -54,7 +54,7 @@ export default function ProactiveScanPanel({
 }: Props) {
   const [results, setResults] = useState<Record<string, QuestionResult>>(cachedResults);
   const [runningAll, setRunningAll] = useState(false);
-  const [scanMeta, setScanMeta] = useState<{ totalChunks: number } | null>(null);
+  const [scanMeta, setScanMeta] = useState<{ totalChunks: number; retrievalTopK?: number } | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const resultsRef = useRef(results);
 
@@ -87,7 +87,10 @@ export default function ProactiveScanPanel({
 
   const handleEvent = useCallback((event: SweepEvent) => {
     if (event.type === "sweep_meta") {
-      setScanMeta({ totalChunks: event.total_chunks });
+      setScanMeta({
+        totalChunks: event.total_chunks,
+        retrievalTopK: event.retrieval_top_k,
+      });
       return;
     }
     if (event.type === "sweep_done") {
@@ -192,7 +195,7 @@ export default function ProactiveScanPanel({
               Proactive Scan
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              Scans ALL document chunks to find what you might miss — no queries needed
+              Retrieves a broad evidence pack to find what you might miss — no manual queries needed
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -227,7 +230,8 @@ export default function ProactiveScanPanel({
         {/* Scan metadata */}
         {scanMeta && (
           <div className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-            Scanning {scanMeta.totalChunks} document chunks across all uploaded files
+            Scanning {scanMeta.totalChunks} retrieved evidence chunks
+            {scanMeta.retrievalTopK ? ` (${scanMeta.retrievalTopK} per scan area before dedupe)` : ""}
           </div>
         )}
 
@@ -268,9 +272,9 @@ export default function ProactiveScanPanel({
               Find what you might miss
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              The proactive scan reads <strong>every document chunk</strong> in your deal room — not
-              just what matches a query. It surfaces hidden risks, buried clauses, cross-document
-              inconsistencies, and data room gaps that traditional Q&A might overlook.
+              The proactive scan retrieves a larger evidence pack than standard Q&A across all
+              scan areas, then reviews it in one pass. It surfaces hidden risks, buried clauses,
+              cross-document inconsistencies, and data room gaps that traditional Q&A might overlook.
             </p>
             <button
               onClick={runFullScan}

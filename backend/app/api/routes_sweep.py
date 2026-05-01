@@ -1,11 +1,11 @@
 """
-Proactive deal sweep endpoint — scans ALL document chunks in a deal
+Proactive deal sweep endpoint — retrieves a large evidence pack per scan area
 to find hidden risks, buried clauses, and items the deal team might miss.
 
 Single-call architecture: all scan areas are answered in ONE batched LLM call
 using Gemini's structured output. The streaming JSON parser fires a per-area
 "done" SSE event as each answer object closes, so the frontend gets
-progressive results without paying to re-send the corpus per question.
+progressive results without re-sending the context per question.
 """
 import asyncio
 import json
@@ -22,7 +22,7 @@ from app.auth import get_current_user, require_deal_access
 from app.config import settings
 from app.database import UserRow
 from app.services import deal_store
-from app.services.vector_store import get_all_chunks
+from app.services.vector_store import query_deal
 from app.utils.citations import build_context_string, extract_citations
 from app.utils.streaming_json import AnswersArrayStreamer
 
@@ -47,6 +47,11 @@ SWEEP_RESPONSE_SCHEMA = {
     "required": ["answers"],
 }
 
+SWEEP_TOP_K_PER_AREA = 36
+SWEEP_MAX_CONTEXT_CHUNKS = 180
+SWEEP_MAX_CONTEXT_CHARS = 180_000
+SWEEP_MAX_OUTPUT_TOKENS = 16_000
+
 
 class SweepRequest(BaseModel):
     questions: list[str]
@@ -56,7 +61,7 @@ def _get_sweep_llm(model_name: str) -> ChatGoogleGenerativeAI:
     return ChatGoogleGenerativeAI(
         model=model_name,
         google_api_key=settings.gemini_api_key,
-        max_output_tokens=65000,
+        max_output_tokens=SWEEP_MAX_OUTPUT_TOKENS,
         model_kwargs={
             "generation_config": {
                 "response_mime_type": "application/json",
@@ -68,6 +73,74 @@ def _get_sweep_llm(model_name: str) -> ChatGoogleGenerativeAI:
 
 def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "429" in msg or "quota" in msg or "resourceexhausted" in msg or "resource exhausted" in msg
+
+
+def _chunk_key(chunk: dict) -> tuple[str, int, str]:
+    return (
+        str(chunk.get("source_file", "")),
+        int(chunk.get("page", 0) or 0),
+        str(chunk.get("content", "")),
+    )
+
+
+def _trim_context(chunks: list[dict]) -> list[dict]:
+    trimmed: list[dict] = []
+    total_chars = 0
+    for chunk in chunks[:SWEEP_MAX_CONTEXT_CHUNKS]:
+        content = str(chunk.get("content", ""))
+        if total_chars + len(content) > SWEEP_MAX_CONTEXT_CHARS:
+            remaining = SWEEP_MAX_CONTEXT_CHARS - total_chars
+            if remaining <= 0:
+                break
+            chunk = {**chunk, "content": content[:remaining]}
+            trimmed.append(chunk)
+            break
+        trimmed.append(chunk)
+        total_chars += len(content)
+    return trimmed
+
+
+async def _build_retrieved_context(deal_id: str, qmap: dict[str, str]) -> tuple[list[dict], dict[str, list[dict]]]:
+    """Retrieve a bigger-than-doc-matrix evidence pack for all scan areas.
+
+    The doc matrix retrieves `settings.top_k` chunks per document for one
+    question. The proactive scan retrieves more chunks per scan area across the
+    whole deal, dedupes them, and sends a bounded shared pack to the batched LLM.
+    """
+    by_question: dict[str, list[dict]] = {}
+    deduped: dict[tuple[str, int, str], dict] = {}
+
+    for qid, question in qmap.items():
+        hits = await query_deal(deal_id, question, top_k=SWEEP_TOP_K_PER_AREA)
+        by_question[qid] = hits
+        for rank, hit in enumerate(hits):
+            key = _chunk_key(hit)
+            existing = deduped.get(key)
+            if existing is None:
+                deduped[key] = {**hit, "_best_rank": rank, "_matches": 1}
+            else:
+                existing["_best_rank"] = min(int(existing.get("_best_rank", rank)), rank)
+                existing["_matches"] = int(existing.get("_matches", 1)) + 1
+
+    ordered = sorted(
+        deduped.values(),
+        key=lambda c: (
+            -int(c.get("_matches", 1)),
+            int(c.get("_best_rank", 0)),
+            str(c.get("source_file", "")),
+            int(c.get("page", 0) or 0),
+        ),
+    )
+    context = _trim_context([
+        {k: v for k, v in chunk.items() if not k.startswith("_")}
+        for chunk in ordered
+    ])
+    return context, by_question
 
 
 @router.post("/stream")
@@ -92,16 +165,20 @@ async def sweep_stream(
     qmap = {f"q{i}": q for i, q in enumerate(questions)}
 
     async def event_generator():
-        all_chunks = await get_all_chunks(deal_id)
+        context_chunks, per_question_chunks = await _build_retrieved_context(deal_id, qmap)
 
         yield _sse({
             "type": "sweep_meta",
             "deal_id": deal_id,
-            "total_chunks": len(all_chunks),
+            "total_chunks": len(context_chunks),
             "total_questions": len(questions),
+            "retrieval_top_k": SWEEP_TOP_K_PER_AREA,
+            "per_question_chunks": {
+                qid: len(chunks) for qid, chunks in per_question_chunks.items()
+            },
         })
 
-        if not all_chunks:
+        if not context_chunks:
             for q in questions:
                 yield _sse({
                     "type": "done",
@@ -112,7 +189,7 @@ async def sweep_stream(
                 })
             return
 
-        context_str = build_context_string(all_chunks)
+        context_str = build_context_string(context_chunks)
         system_prompt = PROACTIVE_SWEEP_BATCH_SYSTEM.format(context=context_str)
         user_payload = json.dumps({
             "scan_areas": [{"id": qid, "text": q} for qid, q in qmap.items()]
@@ -130,7 +207,7 @@ async def sweep_stream(
             if not isinstance(raw, str):
                 return
             emitted.add(qid)
-            cleaned, citations = extract_citations(raw, all_chunks, deal_id=deal_id)
+            cleaned, citations = extract_citations(raw, context_chunks, deal_id=deal_id)
             queue.put_nowait({
                 "type": "done",
                 "deal_id": deal_id,
@@ -157,6 +234,8 @@ async def sweep_stream(
                             buf += chunk.content
                             streamer.feed(chunk.content)
                 except Exception as primary_err:
+                    if _is_quota_error(primary_err):
+                        raise
                     if not settings.gemini_fallback_model:
                         raise
                     # Fallback: re-run from scratch with the backup model

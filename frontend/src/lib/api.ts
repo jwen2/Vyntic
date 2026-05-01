@@ -507,6 +507,8 @@ export interface SweepMetaEvent {
   deal_id: string;
   total_chunks: number;
   total_questions: number;
+  retrieval_top_k?: number;
+  per_question_chunks?: Record<string, number>;
 }
 
 export interface SweepDoneEvent {
@@ -521,7 +523,8 @@ export type SweepEvent = WorkstreamEvent | SweepMetaEvent | SweepDoneEvent;
 
 /**
  * Opens a streaming SSE connection to run a proactive sweep scan on a deal.
- * Unlike workstream queries, the sweep scans ALL document chunks.
+ * Unlike workstream queries, the sweep retrieves a large evidence pack across
+ * all scan areas, dedupes it, then runs one batched scan.
  * Returns an AbortController so the caller can cancel.
  */
 export function sweepStream(
