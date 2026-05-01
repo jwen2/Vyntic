@@ -48,7 +48,8 @@ ToolFn = Callable[..., Awaitable[ToolResult]]
 
 
 def _clip_snippet(text: str, n: int = 240) -> str:
-    text = (text or "").strip().replace("\n", " ")
+    lines = [" ".join(line.split()) for line in (text or "").strip().splitlines()]
+    text = "\n".join(line for line in lines if line)
     if len(text) <= n:
         return text
     return text[: n - 1] + "…"

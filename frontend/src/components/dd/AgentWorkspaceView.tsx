@@ -34,10 +34,12 @@ interface Props {
   onFindings: (findings: Finding[]) => void;
   onOpenDocument?: (citation: Citation) => void;
   onExport: () => void;
+  onClearFindings?: () => void;
   focusInvestigationId?: string | null;
   focusFinding?: Finding | null;
   focusSignal?: number;
   onHistoryChange?: () => void | Promise<void>;
+  onMissingInvestigation?: (investigationId: string) => void;
   pendingPrompt?: string | null;
   pendingPromptSignal?: number;
   onProactiveScan?: () => void;
@@ -100,10 +102,12 @@ export default function AgentWorkspaceView({
   onFindings,
   onOpenDocument,
   onExport,
+  onClearFindings,
   focusInvestigationId,
   focusFinding,
   focusSignal = 0,
   onHistoryChange,
+  onMissingInvestigation,
   pendingPrompt,
   pendingPromptSignal = 0,
   onProactiveScan,
@@ -258,6 +262,7 @@ export default function AgentWorkspaceView({
 
     abortRef.current?.abort();
     followupAbortRef.current?.abort();
+    onClearFindings?.();
     findingsRef.current = [];
     investigationIdRef.current = null;
     setActiveCitation(null);
@@ -327,10 +332,22 @@ export default function AgentWorkspaceView({
       setFollowups(record.followups || []);
       setFollowupDraft("");
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes("Investigation not found")) {
+        findingsRef.current = [];
+        investigationIdRef.current = null;
+        setRunState(initialRunState(documents));
+        setFollowups([]);
+        setFollowupDraft("");
+        setFollowupStreaming(false);
+        onMissingInvestigation?.(investigationId);
+        refreshHistory();
+        return;
+      }
       setRunState((prev) => ({
         ...prev,
         phase: "error",
-        error: (err as Error).message || "Failed to load run",
+        error: message || "Failed to load run",
       }));
     }
   }
@@ -357,6 +374,7 @@ export default function AgentWorkspaceView({
   function reset() {
     abortRef.current?.abort();
     followupAbortRef.current?.abort();
+    onClearFindings?.();
     findingsRef.current = [];
     investigationIdRef.current = null;
     setRunState(initialRunState(documents));

@@ -4,16 +4,18 @@ import React from "react";
 import { ddTheme } from "@/components/dd/types";
 import { useTheme } from "@/components/ThemeProvider";
 import { CitBadge } from "@/components/dd/AnswerText";
+import { fixMarkdownTables } from "@/lib/markdownUtils";
 import type { Citation } from "@/lib/api";
 import type { AgentEvidenceItem, AgentLocalCitation } from "./types";
 
 type MemoBlock =
   | { type: "h1" | "h2" | "h3"; text: string }
   | { type: "p"; text: string }
-  | { type: "ul" | "ol"; items: string[] };
+  | { type: "ul" | "ol"; items: string[] }
+  | { type: "table"; heads: string[]; rows: string[][] };
 
 function normalizeMemoText(text: string): string {
-  return text
+  return fixMarkdownTables(text)
     .replace(/\r\n/g, "\n")
     .replace(/([^\n])\s*(#{1,3}\s+)/g, "$1\n$2")
     .replace(/([.!?)\]])\s*([*-]\s+(?=[A-Z0-9]))/g, "$1\n$2")
@@ -50,6 +52,19 @@ function isLikelyPlainHeading(line: string): boolean {
   return meaningful.every((word) => /^[A-Z0-9]/.test(word) || /^[A-Z]{2,}$/.test(word));
 }
 
+function splitMarkdownTableRow(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function isMarkdownTableSeparator(line: string): boolean {
+  return /^\|\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|$/.test(line.trim());
+}
+
 function parseMemoBlocks(text: string): MemoBlock[] {
   const lines = normalizeMemoText(text).split("\n");
   const blocks: MemoBlock[] = [];
@@ -70,11 +85,28 @@ function parseMemoBlocks(text: string): MemoBlock[] {
     listItems = [];
   }
 
-  for (const rawLine of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
     const line = rawLine.trim();
     if (!line) {
       flushParagraph();
       flushList();
+      continue;
+    }
+
+    if (line.startsWith("|") && i + 1 < lines.length && isMarkdownTableSeparator(lines[i + 1])) {
+      flushParagraph();
+      flushList();
+      const heads = splitMarkdownTableRow(line);
+      const rows: string[][] = [];
+      let tableIndex = i + 2;
+      while (tableIndex < lines.length && lines[tableIndex].trim().startsWith("|")) {
+        const cells = splitMarkdownTableRow(lines[tableIndex]);
+        rows.push(Array.from({ length: heads.length }, (_, cellIndex) => cells[cellIndex] || ""));
+        tableIndex++;
+      }
+      blocks.push({ type: "table", heads, rows });
+      i = tableIndex - 1;
       continue;
     }
 
@@ -264,6 +296,9 @@ export default function AgentMemoText({ text, evidence = [], onCitation, activeC
   const { theme } = useTheme();
   const c = ddTheme(theme);
   const isDark = theme === "dark";
+  const tableHeadBg = isDark ? "#1e293b" : "#f8fafc";
+  const tableBorder = isDark ? "#334155" : "#e2e8f0";
+  const rowBorder = isDark ? "#1e293b" : "#f1f5f9";
   const blocks = parseMemoBlocks(text);
 
   const inline = (str: string) => (
@@ -324,6 +359,56 @@ export default function AgentMemoText({ text, evidence = [], onCitation, activeC
                 </li>
               ))}
             </ol>
+          );
+        }
+        if (block.type === "table") {
+          return (
+            <div key={index} style={{ overflowX: "auto", margin: "2px 0 4px" }}>
+              <table style={{ width: "100%", minWidth: 420, borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    {block.heads.map((head, headIndex) => (
+                      <th
+                        key={headIndex}
+                        style={{
+                          padding: "7px 10px",
+                          textAlign: "left",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: c.t2,
+                          background: tableHeadBg,
+                          borderBottom: `1px solid ${tableBorder}`,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {inline(head)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex} style={{ borderBottom: `1px solid ${rowBorder}` }}>
+                      {block.heads.map((_, cellIndex) => (
+                        <td
+                          key={cellIndex}
+                          style={{
+                            padding: "6px 10px",
+                            fontSize: 12,
+                            color: isDark ? "#cbd5e1" : "#334155",
+                            fontWeight: cellIndex === 0 ? 500 : 400,
+                            verticalAlign: "top",
+                            whiteSpace: cellIndex === 0 ? "normal" : "nowrap",
+                          }}
+                        >
+                          {inline(row[cellIndex] || "")}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           );
         }
         if (block.type === "p") {

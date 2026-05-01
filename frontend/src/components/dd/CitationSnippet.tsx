@@ -1,6 +1,7 @@
 "use client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { fixMarkdownTables } from "@/lib/markdownUtils";
 
 export const SPREADSHEET_FILE_RE = /\.(xlsx|xls|csv)$/i;
 const MARKDOWN_TABLE_RE = /^\s*\|.*\|\s*$/m;
@@ -86,13 +87,14 @@ function parseSpreadsheetSnippet(text: string | undefined): SpreadsheetSnippet |
 }
 
 export default function CitationSnippet({ sourceFile, text, variant = "panel" }: Props) {
-  const fallback = text || "(No snippet text was returned for this citation.)";
-  const parsed = SPREADSHEET_FILE_RE.test(sourceFile) ? parseSpreadsheetSnippet(text) : null;
+  const normalizedText = text ? fixMarkdownTables(text) : text;
+  const fallback = normalizedText || "(No snippet text was returned for this citation.)";
+  const parsed = SPREADSHEET_FILE_RE.test(sourceFile) ? parseSpreadsheetSnippet(normalizedText) : null;
 
   if (!parsed) {
     const isViewer = variant === "viewer";
-    if (text && MARKDOWN_TABLE_RE.test(text)) {
-      return <MarkdownSnippet text={text} isViewer={isViewer} />;
+    if (normalizedText && MARKDOWN_TABLE_RE.test(normalizedText)) {
+      return <MarkdownSnippet text={normalizedText} isViewer={isViewer} />;
     }
     return (
       <p

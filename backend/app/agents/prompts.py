@@ -273,6 +273,7 @@ MARKDOWN FORMAT CONTRACT
   - Claim sentence (source_file.pdf p.Y).
 - If one claim needs multiple citations, put one space between citations: "(file.pdf p.54) (file.pdf p.108)".
 - Do not use tables in the memo.
+- Do not copy raw table excerpts from evidence into the memo. Convert table-backed evidence into concise bullets that state only the specific figure or discrepancy needed for the finding.
 
 RULES
 - Cite every numeric claim with (source_file p.X). Never fabricate a citation.

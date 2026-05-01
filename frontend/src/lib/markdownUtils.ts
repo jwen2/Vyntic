@@ -16,6 +16,28 @@ export function fixMarkdownTables(text: string): string {
   const lines = text.split("\n");
   const output: string[] = [];
 
+  function rowCells(row: string): string[] {
+    const trimmed = row.trim();
+    const withoutEdges = trimmed
+      .replace(/^\|/, "")
+      .replace(/\|$/, "");
+    return withoutEdges.split("|").map((cell) => cell.trim());
+  }
+
+  function extractInlineRows(tableContent: string, cols: number): string[] {
+    const rows: string[] = [];
+    const rowRe = new RegExp(
+      "\\|" + Array.from({ length: cols }, () => "([^|]*)").join("\\|") + "\\|",
+      "g"
+    );
+    let match: RegExpExecArray | null;
+    while ((match = rowRe.exec(tableContent)) !== null) {
+      const cells = match.slice(1).map((cell) => cell.trim());
+      rows.push("| " + cells.join(" | ") + " |");
+    }
+    return rows;
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
@@ -61,17 +83,15 @@ export function fixMarkdownTables(text: string): string {
     const prefix = firstPipe > 0 ? fullLine.slice(0, firstPipe).trim() : "";
     const tableContent = fullLine.slice(Math.max(0, firstPipe));
 
-    // Collapse all whitespace → split by | → trim each cell → drop empties
-    const cells = tableContent
-      .replace(/\s+/g, " ")
-      .split("|")
-      .map((c) => c.trim())
-      .filter((c) => c !== "");
-
-    // Group cells into rows of `cols` columns
-    const rows: string[] = [];
-    for (let j = 0; j + cols <= cells.length; j += cols) {
-      rows.push("| " + cells.slice(j, j + cols).join(" | ") + " |");
+    // Preserve intentionally blank cells. LLMs often emit tables as one long
+    // pipe-delimited run; matching complete rows avoids shifting sparse tables.
+    let rows = extractInlineRows(tableContent.replace(/\s+/g, " "), cols);
+    if (rows.length < 2) {
+      const cells = rowCells(tableContent.replace(/\s+/g, " "));
+      rows = [];
+      for (let j = 0; j + cols <= cells.length; j += cols) {
+        rows.push("| " + cells.slice(j, j + cols).join(" | ") + " |");
+      }
     }
 
     if (rows.length < 2) {

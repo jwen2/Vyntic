@@ -75,6 +75,10 @@ export function useFindings(dealId: string) {
     setFindings(persist([]));
   }, [persist]);
 
+  const clearAgentFindings = useCallback(() => {
+    setFindings((prev) => persist(prev.filter((finding) => finding.origin !== "agent")));
+  }, [persist]);
+
   /**
    * Replace all findings whose `origin === "scan"` with `scanItems`, preserving
    * user edits (status / note) for findings that still exist by stable id.
@@ -99,6 +103,20 @@ export function useFindings(dealId: string) {
     [persist]
   );
 
+  const syncAgentFindings = useCallback(
+    (validProducerIds: Set<string>) => {
+      setFindings((prev) =>
+        persist(
+          prev.filter((finding) => {
+            if (finding.origin !== "agent") return true;
+            return !!finding.producerId && validProducerIds.has(finding.producerId);
+          })
+        )
+      );
+    },
+    [persist]
+  );
+
   return {
     findings,
     addFindings,
@@ -106,6 +124,8 @@ export function useFindings(dealId: string) {
     setNote,
     removeFinding,
     clearFindings,
+    clearAgentFindings,
     syncScanFindings,
+    syncAgentFindings,
   };
 }
