@@ -182,7 +182,7 @@ export default function ProactiveScanPanel({
   }, [autoRunSignal, runFullScan, runningAll]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full flex-1 w-full min-w-0">
       {/* Header */}
       <div className="p-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center justify-between">
