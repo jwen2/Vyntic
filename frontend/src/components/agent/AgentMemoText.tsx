@@ -120,6 +120,21 @@ function evidenceToCitation(item: AgentEvidenceItem, key: string): AgentLocalCit
   };
 }
 
+function referenceToCitation(sourceFile: string, page: number, key: string, snippet = ""): AgentLocalCitation {
+  const stem = sourceFile
+    .replace(/^.*\//, "")
+    .replace(/\.[^.]+$/, "")
+    .split(/[_\s-]+/)
+    .find((part) => part.length > 1) || "Doc";
+  return {
+    id: `memo-${sourceFile}-${page}-${key}`,
+    source_file: sourceFile,
+    page,
+    snippet,
+    sh: `${stem.slice(0, 7)}·p${page}`,
+  };
+}
+
 function parseCitationPages(rawPages: string): number[] {
   const pages = rawPages
     .match(/\d+/g)
@@ -141,7 +156,7 @@ function InlineMemo({ text, evidence, onCitation, activeCitId, boldColor }: Inli
 
   // Single pass that interleaves bold (**...**) and citation tokens.
   const tokens: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*]+\*\*)|(\(([^()\s][^()]*?\.[A-Za-z0-9]+)\s+(?:pp?\.?\s*)?(\d+(?:\s*(?:,|and|&)\s*(?:pp?\.?\s*)?\d+)*)\))/g;
+  const pattern = /(\*\*[^*]+\*\*)|(\(([^()\s][^()]*?\.[A-Za-z0-9]+)\s*,?\s*(?:pp?\.?\s*)?(\d+(?:\s*(?:,|and|&)\s*(?:pp?\.?\s*)?\d+)*)\))/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let key = 0;
@@ -163,14 +178,16 @@ function InlineMemo({ text, evidence, onCitation, activeCitId, boldColor }: Inli
       const pages = parseCitationPages(m[4]);
       const citationNodes = pages.map((page, pageIndex) => {
         const item = findEvidence(evidence, filename, page);
-        if (!item || !onCitation) {
+        if (!onCitation) {
           return <span key={`c${key}-missing-${pageIndex}`}>({filename} p.{page})</span>;
         }
-        const localCit = evidenceToCitation(item, `${key}-${pageIndex}`);
+        const localCit = item
+          ? evidenceToCitation(item, `${key}-${pageIndex}`)
+          : referenceToCitation(filename, page, `${key}-${pageIndex}`, "The memo cited this page as supporting evidence.");
         const badgeCit: Citation = {
-          source_file: item.source_file,
-          page: item.page,
-          text_snippet: item.chunk || "",
+          source_file: localCit.source_file,
+          page: localCit.page,
+          text_snippet: localCit.snippet || "",
         };
         return (
           <CitBadge
