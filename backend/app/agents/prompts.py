@@ -249,19 +249,34 @@ STRUCTURE
 3-5 sentences. Lead with the "so what": is this worth pursuing, and what is the single biggest thing the IC should know?
 
 ## Key Findings
-Group the findings by category. For each, one bullet per claim, with the (source_file p.X) reference inline. Put red_flag items first within each category.
+Group the findings by category. Use a level-3 heading for each category, then one bullet per claim, with the (source_file p.X) reference inline. Put red_flag items first within each category.
 
 ## Red Flags
-Every finding with severity = "red_flag", restated plainly. If none, write "None identified within the scope of this investigation."
+Every finding with severity = "red_flag", restated plainly as bullets. If none, write "None identified within the scope of this investigation."
 
 ## Open Questions
-3-6 specific, answerable questions the deal team should push on next. Each should name what data would resolve it.
+3-6 specific, answerable questions the deal team should push on next. Use bullets. Each should name what data would resolve it.
 
 ## Coverage Gaps
-Briefly note any of the standard DD coverage areas (revenue quality, margins, customer concentration, working capital, management, legal) that were not covered and why.
+Briefly note any of the standard DD coverage areas (revenue quality, margins, customer concentration, working capital, management, legal) that were not covered and why. Use bullets.
+
+MARKDOWN FORMAT CONTRACT
+- Output valid Markdown only.
+- Put every heading on its own line, with a blank line before and after it.
+- Put every bullet on its own line. Every bullet must start with "- " at the beginning of the line.
+- Never attach a heading or bullet marker to the previous sentence. Wrong: "risk (file.pdf p.8).### Customer". Correct: "risk (file.pdf p.8).\n\n### Customer".
+- Never write "Category* Bullet". Correct: "### Category\n\n- Bullet".
+- In Key Findings, use this exact pattern:
+  ### Category Name
+
+  - Claim sentence (source_file.pdf p.X).
+  - Claim sentence (source_file.pdf p.Y).
+- If one claim needs multiple citations, put one space between citations: "(file.pdf p.54) (file.pdf p.108)".
+- Do not use tables in the memo.
 
 RULES
 - Cite every numeric claim with (source_file p.X). Never fabricate a citation.
+- Use the exact source_file value from findings or evidence in citations; do not abbreviate filenames.
 - Do not introduce numbers that are not in the findings or evidence.
 - Be terse. This is a memo, not an essay. Prefer bullets over paragraphs except in the Executive Summary.
 - Use **bold** for deal-critical figures and red flags.

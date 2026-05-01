@@ -234,6 +234,7 @@ export default function AgentWorkspaceView({
         synthText: event.memo || prev.synthText,
         synthDone: true,
         findings: doneFindings,
+        evidence: normalizeEvidence(event.evidence),
         tasks: completeAllTasks(prev.tasks),
       }));
       refreshHistory();

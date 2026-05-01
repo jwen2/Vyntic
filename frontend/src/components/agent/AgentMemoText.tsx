@@ -15,11 +15,39 @@ type MemoBlock =
 function normalizeMemoText(text: string): string {
   return text
     .replace(/\r\n/g, "\n")
-    .replace(/\s+(#{1,3}\s+)/g, "\n$1")
-    .replace(/([^\n])\s+([*-]\s+)/g, "$1\n$2")
+    .replace(/([^\n])\s*(#{1,3}\s+)/g, "$1\n$2")
+    .replace(/([.!?)\]])\s*([*-]\s+(?=[A-Z0-9]))/g, "$1\n$2")
+    .replace(/([A-Za-z0-9][A-Za-z0-9 /&-]{2,80})([*-]\s+(?=[A-Z0-9]))/g, "$1\n$2")
+    .replace(/([.!?)\]])\s*(\d+\.\s+)/g, "$1\n$2")
     .replace(/([^\n])\s+(\d+\.\s+)/g, "$1\n$2")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+const MEMO_SECTION_HEADINGS = new Set([
+  "executive summary",
+  "key findings",
+  "red flags",
+  "open questions",
+  "coverage gaps",
+]);
+
+function isLikelyPlainHeading(line: string): boolean {
+  if (line.length > 72) return false;
+  if (/[.!?)]$/.test(line) || /:\s*$/.test(line)) return false;
+  if (/\|/.test(line) || /\([^)]+\bp\.?\s*\d+/i.test(line)) return false;
+
+  const normalized = line.toLowerCase();
+  if (MEMO_SECTION_HEADINGS.has(normalized)) return true;
+
+  const words = line.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 8) return false;
+
+  const connectors = new Set(["and", "or", "of", "the", "to", "for", "in", "on", "vs", "with"]);
+  const meaningful = words.filter((word) => !connectors.has(word.toLowerCase()));
+  if (meaningful.length < 1) return false;
+
+  return meaningful.every((word) => /^[A-Z0-9]/.test(word) || /^[A-Z]{2,}$/.test(word));
 }
 
 function parseMemoBlocks(text: string): MemoBlock[] {
@@ -57,6 +85,16 @@ function parseMemoBlocks(text: string): MemoBlock[] {
       blocks.push({
         type: heading[1].length === 1 ? "h1" : heading[1].length === 2 ? "h2" : "h3",
         text: heading[2].trim(),
+      });
+      continue;
+    }
+
+    if (isLikelyPlainHeading(line)) {
+      flushParagraph();
+      flushList();
+      blocks.push({
+        type: MEMO_SECTION_HEADINGS.has(line.toLowerCase()) ? "h2" : "h3",
+        text: line,
       });
       continue;
     }
@@ -120,6 +158,29 @@ function evidenceToCitation(item: AgentEvidenceItem, key: string): AgentLocalCit
   };
 }
 
+function referenceToCitation(sourceFile: string, page: number, key: string, snippet = ""): AgentLocalCitation {
+  const stem = sourceFile
+    .replace(/^.*\//, "")
+    .replace(/\.[^.]+$/, "")
+    .split(/[_\s-]+/)
+    .find((part) => part.length > 1) || "Doc";
+  return {
+    id: `memo-${sourceFile}-${page}-${key}`,
+    source_file: sourceFile,
+    page,
+    snippet,
+    sh: `${stem.slice(0, 7)}·p${page}`,
+  };
+}
+
+function parseCitationPages(rawPages: string): number[] {
+  const pages = rawPages
+    .match(/\d+/g)
+    ?.map((page) => parseInt(page, 10))
+    .filter((page) => Number.isFinite(page) && page > 0) || [];
+  return Array.from(new Set(pages));
+}
+
 interface InlineProps {
   text: string;
   evidence: AgentEvidenceItem[];
@@ -133,7 +194,7 @@ function InlineMemo({ text, evidence, onCitation, activeCitId, boldColor }: Inli
 
   // Single pass that interleaves bold (**...**) and citation tokens.
   const tokens: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*]+\*\*)|(\(([^()\s][^()]*?\.[A-Za-z0-9]+)\s+p\.?\s*(\d+)\))/g;
+  const pattern = /(\*\*[^*]+\*\*)|(\(?\b([A-Za-z0-9][A-Za-z0-9._/-]*?\.(?:pdf|xlsx?|csv|docx?))\s*,?\s*(?:pp?\.?\s*)?(\d+(?:\s*(?:,|and|&)\s*(?:pp?\.?\s*)?\d+)*)\)?)/gi;
   let last = 0;
   let m: RegExpExecArray | null;
   let key = 0;
@@ -152,24 +213,33 @@ function InlineMemo({ text, evidence, onCitation, activeCitId, boldColor }: Inli
     } else if (m[2]) {
       // Citation reference
       const filename = m[3];
-      const page = parseInt(m[4], 10);
-      const item = findEvidence(evidence, filename, page);
-      if (item && onCitation) {
-        const localCit = evidenceToCitation(item, String(key));
+      const pages = parseCitationPages(m[4]);
+      const citationNodes = pages.map((page, pageIndex) => {
+        const item = findEvidence(evidence, filename, page);
+        if (!onCitation) {
+          return <span key={`c${key}-missing-${pageIndex}`}>({filename} p.{page})</span>;
+        }
+        const localCit = item
+          ? evidenceToCitation(item, `${key}-${pageIndex}`)
+          : referenceToCitation(filename, page, `${key}-${pageIndex}`, "The memo cited this page as supporting evidence.");
         const badgeCit: Citation = {
-          source_file: item.source_file,
-          page: item.page,
-          text_snippet: item.chunk || "",
+          source_file: localCit.source_file,
+          page: localCit.page,
+          text_snippet: localCit.snippet || "",
         };
-        tokens.push(
+        return (
           <CitBadge
-            key={`c${key++}`}
+            key={`c${key}-badge-${pageIndex}`}
             cit={badgeCit}
             id={localCit.id}
             active={activeCitId === localCit.id}
             onClick={() => onCitation(localCit)}
-          />,
+          />
         );
+      });
+      if (citationNodes.some((node) => React.isValidElement(node))) {
+        tokens.push(...citationNodes);
+        key += citationNodes.length;
       } else {
         // No matching evidence — keep the original text so info isn't lost.
         tokens.push(<span key={`c${key++}`}>{m[2]}</span>);
