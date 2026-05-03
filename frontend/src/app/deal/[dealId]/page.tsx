@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Deal,
   Citation,
+  ConversationEntry,
   listDeals,
+  listConversations,
   listDocuments,
   listInvestigations,
   deleteDocument,
@@ -115,6 +117,10 @@ export default function DealWorkspacePage() {
   const [selectedAgentFinding, setSelectedAgentFinding] = useState<Finding | null>(null);
   const [agentFocusNonce, setAgentFocusNonce] = useState(0);
   const [agentHistory, setAgentHistory] = useState<InvestigationSummary[]>([]);
+  const [assistantHistory, setAssistantHistory] = useState<ConversationEntry[]>([]);
+  const [assistantHistoryLoaded, setAssistantHistoryLoaded] = useState(false);
+  const [selectedAssistantEntryId, setSelectedAssistantEntryId] = useState<string | null>(null);
+  const [assistantNewChatSignal, setAssistantNewChatSignal] = useState(0);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [pendingAgentPrompt, setPendingAgentPrompt] = useState<{ prompt: string; signal: number } | null>(null);
   const [proactiveScanAutoRunSignal, setProactiveScanAutoRunSignal] = useState(0);
@@ -224,6 +230,17 @@ export default function DealWorkspacePage() {
     }
   }, [dealId]);
 
+  const fetchAssistantHistory = useCallback(async () => {
+    try {
+      const items = await listConversations(dealId, "assistant");
+      setAssistantHistory(items);
+      setAssistantHistoryLoaded(true);
+    } catch {
+      setAssistantHistory([]);
+      setAssistantHistoryLoaded(true);
+    }
+  }, [dealId]);
+
   useEffect(() => {
     const token = getAuthToken();
     if (!token) {
@@ -234,9 +251,10 @@ export default function DealWorkspacePage() {
       fetchDeal(),
       fetchDocuments(),
       fetchAgentHistory(),
+      fetchAssistantHistory(),
       getMe().catch(() => router.push("/login")),
     ]).finally(() => setLoading(false));
-  }, [fetchAgentHistory, fetchDeal, fetchDocuments, router]);
+  }, [fetchAgentHistory, fetchAssistantHistory, fetchDeal, fetchDocuments, router]);
 
   const docCoverage = useMemo(
     () => computeCoverage(documents, resultCache, findings),
@@ -251,6 +269,11 @@ export default function DealWorkspacePage() {
       DD_WORKSTREAMS.find((w) => w.id === "proactive_scan")?.templates || [];
     syncScanFindings(extractScanFindings(scanCache, templates));
   }, [scanCache, syncScanFindings]);
+
+  useEffect(() => {
+    setAssistantHistoryLoaded(false);
+    setSelectedAssistantEntryId(null);
+  }, [dealId]);
 
   const onSelectFinding = useCallback((finding: Finding) => {
     setActiveCit(null);
@@ -299,6 +322,35 @@ export default function DealWorkspacePage() {
       setSelectedAgentRunId(null);
     }
   }, []);
+
+  const handleNewAssistantChat = useCallback(() => {
+    setMode("assistant");
+    setSelectedWorkstream(null);
+    setSelectedQuestion(null);
+    setSelectedAgentRunId(null);
+    setSelectedAgentFinding(null);
+    setSelectedDocId(null);
+    setActiveCit(null);
+    setSelectedAssistantEntryId(null);
+    setAssistantNewChatSignal((signal) => signal + 1);
+  }, []);
+
+  const handleSelectAssistantHistory = useCallback((entry: ConversationEntry) => {
+    setMode("assistant");
+    setSelectedWorkstream(null);
+    setSelectedQuestion(null);
+    setSelectedAgentRunId(null);
+    setSelectedAgentFinding(null);
+    setSelectedDocId(null);
+    setActiveCit(null);
+    setSelectedAssistantEntryId(entry.id);
+  }, []);
+
+  const handleAssistantConversationSaved = useCallback((entry: ConversationEntry) => {
+    setSelectedAssistantEntryId(entry.id);
+    setAssistantHistory((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
+    void fetchAssistantHistory();
+  }, [fetchAssistantHistory]);
 
   const handleSelectAgentSession = useCallback((sessionId: string) => {
     setMode("agent");
@@ -411,10 +463,15 @@ export default function DealWorkspacePage() {
           findings={findings}
           docs={docCoverage}
           sessions={agentHistory}
+          assistantHistory={assistantHistory}
+          assistantHistoryLoaded={assistantHistoryLoaded}
+          activeAssistantEntryId={selectedAssistantEntryId}
           activeSessionId={selectedAgentRunId}
           activeWs={selectedWorkstream}
           activeDocId={selectedDocId}
           theme={theme}
+          onNewAssistantChat={handleNewAssistantChat}
+          onSelectAssistantHistory={handleSelectAssistantHistory}
           onSelectSession={handleSelectAgentSession}
           onSelectDocument={(docId) => {
             setSelectedDocId(docId);
@@ -450,9 +507,12 @@ export default function DealWorkspacePage() {
               <DealAssistantPanel
                 deal={deal}
                 documents={documents}
+                selectedEntry={assistantHistory.find((entry) => entry.id === selectedAssistantEntryId) || null}
+                newChatSignal={assistantNewChatSignal}
                 activeCitId={activeCit?.id ?? null}
                 onCit={handleCit}
                 onOpenDocument={handleViewDocument}
+                onConversationSaved={handleAssistantConversationSaved}
               />
             </div>
           ) : selectedDocId ? (

@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Citation, Deal, DocumentMetadata } from "@/lib/api";
+import type { Citation, ConversationEntry, Deal, DocumentMetadata } from "@/lib/api";
 import {
-  listConversations,
   saveConversation,
   singleQuestionStream,
 } from "@/lib/api";
@@ -41,15 +40,21 @@ function shortDocName(filename: string) {
 export default function DealAssistantPanel({
   deal,
   documents,
+  selectedEntry,
+  newChatSignal,
   activeCitId,
   onCit,
   onOpenDocument,
+  onConversationSaved,
 }: {
   deal: Deal;
   documents: DocumentMetadata[];
+  selectedEntry: ConversationEntry | null;
+  newChatSignal: number;
   activeCitId: string | null;
   onCit: (citation: Citation, id: string) => void;
   onOpenDocument: (citation: Citation) => void;
+  onConversationSaved?: (entry: ConversationEntry) => void;
 }) {
   const { theme } = useTheme();
   const c = ddTheme(theme);
@@ -57,13 +62,12 @@ export default function DealAssistantPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
-  const [loadingHistory, setLoadingHistory] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+  const newChatMountedRef = useRef(false);
 
   const selectedDocs = useMemo(
     () => documents.filter((doc) => selectedDocIds.includes(doc.doc_id)),
@@ -71,49 +75,56 @@ export default function DealAssistantPanel({
   );
 
   useEffect(() => {
+    controllerRef.current?.abort();
     setMessages([]);
     setDraft("");
     setSelectedDocIds([]);
-    setHistoryLoaded(false);
     setError(null);
+    setIsStreaming(false);
   }, [deal.deal_id]);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoadingHistory(true);
-    listConversations(deal.deal_id, "assistant")
-      .then((items) => {
-        if (cancelled) return;
-        const loaded = items.flatMap<ChatMessage>((item) => [
-          {
-            id: `${item.id}_user`,
-            role: "user",
-            content: item.question,
-            status: "complete",
-          },
-          {
-            id: `${item.id}_assistant`,
-            role: "assistant",
-            content: item.answer,
-            citations: item.citations,
-            status: "complete",
-          },
-        ]);
-        setMessages(loaded);
-      })
-      .catch(() => {
-        if (!cancelled) setMessages([]);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setHistoryLoaded(true);
-          setLoadingHistory(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [deal.deal_id]);
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    setDraft("");
+    setSelectedDocIds([]);
+    setError(null);
+    setIsStreaming(false);
+    if (!selectedEntry) {
+      setMessages([]);
+      return;
+    }
+    setMessages([
+      {
+        id: `${selectedEntry.id}_user`,
+        role: "user",
+        content: selectedEntry.question,
+        status: "complete",
+      },
+      {
+        id: `${selectedEntry.id}_assistant`,
+        role: "assistant",
+        content: selectedEntry.answer,
+        citations: selectedEntry.citations,
+        status: "complete",
+      },
+    ]);
+  }, [selectedEntry]);
+
+  useEffect(() => {
+    if (!newChatMountedRef.current) {
+      newChatMountedRef.current = true;
+      return;
+    }
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    setMessages([]);
+    setDraft("");
+    setSelectedDocIds([]);
+    setError(null);
+    setIsStreaming(false);
+    textareaRef.current?.focus();
+  }, [newChatSignal]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -121,7 +132,7 @@ export default function DealAssistantPanel({
 
   useEffect(() => {
     textareaRef.current?.focus();
-  }, [historyLoaded]);
+  }, [selectedEntry, newChatSignal]);
 
   useEffect(() => {
     return () => controllerRef.current?.abort();
@@ -208,7 +219,9 @@ export default function DealAssistantPanel({
             answer: event.answer,
             citations: event.citations,
             workstream: "assistant",
-          }).catch(() => undefined);
+          })
+            .then((entry) => onConversationSaved?.(entry))
+            .catch(() => undefined);
           return;
         }
         if (event.type === "error") {
@@ -254,7 +267,7 @@ export default function DealAssistantPanel({
         );
       }
     );
-  }, [deal.deal_id, draft, isStreaming, resizeTextarea, selectedDocs]);
+  }, [deal.deal_id, draft, isStreaming, onConversationSaved, resizeTextarea, selectedDocs]);
 
   const cancel = useCallback(() => {
     controllerRef.current?.abort();
@@ -277,7 +290,7 @@ export default function DealAssistantPanel({
             <InitialAssistantState
               dealName={deal.name}
               docCount={documents.length}
-              loading={loadingHistory}
+              loading={false}
               prompts={ASSISTANT_PROMPTS}
               onPrompt={submit}
               theme={theme}
