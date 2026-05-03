@@ -717,6 +717,12 @@ export default function DocMatrixPanel({
     );
   }
 
+  const tableMinWidth =
+    getColWidth("doc", COL_DOC) +
+    queries.reduce((sum, q) => sum + getColWidth(q, COL_QUERY), 0) +
+    COL_ADD;
+  const tableWidth = queries.length === 0 ? "100%" : `max(100%, ${tableMinWidth}px)`;
+
   return (
     <div className="space-y-2 p-4">
       {/* Selection info */}
@@ -786,11 +792,7 @@ export default function DocMatrixPanel({
           className="border-separate border-spacing-0"
           style={{
             tableLayout: "fixed",
-            width: queries.length === 0
-              ? "100%"
-              : getColWidth("doc", COL_DOC) +
-                queries.reduce((sum, q) => sum + getColWidth(q, COL_QUERY), 0) +
-                COL_ADD,
+            width: tableWidth,
           }}
         >
           <colgroup>
@@ -798,7 +800,7 @@ export default function DocMatrixPanel({
             {queries.map((q, i) => (
               <col key={i} style={{ width: getColWidth(q, COL_QUERY) }} />
             ))}
-            {queries.length === 0 ? <col /> : <col style={{ width: COL_ADD }} />}
+            <col />
           </colgroup>
           <thead>
             <tr>
