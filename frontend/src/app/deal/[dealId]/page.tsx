@@ -26,6 +26,7 @@ import LeftSidebar from "@/components/dd/LeftSidebar";
 import DDWorkstreamView from "@/components/dd/DDWorkstreamView";
 import CitationPanel from "@/components/dd/CitationPanel";
 import AgentWorkspaceView from "@/components/dd/AgentWorkspaceView";
+import DealAssistantPanel from "@/components/assistant/DealAssistantPanel";
 import WorkstreamListView from "@/components/dd/WorkstreamListView";
 import DocumentDetailView from "@/components/dd/DocumentDetailView";
 import ProactiveScanPanel from "@/components/ProactiveScanPanel";
@@ -68,12 +69,15 @@ function saveCacheToLocal(dealId: string, cache: WorkstreamCache) {
 }
 
 function loadNavFromLocal(dealId: string): NavState {
-  if (typeof window === "undefined") return { mode: "agent", selectedWorkstream: null };
+  if (typeof window === "undefined") return { mode: "assistant", selectedWorkstream: null };
   try {
     const raw = localStorage.getItem(TAB_PREFIX + dealId);
-    if (!raw) return { mode: "agent", selectedWorkstream: null };
+    if (!raw) return { mode: "assistant", selectedWorkstream: null };
     const parsed = JSON.parse(raw) as Partial<NavState>;
-    const mode = parsed.mode === "workstreams" ? "workstreams" : "agent";
+    const mode =
+      parsed.mode === "workstreams" || parsed.mode === "agent"
+        ? parsed.mode
+        : "assistant";
     const selectedWorkstream = parsed.selectedWorkstream && LINKABLE_WORKSTREAMS.includes(parsed.selectedWorkstream)
       ? parsed.selectedWorkstream
       : null;
@@ -81,7 +85,7 @@ function loadNavFromLocal(dealId: string): NavState {
   } catch {
     const legacy = localStorage.getItem(TAB_PREFIX + dealId) as WorkstreamId | null;
     return {
-      mode: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? "workstreams" : "agent",
+      mode: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? "workstreams" : "assistant",
       selectedWorkstream: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? legacy : null,
     };
   }
@@ -104,7 +108,7 @@ export default function DealWorkspacePage() {
   const [deal, setDeal] = useState<Deal | null>(null);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<DealWorkspaceMode>("agent");
+  const [mode, setMode] = useState<DealWorkspaceMode>("assistant");
   const [selectedWorkstream, setSelectedWorkstream] = useState<WorkstreamId | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [selectedAgentRunId, setSelectedAgentRunId] = useState<string | null>(null);
@@ -186,7 +190,7 @@ export default function DealWorkspacePage() {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setMode("agent");
+        setMode("assistant");
         setSelectedWorkstream(null);
         return;
       }
@@ -303,7 +307,7 @@ export default function DealWorkspacePage() {
 
   const handleMode = useCallback((nextMode: DealWorkspaceMode) => {
     setMode(nextMode);
-    if (nextMode === "agent") {
+    if (nextMode === "assistant" || nextMode === "agent") {
       setSelectedWorkstream(null);
       setSelectedQuestion(null);
       setSelectedAgentFinding(null);
@@ -469,6 +473,16 @@ export default function DealWorkspacePage() {
               pendingPromptSignal={pendingAgentPrompt?.signal ?? 0}
               onProactiveScan={handleAgentProactiveScan}
             />
+          ) : mode === "assistant" ? (
+            <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden", borderRight: activeCit ? `1px solid ${c.border}` : "none" }}>
+              <DealAssistantPanel
+                deal={deal}
+                documents={documents}
+                activeCitId={activeCit?.id ?? null}
+                onCit={handleCit}
+                onOpenDocument={handleViewDocument}
+              />
+            </div>
           ) : selectedDocId ? (
             (() => {
               const doc = docCoverage.find((d) => d.id === selectedDocId);
@@ -532,7 +546,7 @@ export default function DealWorkspacePage() {
             />
           )}
 
-          {activeCit && mode === "workstreams" && (
+          {activeCit && (mode === "workstreams" || mode === "assistant") && (
             <CitationPanel
               citation={activeCit.c}
               onClose={() => setActiveCit(null)}

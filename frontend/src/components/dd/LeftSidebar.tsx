@@ -6,7 +6,7 @@ import type { Finding, DocCoverage, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 
 interface Props {
-  mode: "agent" | "workstreams";
+  mode: "assistant" | "agent" | "workstreams";
   findings: Finding[];
   docs: DocCoverage[];
   sessions: InvestigationSummary[];

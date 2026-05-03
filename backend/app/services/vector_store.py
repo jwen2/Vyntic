@@ -117,6 +117,7 @@ async def query_deal(deal_id: str, query_text: str, top_k: int | None = None) ->
         ):
             retrieved.append({
                 "content": doc,
+                "doc_id": meta.get("doc_id", ""),
                 "source_file": meta.get("source_file", ""),
                 "page": meta.get("page", 0),
                 "section_type": meta.get("section_type", "text"),
@@ -159,6 +160,7 @@ async def query_document(deal_id: str, doc_id: str, query_text: str, top_k: int 
         ):
             retrieved.append({
                 "content": doc,
+                "doc_id": meta.get("doc_id", ""),
                 "source_file": meta.get("source_file", ""),
                 "page": meta.get("page", 0),
                 "section_type": meta.get("section_type", "text"),

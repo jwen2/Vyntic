@@ -4,7 +4,7 @@ import type React from "react";
 import type { Deal } from "@/lib/api";
 import { ACCENT, ddTheme } from "./types";
 
-export type DealWorkspaceMode = "agent" | "workstreams";
+export type DealWorkspaceMode = "assistant" | "agent" | "workstreams";
 
 interface TopBarProps {
   deal: Deal;
@@ -164,6 +164,15 @@ function ModeSegmentedControl({
 }) {
   const c = ddTheme(theme);
   const items: Array<{ key: DealWorkspaceMode; label: string; icon: React.ReactNode }> = [
+    {
+      key: "assistant",
+      label: "Assistant",
+      icon: (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+        </svg>
+      ),
+    },
     {
       key: "agent",
       label: "Agent",
