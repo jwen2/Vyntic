@@ -4,7 +4,7 @@ Uses SQLite for local/PoC — swap connection string to PostgreSQL for productio
 """
 import json
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer, Text, Boolean, DateTime, ForeignKey, event
+from sqlalchemy import create_engine, Column, String, Integer, Text, Boolean, DateTime, ForeignKey, event, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, Session
 
 from app.config import settings
@@ -49,6 +49,7 @@ class DocumentRow(Base):
     filename = Column(String, nullable=False)
     page_count = Column(Integer, default=0)
     chunk_count = Column(Integer, default=0)
+    full_text_md = Column(Text, nullable=True)
 
     deal = relationship("DealRow", back_populates="documents")
 
@@ -130,6 +131,24 @@ class InvestigationFollowupRow(Base):
 def init_db():
     """Create all tables if they don't exist."""
     Base.metadata.create_all(bind=engine)
+    _ensure_document_cache_columns()
+
+
+def _ensure_document_cache_columns():
+    """Add cache columns for existing SQLite databases.
+
+    SQLAlchemy's create_all creates missing tables but does not alter existing
+    ones. Vyntic does not have migrations yet, so keep this one additive schema
+    compatibility shim close to init_db().
+    """
+    inspector = inspect(engine)
+    if "documents" not in inspector.get_table_names():
+        return
+    existing = {column["name"] for column in inspector.get_columns("documents")}
+    if "full_text_md" in existing:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE documents ADD COLUMN full_text_md TEXT"))
 
 
 def get_db() -> Session:
