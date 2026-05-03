@@ -18,6 +18,7 @@ from app.api.routes_auth import router as auth_router
 from app.api.routes_conversation import router as conversation_router
 from app.api.routes_report import router as report_router
 from app.api.routes_sweep import router as sweep_router
+from app.api.routes_internal import router as internal_router
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:3001",
         "http://localhost:3100",
         "http://localhost:3200",
         "http://localhost:3300",
@@ -54,6 +56,7 @@ app.include_router(doc_matrix_router)
 app.include_router(conversation_router)
 app.include_router(report_router)
 app.include_router(sweep_router)
+app.include_router(internal_router)
 
 # Agentic features (beta) — gated behind AGENTIC_FEATURES=true.
 if settings.agentic_features:

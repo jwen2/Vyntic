@@ -19,6 +19,18 @@ import DocumentViewer from "./DocumentViewer";
 import ConfirmDialog from "./ConfirmDialog";
 import { fixMarkdownTables } from "@/lib/markdownUtils";
 import AnswerText, { CitBadge } from "@/components/dd/AnswerText";
+import {
+  FORMAT_OPTIONS,
+  PE_COLUMN_PRESETS,
+  TAG_COLORS,
+  buildFallbackPrompt,
+  createColumnId,
+  getFormatShort,
+  getPillClass,
+  getPresetConfig,
+  type ColumnFormat,
+  type MatrixColumnConfig,
+} from "@/lib/matrixColumnConfig";
 
 // ── Types ──
 
@@ -29,6 +41,13 @@ interface DocResult {
   model?: string;
   fallback?: boolean;
   duration_ms?: number;
+}
+
+interface ColumnDraft {
+  label: string;
+  prompt: string;
+  format: ColumnFormat;
+  tags: string[];
 }
 
 interface ViewerState {
@@ -73,6 +92,59 @@ function fileTypeColor(filename: string) {
   return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
 }
 
+function makeColumn(label: string, patch: Partial<MatrixColumnConfig> = {}): MatrixColumnConfig {
+  const cleanLabel = label.trim();
+  const preset = getPresetConfig(cleanLabel);
+  const format = patch.format ?? preset?.format ?? "text";
+  const tags = patch.tags ?? preset?.tags;
+  return {
+    id: patch.id ?? createColumnId(),
+    label: patch.label ?? cleanLabel,
+    prompt:
+      patch.prompt ??
+      preset?.prompt ??
+      buildFallbackPrompt(cleanLabel, format, tags),
+    format,
+    tags,
+  };
+}
+
+function normalizeStoredColumns(raw: unknown): MatrixColumnConfig[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      if (typeof item === "string") return makeColumn(item, { prompt: item });
+      if (!item || typeof item !== "object") return null;
+      const value = item as Partial<MatrixColumnConfig>;
+      const label = String(value.label || value.prompt || "").trim();
+      if (!label) return null;
+      return makeColumn(label, {
+        id: value.id,
+        prompt: value.prompt || label,
+        format: value.format || "text",
+        tags: value.tags,
+      });
+    })
+    .filter((item): item is MatrixColumnConfig => item !== null);
+}
+
+function isPillOnlyAnswer(text: string): boolean {
+  const stripped = text.trim();
+  if (!stripped || stripped.includes("page:")) return false;
+  return /^(\[\[[^\]]+\]\]\s*)+$/.test(stripped);
+}
+
+function extractPills(text: string): string[] {
+  const pills: string[] = [];
+  const pattern = /\[\[([^\]]+)\]\]/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    const content = match[1];
+    if (!content.startsWith("page:")) pills.push(content);
+  }
+  return pills;
+}
+
 // ── Main Component ──
 
 export default function DocMatrixPanel({
@@ -83,7 +155,12 @@ export default function DocMatrixPanel({
   activeCitationId = null,
   onInspectCitation,
 }: Props) {
-  const [queries, setQueries] = useState<string[]>([]);
+  const [columns, setColumns] = useState<MatrixColumnConfig[]>([]);
+  const queries = useMemo(() => columns.map((column) => column.id), [columns]);
+  const columnById = useMemo(
+    () => Object.fromEntries(columns.map((column) => [column.id, column])),
+    [columns]
+  );
   const [cells, setCells] = useState<
     Record<string, Record<string, DocResult>>
   >({});
@@ -96,29 +173,22 @@ export default function DocMatrixPanel({
   const [deleteDocError, setDeleteDocError] = useState<string | null>(null);
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
 
-  // Column management state
-  const [editingColIndex, setEditingColIndex] = useState<number | null>(null);
-  const [editingColValue, setEditingColValue] = useState("");
+  const [gridSearchOpen, setGridSearchOpen] = useState(false);
+  const [gridSearch, setGridSearch] = useState("");
   const [confirmDeleteCol, setConfirmDeleteCol] = useState<number | null>(null);
-  const [pendingRename, setPendingRename] = useState<{
-    index: number;
-    oldQuery: string;
-    newName: string;
-  } | null>(null);
+  const [pendingColumnUpdate, setPendingColumnUpdate] = useState<MatrixColumnConfig | null>(null);
   const [dragColIndex, setDragColIndex] = useState<number | null>(null);
   const [dragOverColIndex, setDragOverColIndex] = useState<number | null>(null);
 
-  // Per-column width overrides (key: "doc" or the query string). Falls back to
-  // density-driven defaults when no override is set.
+  // Per-column width overrides (key: "doc" or the query string).
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [resizingKey, setResizingKey] = useState<string | null>(null);
 
-  // Unified Excel-like header filter/sort for all columns
-  const [openMenu, setOpenMenu] = useState<"doc" | number | null>(null);
+  // Document-column sort menu
+  const [openMenu, setOpenMenu] = useState<"doc" | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
-  const [sortConfig, setSortConfig] = useState<{ col: "doc" | number; dir: "asc" | "desc" } | null>(null);
-  const [colFilters, setColFilters] = useState<Record<string, string>>({});
+  const [sortConfig, setSortConfig] = useState<{ col: "doc"; dir: "asc" | "desc" } | null>(null);
 
   const handleDeleteDocument = async () => {
     if (!confirmDeleteDoc || !onDeleteDocument) return;
@@ -134,22 +204,8 @@ export default function DocMatrixPanel({
     }
   };
 
-  // Density preference (compact vs comfortable column widths)
-  type Density = "compact" | "comfortable";
-  const DENSITY_KEY = "vyntic_doc_matrix_density";
-  const [density, setDensity] = useState<Density>("comfortable");
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(DENSITY_KEY);
-      if (saved === "compact" || saved === "comfortable") setDensity(saved);
-    } catch {}
-  }, []);
-  useEffect(() => {
-    try { localStorage.setItem(DENSITY_KEY, density); } catch {}
-  }, [density]);
-
   const COL_DOC = 240;
-  const COL_QUERY = density === "compact" ? 480 : 720;
+  const COL_QUERY = 720;
   const COL_ADD = 360;
   const MIN_COL_WIDTH = 140;
   const MAX_COL_WIDTH = 1200;
@@ -186,53 +242,46 @@ export default function DocMatrixPanel({
     []
   );
 
-  const setColFilter = (col: "doc" | number, value: string) => {
-    setColFilters((prev) => ({ ...prev, [String(col)]: value }));
-  };
-  const getColFilter = (col: "doc" | number) => colFilters[String(col)] || "";
-  const isColFiltered = (col: "doc" | number) =>
-    !!getColFilter(col) || (sortConfig?.col === col);
-  const hasAnyFilter = Object.values(colFilters).some((v) => v) || sortConfig !== null;
-
-  const getCellAnswer = (docId: string, query: string) =>
-    cells[docId]?.[query]?.answer || "";
-
   const filteredDocuments = useMemo(() => {
     let result = documents;
-    // Apply document name filter
-    const docFilter = getColFilter("doc");
-    if (docFilter) {
-      const lower = docFilter.toLowerCase();
-      result = result.filter((d) => d.filename.toLowerCase().includes(lower));
+
+    const search = gridSearch.trim().toLowerCase();
+    if (search) {
+      result = result.filter((doc) => {
+        const docHaystack = [
+          doc.filename,
+          `${doc.page_count} pages`,
+          `${doc.chunk_count} chunks`,
+        ].join(" ").toLowerCase();
+        if (docHaystack.includes(search)) return true;
+
+        return columns.some((column) => {
+          const cell = cells[doc.doc_id]?.[column.id];
+          if (!cell) return false;
+          const citationText = (cell.citations || [])
+            .filter(Boolean)
+            .map((citation) =>
+              `${citation?.source_file || ""} ${citation?.page || ""} ${citation?.text_snippet || ""}`
+            )
+            .join(" ");
+          return [
+            cell.answer,
+            citationText,
+          ].join(" ").toLowerCase().includes(search);
+        });
+      });
     }
-    // Apply query column filters
-    for (const [key, value] of Object.entries(colFilters)) {
-      if (key === "doc" || !value) continue;
-      const queryIdx = parseInt(key, 10);
-      const query = queries[queryIdx];
-      if (!query) continue;
-      const lower = value.toLowerCase();
-      result = result.filter((d) =>
-        getCellAnswer(d.doc_id, query).toLowerCase().includes(lower)
-      );
-    }
+
     // Apply sort
     if (sortConfig) {
       result = [...result].sort((a, b) => {
-        let aVal: string, bVal: string;
-        if (sortConfig.col === "doc") {
-          aVal = a.filename;
-          bVal = b.filename;
-        } else {
-          const query = queries[sortConfig.col];
-          aVal = getCellAnswer(a.doc_id, query);
-          bVal = getCellAnswer(b.doc_id, query);
-        }
+        const aVal = a.filename;
+        const bVal = b.filename;
         return sortConfig.dir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       });
     }
     return result;
-  }, [documents, colFilters, sortConfig, queries, cells]);
+  }, [documents, gridSearch, sortConfig, columns, cells]);
 
   // ── Persistence Setup ──
   const CACHE_KEY = useMemo(() => `vyntic_doc_matrix_${dealId}`, [dealId]);
@@ -255,10 +304,10 @@ export default function DocMatrixPanel({
     } catch {}
   }, [colWidths, WIDTH_KEY]);
 
-  const latestState = useRef({ queries, cells });
+  const latestState = useRef({ columns, cells });
   useEffect(() => {
-    latestState.current = { queries, cells };
-  }, [queries, cells]);
+    latestState.current = { columns, cells };
+  }, [columns, cells]);
 
   // Load from local storage
   useEffect(() => {
@@ -266,17 +315,30 @@ export default function DocMatrixPanel({
       const raw = localStorage.getItem(CACHE_KEY);
       if (raw) {
         const p = JSON.parse(raw);
-        if (p.queries && p.cells) {
-          setQueries(p.queries);
-          setCells(p.cells);
+        const storedColumns = normalizeStoredColumns(p.columns ?? p.queries);
+        if (storedColumns.length > 0 && p.cells) {
+          const nextCells = { ...p.cells };
+          // One-time migration from old query-text keys to stable column ids.
+          if (!p.columns && Array.isArray(p.queries)) {
+            for (const [docId, docCells] of Object.entries(nextCells)) {
+              const migrated: Record<string, DocResult> = {};
+              for (const column of storedColumns) {
+                const legacy = (docCells as Record<string, DocResult>)[column.prompt];
+                if (legacy) migrated[column.id] = legacy;
+              }
+              nextCells[docId] = { ...(docCells as Record<string, DocResult>), ...migrated };
+            }
+          }
+          setColumns(storedColumns);
+          setCells(nextCells);
         }
       }
     } catch {}
 
     // Save on exact unmount (tab switch / navigation)
     return () => {
-      const { queries: sq, cells: sc } = latestState.current;
-      if (sq.length === 0) return;
+      const { columns: storedCols, cells: sc } = latestState.current;
+      if (storedCols.length === 0) return;
       try {
         const persistableCells: typeof sc = {};
         for (const [docId, docCells] of Object.entries(sc)) {
@@ -289,7 +351,7 @@ export default function DocMatrixPanel({
         }
         localStorage.setItem(
           CACHE_KEY,
-          JSON.stringify({ queries: sq, cells: persistableCells })
+          JSON.stringify({ columns: storedCols, cells: persistableCells })
         );
       } catch {}
     };
@@ -297,7 +359,7 @@ export default function DocMatrixPanel({
 
   // Debounced save
   useEffect(() => {
-    if (queries.length === 0) return;
+    if (columns.length === 0) return;
     const tid = setTimeout(() => {
       try {
         const persistableCells: typeof cells = {};
@@ -311,12 +373,12 @@ export default function DocMatrixPanel({
         }
         localStorage.setItem(
           CACHE_KEY,
-          JSON.stringify({ queries, cells: persistableCells })
+          JSON.stringify({ columns, cells: persistableCells })
         );
       } catch {}
     }, 1000);
     return () => clearTimeout(tid);
-  }, [queries, cells, CACHE_KEY]);
+  }, [columns, cells, CACHE_KEY]);
 
   const templateRef = useRef<HTMLDivElement>(null);
   const templateBtnRef = useRef<HTMLButtonElement>(null);
@@ -335,14 +397,14 @@ export default function DocMatrixPanel({
   }, []);
 
   // Column header menu open handler
-  const openColMenu = (col: "doc" | number, thElement: HTMLElement) => {
-    if (openMenu === col) {
+  const openColMenu = (thElement: HTMLElement) => {
+    if (openMenu === "doc") {
       setOpenMenu(null);
       return;
     }
     const rect = thElement.getBoundingClientRect();
     setMenuPos({ top: rect.bottom + 2, left: rect.left });
-    setOpenMenu(col);
+    setOpenMenu("doc");
   };
 
   // Column header menu close on outside click
@@ -390,11 +452,13 @@ export default function DocMatrixPanel({
   // clobber a column-wide stream.
   const runQueryStream = useCallback(
     (
-      query: string,
+      columnId: string,
       opts?: { docIds?: string[]; controllerKey?: string }
     ) => {
+      const column = columnById[columnId];
+      const prompt = column?.prompt || columnId;
       const docIds = opts?.docIds ?? documents.map((d) => d.doc_id);
-      const controllerKey = opts?.controllerKey ?? query;
+      const controllerKey = opts?.controllerKey ?? columnId;
       if (docIds.length === 0) return;
 
       // If a stream is already running for this controller key, abort it first
@@ -405,25 +469,25 @@ export default function DocMatrixPanel({
       const controller = docMatrixStream(
         dealId,
         docIds,
-        query,
+        prompt,
         (event: DocMatrixEvent) => {
           setCells((prev) => {
             const updated = { ...prev };
             const docCells = { ...(updated[event.doc_id] || {}) };
 
             if (event.type === "token") {
-              const current = docCells[query] || {
+              const current = docCells[columnId] || {
                 answer: "",
                 citations: [],
                 status: "loading" as const,
               };
-              docCells[query] = {
+              docCells[columnId] = {
                 ...current,
                 answer: current.answer + event.token,
                 status: "loading",
               };
             } else if (event.type === "done") {
-              docCells[query] = {
+              docCells[columnId] = {
                 answer: event.answer,
                 citations: event.citations,
                 status: "complete",
@@ -432,7 +496,7 @@ export default function DocMatrixPanel({
                 duration_ms: event.duration_ms,
               };
             } else if (event.type === "error") {
-              docCells[query] = {
+              docCells[columnId] = {
                 answer: event.error,
                 citations: [],
                 status: "error",
@@ -456,7 +520,7 @@ export default function DocMatrixPanel({
 
       controllersRef.current.set(controllerKey, controller);
     },
-    [dealId, documents]
+    [columnById, dealId, documents]
   );
 
   const retryCell = useCallback(
@@ -478,8 +542,8 @@ export default function DocMatrixPanel({
 
   // Column management handlers
   const removeQuery = useCallback((index: number) => {
-    setQueries((prev) => {
-      const query = prev[index];
+    setColumns((prev) => {
+      const query = prev[index]?.id;
       if (!query) return prev;
       // Cancel any in-flight stream for the removed column
       controllersRef.current.get(query)?.abort();
@@ -503,84 +567,56 @@ export default function DocMatrixPanel({
     });
   }, []);
 
-  const renameQuery = useCallback(
-    (index: number, newName: string) => {
-      const trimmed = newName.trim();
-      const oldQuery = queries[index];
-      if (!oldQuery || !trimmed || oldQuery === trimmed) return;
-      if (queries.includes(trimmed)) return;
-      if (documents.length === 0) return;
-
-      // The old query's results no longer apply — cancel its in-flight stream
-      controllersRef.current.get(oldQuery)?.abort();
-      controllersRef.current.delete(oldQuery);
-
-      setQueries((prev) => {
-        const next = [...prev];
-        next[index] = trimmed;
-        return next;
-      });
-      setColWidths((prev) => {
-        if (!(oldQuery in prev)) return prev;
-        const { [oldQuery]: w, ...rest } = prev;
-        return { ...rest, [trimmed]: w };
-      });
+  const applyColumnUpdate = useCallback(
+    (nextColumn: MatrixColumnConfig, rerun: boolean) => {
+      const previous = columnById[nextColumn.id];
+      if (!previous) return;
+      controllersRef.current.get(nextColumn.id)?.abort();
+      controllersRef.current.delete(nextColumn.id);
+      setColumns((prev) =>
+        prev.map((column) => (column.id === nextColumn.id ? nextColumn : column))
+      );
+      if (!rerun) return;
       setCells((prev) => {
         const next = { ...prev };
         for (const doc of documents) {
           const docCells = { ...(next[doc.doc_id] || {}) };
-          delete docCells[oldQuery];
-          docCells[trimmed] = { answer: "", citations: [], status: "loading" };
+          docCells[nextColumn.id] = { answer: "", citations: [], status: "loading" };
           next[doc.doc_id] = docCells;
         }
         return next;
       });
-
-      runQueryStream(trimmed);
+      runQueryStream(nextColumn.id);
     },
-    [queries, documents, runQueryStream]
+    [columnById, documents, runQueryStream]
+  );
+
+  const saveColumn = useCallback(
+    (nextColumn: MatrixColumnConfig) => {
+      const previous = columnById[nextColumn.id];
+      if (!previous) return;
+      const promptChanged = previous.prompt.trim() !== nextColumn.prompt.trim();
+      const hasCompleteAnswers = documents.some(
+        (doc) => cells[doc.doc_id]?.[nextColumn.id]?.status === "complete"
+      );
+      if (promptChanged && hasCompleteAnswers) {
+        setPendingColumnUpdate(nextColumn);
+        return;
+      }
+      applyColumnUpdate(nextColumn, promptChanged);
+    },
+    [applyColumnUpdate, cells, columnById, documents]
   );
 
   const reorderQueries = useCallback((fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
-    setQueries((prev) => {
-      const newQueries = [...prev];
-      const [moved] = newQueries.splice(fromIndex, 1);
-      newQueries.splice(toIndex, 0, moved);
-      return newQueries;
+    setColumns((prev) => {
+      const newColumns = [...prev];
+      const [moved] = newColumns.splice(fromIndex, 1);
+      newColumns.splice(toIndex, 0, moved);
+      return newColumns;
     });
   }, []);
-
-  const startRename = (index: number) => {
-    setEditingColIndex(index);
-    setEditingColValue(queries[index]);
-  };
-
-  const commitRename = () => {
-    if (editingColIndex === null) {
-      setEditingColValue("");
-      return;
-    }
-    const idx = editingColIndex;
-    const trimmed = editingColValue.trim();
-    // Close edit mode immediately so onBlur can't re-fire while a confirm dialog is up
-    setEditingColIndex(null);
-    setEditingColValue("");
-
-    const oldQuery = queries[idx];
-    if (!trimmed || !oldQuery || oldQuery === trimmed) return;
-    if (queries.includes(trimmed)) return;
-
-    // Confirm before discarding committed answers; loading-only columns re-run silently.
-    const hasCompleteAnswers = documents.some(
-      (doc) => cells[doc.doc_id]?.[oldQuery]?.status === "complete"
-    );
-    if (hasCompleteAnswers) {
-      setPendingRename({ index: idx, oldQuery, newName: trimmed });
-    } else {
-      renameQuery(idx, trimmed);
-    }
-  };
 
   const handleColDragStart = (index: number) => {
     setDragColIndex(index);
@@ -606,26 +642,26 @@ export default function DocMatrixPanel({
 
   const addQuery = useCallback(
     (queryText: string) => {
-      const trimmed = queryText.trim();
-      if (!trimmed || documents.length === 0) return;
-      if (queries.includes(trimmed)) return;
+      const column = makeColumn(queryText);
+      if (!column.label || documents.length === 0) return;
+      if (columns.some((existing) => existing.label.toLowerCase() === column.label.toLowerCase())) return;
 
-      setQueries((prev) => [...prev, trimmed]);
+      setColumns((prev) => [...prev, column]);
 
       setCells((prev) => {
         const updated = { ...prev };
         for (const doc of documents) {
           updated[doc.doc_id] = {
             ...(updated[doc.doc_id] || {}),
-            [trimmed]: { answer: "", citations: [], status: "loading" },
+            [column.id]: { answer: "", citations: [], status: "loading" },
           };
         }
         return updated;
       });
 
-      runQueryStream(trimmed);
+      runQueryStream(column.id);
     },
-    [documents, queries, runQueryStream]
+    [columns, documents, runQueryStream]
   );
 
   const handleAddQuery = useCallback(() => {
@@ -636,11 +672,25 @@ export default function DocMatrixPanel({
   }, [newQuery, addQuery]);
 
   const handleTemplateSelect = useCallback(
-    (query: string) => {
-      addQuery(query);
+    (label: string, prompt?: string, format?: ColumnFormat, tags?: string[]) => {
+      const column = makeColumn(label, { prompt, format, tags });
+      if (documents.length === 0) return;
+      if (columns.some((existing) => existing.label.toLowerCase() === column.label.toLowerCase())) return;
+      setColumns((prev) => [...prev, column]);
+      setCells((prev) => {
+        const updated = { ...prev };
+        for (const doc of documents) {
+          updated[doc.doc_id] = {
+            ...(updated[doc.doc_id] || {}),
+            [column.id]: { answer: "", citations: [], status: "loading" },
+          };
+        }
+        return updated;
+      });
+      runQueryStream(column.id);
       setShowTemplates(false);
     },
-    [addQuery]
+    [columns, documents, runQueryStream]
   );
 
   if (documents.length === 0) {
@@ -674,43 +724,60 @@ export default function DocMatrixPanel({
         <span>
           {documents.length} document{documents.length !== 1 ? "s" : ""} &middot;{" "}
           {queries.length} quer{queries.length !== 1 ? "ies" : "y"}
+          {gridSearch.trim() && (
+            <>
+              {" "}&middot; {filteredDocuments.length} match{filteredDocuments.length !== 1 ? "es" : ""}
+            </>
+          )}
         </span>
-        <div className="flex items-center gap-3">
-          <div
-            className="inline-flex items-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0.5"
-            role="group"
-            aria-label="Column density"
+        <div className="flex items-center gap-2">
+          {gridSearchOpen && (
+            <div className="relative">
+              <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={gridSearch}
+                onChange={(e) => setGridSearch(e.target.value)}
+                placeholder="Filter grid..."
+                className="w-56 pl-7 pr-7 py-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                autoFocus
+              />
+              {gridSearch && (
+                <button
+                  type="button"
+                  onClick={() => setGridSearch("")}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  title="Clear search"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setGridSearchOpen((open) => {
+                if (open) setGridSearch("");
+                return !open;
+              });
+            }}
+            className={`h-7 w-7 inline-flex items-center justify-center rounded-md border transition-colors ${
+              gridSearchOpen || gridSearch.trim()
+                ? "border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-400"
+                : "border-gray-200 bg-white text-gray-500 hover:text-blue-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:text-blue-400"
+            }`}
+            title={gridSearchOpen ? "Close grid filter" : "Search and filter grid"}
+            aria-label={gridSearchOpen ? "Close grid filter" : "Search and filter grid"}
           >
-            <button
-              type="button"
-              onClick={() => setDensity("compact")}
-              aria-pressed={density === "compact"}
-              className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
-                density === "compact"
-                  ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 font-medium"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-              }`}
-              title="Narrower columns, see more at once"
-            >
-              Compact
-            </button>
-            <button
-              type="button"
-              onClick={() => setDensity("comfortable")}
-              aria-pressed={density === "comfortable"}
-              className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
-                density === "comfortable"
-                  ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 font-medium"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-              }`}
-              title="Wider columns, easier to read"
-            >
-              Comfortable
-            </button>
-          </div>
-          <span className="text-gray-300 dark:text-gray-600">
-            Add questions as columns to analyze each document independently
-          </span>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -737,10 +804,10 @@ export default function DocMatrixPanel({
             <tr>
               {/* Document column header with Excel-like dropdown — sticky top + left (corner) */}
               <th
-                className={`p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-gray-200 dark:border-gray-700 sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${isColFiltered("doc") ? "bg-blue-50 dark:bg-blue-950/40" : "bg-gray-100 dark:bg-gray-800"}`}
-                onClick={(e) => openColMenu("doc", e.currentTarget)}
+                className={`p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-gray-200 dark:border-gray-700 sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${sortConfig?.col === "doc" ? "bg-blue-50 dark:bg-blue-950/40" : "bg-gray-100 dark:bg-gray-800"}`}
+                onClick={(e) => openColMenu(e.currentTarget)}
               >
-                <DocColumnHeaderLabel label="Document" col="doc" sortConfig={sortConfig} filterValue={getColFilter("doc")} />
+                <DocColumnHeaderLabel label="Document" sortConfig={sortConfig} />
                 <ColResizeHandle
                   active={resizingKey === "doc"}
                   onMouseDown={(e) =>
@@ -749,10 +816,12 @@ export default function DocMatrixPanel({
                 />
               </th>
               {/* Query column headers — sticky top */}
-              {queries.map((q, i) => (
+              {columns.map((column, i) => {
+                const q = column.id;
+                return (
                 <th
                   key={i}
-                  draggable={editingColIndex !== i}
+                  draggable
                   onDragStart={() => handleColDragStart(i)}
                   onDragOver={(e) => handleColDragOver(e, i)}
                   onDrop={() => handleColDrop(i)}
@@ -762,78 +831,32 @@ export default function DocMatrixPanel({
                   } ${
                     dragOverColIndex === i && dragColIndex !== i
                       ? "bg-blue-50 dark:bg-blue-950/40"
-                      : isColFiltered(i)
-                      ? "bg-blue-50/80 dark:bg-blue-950/40"
                       : "bg-gray-100 dark:bg-gray-800"
                   }`}
                 >
-                  {editingColIndex === i ? (
-                    <input
-                      type="text"
-                      value={editingColValue}
-                      onChange={(e) => setEditingColValue(e.target.value)}
-                      onBlur={commitRename}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") commitRename();
-                        if (e.key === "Escape") {
-                          setEditingColIndex(null);
-                          setEditingColValue("");
-                        }
-                      }}
-                      autoFocus
-                      className="w-full text-sm px-2 py-1 border border-blue-400 rounded bg-white dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    />
-                  ) : (
-                    <div className="flex items-start justify-between gap-1">
-                      <div
-                        className="text-sm leading-snug flex-1 min-w-0 cursor-text"
-                        onDoubleClick={() => startRename(i)}
-                        title="Double-click to rename"
-                      >
-                        {q}
+                  <div className="flex items-start justify-between gap-1">
+                      <div className="text-sm leading-snug flex-1 min-w-0">
+                        <div className="truncate">{column.label}</div>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="rounded bg-gray-200/70 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                            {getFormatShort(column.format)}
+                          </span>
+                          {column.prompt !== column.label && (
+                            <span className="truncate text-[10px] font-normal text-gray-400 dark:text-gray-500">
+                              {column.prompt}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-0.5 flex-shrink-0">
-                        {/* Sort/filter dropdown trigger */}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openColMenu(i, e.currentTarget.closest("th")!); }}
-                          className={`p-0.5 rounded transition-colors ${isColFiltered(i) ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100"} hover:text-blue-600 dark:hover:text-blue-400`}
-                          title="Sort & filter"
-                        >
-                          {sortConfig?.col === i ? (
-                            <span className="text-xs">{sortConfig.dir === "asc" ? "\u25B2" : "\u25BC"}</span>
-                          ) : getColFilter(i) ? (
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
-                          )}
-                        </button>
-                        {/* Rename button */}
-                        <button
-                          onClick={() => startRename(i)}
-                          className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Rename column"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                          </svg>
-                        </button>
-                        {/* Delete button */}
-                        <button
-                          onClick={() => setConfirmDeleteCol(i)}
-                          className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Delete column"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                        <DocColumnEditMenu
+                          column={column}
+                          disabled={loading}
+                          onSave={saveColumn}
+                          onDelete={() => setConfirmDeleteCol(i)}
+                        />
                       </div>
                     </div>
-                  )}
                   <ColResizeHandle
                     active={resizingKey === q}
                     onMouseDown={(e) =>
@@ -841,7 +864,8 @@ export default function DocMatrixPanel({
                     }
                   />
                 </th>
-              ))}
+                );
+              })}
               {/* Add query column — sticky top */}
               <th className="p-3 border-r border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 bg-gray-100 dark:bg-gray-800">
                 <div className="flex gap-2 items-center">
@@ -897,8 +921,40 @@ export default function DocMatrixPanel({
                         >
                           <div className="p-2.5 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
                             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                              Question Templates
+                              Column Templates
                             </span>
+                          </div>
+                          <div>
+                            <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-1.5 sticky top-10 z-[1]">
+                              <span>PE</span>
+                              Diligence columns
+                            </div>
+                            {PE_COLUMN_PRESETS.map((preset) => (
+                              <button
+                                key={preset.name}
+                                onClick={() =>
+                                  handleTemplateSelect(
+                                    preset.name,
+                                    preset.prompt,
+                                    preset.format,
+                                    preset.tags
+                                  )
+                                }
+                                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                    {preset.name}
+                                  </span>
+                                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                    {getFormatShort(preset.format)}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                                  {preset.prompt}
+                                </div>
+                              </button>
+                            ))}
                           </div>
                           {QUERY_TEMPLATES.map((cat) => (
                             <div key={cat.name}>
@@ -909,9 +965,7 @@ export default function DocMatrixPanel({
                               {cat.templates.map((t) => (
                                 <button
                                   key={t.label}
-                                  onClick={() =>
-                                    handleTemplateSelect(t.query)
-                                  }
+                                  onClick={() => handleTemplateSelect(t.label, t.query)}
                                   className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
                                 >
                                   <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -995,17 +1049,18 @@ export default function DocMatrixPanel({
                   </div>
                 </td>
                 {/* Query result cells */}
-                {queries.map((q, i) => (
+                {columns.map((column, i) => (
                   <DocMatrixCell
                     key={i}
-                    cell={cells[doc.doc_id]?.[q]}
+                    cell={cells[doc.doc_id]?.[column.id]}
+                    column={column}
                     dealId={dealId}
                     activeCitationId={activeCitationId}
                     onCitationClick={(citation, id) => {
                       if (onInspectCitation) onInspectCitation(citation, id);
                       else onViewDocument(citation);
                     }}
-                    onRetry={() => retryCell(doc.doc_id, q)}
+                    onRetry={() => retryCell(doc.doc_id, column.id)}
                   />
                 ))}
                 {/* Empty cell under add-query column */}
@@ -1016,29 +1071,21 @@ export default function DocMatrixPanel({
         </table>
       </div>
 
-      {/* Excel-like column filter/sort dropdown — portaled to body */}
+      {/* Document column sort dropdown — portaled to body */}
       {openMenu !== null &&
         createPortal(
-          <DocColumnFilterMenu
+          <DocColumnSortMenu
             ref={menuRef}
-            col={openMenu}
             pos={menuPos}
             sortConfig={sortConfig}
-            filterValue={getColFilter(openMenu)}
-            placeholder={openMenu === "doc" ? "Filter documents..." : "Filter by answer..."}
-            matchInfo={`${filteredDocuments.length} of ${documents.length} rows`}
             onSort={(dir) => {
-              setSortConfig(dir ? { col: openMenu, dir } : (sortConfig?.col === openMenu ? null : sortConfig));
+              setSortConfig(dir ? { col: "doc", dir } : null);
               setOpenMenu(null);
             }}
-            onFilter={(value) => setColFilter(openMenu, value)}
-            onClearAll={() => {
-              if (openMenu === "doc") setColFilter("doc", "");
-              else setColFilter(openMenu, "");
-              if (sortConfig?.col === openMenu) setSortConfig(null);
+            onClear={() => {
+              setSortConfig(null);
               setOpenMenu(null);
             }}
-            onClearAllGlobal={hasAnyFilter ? () => { setColFilters({}); setSortConfig(null); setOpenMenu(null); } : undefined}
           />,
           document.body
         )}
@@ -1058,7 +1105,7 @@ export default function DocMatrixPanel({
       {confirmDeleteCol !== null && (
         <ConfirmDialog
           title="Delete Column"
-          message={`Remove the query "${queries[confirmDeleteCol]}" and all its results? This cannot be undone.`}
+          message={`Remove "${columns[confirmDeleteCol]?.label || "this column"}" and all its results? This cannot be undone.`}
           confirmLabel="Delete"
           onConfirm={() => {
             removeQuery(confirmDeleteCol);
@@ -1085,20 +1132,285 @@ export default function DocMatrixPanel({
         />
       )}
 
-      {/* Confirm rename — discards committed answers and re-runs */}
-      {pendingRename && (
+      {/* Confirm prompt change — discards committed answers and re-runs */}
+      {pendingColumnUpdate && (
         <ConfirmDialog
-          title="Re-run with new prompt?"
-          message={`This will discard existing answers for "${pendingRename.oldQuery}" and re-run "${pendingRename.newName}" against ${documents.length} document${documents.length !== 1 ? "s" : ""}.`}
+          title="Re-run with updated prompt?"
+          message={`This will discard existing answers for "${pendingColumnUpdate.label}" and re-run the updated prompt against ${documents.length} document${documents.length !== 1 ? "s" : ""}.`}
           confirmLabel="Re-run"
           cancelLabel="Keep existing"
           onConfirm={() => {
-            const { index, newName } = pendingRename;
-            setPendingRename(null);
-            renameQuery(index, newName);
+            const column = pendingColumnUpdate;
+            setPendingColumnUpdate(null);
+            applyColumnUpdate(column, true);
           }}
-          onCancel={() => setPendingRename(null)}
+          onCancel={() => setPendingColumnUpdate(null)}
         />
+      )}
+    </div>
+  );
+}
+
+function DocColumnEditMenu({
+  column,
+  disabled,
+  onSave,
+  onDelete,
+}: {
+  column: MatrixColumnConfig;
+  disabled?: boolean;
+  onSave: (column: MatrixColumnConfig) => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<ColumnDraft>({
+    label: column.label,
+    prompt: column.prompt,
+    format: column.format,
+    tags: column.tags || [],
+  });
+  const [tagInput, setTagInput] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setDraft({
+        label: column.label,
+        prompt: column.prompt,
+        format: column.format,
+        tags: column.tags || [],
+      });
+      setTagInput("");
+    }
+  }, [column, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  function updateDraft(patch: Partial<ColumnDraft>) {
+    setDraft((prev) => ({ ...prev, ...patch }));
+  }
+
+  function applyPreset(name: string) {
+    const preset = PE_COLUMN_PRESETS.find((item) => item.name === name);
+    if (!preset) return;
+    updateDraft({
+      label: preset.name,
+      prompt: preset.prompt,
+      format: preset.format,
+      tags: preset.tags || [],
+    });
+  }
+
+  function autoGeneratePrompt() {
+    const label = draft.label.trim();
+    if (!label) return;
+    const preset = getPresetConfig(label);
+    updateDraft({
+      prompt: preset?.prompt || buildFallbackPrompt(label, draft.format, draft.tags),
+      format: preset?.format || draft.format,
+      tags: preset?.tags || draft.tags,
+    });
+  }
+
+  function commitTag() {
+    const tag = tagInput.trim();
+    if (!tag) {
+      setTagInput("");
+      return;
+    }
+    setDraft((prev) => ({
+      ...prev,
+      tags: prev.tags.includes(tag) ? prev.tags : [...prev.tags, tag],
+    }));
+    setTagInput("");
+  }
+
+  function handleTagKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      commitTag();
+      return;
+    }
+    if (event.key === "Backspace" && tagInput === "" && draft.tags.length > 0) {
+      updateDraft({ tags: draft.tags.slice(0, -1) });
+    }
+  }
+
+  function handleSave() {
+    const label = draft.label.trim();
+    const prompt = draft.prompt.trim();
+    if (!label || !prompt) return;
+    onSave({
+      ...column,
+      label,
+      prompt,
+      format: draft.format,
+      tags: draft.format === "tag" ? draft.tags : undefined,
+    });
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative" ref={panelRef} onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((value) => !value)}
+        className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-30"
+        title="Edit label, prompt, and format"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6h.01M12 12h.01M12 18h.01" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-[80] mt-1.5 w-80 rounded-xl border border-gray-200 bg-white p-3 shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Edit column</div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+              aria-label="Close column editor"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Label</label>
+          <input
+            value={draft.label}
+            onChange={(event) => {
+              const label = event.target.value;
+              const preset = getPresetConfig(label);
+              updateDraft({
+                label,
+                ...(preset
+                  ? { prompt: preset.prompt, format: preset.format, tags: preset.tags || [] }
+                  : {}),
+              });
+            }}
+            className="mt-1 w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+          />
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Format</label>
+              <select
+                value={draft.format}
+                onChange={(event) =>
+                  updateDraft({
+                    format: event.target.value as ColumnFormat,
+                    tags: event.target.value === "tag" ? draft.tags : [],
+                  })
+                }
+                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+              >
+                {FORMAT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Preset</label>
+              <select
+                value=""
+                onChange={(event) => {
+                  if (event.target.value) applyPreset(event.target.value);
+                }}
+                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+              >
+                <option value="">Choose...</option>
+                {PE_COLUMN_PRESETS.map((preset) => (
+                  <option key={preset.name} value={preset.name}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {draft.format === "tag" && (
+            <div className="mt-3">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Tags</label>
+              <div className="mt-1 flex min-h-[32px] flex-wrap gap-1 rounded-md border border-gray-200 px-2 py-1.5 dark:border-gray-700">
+                {draft.tags.map((tag, tagIdx) => (
+                  <span
+                    key={tag}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${TAG_COLORS[tagIdx % TAG_COLORS.length]}`}
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => updateDraft({ tags: draft.tags.filter((item) => item !== tag) })}
+                      className="text-current opacity-60 hover:opacity-100"
+                    >
+                      x
+                    </button>
+                  </span>
+                ))}
+                <input
+                  value={tagInput}
+                  onChange={(event) => setTagInput(event.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  onBlur={commitTag}
+                  placeholder={draft.tags.length === 0 ? "Add tag..." : ""}
+                  className="min-w-[70px] flex-1 bg-transparent text-xs text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="mt-3 flex items-center justify-between">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Prompt</label>
+            <button
+              type="button"
+              onClick={autoGeneratePrompt}
+              disabled={!draft.label.trim()}
+              className="text-xs text-blue-600 hover:text-blue-700 disabled:text-gray-300 dark:text-blue-400"
+            >
+              Auto-generate
+            </button>
+          </div>
+          <textarea
+            rows={6}
+            value={draft.prompt}
+            onChange={(event) => updateDraft({ prompt: event.target.value })}
+            className="mt-1 w-full resize-none rounded-md border border-gray-200 bg-white px-2 py-2 text-xs leading-relaxed text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+          />
+
+          <div className="mt-3 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onDelete}
+              className="text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400"
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!draft.label.trim() || !draft.prompt.trim()}
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40"
+            >
+              Save
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1146,11 +1458,13 @@ function ColResizeHandle({
 
 function DocMatrixCell({
   cell,
+  column,
   activeCitationId,
   onCitationClick,
   onRetry,
 }: {
   cell: DocResult | undefined;
+  column?: MatrixColumnConfig;
   dealId: string;
   activeCitationId: string | null;
   onCitationClick: (citation: Citation, id: string) => void;
@@ -1165,6 +1479,8 @@ function DocMatrixCell({
 
   const citations = cell?.citations || [];
   const nonNullCitations = citations.filter((c): c is Citation => c !== null);
+  const pillValues = column ? extractPills(cleanAnswer) : [];
+  const showPillSummary = !!column && isPillOnlyAnswer(cleanAnswer) && pillValues.length > 0;
 
   if (!cell || cell.status === "idle") {
     return (
@@ -1246,16 +1562,29 @@ function DocMatrixCell({
         <RetryIcon />
       </button>
 
-      <div
-        className={`max-w-none text-gray-800 dark:text-gray-200 ${clampClass}`}
-      >
-        <AnswerText
-          text={cleanAnswer}
-          citations={citations}
-          activeCitId={activeCitationId}
-          onCit={onCitationClick}
-        />
-      </div>
+      {showPillSummary ? (
+        <div className="flex flex-wrap gap-1.5 pr-6">
+          {pillValues.map((pill) => (
+            <span
+              key={pill}
+              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getPillClass(pill, column)}`}
+            >
+              {pill}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div
+          className={`max-w-none text-gray-800 dark:text-gray-200 ${clampClass}`}
+        >
+          <AnswerText
+            text={cleanAnswer}
+            citations={citations}
+            activeCitId={activeCitationId}
+            onCit={onCitationClick}
+          />
+        </div>
+      )}
 
       {nonNullCitations.length > 0 && (
         <div className="mt-2 flex items-center gap-1.5 flex-wrap border-t border-gray-100 pt-2 dark:border-gray-800">
@@ -1336,29 +1665,19 @@ function RetryIcon() {
 
 function DocColumnHeaderLabel({
   label,
-  col,
   sortConfig,
-  filterValue,
 }: {
   label: string;
-  col: "doc" | number;
-  sortConfig: { col: "doc" | number; dir: "asc" | "desc" } | null;
-  filterValue: string;
+  sortConfig: { col: "doc"; dir: "asc" | "desc" } | null;
 }) {
-  const isSorted = sortConfig?.col === col;
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-1.5">
         {label}
-        {isSorted && (
+        {sortConfig && (
           <span className="text-blue-500 text-xs">
-            {sortConfig!.dir === "asc" ? "\u25B2" : "\u25BC"}
+            {sortConfig.dir === "asc" ? "\u25B2" : "\u25BC"}
           </span>
-        )}
-        {filterValue && (
-          <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-          </svg>
         )}
       </div>
       <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1368,35 +1687,28 @@ function DocColumnHeaderLabel({
   );
 }
 
-const DocColumnFilterMenu = forwardRef<
+const DocColumnSortMenu = forwardRef<
   HTMLDivElement,
   {
-    col: "doc" | number;
     pos: { top: number; left: number };
-    sortConfig: { col: "doc" | number; dir: "asc" | "desc" } | null;
-    filterValue: string;
-    placeholder: string;
-    matchInfo: string;
+    sortConfig: { col: "doc"; dir: "asc" | "desc" } | null;
     onSort: (dir: "asc" | "desc" | null) => void;
-    onFilter: (value: string) => void;
-    onClearAll: () => void;
-    onClearAllGlobal?: () => void;
+    onClear: () => void;
   }
->(function DocColumnFilterMenu(
-  { col, pos, sortConfig, filterValue, placeholder, matchInfo, onSort, onFilter, onClearAll, onClearAllGlobal },
+>(function DocColumnSortMenu(
+  { pos, sortConfig, onSort, onClear },
   ref
 ) {
-  const isSortedAsc = sortConfig?.col === col && sortConfig.dir === "asc";
-  const isSortedDesc = sortConfig?.col === col && sortConfig.dir === "desc";
-  const hasFilter = !!filterValue || isSortedAsc || isSortedDesc;
+  const isSortedAsc = sortConfig?.dir === "asc";
+  const isSortedDesc = sortConfig?.dir === "desc";
 
   return (
     <div
       ref={ref}
-      className="fixed w-56 bg-white rounded-lg shadow-2xl border border-gray-200 z-[9999] overflow-hidden"
+      className="fixed w-44 bg-white rounded-lg shadow-2xl border border-gray-200 z-[9999] overflow-hidden"
       style={{ top: pos.top, left: pos.left }}
     >
-      <div className="border-b border-gray-100">
+      <div>
         <button
           onClick={() => onSort(isSortedAsc ? null : "asc")}
           className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${isSortedAsc ? "text-blue-600 font-medium bg-blue-50" : "text-gray-700"}`}
@@ -1410,40 +1722,14 @@ const DocColumnFilterMenu = forwardRef<
           <span className="text-sm">{"\u25BC"}</span> Sort Z to A
         </button>
       </div>
-      <div className="p-2">
-        <div className="relative">
-          <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            value={filterValue}
-            onChange={(e) => onFilter(e.target.value)}
-            placeholder={placeholder}
-            className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-            autoFocus
-          />
-        </div>
-        {filterValue && (
-          <div className="mt-1 text-[10px] text-gray-400">{matchInfo}</div>
-        )}
-      </div>
-      {hasFilter && (
+      {(isSortedAsc || isSortedDesc) && (
         <div className="border-t border-gray-100 p-1 space-y-0.5">
           <button
-            onClick={onClearAll}
+            onClick={onClear}
             className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
           >
-            Clear column filter
+            Clear sort
           </button>
-          {onClearAllGlobal && (
-            <button
-              onClick={onClearAllGlobal}
-              className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
-            >
-              Clear all filters
-            </button>
-          )}
         </div>
       )}
     </div>
