@@ -175,6 +175,65 @@ def test_overlapping_chunks_keep_page_level_citations_deduped():
     assert citations[0].page == 42
 
 
+def test_citation_snippet_repairs_concatenated_financial_table():
+    answer, citations = extract_citations(
+        "Revenue was $1,234 [Source 1].",
+        [
+            {
+                "content": (
+                    "| | For the Three Months Ended June 30, | For the Three Months Ended June 30, | "
+                    "For the Six Months Ended June 30, | |----------------------------------------------------|"
+                    "---------------------------------------|---------------------------------------|------------------- "
+                    "| Revenue | $1,234 | $1,111 |"
+                ),
+                "source_file": "ACT.pdf",
+                "page": 44,
+            }
+        ],
+        deal_id="deal_1",
+    )
+
+    assert answer == "Revenue was $1,234 [Source 1]."
+    assert citations[0].text_snippet.count("\n") >= 2
+    assert "| Revenue | $1,234 | $1,111 |" in citations[0].text_snippet
+
+
+def test_header_only_citation_snippet_includes_same_page_numeric_context():
+    answer, citations = extract_citations(
+        "Revenue was $1,234 [Source 1].",
+        [
+            {
+                "content": (
+                    "For the Three Months Ended June 30,\tFor the Three Months Ended June 30,\t"
+                    "For the Six Months Ended June 30,\tFor the Six Months Ended June 30,"
+                ),
+                "source_file": "ACT.pdf",
+                "page": 30,
+            }
+        ],
+        deal_id="deal_1",
+        page_context_chunks=[
+            {
+                "content": (
+                    "For the Three Months Ended June 30,\tFor the Three Months Ended June 30,\t"
+                    "For the Six Months Ended June 30,\tFor the Six Months Ended June 30,"
+                ),
+                "source_file": "ACT.pdf",
+                "page": 30,
+            },
+            {
+                "content": "| Metric | 2024 | 2023 |\n| --- | --- | --- |\n| Revenue | $1,234 | $1,111 |",
+                "source_file": "ACT.pdf",
+                "page": 30,
+            },
+        ],
+    )
+
+    assert answer == "Revenue was $1,234 [Source 1]."
+    assert "For the Three Months Ended June 30" in citations[0].text_snippet
+    assert "| Revenue | $1,234 | $1,111 |" in citations[0].text_snippet
+
+
 def test_vector_upsert_embeds_in_bounded_batches(monkeypatch):
     embed_batches = []
     add_batches = []

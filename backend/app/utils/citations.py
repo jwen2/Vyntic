@@ -73,6 +73,8 @@ def _fix_table_newlines(text: str) -> str:
     line like:  | A | B | | C | D |  instead of separate lines.  This detects
     the pattern and inserts newlines so remark-gfm can parse them.
     """
+    text = _repair_concatenated_pipe_tables(text)
+
     # Pattern: end-of-row pipe followed immediately by start-of-next-row pipe
     # e.g. "| value |\n| next |" is fine, but "| value | | next |" needs fixing.
     # Specifically: " | |" or "| |" at a boundary where a row ends and another begins.
@@ -111,6 +113,72 @@ def _fix_table_newlines(text: str) -> str:
         else:
             fixed_lines.append(line)
     return "\n".join(fixed_lines)
+
+
+_TABLE_SEPARATOR_CELL_RE = re.compile(r"^:?-{3,}:?$")
+
+
+def _is_separator_cell(cell: str) -> bool:
+    return bool(_TABLE_SEPARATOR_CELL_RE.match(cell.strip()))
+
+
+def _format_pipe_row(cells: list[str]) -> str:
+    return "| " + " | ".join(c.strip() for c in cells) + " |"
+
+
+def _repair_concatenated_pipe_tables(text: str) -> str:
+    """Repair Docling/LLM table rows glued into one pipe-delimited line.
+
+    Observed failure mode:
+        | | Period | Period | |------|------| Revenue | $1,234 |
+
+    Markdown renderers treat that as one malformed row. We detect the embedded
+    separator cells, split header/separator/data back into separate rows, and
+    pad short trailing rows so the preview remains parseable.
+    """
+    out: list[str] = []
+    for line in text.splitlines():
+        if line.count("|") < 4:
+            out.append(line)
+            continue
+
+        raw_cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        sep_start = next((i for i, cell in enumerate(raw_cells) if _is_separator_cell(cell)), -1)
+        if sep_start <= 0:
+            out.append(line)
+            continue
+
+        sep_end = sep_start
+        while sep_end < len(raw_cells) and _is_separator_cell(raw_cells[sep_end]):
+            sep_end += 1
+        sep_cells = raw_cells[sep_start:sep_end]
+        col_count = len(sep_cells)
+        if col_count < 2:
+            out.append(line)
+            continue
+
+        header_cells = raw_cells[:sep_start]
+        # A blank cell immediately before the separator usually belongs to the
+        # `| |----` row boundary, not to the header row itself.
+        if len(header_cells) > col_count and header_cells[-1] == "":
+            header_cells = header_cells[:-1]
+        if len(header_cells) > col_count:
+            header_cells = header_cells[-col_count:]
+        if len(header_cells) < col_count:
+            header_cells = [""] * (col_count - len(header_cells)) + header_cells
+
+        rebuilt = [_format_pipe_row(header_cells), _format_pipe_row(sep_cells)]
+        data_cells = raw_cells[sep_end:]
+        for i in range(0, len(data_cells), col_count):
+            row = data_cells[i:i + col_count]
+            if not any(cell.strip() for cell in row):
+                continue
+            if len(row) < col_count:
+                row = row + [""] * (col_count - len(row))
+            rebuilt.append(_format_pipe_row(row))
+
+        out.append("\n".join(rebuilt))
+    return "\n".join(out)
 
 
 # Markers that almost always indicate a sentence describing absent / unavailable
@@ -231,6 +299,23 @@ def _strip_absent_finding_citations(answer: str) -> str:
 
 
 _TABLE_DATA_ROW_RE = re.compile(r"^\|[\s\-:|]+\|$")
+_MEANINGFUL_NUMBER_RE = re.compile(
+    r"(?:[$€£]\s*\(?-?\d[\d,]*(?:\.\d+)?\)?%?)"
+    r"|(?:\(?-?\d{1,3}(?:,\d{3})+(?:\.\d+)?\)?%?)"
+    r"|(?:\(?-?\d+(?:\.\d+)?%\)?)"
+    r"|(?:\(?-?\d+\.\d+\)?)"
+)
+
+
+def _has_meaningful_number(text: str) -> bool:
+    """Return true when text contains financial/metric values, not just dates.
+
+    We intentionally avoid matching bare integers like "30" or "2024" so
+    period headers such as "June 30, 2024" don't count as supporting numeric
+    evidence. Currency, percentages, comma-formatted values, decimals, and
+    parenthesized numeric values do count.
+    """
+    return bool(_MEANINGFUL_NUMBER_RE.search(text))
 
 
 def _table_data_row_count(table_block: str) -> int:
@@ -257,6 +342,65 @@ def _table_data_row_count(table_block: str) -> int:
     )
 
 
+def _looks_like_period_header_only(text: str) -> bool:
+    lowered = text.lower()
+    period_mentions = lowered.count("three months ended") + lowered.count("six months ended")
+    return period_mentions >= 2 and not _has_meaningful_number(text)
+
+
+def _normalize_snippet_markdown(text: str) -> str:
+    return _fix_table_newlines(text).strip()
+
+
+def _clip_table_snippet(table_text: str, max_chars: int = 1800) -> str:
+    """Clip wide table snippets while preserving rows with numeric evidence."""
+    normalized = _normalize_snippet_markdown(table_text)
+    if len(normalized) <= max_chars:
+        return normalized
+
+    lines = normalized.splitlines()
+    sep_idx = next(
+        (i for i, line in enumerate(lines) if _TABLE_DATA_ROW_RE.match(line.strip())),
+        -1,
+    )
+    numeric_idx = next(
+        (
+            i
+            for i, line in enumerate(lines)
+            if (sep_idx == -1 or i > sep_idx) and _has_meaningful_number(line)
+        ),
+        -1,
+    )
+    if sep_idx >= 0 and numeric_idx >= 0:
+        keep_indices = set(range(0, min(sep_idx + 1, len(lines))))
+        for i in range(max(sep_idx + 1, numeric_idx - 2), min(len(lines), numeric_idx + 4)):
+            keep_indices.add(i)
+        clipped = "\n".join(lines[i] for i in sorted(keep_indices))
+        return clipped[: max_chars + 600]
+
+    return normalized[:max_chars]
+
+
+def _select_same_page_numeric_context(extras: str | None, max_chars: int = 1600) -> str:
+    if not extras:
+        return ""
+    parts = [_normalize_snippet_markdown(part) for part in extras.split("\n\n") if part.strip()]
+    numeric_parts = [part for part in parts if _has_meaningful_number(part)]
+    selected = numeric_parts or parts
+    if not selected:
+        return ""
+    return _clip_table_snippet("\n\n".join(selected[:3]), max_chars=max_chars)
+
+
+def _snippet_needs_numeric_context(snippet: str) -> bool:
+    if _looks_like_period_header_only(snippet):
+        return True
+    if "|" not in snippet:
+        return False
+    normalized = _normalize_snippet_markdown(snippet)
+    return _table_data_row_count(normalized) == 0 or not _has_meaningful_number(normalized)
+
+
 def _select_snippet(content: str, same_page_extras: str | None = None) -> str:
     """Pick the most informative span of a chunk for citation display.
 
@@ -274,19 +418,24 @@ def _select_snippet(content: str, same_page_extras: str | None = None) -> str:
     chunks on the same source_file+page), we append it after the table so the
     rendered citation includes the missing numbers.
     """
-    for i, line in enumerate(content.splitlines()):
+    normalized_content = _normalize_snippet_markdown(content)
+    for i, line in enumerate(normalized_content.splitlines()):
         if line.lstrip().startswith("|"):
-            tail = "\n".join(content.splitlines()[i:])
-            base = tail[:600]
-            if same_page_extras and _table_data_row_count(tail) == 0:
-                # Header-only table — splice the same-page text in after the
-                # table block so CitationSnippet renders both.
-                budget = max(0, 1200 - len(base))
-                extras = same_page_extras.strip()[:budget]
+            tail = "\n".join(normalized_content.splitlines()[i:])
+            base = _clip_table_snippet(tail)
+            if same_page_extras and _snippet_needs_numeric_context(base):
+                # Header-only / malformed table — splice numeric same-page text
+                # in after the table block so the source panel contains the
+                # actual values used to support the cited claim.
+                extras = _select_same_page_numeric_context(same_page_extras)
                 if extras:
                     return f"{base}\n\n{extras}"
             return base
-    return content[:300]
+    if same_page_extras and _looks_like_period_header_only(normalized_content):
+        extras = _select_same_page_numeric_context(same_page_extras)
+        if extras:
+            return f"{normalized_content[:300]}\n\n{extras}"
+    return normalized_content[:300]
 
 
 def extract_citations(
