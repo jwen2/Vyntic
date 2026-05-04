@@ -11,11 +11,9 @@ interface WorkflowCardProps {
   theme: Theme;
   onClone?: () => void;
   onEdit?: () => void;
-  /** Stub Run for Phase 1; wires up in Phase 2. */
+  /** Open the doc-selector to start a run. Tabular workflows only in Phase 2. */
   onRun?: () => void;
   onDelete?: () => void;
-  /** When true, disables Run button + label-stub it (Phase 1 has no execution). */
-  runDisabled?: boolean;
 }
 
 export default function WorkflowCard({
@@ -25,8 +23,10 @@ export default function WorkflowCard({
   onEdit,
   onRun,
   onDelete,
-  runDisabled = true,
 }: WorkflowCardProps) {
+  // Run is live when an onRun handler is wired up; otherwise we render a
+  // hint-disabled button (assistant workflows in Phase 2 have no execution yet).
+  const runDisabled = !onRun;
   const c = ddTheme(theme);
   const typeColor = workflowTypeColor(workflow.type);
   const typeLabel = workflowTypeLabel(
@@ -111,7 +111,7 @@ export default function WorkflowCard({
 
       <div style={{ display: "flex", gap: 6, marginTop: "auto", flexWrap: "wrap" }}>
         <CardButton
-          label={runDisabled ? "Run (soon)" : "Run"}
+          label={runDisabled ? (workflow.type === "assistant" ? "Run (Phase 3)" : "Run") : "Run"}
           primary
           disabled={runDisabled || !onRun}
           onClick={onRun}
