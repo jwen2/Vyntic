@@ -119,11 +119,41 @@ def _parse_percent(answer: str) -> float | None:
     return _parse_number(answer)
 
 
+_NOT_STATED_PREFIXES = (
+    "not stated",
+    "not disclosed",
+    "not specified",
+    "not provided",
+    "not mentioned",
+    "not addressed",
+    "not available",
+    "not found",
+    "n/a",
+    "unknown",
+    "unclear",
+    "no relevant",  # the executor's own "No relevant content found..." fallback
+)
+
+
 def _parse_yes_no(answer: str) -> bool | None:
+    """Parse a yes/no answer.
+
+    Treats 'Not stated', 'N/A', 'Unknown', etc. as None (rather than False).
+    Uses word-boundary matching so 'No' as a substring of 'Not' doesn't
+    trigger a False classification.
+    """
     lowered = answer.strip().lower()
-    if lowered.startswith("yes"):
+    if not lowered:
+        return None
+    # Catch 'Not stated' / 'Not disclosed' / 'N/A' / 'Unknown' first.
+    for prefix in _NOT_STATED_PREFIXES:
+        if lowered.startswith(prefix):
+            return None
+    # Word-boundary match: only match Yes/No as standalone first words.
+    first_word = re.split(r"\W+", lowered, maxsplit=1)[0]
+    if first_word == "yes":
         return True
-    if lowered.startswith("no"):
+    if first_word == "no":
         return False
     return None
 

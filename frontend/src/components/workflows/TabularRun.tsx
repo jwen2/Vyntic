@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ddTheme } from "@/components/dd/types";
-import { listDocuments, type DocumentMetadata, type Citation } from "@/lib/api";
+import {
+  listDocuments,
+  type CellData,
+  type Citation,
+  type DocumentMetadata,
+} from "@/lib/api";
 import {
   cancelRun,
   getRun,
@@ -14,7 +19,9 @@ import {
   type Workflow,
   type WorkflowRun,
 } from "@/lib/workflows";
-import { getFormatShort, getPillClass, type ColumnFormat } from "@/lib/matrixColumnConfig";
+import { getFormatShort, type ColumnFormat } from "@/lib/matrixColumnConfig";
+import MatrixCell from "@/components/MatrixCell";
+import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "./theme";
 
 type Theme = "light" | "dark";
@@ -51,12 +58,26 @@ export default function TabularRun({
   const [cells, setCells] = useState<Map<string, TabularCell>>(new Map());
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
   const [log, setLog] = useState<RunLogEntry[]>([]);
-  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [viewerState, setViewerState] = useState<{
+    dealId: string;
+    filename: string;
+    page: number;
+    snippet: string;
+  } | null>(null);
   const onCompleteRef = useRef(onComplete);
   const completedFiredRef = useRef(false);
   onCompleteRef.current = onComplete;
+
+  const handleCitationClick = useCallback((citation: Citation, citDealId: string) => {
+    setViewerState({
+      dealId: citDealId,
+      filename: citation.source_file,
+      page: citation.page,
+      snippet: citation.text_snippet || "",
+    });
+  }, []);
 
   // Filter to extraction columns only — derived columns are stubbed in Phase 2.
   const extractionColumns = useMemo(
@@ -236,14 +257,6 @@ export default function TabularRun({
       </div>
     );
   }
-
-  const selectedCell = selectedCellId
-    ? Array.from(cells.values()).find((cell) => cell.id === selectedCellId) ?? null
-    : null;
-  const selectedDoc = selectedCell ? docs.find((d) => d.doc_id === selectedCell.row_key) ?? null : null;
-  const selectedColumn = selectedCell
-    ? workflow.columns.find((cl) => cl.id === selectedCell.column_id) ?? null
-    : null;
 
   const isTerminal = run ? ["complete", "error", "cancelled"].includes(run.status) : false;
 
@@ -505,17 +518,22 @@ export default function TabularRun({
                       <td style={cellBodyStyle(c)}>{doc?.filename ?? docId.slice(0, 8)}</td>
                       {extractionColumns.map((col) => {
                         const cell = cells.get(cellKey(docId, col.id));
+                        if (cell && cell.status === "complete") {
+                          // Delegate to MatrixCell for full markdown + clickable
+                          // citations. MatrixCell renders its own <td>.
+                          return (
+                            <MatrixCell
+                              key={col.id}
+                              cell={tabularCellToCellData(cell)}
+                              dealId={dealId}
+                              query={col.prompt || col.label}
+                              onCitationClick={handleCitationClick}
+                            />
+                          );
+                        }
                         return (
-                          <td
-                            key={col.id}
-                            style={cellBodyStyle(c)}
-                            onClick={() => {
-                              if (cell?.status === "complete" || cell?.status === "error") {
-                                setSelectedCellId(cell.id);
-                              }
-                            }}
-                          >
-                            <CellRenderer cell={cell} format={col.format} tags={col.tags ?? null} theme={theme} />
+                          <td key={col.id} style={cellBodyStyle(c)}>
+                            <PlaceholderCell cell={cell} theme={theme} />
                           </td>
                         );
                       })}
@@ -525,20 +543,32 @@ export default function TabularRun({
               </tbody>
             </table>
           </div>
-
-          {selectedCell && (
-            <CellDetailPanel
-              cell={selectedCell}
-              column={selectedColumn}
-              doc={selectedDoc}
-              theme={theme}
-              onClose={() => setSelectedCellId(null)}
-            />
-          )}
         </div>
       </div>
+
+      {viewerState && (
+        <DocumentViewer
+          dealId={viewerState.dealId}
+          filename={viewerState.filename}
+          page={viewerState.page}
+          snippet={viewerState.snippet}
+          onClose={() => setViewerState(null)}
+        />
+      )}
     </div>
   );
+}
+
+/** Map our TabularCell shape to the CellData shape MatrixCell expects. */
+function tabularCellToCellData(cell: TabularCell): CellData {
+  return {
+    answer: cell.answer || "",
+    citations: cell.citations,
+    status: "complete",
+    model: cell.model || undefined,
+    fallback: cell.fallback,
+    duration_ms: cell.duration_ms,
+  };
 }
 
 // ── helpers ──
@@ -685,19 +715,16 @@ function cellBodyStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
     borderBottom: `1px solid ${c.border}`,
     color: c.t1,
     verticalAlign: "top",
-    cursor: "pointer",
   };
 }
 
-function CellRenderer({
+/** Renders a placeholder for non-complete cells (queued / running / error).
+ * Complete cells are delegated to MatrixCell which renders its own <td>. */
+function PlaceholderCell({
   cell,
-  format,
-  tags,
   theme,
 }: {
   cell: TabularCell | undefined;
-  format: ColumnFormat;
-  tags: string[] | null;
   theme: Theme;
 }) {
   const c = ddTheme(theme);
@@ -730,209 +757,13 @@ function CellRenderer({
   }
   if (cell.status === "error") {
     return (
-      <span style={{ color: RED, fontSize: 11, fontWeight: 600 }}>
+      <span
+        style={{ color: RED, fontSize: 11, fontWeight: 600 }}
+        title={cell.error_message ?? "Error"}
+      >
         Error
       </span>
     );
   }
-  // complete
-  return <CompleteCellAnswer cell={cell} format={format} tags={tags} theme={theme} />;
-}
-
-function CompleteCellAnswer({
-  cell,
-  format,
-  tags,
-  theme,
-}: {
-  cell: TabularCell;
-  format: ColumnFormat;
-  tags: string[] | null;
-  theme: Theme;
-}) {
-  const c = ddTheme(theme);
-  // Pill-style render for yes_no / tag / currency
-  const trimmed = (cell.answer ?? "").trim();
-  if (format === "yes_no") {
-    const isYes = trimmed.toLowerCase().startsWith("yes");
-    const isNo = trimmed.toLowerCase().startsWith("no");
-    if (isYes || isNo) {
-      const color = isYes ? GREEN : RED;
-      return (
-        <span
-          style={{
-            padding: "2px 8px",
-            borderRadius: 99,
-            background: tint(color, 18),
-            color,
-            fontSize: 11,
-            fontWeight: 600,
-          }}
-        >
-          {isYes ? "Yes" : "No"}
-        </span>
-      );
-    }
-  }
-  if (format === "tag" && tags && tags.length > 0) {
-    const matched = tags.find((t) => trimmed.toLowerCase().includes(t.toLowerCase()));
-    if (matched) {
-      const idx = tags.indexOf(matched);
-      const palette = [ACCENT, AMBER, RED, GREEN, VIOLET];
-      const color = palette[idx % palette.length];
-      return (
-        <span
-          style={{
-            padding: "2px 8px",
-            borderRadius: 99,
-            background: tint(color, 18),
-            color,
-            fontSize: 11,
-            fontWeight: 600,
-          }}
-        >
-          {matched}
-        </span>
-      );
-    }
-  }
-  // Default: clamped text with dotted underline
-  return (
-    <span
-      style={{
-        fontSize: 11,
-        color: c.t1,
-        borderBottom: `1px dotted ${c.t3}`,
-        display: "-webkit-box",
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: "vertical",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-      }}
-      title={trimmed}
-    >
-      {trimmed || <span style={{ color: c.t3 }}>—</span>}
-    </span>
-  );
-}
-
-function CellDetailPanel({
-  cell,
-  column,
-  doc,
-  theme,
-  onClose,
-}: {
-  cell: TabularCell;
-  column: { label: string; format: ColumnFormat; tags?: string[] | null } | null;
-  doc: DocumentMetadata | null;
-  theme: Theme;
-  onClose: () => void;
-}) {
-  const c = ddTheme(theme);
-  return (
-    <div
-      style={{
-        borderTop: `1px solid ${c.border}`,
-        background: c.surface,
-        padding: "14px 24px 18px",
-        maxHeight: "40%",
-        overflowY: "auto",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: 10,
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 10, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            {doc?.filename ?? cell.row_key.slice(0, 8)} → {column?.label ?? cell.column_id.slice(0, 8)}
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: c.t1, marginTop: 4, whiteSpace: "pre-wrap" }}>
-            {cell.answer || "—"}
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          style={{
-            padding: "3px 10px",
-            background: "transparent",
-            border: `1px solid ${c.border}`,
-            color: c.t2,
-            borderRadius: 6,
-            fontSize: 11,
-            cursor: "pointer",
-          }}
-        >
-          Close
-        </button>
-      </div>
-      {cell.status === "error" && cell.error_message && (
-        <div
-          style={{
-            background: tint(RED, 12),
-            border: `1px solid ${tint(RED, 30)}`,
-            color: RED,
-            fontSize: 11,
-            padding: 10,
-            borderRadius: 7,
-            marginBottom: 10,
-          }}
-        >
-          {cell.error_message}
-        </div>
-      )}
-      {cell.citations.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {cell.citations.map((cit, i) =>
-            cit ? <CitationBlock key={i} citation={cit} theme={theme} /> : null
-          )}
-        </div>
-      )}
-      {cell.duration_ms > 0 && (
-        <div
-          style={{
-            marginTop: 10,
-            fontSize: 10,
-            color: c.t3,
-            fontFamily: "'DM Mono', monospace",
-          }}
-        >
-          {cell.duration_ms}ms · {cell.model || "model unknown"}{cell.fallback ? " (fallback)" : ""}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CitationBlock({ citation, theme }: { citation: Citation; theme: Theme }) {
-  const c = ddTheme(theme);
-  return (
-    <div
-      style={{
-        borderLeft: `3px solid ${ACCENT}`,
-        background: tint(ACCENT, 8),
-        padding: "8px 12px",
-        borderRadius: 6,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10,
-          color: ACCENT,
-          fontFamily: "'DM Mono', monospace",
-          marginBottom: 4,
-        }}
-      >
-        {citation.source_file} · p.{citation.page}
-      </div>
-      <div style={{ fontSize: 11, color: c.t2, fontStyle: "italic", lineHeight: 1.5 }}>
-        {citation.text_snippet}
-      </div>
-    </div>
-  );
+  return null;
 }
