@@ -19,6 +19,7 @@ from app.api.routes_conversation import router as conversation_router
 from app.api.routes_report import router as report_router
 from app.api.routes_sweep import router as sweep_router
 from app.api.routes_internal import router as internal_router
+from app.api.routes_workflows import router as workflows_router
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ app.include_router(conversation_router)
 app.include_router(report_router)
 app.include_router(sweep_router)
 app.include_router(internal_router)
+app.include_router(workflows_router)
 
 # Agentic features (beta) — gated behind AGENTIC_FEATURES=true.
 if settings.agentic_features:
@@ -87,6 +89,10 @@ async def startup():
     # Seed sample data (skips deals that already exist in DB)
     from app.seed import seed_sample_data
     await seed_sample_data(admin_user_id=admin.id)
+
+    # Seed built-in workflow templates (idempotent)
+    from app.services.workflow_seed import seed_builtin_workflows
+    seed_builtin_workflows()
 
 
 @app.get("/health")

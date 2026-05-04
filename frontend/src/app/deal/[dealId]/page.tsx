@@ -32,6 +32,7 @@ import DealAssistantPanel from "@/components/assistant/DealAssistantPanel";
 import WorkstreamListView from "@/components/dd/WorkstreamListView";
 import DocumentDetailView from "@/components/dd/DocumentDetailView";
 import ProactiveScanPanel from "@/components/ProactiveScanPanel";
+import WorkflowsView from "@/components/workflows/WorkflowsView";
 import { useFindings } from "@/components/dd/useFindings";
 import { computeCoverage } from "@/components/dd/coverage";
 import { extractScanFindings } from "@/components/dd/extractScanFindings";
@@ -77,7 +78,7 @@ function loadNavFromLocal(dealId: string): NavState {
     if (!raw) return { mode: "assistant", selectedWorkstream: null };
     const parsed = JSON.parse(raw) as Partial<NavState>;
     const mode =
-      parsed.mode === "workstreams" || parsed.mode === "agent"
+      parsed.mode === "workstreams" || parsed.mode === "agent" || parsed.mode === "workflows"
         ? parsed.mode
         : "assistant";
     const selectedWorkstream = parsed.selectedWorkstream && LINKABLE_WORKSTREAMS.includes(parsed.selectedWorkstream)
@@ -312,13 +313,14 @@ export default function DealWorkspacePage() {
 
   const handleMode = useCallback((nextMode: DealWorkspaceMode) => {
     setMode(nextMode);
-    if (nextMode === "assistant" || nextMode === "agent") {
+    if (nextMode === "assistant" || nextMode === "agent" || nextMode === "workflows") {
       setSelectedWorkstream(null);
       setSelectedQuestion(null);
       setSelectedAgentFinding(null);
       setActiveCit(null);
       setSelectedDocId(null);
-    } else {
+    }
+    if (nextMode !== "agent") {
       setSelectedAgentRunId(null);
     }
   }, []);
@@ -458,36 +460,40 @@ export default function DealWorkspacePage() {
       />
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <LeftSidebar
-          mode={mode}
-          findings={findings}
-          docs={docCoverage}
-          sessions={agentHistory}
-          assistantHistory={assistantHistory}
-          assistantHistoryLoaded={assistantHistoryLoaded}
-          activeAssistantEntryId={selectedAssistantEntryId}
-          activeSessionId={selectedAgentRunId}
-          activeWs={selectedWorkstream}
-          activeDocId={selectedDocId}
-          theme={theme}
-          onNewAssistantChat={handleNewAssistantChat}
-          onSelectAssistantHistory={handleSelectAssistantHistory}
-          onSelectSession={handleSelectAgentSession}
-          onSelectDocument={(docId) => {
-            setSelectedDocId(docId);
-            if (docId) {
-              setSelectedWorkstream(null);
-              setSelectedQuestion(null);
-              setActiveCit(null);
-            }
-          }}
-          onDeleteDocument={(doc) => setConfirmDeleteDoc(doc)}
-          onSelectFinding={onSelectFinding}
-          onOpenSource={onOpenFindingSource}
-        />
+        {mode !== "workflows" && (
+          <LeftSidebar
+            mode={mode}
+            findings={findings}
+            docs={docCoverage}
+            sessions={agentHistory}
+            assistantHistory={assistantHistory}
+            assistantHistoryLoaded={assistantHistoryLoaded}
+            activeAssistantEntryId={selectedAssistantEntryId}
+            activeSessionId={selectedAgentRunId}
+            activeWs={selectedWorkstream}
+            activeDocId={selectedDocId}
+            theme={theme}
+            onNewAssistantChat={handleNewAssistantChat}
+            onSelectAssistantHistory={handleSelectAssistantHistory}
+            onSelectSession={handleSelectAgentSession}
+            onSelectDocument={(docId) => {
+              setSelectedDocId(docId);
+              if (docId) {
+                setSelectedWorkstream(null);
+                setSelectedQuestion(null);
+                setActiveCit(null);
+              }
+            }}
+            onDeleteDocument={(doc) => setConfirmDeleteDoc(doc)}
+            onSelectFinding={onSelectFinding}
+            onOpenSource={onOpenFindingSource}
+          />
+        )}
 
         <main style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, background: c.bg }}>
-          {mode === "agent" ? (
+          {mode === "workflows" ? (
+            <WorkflowsView dealId={dealId} theme={theme} />
+          ) : mode === "agent" ? (
             <AgentWorkspaceView
               deal={deal}
               documents={documents}
