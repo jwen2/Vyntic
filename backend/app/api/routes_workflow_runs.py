@@ -33,7 +33,7 @@ router = APIRouter(tags=["workflow-runs"])
     "/deals/{deal_id}/workflows/{workflow_id}/runs",
     response_model=WorkflowRun,
 )
-def create_run(
+async def create_run(
     deal_id: str,
     workflow_id: str,
     payload: WorkflowRunCreate,
