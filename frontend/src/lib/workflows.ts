@@ -1,10 +1,11 @@
 /**
- * Workflows API client (Phase 1: templates only).
- * Mirrors the Pydantic schemas in backend/app/models/workflow.py.
+ * Workflows API client.
+ *  - Phase 1: workflow template CRUD.
+ *  - Phase 2: tabular runs + per-cell streaming.
  *
- * Run/cell/stage-output endpoints land in Phase 2/3.
+ * Mirrors Pydantic schemas in backend/app/models/workflow.py and workflow_run.py.
  */
-import { getAuthToken } from "./api";
+import { getAuthToken, type Citation } from "./api";
 import type { ColumnFormat } from "./matrixColumnConfig";
 
 const API_BASE = "/api";
@@ -169,4 +170,120 @@ export async function cloneWorkflow(dealId: string, workflowId: string): Promise
     { method: "POST" }
   );
   return unwrap<Workflow>(res);
+}
+
+// ── Phase 2: Tabular run + cell types ──
+
+export type RunStatus = "pending" | "running" | "complete" | "cancelled" | "error";
+export type CellStatus = "queued" | "running" | "complete" | "error";
+
+export interface TabularCell {
+  id: string;
+  run_id: string;
+  row_key: string; // doc_id today
+  column_id: string;
+  status: CellStatus;
+  answer: string;
+  /** Format-parsed value (number, bool, list, {amount,currency}, etc.) — null on parse failure. */
+  answer_formatted: unknown;
+  citations: (Citation | null)[];
+  model: string;
+  fallback: boolean;
+  duration_ms: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  deal_id: string;
+  run_number: number;
+  status: RunStatus;
+  document_ids: string[];
+  started_by: number | null;
+  started_at: string;
+  completed_at: string | null;
+  cells: TabularCell[];
+}
+
+export interface RunStreamSnapshot {
+  type: "snapshot";
+  run: WorkflowRun;
+}
+
+export interface RunStreamCellEvent {
+  type: "cell";
+  cell: TabularCell;
+}
+
+export interface RunStreamRunEvent {
+  type: "run";
+  run_id: string;
+  status: RunStatus;
+}
+
+export type RunStreamEvent = RunStreamSnapshot | RunStreamCellEvent | RunStreamRunEvent;
+
+// ── Phase 2: Run API ──
+
+export async function startWorkflowRun(
+  dealId: string,
+  workflowId: string,
+  documentIds: string[]
+): Promise<WorkflowRun> {
+  const res = await authedFetch(
+    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/runs`,
+    {
+      method: "POST",
+      body: JSON.stringify({ document_ids: documentIds }),
+    }
+  );
+  return unwrap<WorkflowRun>(res);
+}
+
+export async function listRuns(dealId: string, workflowId: string): Promise<WorkflowRun[]> {
+  const res = await authedFetch(
+    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/runs`
+  );
+  return unwrap<WorkflowRun[]>(res);
+}
+
+export async function getRun(runId: string): Promise<WorkflowRun> {
+  const res = await authedFetch(`${API_BASE}/runs/${encodeURIComponent(runId)}`);
+  return unwrap<WorkflowRun>(res);
+}
+
+export async function cancelRun(runId: string): Promise<WorkflowRun> {
+  const res = await authedFetch(`${API_BASE}/runs/${encodeURIComponent(runId)}/cancel`, {
+    method: "POST",
+  });
+  return unwrap<WorkflowRun>(res);
+}
+
+/**
+ * Subscribe to a run's SSE event stream. Returns a cleanup function that
+ * closes the EventSource. Token is passed via `?token=` since EventSource
+ * cannot set Authorization headers.
+ */
+export function subscribeRun(
+  runId: string,
+  onEvent: (event: RunStreamEvent) => void,
+  onError?: (err: Event) => void
+): () => void {
+  const token = getAuthToken();
+  const url = new URL(`${API_BASE}/runs/${encodeURIComponent(runId)}/stream`, window.location.origin);
+  if (token) url.searchParams.set("token", token);
+  const source = new EventSource(url.toString());
+  source.onmessage = (event) => {
+    try {
+      const parsed = JSON.parse(event.data) as RunStreamEvent;
+      onEvent(parsed);
+    } catch {
+      // ignore malformed events
+    }
+  };
+  if (onError) source.onerror = onError;
+  return () => source.close();
 }

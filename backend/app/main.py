@@ -20,6 +20,7 @@ from app.api.routes_report import router as report_router
 from app.api.routes_sweep import router as sweep_router
 from app.api.routes_internal import router as internal_router
 from app.api.routes_workflows import router as workflows_router
+from app.api.routes_workflow_runs import router as workflow_runs_router
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ app.include_router(report_router)
 app.include_router(sweep_router)
 app.include_router(internal_router)
 app.include_router(workflows_router)
+app.include_router(workflow_runs_router)
 
 # Agentic features (beta) — gated behind AGENTIC_FEATURES=true.
 if settings.agentic_features:

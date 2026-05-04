@@ -14,6 +14,8 @@ interface WorkflowLibraryProps {
   onClone: (workflowId: string) => void;
   onEdit: (workflowId: string) => void;
   onNew: (type: WorkflowType) => void;
+  /** Phase 2: open the doc-selector modal for this workflow (tabular only). */
+  onRun?: (workflowId: string) => void;
 }
 
 export default function WorkflowLibrary({
@@ -22,6 +24,7 @@ export default function WorkflowLibrary({
   onClone,
   onEdit,
   onNew,
+  onRun,
 }: WorkflowLibraryProps) {
   const c = ddTheme(theme);
   const [query, setQuery] = useState("");
@@ -159,6 +162,7 @@ export default function WorkflowLibrary({
                 workflow={wf}
                 theme={theme}
                 onClone={() => onClone(wf.id)}
+                onRun={onRun && wf.type === "tabular" ? () => onRun(wf.id) : undefined}
               />
             ))}
           </div>
@@ -235,6 +239,7 @@ export default function WorkflowLibrary({
                 workflow={wf}
                 theme={theme}
                 onEdit={() => onEdit(wf.id)}
+                onRun={onRun && wf.type === "tabular" ? () => onRun(wf.id) : undefined}
               />
             ))}
           </div>

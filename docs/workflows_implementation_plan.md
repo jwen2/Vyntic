@@ -100,12 +100,65 @@ The design handoff README is the source of truth for screens, data model, behavi
 ## 6. Phase 2–4 detail (sketch — fill in when phase starts)
 
 ### Phase 2: Tabular execution
-- Tables: `workflow_runs`, `tabular_cells`. Indexes on `(workflow_id, run_number)` and `(run_id, status)`.
-- `POST /deals/{deal_id}/workflows/{workflow_id}/runs` — body: `{ document_ids: [] }`. Creates run + queued cells.
-- Executor: async task that pulls queued cells, calls LLM with column prompt + format suffix (port `formatPromptSuffix()` from Mike's `tabular.ts`), updates cell, broadcasts via SSE.
-- `GET /runs/{run_id}/stream` — SSE channel of cell-status events.
-- FE: `WorkflowRun.tsx` (split-pane), `WorkflowOutput.tsx` (grid + cell detail + run history).
-- Cells store `citations: jsonb[]` with `{document_id, filename, page, section, snippet}`.
+
+**Existing patterns to reuse (verified in worktree):**
+- LLM client: `backend/app/agents/llm.py` — `stream_with_fallback(messages)` async generator + `_last_meta` singleton (model, fallback flag, duration_ms). Reuse directly.
+- Document-scoped extraction: pattern at `backend/app/api/routes_doc_matrix.py:31-95` (`_stream_doc_answer`). Steps: `query_document(deal_id, doc_id, query)` → ChromaDB filter by `doc_id` → `build_context_string()` → SystemMessage with `SINGLE_DEAL_SYSTEM` + interpolated context + HumanMessage → stream → `extract_citations()`. Mirror for cells.
+- Citation model: `backend/app/models/query.py` — `Citation(source_file, page, text_snippet, deal_id?)`. Reuse.
+- Citation extraction: `backend/app/utils/citations.py:441-547` — `extract_citations(answer, retrieved_chunks, deal_id, page_context_chunks)` returns `(cleaned_answer, citations)`.
+- SSE: `StreamingResponse(media_type="text/event-stream")`, events as `data: {json}\n\n`.
+- Vector store: `backend/app/services/vector_store.py` — `query_document(deal_id, doc_id, query)`, `get_document_chunks(deal_id, doc_id)`.
+
+**Net-new in Vyntic:**
+- `formatPromptSuffix()` analog (port from Mike) — appends format-specific output instructions per `ColumnFormat`. New `backend/app/services/workflow_format.py`.
+- Per-cell run/cell persistence — no `*_runs`/`*_cells` tables exist yet.
+
+**Schema (new tables in `database.py`):**
+```
+workflow_runs:
+  id (uuid), workflow_id (FK), deal_id (FK), run_number (int, per-workflow),
+  status (pending|running|complete|cancelled|error),
+  document_ids_json (text), started_by (FK users nullable),
+  started_at, completed_at
+  Index: (workflow_id, run_number desc)
+
+tabular_cells:
+  id (uuid), run_id (FK CASCADE), row_key (string — doc_id; later: synthesis_q_id),
+  column_id (FK workflow_columns), status (queued|running|complete|error),
+  answer (text), answer_formatted_json (text), citations_json (text),
+  model, fallback, duration_ms, error_message,
+  started_at, completed_at
+  Index: (run_id, status), (run_id, row_key, column_id)
+```
+
+**Endpoints (new `routes_workflow_runs.py`):**
+- `POST /deals/{deal_id}/workflows/{workflow_id}/runs` — body `{ document_ids: string[] }`. Creates run + queued cells, kicks off executor task. Returns the run.
+- `GET /deals/{deal_id}/workflows/{workflow_id}/runs` — list runs for a workflow.
+- `GET /runs/{run_id}` — full run + cells.
+- `GET /runs/{run_id}/stream` — SSE: per-cell status updates as cells flow queued→running→complete.
+- `POST /runs/{run_id}/cancel` — sets queued cells to cancelled.
+
+**Executor design:**
+- Background task spawned via `asyncio.create_task` from the route handler (returns immediately).
+- Bounded concurrency: `asyncio.Semaphore(N=4)` over cells.
+- Per cell: load column → `query_document(deal_id, doc_id, prompt)` → assemble messages with column prompt + format suffix → `stream_with_fallback` → `extract_citations` → save cell → broadcast SSE event.
+- SSE broadcast: in-memory `defaultdict[run_id, list[asyncio.Queue]]`. Each connected client gets its own queue; producer pushes events to all queues for that run. Cleaned up on disconnect.
+- Run finalization: when all cells reach a terminal state, mark run `complete` (or `error` if any cell errored).
+
+**FE work:**
+- `lib/workflows.ts`: types for `WorkflowRun`, `TabularCell`; `startWorkflowRun`, `getRun`, `streamRun` (EventSource), `cancelRun`.
+- `WorkflowsView`: add screen states `run` (live grid) and `output` (completed grid).
+- `DocumentSelectorModal`: checkbox list of deal documents, "Run" CTA.
+- `TabularRun`: 2-col split — left = doc list with status icons + run log; right = live grid with progressive cell fills + cell-detail panel.
+- `TabularOutput`: 2-col split — left = stats bar + grid; right = cell detail + run history.
+- Wire Run buttons in `WorkflowCard` and `TabularEditor` to open `DocumentSelectorModal`.
+
+**Phase 2 cuts (deferred):**
+- Editing a completed cell's answer manually (Phase 4).
+- Run history viewer (Phase 4).
+- Multi-doc synthesis row execution (Phase 4 — Phase 2 only `one_doc_per_row`).
+- Cancel mid-run cleanup of in-flight LLM call (queued cells stop, in-flight finish naturally).
+- Excel export (Phase 4).
 
 ### Phase 3: Assistant execution + checkpoints
 - Table: `assistant_stage_outputs`.
@@ -130,6 +183,51 @@ The design handoff README is the source of truth for screens, data model, behavi
 ## 8. Progress log
 
 Newest entries at the top. Each entry: date, phase step, what landed, file paths.
+
+### 2026-05-04 — Phase 2 backend + run UX complete ✅ (verification pending)
+Phase 2 ships tabular execution end-to-end: per-cell LLM calls with format
+enforcement, citations, SSE streaming, and a live-grid run viewer.
+
+Built in a separate `git worktree` at `~/Desktop/PE Data Analysis/spokematrix-phase2/`
+(branch `workflows-phase-2`) so the user's Phase 1 testing on the original
+checkout was undisturbed.
+
+**Files added (8):**
+- `backend/app/models/workflow_run.py` — Pydantic schemas for runs, cells, SSE events.
+- `backend/app/services/workflow_run_store.py` — SQLAlchemy store for runs + cells.
+- `backend/app/services/workflow_format.py` — `format_prompt_suffix()` (port from Mike) + `parse_answer()` per-format parser.
+- `backend/app/services/workflow_run_executor.py` — async per-cell executor + in-memory `RunEventBus` (pub-sub keyed by run_id).
+- `backend/app/api/routes_workflow_runs.py` — POST run, GET run, GET stream (SSE), POST cancel, GET runs list.
+- `frontend/src/components/workflows/DocumentSelectorModal.tsx` — pre-run document picker.
+- `frontend/src/components/workflows/TabularRun.tsx` — split-pane live grid (docs+log left, grid+cell-detail right) with SSE subscription.
+
+**Files modified:**
+- `backend/app/database.py` — `WorkflowRunRow` + `TabularCellRow` tables.
+- `backend/app/main.py` — register `workflow_runs_router`.
+- `frontend/src/lib/workflows.ts` — run/cell types + `startWorkflowRun`, `getRun`, `cancelRun`, `subscribeRun` (EventSource with `?token=` auth).
+- `frontend/src/components/workflows/WorkflowsView.tsx` — `run` screen state + modal wiring.
+- `frontend/src/components/workflows/WorkflowLibrary.tsx` — passes `onRun` to tabular cards.
+- `frontend/src/components/workflows/WorkflowCard.tsx` — Run button live for tabular when `onRun` provided; assistant cards still show `Run (Phase 3)`.
+
+**Verification status:**
+- ✅ TypeScript check (`npx tsc --noEmit`) clean in worktree (after symlinking node_modules from main checkout).
+- ✅ Python imports clean for all new modules.
+- ✅ `parse_answer()` smoke-tested for yes_no / number / percentage / monetary_amount / date / bulleted_list / tag — all return correctly typed values.
+- ⏳ End-to-end browser verification deferred until Phase 1 PR merges; the running docker mounts the user's main checkout, not the worktree, and we don't want to disrupt their Phase 1 test session.
+
+**Decisions taken during build:**
+- Reused Vyntic's existing `[Source N]` citation convention rather than Mike's `[[page:N||quote:...]]` JSON shape — keeps `extract_citations()` reusable as-is. Trade-off: less rich citations than Mike's spec but zero new parsing code.
+- Bounded executor concurrency via `asyncio.Semaphore(4)`. Tunable later via env var if Gemini rate limits become tight.
+- `RunEventBus` is in-memory per process. Single-uvicorn-worker assumption holds for now; multi-worker requires Redis pub-sub later (logged as TODO).
+- TabularOutput viewer (separate completed-run screen with stats bar + run history sidebar + export actions) deferred to Phase 4 — `TabularRun` already renders terminal state correctly. Re-prioritize once IC needs to look at past runs.
+- Derived columns are stubbed: their cells complete with a "deferred to Phase 4" placeholder rather than failing. Keeps QofE Bridge's `Adjustment Quality` column from blocking the rest of the run.
+- Cancel sets queued cells to error with "Cancelled before execution" — in-flight cells finish naturally (no kill of in-flight LLM call). Acceptable for Phase 2.
+- Multi-doc synthesis still deferred — Phase 2 only handles `one_doc_per_row`.
+
+**Notes for future sessions:**
+- Run number is computed via `MAX(run_number) + 1` per workflow at create time — fine for low concurrency; if multiple users start runs simultaneously on the same workflow, they could collide. Wrap in transaction or move to a counter column when this matters.
+- SSE stream's heartbeat is `: ping\n\n` every 20s when idle — keeps proxies from killing the connection.
+- The frontend reconnects automatically on EventSource error (browser default). Server-side state is durable, so reconnect just re-subscribes; clients should refetch via REST after disconnect to catch missed events.
 
 ### 2026-05-03 — Phase 1 complete ✅
 End-to-end happy path verified on dev server (1440×900 dark mode):
@@ -196,7 +294,13 @@ Notes for Phase 2:
 - [x] Phase 1.14 — `TabularEditor.tsx`
 - [x] Phase 1.15 — Verify end-to-end on dev server
 
-**Next session: start Phase 2 (tabular execution).** First step: pin down the LLM call shape — read `backend/app/services/embedder.py` and any matrix-execution code that already exists, then design the `workflow_runs` + `tabular_cells` schema and a per-cell executor that streams via SSE. Reference Mike's `formatPromptSuffix()` for format enforcement.
+**Next session: end-to-end verify Phase 2 once the Phase 1 PR merges.** After merge: pull main, rebase `workflows-phase-2` onto main, restart docker backend, run a tabular workflow against the real ChromaDB (the seeded built-ins like Customer Concentration are good first targets — short prompts, easy to eyeball). Watch:
+- Cell fills appear progressively as SSE events arrive (no full page reload).
+- Citations render with source filename + page in the cell-detail panel.
+- Run terminal status flips to `complete` after all cells finish.
+- Cancel mid-run leaves completed cells intact.
+
+**After Phase 2 merges, start Phase 3 (assistant execution + checkpoints).** Schema: `assistant_stage_outputs` table. Executor runs stages serially; checkpoints pause the run waiting for `POST /runs/{run_id}/stages/{stage_id}/approve`. FE: `AssistantRun` (3-col with editable checkpoint output) + `MemoOutput` (centered memo + TOC).
 
 ## 9. How to resume in a future session
 

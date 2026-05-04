@@ -218,6 +218,50 @@ class WorkflowVariableRow(Base):
     workflow = relationship("WorkflowRow", back_populates="variables")
 
 
+# ── Workflow runs (Phase 2: tabular execution) ──
+
+class WorkflowRunRow(Base):
+    __tablename__ = "workflow_runs"
+
+    id = Column(String, primary_key=True, index=True)  # uuid4 hex
+    workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, index=True)
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    run_number = Column(Integer, nullable=False)  # auto-assigned per workflow at create time
+    status = Column(String, default="pending", index=True)  # pending|running|complete|cancelled|error
+    document_ids_json = Column(Text, default="[]")  # JSON list of doc_ids selected for this run
+    started_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    cells = relationship(
+        "TabularCellRow",
+        back_populates="run",
+        cascade="all, delete-orphan",
+    )
+
+
+class TabularCellRow(Base):
+    __tablename__ = "tabular_cells"
+
+    id = Column(String, primary_key=True, index=True)
+    run_id = Column(String, ForeignKey("workflow_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    # `row_key` is doc_id today (one_doc_per_row); future: synthesis_question_id.
+    row_key = Column(String, nullable=False, index=True)
+    column_id = Column(String, ForeignKey("workflow_columns.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String, default="queued", index=True)  # queued|running|complete|error
+    answer = Column(Text, default="")
+    answer_formatted_json = Column(Text, default="null")  # parsed value per column format, JSON
+    citations_json = Column(Text, default="[]")  # list of Citation dicts
+    model = Column(String, default="")
+    fallback = Column(Boolean, default=False)
+    duration_ms = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    run = relationship("WorkflowRunRow", back_populates="cells")
+
+
 def init_db():
     """Create all tables if they don't exist."""
     Base.metadata.create_all(bind=engine)

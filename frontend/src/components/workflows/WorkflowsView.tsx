@@ -6,6 +6,7 @@ import {
   createWorkflow,
   deleteWorkflow,
   listWorkflows,
+  startWorkflowRun,
   updateWorkflow,
   Workflow,
   WorkflowCreatePayload,
@@ -16,6 +17,8 @@ import { ddTheme } from "@/components/dd/types";
 import WorkflowLibrary from "./WorkflowLibrary";
 import AssistantEditor from "./AssistantEditor";
 import TabularEditor from "./TabularEditor";
+import DocumentSelectorModal from "./DocumentSelectorModal";
+import TabularRun from "./TabularRun";
 
 type Theme = "light" | "dark";
 
@@ -27,7 +30,8 @@ interface WorkflowsViewProps {
 type ScreenState =
   | { kind: "library" }
   | { kind: "editor"; workflowId: string }
-  | { kind: "create"; type: WorkflowType };
+  | { kind: "create"; type: WorkflowType }
+  | { kind: "run"; workflowId: string; runId: string };
 
 export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   const c = ddTheme(theme);
@@ -35,6 +39,9 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [screen, setScreen] = useState<ScreenState>({ kind: "library" });
+  /** When non-null, the doc-selector modal is open for this workflow id. */
+  const [runModalWorkflowId, setRunModalWorkflowId] = useState<string | null>(null);
+  const [runStartError, setRunStartError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -112,6 +119,25 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
     [dealId, refresh]
   );
 
+  const handleRunRequested = useCallback((workflowId: string) => {
+    setRunStartError(null);
+    setRunModalWorkflowId(workflowId);
+  }, []);
+
+  const handleRunConfirmed = useCallback(
+    async (workflowId: string, documentIds: string[]) => {
+      setRunStartError(null);
+      try {
+        const run = await startWorkflowRun(dealId, workflowId, documentIds);
+        setRunModalWorkflowId(null);
+        setScreen({ kind: "run", workflowId, runId: run.id });
+      } catch (err) {
+        setRunStartError(err instanceof Error ? err.message : "Failed to start run");
+      }
+    },
+    [dealId]
+  );
+
   if (loading) {
     return (
       <div
@@ -172,16 +198,91 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
     );
   }
 
+  // Modal lives outside the screen switch so it overlays whatever screen is active.
+  const modalWorkflow = runModalWorkflowId
+    ? workflows.find((w) => w.id === runModalWorkflowId) ?? null
+    : null;
+  const renderModal = () => (
+    <>
+      {modalWorkflow && (
+        <DocumentSelectorModal
+          dealId={dealId}
+          workflowName={modalWorkflow.name}
+          theme={theme}
+          onCancel={() => {
+            setRunModalWorkflowId(null);
+            setRunStartError(null);
+          }}
+          onConfirm={(docIds) => handleRunConfirmed(modalWorkflow.id, docIds)}
+        />
+      )}
+      {runStartError && modalWorkflow && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "#7f1d1d",
+            color: "#fecaca",
+            padding: "8px 16px",
+            borderRadius: 8,
+            fontSize: 12,
+            zIndex: 1100,
+          }}
+        >
+          {runStartError}
+        </div>
+      )}
+    </>
+  );
+
+  if (screen.kind === "run") {
+    const workflow = workflows.find((w) => w.id === screen.workflowId);
+    if (!workflow) {
+      return (
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: c.t2,
+            fontSize: 13,
+          }}
+        >
+          Workflow not found.
+        </div>
+      );
+    }
+    return (
+      <>
+        <TabularRun
+          dealId={dealId}
+          runId={screen.runId}
+          workflow={workflow}
+          theme={theme}
+          onBack={() => setScreen({ kind: "library" })}
+        />
+        {renderModal()}
+      </>
+    );
+  }
+
   if (screen.kind === "library") {
     return (
-      <WorkflowLibrary
-        dealId={dealId}
-        workflows={workflows}
-        theme={theme}
-        onClone={handleClone}
-        onEdit={handleEdit}
-        onNew={handleNew}
-      />
+      <>
+        <WorkflowLibrary
+          dealId={dealId}
+          workflows={workflows}
+          theme={theme}
+          onClone={handleClone}
+          onEdit={handleEdit}
+          onNew={handleNew}
+          onRun={handleRunRequested}
+        />
+        {renderModal()}
+      </>
     );
   }
 
