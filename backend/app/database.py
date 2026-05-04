@@ -128,6 +128,96 @@ class InvestigationFollowupRow(Base):
     investigation = relationship("InvestigationRow", back_populates="followups")
 
 
+# ── Workflows feature (Phase 1: templates only; runs added in Phase 2) ──
+
+class WorkflowRow(Base):
+    __tablename__ = "workflows"
+
+    id = Column(String, primary_key=True, index=True)  # uuid4 hex
+    # NULL deal_id = built-in template, visible across all deals.
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, default="")
+    type = Column(String, nullable=False)  # "assistant" | "tabular"
+    row_source = Column(String, default="one_doc_per_row")  # "one_doc_per_row" | "multi_doc_synthesis"
+    output_format = Column(String, default="word")  # "word" | "markdown" | "excel"
+    is_builtin = Column(Boolean, default=False, index=True)
+    cloned_from = Column(String, ForeignKey("workflows.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    stages = relationship(
+        "WorkflowStageRow",
+        back_populates="workflow",
+        cascade="all, delete-orphan",
+        order_by="WorkflowStageRow.order_index",
+    )
+    columns = relationship(
+        "WorkflowColumnRow",
+        back_populates="workflow",
+        cascade="all, delete-orphan",
+        order_by="WorkflowColumnRow.order_index",
+    )
+    variables = relationship(
+        "WorkflowVariableRow",
+        back_populates="workflow",
+        cascade="all, delete-orphan",
+    )
+
+
+class WorkflowStageRow(Base):
+    __tablename__ = "workflow_stages"
+
+    id = Column(String, primary_key=True, index=True)
+    workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, index=True)
+    order_index = Column(Integer, nullable=False)  # 1-indexed
+    label = Column(String, nullable=False)
+    prompt_md = Column(Text, default="")
+    checkpoint = Column(Boolean, default=False)
+
+    workflow = relationship("WorkflowRow", back_populates="stages")
+
+
+class WorkflowColumnRow(Base):
+    __tablename__ = "workflow_columns"
+
+    id = Column(String, primary_key=True, index=True)
+    workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, index=True)
+    order_index = Column(Integer, nullable=False)
+    label = Column(String, nullable=False)
+    prompt = Column(Text, default="")
+    format = Column(String, default="text")  # ColumnFormat enum, mirrors frontend matrixColumnConfig
+    tags_json = Column(Text, default="null")  # JSON-encoded list[str] | null (for tag format)
+    is_derived = Column(Boolean, default=False)
+    formula = Column(Text, nullable=True)
+
+    workflow = relationship("WorkflowRow", back_populates="columns")
+
+    @property
+    def tags(self) -> list[str] | None:
+        try:
+            value = json.loads(self.tags_json) if self.tags_json else None
+        except (TypeError, ValueError):
+            return None
+        return value if isinstance(value, list) else None
+
+    @tags.setter
+    def tags(self, value: list[str] | None):
+        self.tags_json = json.dumps(value)
+
+
+class WorkflowVariableRow(Base):
+    __tablename__ = "workflow_variables"
+
+    id = Column(String, primary_key=True, index=True)
+    workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, index=True)
+    key = Column(String, nullable=False)
+    default_value = Column(Text, nullable=True)
+
+    workflow = relationship("WorkflowRow", back_populates="variables")
+
+
 def init_db():
     """Create all tables if they don't exist."""
     Base.metadata.create_all(bind=engine)
