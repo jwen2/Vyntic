@@ -595,6 +595,8 @@ function RunStatusPill({ status, theme }: { status: RunStatus; theme: Theme }) {
   const map: Record<RunStatus, { color: string; bg: string; label: string; pulse: boolean }> = {
     pending: { color: c.t2, bg: c.surfaceAlt, label: "Pending", pulse: false },
     running: { color: AMBER, bg: tint(AMBER, 15), label: "Running", pulse: true },
+    // checkpoint is unreachable for tabular runs but required by RunStatus.
+    checkpoint: { color: AMBER, bg: tint(AMBER, 15), label: "Checkpoint", pulse: true },
     complete: { color: GREEN, bg: tint(GREEN, 15), label: "Complete", pulse: false },
     cancelled: { color: c.t3, bg: c.surfaceAlt, label: "Cancelled", pulse: false },
     error: { color: RED, bg: tint(RED, 15), label: "Error", pulse: false },

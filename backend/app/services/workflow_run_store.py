@@ -9,15 +9,19 @@ from datetime import datetime
 from sqlalchemy import func
 
 from app.database import (
+    AssistantStageOutputRow,
     SessionLocal,
     TabularCellRow,
     WorkflowColumnRow,
     WorkflowRunRow,
+    WorkflowStageRow,
 )
 from app.models.query import Citation
 from app.models.workflow_run import (
+    AssistantStageOutput,
     CellStatus,
     RunStatus,
+    StageOutputStatus,
     TabularCell,
     WorkflowRun,
 )
@@ -63,6 +67,42 @@ def _row_to_cell(row: TabularCellRow) -> TabularCell:
     )
 
 
+def _row_to_stage_output(row: AssistantStageOutputRow) -> AssistantStageOutput:
+    try:
+        citations_raw = json.loads(row.citations_json) if row.citations_json else []
+    except json.JSONDecodeError:
+        citations_raw = []
+    citations: list[Citation | None] = []
+    for entry in citations_raw:
+        if entry is None:
+            citations.append(None)
+        else:
+            try:
+                citations.append(Citation(**entry))
+            except Exception:
+                citations.append(None)
+    return AssistantStageOutput(
+        id=row.id,
+        run_id=row.run_id,
+        stage_id=row.stage_id,
+        order_index=row.order_index,
+        label=row.label,
+        prompt_md=row.prompt_md or "",
+        checkpoint=bool(row.checkpoint),
+        status=row.status,
+        output_md=row.output_md or "",
+        edited_md=row.edited_md,
+        citations=citations,
+        model=row.model or "",
+        fallback=bool(row.fallback),
+        duration_ms=row.duration_ms or 0,
+        error_message=row.error_message,
+        started_at=row.started_at,
+        completed_at=row.completed_at,
+        approved_at=row.approved_at,
+    )
+
+
 def _row_to_run(row: WorkflowRunRow) -> WorkflowRun:
     try:
         doc_ids = json.loads(row.document_ids_json) if row.document_ids_json else []
@@ -81,6 +121,7 @@ def _row_to_run(row: WorkflowRunRow) -> WorkflowRun:
         started_at=row.started_at or datetime.utcnow(),
         completed_at=row.completed_at,
         cells=[_row_to_cell(c) for c in row.cells],
+        stage_outputs=[_row_to_stage_output(s) for s in row.stage_outputs],
     )
 
 
@@ -178,6 +219,7 @@ def list_runs_for_workflow(workflow_id: str, deal_id: str) -> list[WorkflowRun]:
                     started_at=row.started_at or datetime.utcnow(),
                     completed_at=row.completed_at,
                     cells=[],  # don't eagerly load
+                    stage_outputs=[],  # don't eagerly load
                 )
             )
         return out
@@ -335,5 +377,274 @@ def load_column(column_id: str):
             "tags": row.tags,
             "is_derived": bool(row.is_derived),
         }
+    finally:
+        db.close()
+
+
+# ── Phase 3: assistant runs + stage outputs ──
+
+
+def create_assistant_run(
+    *,
+    workflow_id: str,
+    deal_id: str,
+    document_ids: list[str],
+    started_by: int | None = None,
+) -> WorkflowRun | None:
+    """Insert a run + queued stage_outputs (one per workflow stage).
+
+    Stage data (label / prompt_md / checkpoint) is snapshotted onto each
+    stage_output so the run remains coherent even if the workflow template
+    is edited later.
+    """
+    db = SessionLocal()
+    try:
+        stages = (
+            db.query(WorkflowStageRow)
+            .filter(WorkflowStageRow.workflow_id == workflow_id)
+            .order_by(WorkflowStageRow.order_index.asc())
+            .all()
+        )
+        if not stages:
+            return None
+        max_n = (
+            db.query(func.max(WorkflowRunRow.run_number))
+            .filter(WorkflowRunRow.workflow_id == workflow_id)
+            .scalar()
+        )
+        run_number = (max_n or 0) + 1
+        run_id = _new_id()
+        run = WorkflowRunRow(
+            id=run_id,
+            workflow_id=workflow_id,
+            deal_id=deal_id,
+            run_number=run_number,
+            status="pending",
+            document_ids_json=json.dumps(document_ids),
+            started_by=started_by,
+        )
+        db.add(run)
+        db.flush()
+        for stage in stages:
+            db.add(
+                AssistantStageOutputRow(
+                    id=_new_id(),
+                    run_id=run_id,
+                    stage_id=stage.id,
+                    order_index=stage.order_index,
+                    label=stage.label,
+                    prompt_md=stage.prompt_md or "",
+                    checkpoint=bool(stage.checkpoint),
+                    status="queued",
+                )
+            )
+        db.commit()
+        db.refresh(run)
+        return _row_to_run(run)
+    finally:
+        db.close()
+
+
+def get_stage_output(stage_output_id: str) -> AssistantStageOutput | None:
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(AssistantStageOutputRow)
+            .filter(AssistantStageOutputRow.id == stage_output_id)
+            .first()
+        )
+        if not row:
+            return None
+        return _row_to_stage_output(row)
+    finally:
+        db.close()
+
+
+def next_queued_stage(run_id: str) -> AssistantStageOutput | None:
+    """Return the next queued stage_output for the run in order, or None."""
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(AssistantStageOutputRow)
+            .filter(
+                AssistantStageOutputRow.run_id == run_id,
+                AssistantStageOutputRow.status == "queued",
+            )
+            .order_by(AssistantStageOutputRow.order_index.asc())
+            .first()
+        )
+        if not row:
+            return None
+        return _row_to_stage_output(row)
+    finally:
+        db.close()
+
+
+def list_terminal_stages(run_id: str) -> list[AssistantStageOutput]:
+    """All complete stage outputs for the run, in order. Used to build
+    prior-stage context for downstream stages."""
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(AssistantStageOutputRow)
+            .filter(
+                AssistantStageOutputRow.run_id == run_id,
+                AssistantStageOutputRow.status == "complete",
+            )
+            .order_by(AssistantStageOutputRow.order_index.asc())
+            .all()
+        )
+        return [_row_to_stage_output(r) for r in rows]
+    finally:
+        db.close()
+
+
+def mark_stage_running(stage_output_id: str) -> AssistantStageOutput | None:
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(AssistantStageOutputRow)
+            .filter(AssistantStageOutputRow.id == stage_output_id)
+            .first()
+        )
+        if not row:
+            return None
+        row.status = "running"
+        row.started_at = datetime.utcnow()
+        db.commit()
+        db.refresh(row)
+        return _row_to_stage_output(row)
+    finally:
+        db.close()
+
+
+def complete_stage(
+    stage_output_id: str,
+    *,
+    output_md: str,
+    citations: list[Citation | None],
+    model: str = "",
+    fallback: bool = False,
+    duration_ms: int = 0,
+    needs_checkpoint: bool,
+) -> AssistantStageOutput | None:
+    """Mark a stage's LLM call done. If `needs_checkpoint`, status becomes
+    `checkpoint` (waiting on `approve_stage`); otherwise it becomes
+    `complete` and the executor proceeds to the next stage."""
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(AssistantStageOutputRow)
+            .filter(AssistantStageOutputRow.id == stage_output_id)
+            .first()
+        )
+        if not row:
+            return None
+        row.output_md = output_md
+        row.citations_json = json.dumps(
+            [c.model_dump() if c is not None else None for c in citations]
+        )
+        row.model = model
+        row.fallback = fallback
+        row.duration_ms = duration_ms
+        if needs_checkpoint:
+            row.status = "checkpoint"
+        else:
+            row.status = "complete"
+            row.completed_at = datetime.utcnow()
+        db.commit()
+        db.refresh(row)
+        return _row_to_stage_output(row)
+    finally:
+        db.close()
+
+
+def approve_stage(
+    stage_output_id: str, edited_md: str | None
+) -> AssistantStageOutput | None:
+    """Promote a stage from `checkpoint` to `complete`, optionally storing
+    the analyst's edited markdown. Idempotent: approving a non-checkpoint
+    stage is a no-op."""
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(AssistantStageOutputRow)
+            .filter(AssistantStageOutputRow.id == stage_output_id)
+            .first()
+        )
+        if not row:
+            return None
+        if row.status != "checkpoint":
+            return _row_to_stage_output(row)
+        if edited_md is not None:
+            row.edited_md = edited_md
+        row.status = "complete"
+        now = datetime.utcnow()
+        row.approved_at = now
+        row.completed_at = now
+        db.commit()
+        db.refresh(row)
+        return _row_to_stage_output(row)
+    finally:
+        db.close()
+
+
+def error_stage(
+    stage_output_id: str, error_message: str
+) -> AssistantStageOutput | None:
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(AssistantStageOutputRow)
+            .filter(AssistantStageOutputRow.id == stage_output_id)
+            .first()
+        )
+        if not row:
+            return None
+        row.status = "error"
+        row.error_message = error_message[:2000]
+        row.completed_at = datetime.utcnow()
+        db.commit()
+        db.refresh(row)
+        return _row_to_stage_output(row)
+    finally:
+        db.close()
+
+
+def cancel_queued_stages(run_id: str) -> int:
+    db = SessionLocal()
+    try:
+        affected = (
+            db.query(AssistantStageOutputRow)
+            .filter(
+                AssistantStageOutputRow.run_id == run_id,
+                AssistantStageOutputRow.status == "queued",
+            )
+            .update({"status": "error", "error_message": "Cancelled before execution"})
+        )
+        db.commit()
+        return int(affected)
+    finally:
+        db.close()
+
+
+def all_stages_terminal(run_id: str) -> tuple[bool, StageOutputStatus | None]:
+    """(all_terminal, worst_status). 'checkpoint' counts as non-terminal since
+    the executor will resume after approve. 'error' is the worst terminal."""
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(AssistantStageOutputRow.status)
+            .filter(AssistantStageOutputRow.run_id == run_id)
+            .all()
+        )
+        if not rows:
+            return True, "complete"
+        statuses = [r[0] for r in rows]
+        if any(s in ("queued", "running", "checkpoint") for s in statuses):
+            return False, None
+        if any(s == "error" for s in statuses):
+            return True, "error"
+        return True, "complete"
     finally:
         db.close()

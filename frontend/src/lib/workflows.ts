@@ -172,10 +172,23 @@ export async function cloneWorkflow(dealId: string, workflowId: string): Promise
   return unwrap<Workflow>(res);
 }
 
-// ── Phase 2: Tabular run + cell types ──
+// ── Phase 2/3: Run + cell + stage types ──
 
-export type RunStatus = "pending" | "running" | "complete" | "cancelled" | "error";
+// Phase 3 adds "checkpoint" — assistant runs sit here while waiting on human approval.
+export type RunStatus =
+  | "pending"
+  | "running"
+  | "checkpoint"
+  | "complete"
+  | "cancelled"
+  | "error";
 export type CellStatus = "queued" | "running" | "complete" | "error";
+export type StageOutputStatus =
+  | "queued"
+  | "running"
+  | "checkpoint"
+  | "complete"
+  | "error";
 
 export interface TabularCell {
   id: string;
@@ -195,6 +208,27 @@ export interface TabularCell {
   completed_at: string | null;
 }
 
+export interface AssistantStageOutput {
+  id: string;
+  run_id: string;
+  stage_id: string | null;
+  order_index: number;
+  label: string;
+  prompt_md: string;
+  checkpoint: boolean;
+  status: StageOutputStatus;
+  output_md: string;
+  edited_md: string | null;
+  citations: (Citation | null)[];
+  model: string;
+  fallback: boolean;
+  duration_ms: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  approved_at: string | null;
+}
+
 export interface WorkflowRun {
   id: string;
   workflow_id: string;
@@ -205,7 +239,10 @@ export interface WorkflowRun {
   started_by: number | null;
   started_at: string;
   completed_at: string | null;
+  /** Populated for tabular runs. */
   cells: TabularCell[];
+  /** Populated for assistant runs. */
+  stage_outputs: AssistantStageOutput[];
 }
 
 export interface RunStreamSnapshot {
@@ -218,13 +255,22 @@ export interface RunStreamCellEvent {
   cell: TabularCell;
 }
 
+export interface RunStreamStageEvent {
+  type: "stage";
+  stage: AssistantStageOutput;
+}
+
 export interface RunStreamRunEvent {
   type: "run";
   run_id: string;
   status: RunStatus;
 }
 
-export type RunStreamEvent = RunStreamSnapshot | RunStreamCellEvent | RunStreamRunEvent;
+export type RunStreamEvent =
+  | RunStreamSnapshot
+  | RunStreamCellEvent
+  | RunStreamStageEvent
+  | RunStreamRunEvent;
 
 // ── Phase 2: Run API ──
 
@@ -260,6 +306,22 @@ export async function cancelRun(runId: string): Promise<WorkflowRun> {
     method: "POST",
   });
   return unwrap<WorkflowRun>(res);
+}
+
+/** Approve a checkpointed assistant stage and resume the run. */
+export async function approveStage(
+  runId: string,
+  stageOutputId: string,
+  editedMd?: string
+): Promise<AssistantStageOutput> {
+  const res = await authedFetch(
+    `${API_BASE}/runs/${encodeURIComponent(runId)}/stages/${encodeURIComponent(stageOutputId)}/approve`,
+    {
+      method: "POST",
+      body: JSON.stringify({ edited_md: editedMd ?? null }),
+    }
+  );
+  return unwrap<AssistantStageOutput>(res);
 }
 
 /**
