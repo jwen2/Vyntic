@@ -184,6 +184,130 @@ tabular_cells:
 
 Newest entries at the top. Each entry: date, phase step, what landed, file paths.
 
+### 2026-05-05 — Phase 3 assistant execution + checkpoints ✅ (backend verified end-to-end)
+
+Phase 3 ships the assistant workflow execution path: serial stage runs,
+checkpoint pause/resume, analyst-edited stage outputs, and the
+checkpoint-aware `AssistantRun` and `MemoOutput` screens.
+
+**Files added (2):**
+- `frontend/src/components/workflows/AssistantRun.tsx` — 3-col live view
+  (stage rail + focused stage detail with checkpoint editor + input docs).
+- `frontend/src/components/workflows/MemoOutput.tsx` — centered memo
+  (TOC + sources sidebar) for completed assistant runs.
+
+**Files modified:**
+- `backend/app/database.py` — `WorkflowRunRow.stage_outputs` relationship +
+  new `AssistantStageOutputRow` table. Stage data (label / prompt_md /
+  checkpoint) is snapshotted onto the row at run-create so editing the
+  template later doesn't corrupt prior runs.
+- `backend/app/models/workflow_run.py` — `AssistantStageOutput` schema,
+  `StageOutputStatus` literal, `StageApprovePayload`, `StageOutputEvent`.
+  `RunStatus` extended with `"checkpoint"`.
+- `backend/app/services/workflow_run_store.py` — assistant-run helpers:
+  `create_assistant_run`, `next_queued_stage`, `mark_stage_running`,
+  `complete_stage(needs_checkpoint=...)`, `approve_stage`, `error_stage`,
+  `cancel_queued_stages`, `all_stages_terminal`, `list_terminal_stages`.
+- `backend/app/services/workflow_run_executor.py` — `execute_assistant_run`
+  (loop over queued stages, pause on checkpoint) and
+  `execute_assistant_stage` (build prior-stage context + multi-doc
+  retrieval + LLM + citations). Reuses the existing `RunEventBus`.
+- `backend/app/api/routes_workflow_runs.py` — POST /runs dispatches on
+  workflow.type; new `POST /runs/{run_id}/stages/{stage_output_id}/approve`
+  endpoint; cancel handles both cells and stages.
+- `frontend/src/lib/workflows.ts` — `AssistantStageOutput` /
+  `StageOutputStatus` / `RunStreamStageEvent` types, `WorkflowRun.stage_outputs`,
+  `approveStage` client.
+- `frontend/src/components/workflows/WorkflowsView.tsx` — `memo` screen
+  state; assistant cards now route through `AssistantRun` then
+  auto-flip to `MemoOutput` on `onComplete`.
+- `frontend/src/components/workflows/WorkflowLibrary.tsx` /
+  `WorkflowCard.tsx` — Run buttons live for both tabular and assistant.
+- `frontend/src/components/workflows/TabularRun.tsx` — added the new
+  `checkpoint` key to its `RunStatusPill` map (unreachable for tabular,
+  but required by the type).
+
+**Verification status:**
+- ✅ Backend: full assistant run drove pending → running → checkpoint →
+  approve → running → checkpoint → approve (with `edited_md`) → running
+  → complete on `builtin_cim_to_memo` against `acme_saas_cim.pdf`.
+  3 stages, citations attached per stage, analyst edit preserved
+  in `assistant_stage_outputs.edited_md`.
+- ✅ TypeScript clean (`npx tsc --noEmit` for `src/components/workflows/**`).
+- ✅ FE rendered correctly through stage 1 running (verified on dev
+  preview): stage rail shows ●/numbers, focused stage shows
+  "Generating…" placeholder, input-docs sidebar populated, summary line
+  reads `Stage 1 of 3 · generating`.
+- ✅ Backend SSE confirmed via curl — `text/event-stream` returns the
+  expected `{"type": "snapshot", ...}` envelope and stays open through
+  checkpoints (no terminal-event close).
+- ⚠️ Live SSE updates inside the browser: works through the docker prod
+  frontend proxy (port 3100), but Next.js 14's dev-server proxy
+  (`npm run dev` on port 3000) buffers the response and EventSource
+  receives nothing until reconnect. **This is pre-existing** — the same
+  issue is visible on the user's tabular runs as repeated
+  "Stream connection error — reconnecting…" log entries; it's not a
+  Phase 3 regression. Verify assistant run UX on port 3100 (or the
+  docker `frontend-dev` build at 3200) until the dev-proxy is fixed.
+
+**Decisions taken during build:**
+- **Schema snapshotting:** `assistant_stage_outputs` copies `label`,
+  `prompt_md`, and `checkpoint` from the workflow stage at run-create
+  time. This prevents a mid-run edit to the workflow template from
+  corrupting an in-flight or historical run. `stage_id` is kept as a
+  back-pointer with `ON DELETE SET NULL` so deletes don't cascade-blow
+  the run history.
+- **Re-entrant executor:** `kick_off_assistant_run` is safe to call
+  multiple times. After approve, the route just calls it again — the
+  loop picks up from the next queued stage, so we don't need a separate
+  resume path or signal-channel. Guards against double-execution would
+  require a per-run lock; deferred until concurrent approve clicks
+  become a real problem.
+- **Run-level `checkpoint` status:** added to `RunStatus` literal so the
+  status pill / SSE consumers can distinguish "paused waiting for
+  human" from "still grinding". Tabular runs never enter this state.
+- **Multi-doc context:** stage prompts retrieve chunks across all
+  selected documents and concatenate via `build_context_string`. We
+  pass `page_context_chunks=None` to `extract_citations` because
+  there's no single canonical full-text per stage. This loses the
+  "exact-page" disambiguation that single-doc tabular cells get;
+  acceptable for memos where the citation is a pointer back to the
+  source doc, not a precise quote anchor.
+- **MemoOutput is a separate screen** (not a "complete" branch inside
+  AssistantRun): cleaner separation, lets the analyst go from a
+  3-column live view straight into a centered memo without the rail
+  dominating. AssistantRun fires `onComplete` once when the SSE
+  delivers `status="complete"` (or on initial REST snapshot if the run
+  was already done). WorkflowsView flips screen state to `memo`.
+- **Stage events are published before run events:** `complete_stage`
+  → publish stage event → set run status → publish run event. Lets the
+  FE update the focused stage state before the run-level transition.
+- **Edit handling:** the textarea uses `editDrafts: Map<id, string>`
+  for the active checkpoint. We send `edited_md` only if it differs
+  from `output_md`; otherwise the backend stores `null` and the memo
+  view falls back to the raw output. Approving without typing keeps
+  the memo lean.
+
+**Notes for future sessions:**
+- Phase 4 deliverables that are Phase-3-adjacent: Word/PDF export of
+  the memo (server-side python-docx), and a "view existing run" entry
+  point from the library so users can open a completed assistant run
+  directly to MemoOutput. Today the only path into AssistantRun /
+  MemoOutput is to start a fresh run.
+- The `Run #N · Memo Output` view does not currently expose a way to
+  re-edit a stage post-completion. Decision: edits during the run are
+  the audit boundary; post-run edits would need a versioned stage_output
+  story (Phase 4 territory).
+- Citations rendering uses `cite.source_file · p.{page}` with the
+  snippet on click. The `[Source N]` markers are stripped from
+  `output_md` by `extract_citations`. If you want inline citation
+  pills inside the memo body (rather than the footer chips today),
+  we'd need to keep the markers and post-render replace them — a
+  ~half-day refactor.
+- The dev-proxy SSE issue can be worked around by setting
+  `NEXT_PUBLIC_API_URL=http://localhost:8000` and adjusting CORS so the
+  browser hits FastAPI directly. Out of scope for Phase 3.
+
 ### 2026-05-04 — Phase 2 backend + run UX complete ✅ (verification pending)
 Phase 2 ships tabular execution end-to-end: per-cell LLM calls with format
 enforcement, citations, SSE streaming, and a live-grid run viewer.
@@ -293,14 +417,23 @@ Notes for Phase 2:
 - [x] Phase 1.13 — `AssistantEditor.tsx`
 - [x] Phase 1.14 — `TabularEditor.tsx`
 - [x] Phase 1.15 — Verify end-to-end on dev server
+- [x] Phase 2 — Tabular execution (PR #67 merged into main 2026-05-04)
+- [x] Phase 3.1 — `AssistantStageOutputRow` table + relationship
+- [x] Phase 3.2 — `workflow_run_store` assistant helpers
+- [x] Phase 3.3 — `execute_assistant_run` + `execute_assistant_stage`
+- [x] Phase 3.4 — `POST /runs/{run_id}/stages/{stage_output_id}/approve`
+- [x] Phase 3.5 — FE `workflows.ts` types + `approveStage` client
+- [x] Phase 3.6 — `AssistantRun.tsx`
+- [x] Phase 3.7 — `MemoOutput.tsx`
+- [x] Phase 3.8 — `WorkflowsView` + library wiring
+- [x] Phase 3.9 — Backend end-to-end verified (FE blocked on dev-proxy SSE — works on docker prod 3100)
+- [ ] Phase 4.1 — Excel export for tabular runs
+- [ ] Phase 4.2 — Word/PDF export for assistant memos
+- [ ] Phase 4.3 — Formula columns evaluator
+- [ ] Phase 4.4 — Multi-doc synthesis row execution
+- [ ] Phase 4.5 — Run history viewer + "open existing run" entry point
 
-**Next session: end-to-end verify Phase 2 once the Phase 1 PR merges.** After merge: pull main, rebase `workflows-phase-2` onto main, restart docker backend, run a tabular workflow against the real ChromaDB (the seeded built-ins like Customer Concentration are good first targets — short prompts, easy to eyeball). Watch:
-- Cell fills appear progressively as SSE events arrive (no full page reload).
-- Citations render with source filename + page in the cell-detail panel.
-- Run terminal status flips to `complete` after all cells finish.
-- Cancel mid-run leaves completed cells intact.
-
-**After Phase 2 merges, start Phase 3 (assistant execution + checkpoints).** Schema: `assistant_stage_outputs` table. Executor runs stages serially; checkpoints pause the run waiting for `POST /runs/{run_id}/stages/{stage_id}/approve`. FE: `AssistantRun` (3-col with editable checkpoint output) + `MemoOutput` (centered memo + TOC).
+**Next session: start Phase 4 (polish for v1 close).** Top priorities are export (Word/PDF for memos via python-docx, Excel for tabular runs by extending `exportMatrix.ts`) and the run-history entry point so analysts can re-open completed assistant runs into MemoOutput without starting a new run. Lower-priority: formula column evaluator and multi-doc synthesis. Before shipping, fix the Next.js dev-server SSE buffering quirk (set `NEXT_PUBLIC_API_URL=http://localhost:8000` + CORS, or move off the proxy) so live updates are observable on `npm run dev` too.
 
 ## 9. How to resume in a future session
 

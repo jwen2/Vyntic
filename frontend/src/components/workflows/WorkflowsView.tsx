@@ -19,6 +19,8 @@ import AssistantEditor from "./AssistantEditor";
 import TabularEditor from "./TabularEditor";
 import DocumentSelectorModal from "./DocumentSelectorModal";
 import TabularRun from "./TabularRun";
+import AssistantRun from "./AssistantRun";
+import MemoOutput from "./MemoOutput";
 
 type Theme = "light" | "dark";
 
@@ -31,7 +33,8 @@ type ScreenState =
   | { kind: "library" }
   | { kind: "editor"; workflowId: string }
   | { kind: "create"; type: WorkflowType }
-  | { kind: "run"; workflowId: string; runId: string };
+  | { kind: "run"; workflowId: string; runId: string }
+  | { kind: "memo"; workflowId: string; runId: string };
 
 export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   const c = ddTheme(theme);
@@ -237,7 +240,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
     </>
   );
 
-  if (screen.kind === "run") {
+  if (screen.kind === "run" || screen.kind === "memo") {
     const workflow = workflows.find((w) => w.id === screen.workflowId);
     if (!workflow) {
       return (
@@ -255,6 +258,36 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
         </div>
       );
     }
+    if (workflow.type === "assistant") {
+      if (screen.kind === "memo") {
+        return (
+          <>
+            <MemoOutput
+              dealId={dealId}
+              runId={screen.runId}
+              workflow={workflow}
+              theme={theme}
+              onBack={() => setScreen({ kind: "library" })}
+            />
+            {renderModal()}
+          </>
+        );
+      }
+      return (
+        <>
+          <AssistantRun
+            dealId={dealId}
+            runId={screen.runId}
+            workflow={workflow}
+            theme={theme}
+            onBack={() => setScreen({ kind: "library" })}
+            onComplete={() => setScreen({ kind: "memo", workflowId: workflow.id, runId: screen.runId })}
+          />
+          {renderModal()}
+        </>
+      );
+    }
+    // Tabular: only "run" makes sense; "memo" is unreachable in current UX.
     return (
       <>
         <TabularRun

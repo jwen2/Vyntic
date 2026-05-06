@@ -1,4 +1,4 @@
-"""Pydantic schemas for workflow runs and tabular cells (Phase 2)."""
+"""Pydantic schemas for workflow runs (Phase 2 tabular + Phase 3 assistant)."""
 from datetime import datetime
 from typing import Any, Literal
 
@@ -7,8 +7,10 @@ from pydantic import BaseModel, Field
 from app.models.query import Citation
 
 
-RunStatus = Literal["pending", "running", "complete", "cancelled", "error"]
+# Phase 3 adds "checkpoint" — assistant runs sit here while waiting on human approval.
+RunStatus = Literal["pending", "running", "checkpoint", "complete", "cancelled", "error"]
 CellStatus = Literal["queued", "running", "complete", "error"]
+StageOutputStatus = Literal["queued", "running", "checkpoint", "complete", "error"]
 
 
 class TabularCell(BaseModel):
@@ -28,6 +30,27 @@ class TabularCell(BaseModel):
     completed_at: datetime | None = None
 
 
+class AssistantStageOutput(BaseModel):
+    id: str
+    run_id: str
+    stage_id: str | None  # null if the underlying stage was deleted post-run
+    order_index: int
+    label: str
+    prompt_md: str = ""
+    checkpoint: bool = False
+    status: StageOutputStatus
+    output_md: str = ""
+    edited_md: str | None = None
+    citations: list[Citation | None] = Field(default_factory=list)
+    model: str = ""
+    fallback: bool = False
+    duration_ms: int = 0
+    error_message: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    approved_at: datetime | None = None
+
+
 class WorkflowRun(BaseModel):
     id: str
     workflow_id: str
@@ -39,17 +62,34 @@ class WorkflowRun(BaseModel):
     started_at: datetime
     completed_at: datetime | None = None
     cells: list[TabularCell] = Field(default_factory=list)
+    stage_outputs: list[AssistantStageOutput] = Field(default_factory=list)
 
 
 class WorkflowRunCreate(BaseModel):
-    """Body for `POST /deals/{deal_id}/workflows/{workflow_id}/runs`."""
-    document_ids: list[str]
+    """Body for `POST /deals/{deal_id}/workflows/{workflow_id}/runs`.
+
+    For assistant runs, `document_ids` may be empty if the workflow doesn't
+    need document grounding (rare); the executor will still run but each
+    stage gets no retrieved context.
+    """
+    document_ids: list[str] = Field(default_factory=list)
+
+
+class StageApprovePayload(BaseModel):
+    """Body for `POST /runs/{run_id}/stages/{stage_output_id}/approve`."""
+    edited_md: str | None = None
 
 
 class TabularCellEvent(BaseModel):
     """Event payload broadcast over SSE for cell status updates."""
     type: Literal["cell"] = "cell"
     cell: TabularCell
+
+
+class StageOutputEvent(BaseModel):
+    """Event payload broadcast over SSE for assistant stage status updates."""
+    type: Literal["stage"] = "stage"
+    stage: AssistantStageOutput
 
 
 class RunStatusEvent(BaseModel):
@@ -61,7 +101,8 @@ class RunStatusEvent(BaseModel):
 
 class RunStreamEnvelope(BaseModel):
     """Tagged union for SSE events. Use `.model_dump()` to serialize."""
-    type: Literal["cell", "run"]
+    type: Literal["cell", "stage", "run"]
     cell: TabularCell | None = None
+    stage: AssistantStageOutput | None = None
     run_id: str | None = None
     status: RunStatus | None = None

@@ -1,10 +1,14 @@
-"""Async executor for workflow runs (Phase 2: tabular).
+"""Async executor for workflow runs (Phase 2: tabular, Phase 3: assistant).
 
-Each `execute_run` task runs in the background after the HTTP create-run
-request returns. Per-cell concurrency is bounded by `_CELL_SEMAPHORE_SIZE`.
+Tabular runs (`execute_run`): every queued cell runs concurrently up to
+`_CELL_SEMAPHORE_SIZE`, then the run is finalized.
 
-A small in-memory event bus (`RunEventBus`) fans out cell/run status updates
-to all SSE subscribers connected for a given run_id.
+Assistant runs (`execute_assistant_run`): stages run serially. After each
+stage with `checkpoint=true`, the run pauses (status `checkpoint`) until
+the analyst calls the approve endpoint, which re-kicks the executor.
+
+Both modes share the in-memory `RunEventBus` that fans out status events
+(cell / stage / run) to SSE subscribers keyed by run_id.
 """
 from __future__ import annotations
 
@@ -71,6 +75,16 @@ def kick_off_run(run_id: str, deal_id: str) -> None:
     """Schedule `execute_run` on the running event loop. Safe to call from
     inside a request handler — returns immediately."""
     task = asyncio.create_task(execute_run(run_id, deal_id))
+    _RUN_TASKS.add(task)
+    task.add_done_callback(_RUN_TASKS.discard)
+
+
+def kick_off_assistant_run(run_id: str, deal_id: str) -> None:
+    """Schedule `execute_assistant_run`. Idempotent — calling it on a run
+    that's still running is a no-op (the running task picks up the same
+    queued stages); calling it on a paused run resumes from the next
+    queued stage."""
+    task = asyncio.create_task(execute_assistant_run(run_id, deal_id))
     _RUN_TASKS.add(task)
     task.add_done_callback(_RUN_TASKS.discard)
 
@@ -212,4 +226,153 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
     if updated is not None:
         await run_event_bus.publish(
             run_id, {"type": "cell", "cell": updated.model_dump(mode="json")}
+        )
+
+
+# ── Assistant runs (Phase 3) ──
+
+
+_PRIOR_STAGE_HEADER = (
+    "Prior approved stage outputs are available below. Use them as authoritative "
+    "facts for this stage. If a prior output conflicts with the source documents, "
+    "trust the prior output (the analyst has approved it)."
+)
+
+
+async def execute_assistant_run(run_id: str, deal_id: str) -> None:
+    """Run queued stages serially until the run reaches a checkpoint or
+    terminal state. Re-entrant: callable again after `approve_stage` to
+    resume."""
+    run = workflow_run_store.get_run(run_id)
+    if run is None:
+        return
+    document_ids = list(run.document_ids)
+
+    workflow_run_store.set_run_status(run_id, "running")
+    await run_event_bus.publish(run_id, {"type": "run", "run_id": run_id, "status": "running"})
+
+    while True:
+        next_stage = workflow_run_store.next_queued_stage(run_id)
+        if next_stage is None:
+            break
+        await execute_assistant_stage(next_stage.id, run_id, deal_id, document_ids)
+        latest = workflow_run_store.get_stage_output(next_stage.id)
+        if latest is None:
+            # Stage vanished (shouldn't happen) — bail to avoid an infinite loop.
+            workflow_run_store.error_stage(next_stage.id, "Stage output missing after execution")
+            break
+        if latest.status == "checkpoint":
+            # Pause — analyst must approve before we proceed.
+            workflow_run_store.set_run_status(run_id, "checkpoint")
+            await run_event_bus.publish(
+                run_id, {"type": "run", "run_id": run_id, "status": "checkpoint"}
+            )
+            return
+        if latest.status == "error":
+            # Halt the rest of the run on error.
+            break
+
+    _, worst = workflow_run_store.all_stages_terminal(run_id)
+    final_status = worst or "complete"
+    workflow_run_store.set_run_status(run_id, final_status)
+    await run_event_bus.publish(
+        run_id, {"type": "run", "run_id": run_id, "status": final_status}
+    )
+
+
+async def execute_assistant_stage(
+    stage_output_id: str, run_id: str, deal_id: str, document_ids: list[str]
+) -> None:
+    """Run a single assistant stage: gather prior approved outputs, retrieve
+    document context across all docs, call the LLM, extract citations,
+    persist (transitioning to either `checkpoint` or `complete`)."""
+    stage = workflow_run_store.get_stage_output(stage_output_id)
+    if stage is None:
+        return
+
+    running = workflow_run_store.mark_stage_running(stage_output_id)
+    if running is not None:
+        await run_event_bus.publish(
+            run_id, {"type": "stage", "stage": running.model_dump(mode="json")}
+        )
+
+    prior = [
+        s for s in workflow_run_store.list_terminal_stages(run_id)
+        if s.id != stage_output_id and s.order_index < stage.order_index
+    ]
+    prior_section = ""
+    if prior:
+        chunks_md = []
+        for s in prior:
+            content = s.edited_md if s.edited_md is not None else s.output_md
+            chunks_md.append(f"### Stage {s.order_index}: {s.label}\n\n{content}")
+        prior_section = (
+            f"\n\n---\n\n{_PRIOR_STAGE_HEADER}\n\n" + "\n\n".join(chunks_md) + "\n\n---\n\n"
+        )
+
+    user_message = (
+        f"Stage instructions ({stage.label}):\n\n{stage.prompt_md}\n"
+        + prior_section
+        + "\n\nWrite the markdown output for this stage. Use [Source N] markers "
+        "when grounding claims in the document context above."
+    )
+
+    try:
+        all_chunks: list = []
+        for doc_id in document_ids:
+            try:
+                chunks = await query_document(deal_id, doc_id, stage.prompt_md or stage.label)
+            except Exception:
+                logger.exception("query_document failed: doc=%s", doc_id)
+                chunks = []
+            if chunks:
+                all_chunks.extend(chunks)
+
+        if all_chunks:
+            context_str = build_context_string(all_chunks)
+        else:
+            context_str = "(no document context retrieved)"
+
+        system_prompt = SINGLE_DEAL_SYSTEM.format(context=context_str)
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_message),
+        ]
+
+        full_answer_parts: list[str] = []
+        async for chunk in stream_with_fallback(messages):
+            token = getattr(chunk, "content", "") or ""
+            if token:
+                full_answer_parts.append(token)
+        full_answer = "".join(full_answer_parts)
+
+        # For citations we use the union of retrieved chunks. We don't
+        # have per-doc full text (multi-doc), so page_context_chunks is
+        # omitted — extract_citations falls back to retrieved-chunk pages.
+        cleaned_answer, citations = extract_citations(
+            full_answer,
+            all_chunks,
+            deal_id=deal_id,
+            page_context_chunks=None,
+        )
+        meta = get_last_meta()
+        workflow_run_store.complete_stage(
+            stage_output_id,
+            output_md=cleaned_answer,
+            citations=citations,
+            model=meta.model_used if meta else "",
+            fallback=meta.fallback if meta else False,
+            duration_ms=meta.duration_ms if meta else 0,
+            needs_checkpoint=stage.checkpoint,
+        )
+    except Exception as exc:
+        logger.exception("Assistant stage execution failed: stage=%s", stage_output_id)
+        workflow_run_store.error_stage(
+            stage_output_id, f"{type(exc).__name__}: {exc}"
+        )
+
+    updated = workflow_run_store.get_stage_output(stage_output_id)
+    if updated is not None:
+        await run_event_bus.publish(
+            run_id, {"type": "stage", "stage": updated.model_dump(mode="json")}
         )

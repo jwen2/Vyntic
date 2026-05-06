@@ -14,7 +14,7 @@ interface WorkflowLibraryProps {
   onClone: (workflowId: string) => void;
   onEdit: (workflowId: string) => void;
   onNew: (type: WorkflowType) => void;
-  /** Phase 2: open the doc-selector modal for this workflow (tabular only). */
+  /** Open the doc-selector modal to start a run (tabular or assistant). */
   onRun?: (workflowId: string) => void;
 }
 
@@ -162,7 +162,7 @@ export default function WorkflowLibrary({
                 workflow={wf}
                 theme={theme}
                 onClone={() => onClone(wf.id)}
-                onRun={onRun && wf.type === "tabular" ? () => onRun(wf.id) : undefined}
+                onRun={onRun ? () => onRun(wf.id) : undefined}
               />
             ))}
           </div>
@@ -239,7 +239,7 @@ export default function WorkflowLibrary({
                 workflow={wf}
                 theme={theme}
                 onEdit={() => onEdit(wf.id)}
-                onRun={onRun && wf.type === "tabular" ? () => onRun(wf.id) : undefined}
+                onRun={onRun ? () => onRun(wf.id) : undefined}
               />
             ))}
           </div>

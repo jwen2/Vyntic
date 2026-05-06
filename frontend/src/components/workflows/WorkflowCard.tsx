@@ -24,8 +24,7 @@ export default function WorkflowCard({
   onRun,
   onDelete,
 }: WorkflowCardProps) {
-  // Run is live when an onRun handler is wired up; otherwise we render a
-  // hint-disabled button (assistant workflows in Phase 2 have no execution yet).
+  // Run is live when an onRun handler is wired up.
   const runDisabled = !onRun;
   const c = ddTheme(theme);
   const typeColor = workflowTypeColor(workflow.type);
@@ -111,9 +110,9 @@ export default function WorkflowCard({
 
       <div style={{ display: "flex", gap: 6, marginTop: "auto", flexWrap: "wrap" }}>
         <CardButton
-          label={runDisabled ? (workflow.type === "assistant" ? "Run (Phase 3)" : "Run") : "Run"}
+          label="Run"
           primary
-          disabled={runDisabled || !onRun}
+          disabled={runDisabled}
           onClick={onRun}
           theme={theme}
         />

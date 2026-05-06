@@ -1,0 +1,455 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { ddTheme } from "@/components/dd/types";
+import { listDocuments, type Citation, type DocumentMetadata } from "@/lib/api";
+import { getRun, type AssistantStageOutput, type Workflow, type WorkflowRun } from "@/lib/workflows";
+import DocumentViewer from "@/components/DocumentViewer";
+import { ACCENT, GREEN, RED, tint } from "./theme";
+
+type Theme = "light" | "dark";
+
+interface MemoOutputProps {
+  dealId: string;
+  runId: string;
+  workflow: Workflow;
+  theme: Theme;
+  onBack: () => void;
+}
+
+interface ViewerState {
+  dealId: string;
+  filename: string;
+  page: number;
+  snippet: string;
+}
+
+export default function MemoOutput({
+  dealId,
+  runId,
+  workflow,
+  theme,
+  onBack,
+}: MemoOutputProps) {
+  const c = ddTheme(theme);
+  const [run, setRun] = useState<WorkflowRun | null>(null);
+  const [docs, setDocs] = useState<DocumentMetadata[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [viewerState, setViewerState] = useState<ViewerState | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getRun(runId)
+      .then((r) => {
+        if (active) setRun(r);
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : "Failed to load run");
+      });
+    return () => {
+      active = false;
+    };
+  }, [runId]);
+
+  useEffect(() => {
+    let active = true;
+    listDocuments(dealId)
+      .then((items) => {
+        if (active) setDocs(items);
+      })
+      .catch(() => {
+        if (active) setDocs([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [dealId]);
+
+  const stages = useMemo(() => {
+    if (!run) return [];
+    return [...run.stage_outputs].sort((a, b) => a.order_index - b.order_index);
+  }, [run]);
+
+  // Citation tally per source document.
+  const citesByDoc = useMemo(() => {
+    const map = new Map<string, number>();
+    stages.forEach((s) => {
+      s.citations.forEach((cite) => {
+        if (!cite) return;
+        map.set(cite.source_file, (map.get(cite.source_file) ?? 0) + 1);
+      });
+    });
+    return map;
+  }, [stages]);
+
+  if (error) {
+    return (
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: RED,
+          fontSize: 13,
+        }}
+      >
+        {error}
+      </div>
+    );
+  }
+
+  if (!run) {
+    return (
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: c.t2,
+          fontSize: 12,
+        }}
+      >
+        Loading…
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      {/* Top crumb / status bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 24px",
+          borderBottom: `1px solid ${c.border}`,
+        }}
+      >
+        <button
+          onClick={onBack}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: c.t3,
+            fontSize: 12,
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          ← {workflow.name}
+        </button>
+        <span style={{ color: c.t4 }}>›</span>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>
+          Run #{run.run_number} — Memo Output
+        </span>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "2px 9px",
+            borderRadius: 999,
+            border: `1px solid ${tint(GREEN, 30)}`,
+            background: tint(GREEN, 15),
+            color: GREEN,
+            fontSize: 10,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: GREEN,
+            }}
+          />
+          Complete
+        </span>
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: c.t3 }}>
+          Word/PDF export — Phase 4
+        </span>
+      </div>
+
+      {/* Body: memo center + TOC sidebar */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            display: "flex",
+            justifyContent: "center",
+            padding: "32px 24px",
+            background: c.bg,
+          }}
+        >
+          <div style={{ maxWidth: 720, width: "100%" }}>
+            {/* Memo header */}
+            <div style={{ marginBottom: 28 }}>
+              <div
+                style={{
+                  fontSize: 10,
+                  color: c.t3,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: 8,
+                }}
+              >
+                {workflow.description || "Generated memo"}
+              </div>
+              <h1
+                style={{
+                  fontSize: 24,
+                  fontWeight: 700,
+                  marginBottom: 6,
+                  color: c.t1,
+                }}
+              >
+                {workflow.name}
+              </h1>
+              <div style={{ fontSize: 12, color: c.t2 }}>
+                Generated {formatDate(run.completed_at ?? run.started_at)} · Run #
+                {run.run_number} · {run.document_ids.length} document
+                {run.document_ids.length === 1 ? "" : "s"} analyzed
+              </div>
+            </div>
+
+            {stages.map((stage) => (
+              <MemoSection
+                key={stage.id}
+                stage={stage}
+                theme={theme}
+                onCitationClick={(cite) => {
+                  setViewerState({
+                    dealId,
+                    filename: cite.source_file,
+                    page: cite.page,
+                    snippet: cite.text_snippet || "",
+                  });
+                }}
+              />
+            ))}
+
+            <div
+              style={{
+                fontSize: 12,
+                color: c.t3,
+                fontStyle: "italic",
+                padding: "16px 0",
+                borderTop: `1px solid ${c.border}`,
+                marginTop: 24,
+              }}
+            >
+              Memo generated from {run.document_ids.length} document
+              {run.document_ids.length === 1 ? "" : "s"}. All citations link to
+              source passages.
+            </div>
+          </div>
+        </div>
+
+        {/* TOC + sources sidebar */}
+        <div
+          style={{
+            width: 280,
+            flexShrink: 0,
+            borderLeft: `1px solid ${c.border}`,
+            background: c.surfaceAlt,
+            overflowY: "auto",
+            padding: 16,
+          }}
+        >
+          <SectionLabel theme={theme}>Contents</SectionLabel>
+          {stages.map((s) => (
+            <a
+              key={s.id}
+              href={`#stage-${s.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById(`stage-${s.id}`);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              style={{
+                display: "block",
+                fontSize: 11,
+                color: c.t1,
+                padding: "5px 8px",
+                cursor: "pointer",
+                borderRadius: 4,
+                fontWeight: 500,
+                textDecoration: "none",
+              }}
+            >
+              {s.order_index}. {s.label}
+            </a>
+          ))}
+
+          <div style={{ marginTop: 20 }}>
+            <SectionLabel theme={theme}>Sources</SectionLabel>
+            {run.document_ids.map((docId) => {
+              const doc = docs.find((d) => d.doc_id === docId);
+              const filename = doc?.filename ?? docId;
+              const cites = citesByDoc.get(filename) ?? 0;
+              return (
+                <div
+                  key={docId}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "6px 8px",
+                    fontSize: 11,
+                    color: c.t2,
+                  }}
+                >
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                    title={filename}
+                  >
+                    📄 {filename}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      color: c.t3,
+                      fontFamily: "var(--font-mono, monospace)",
+                      flexShrink: 0,
+                      marginLeft: 8,
+                    }}
+                  >
+                    {cites} cite{cites === 1 ? "" : "s"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {viewerState && (
+        <DocumentViewer
+          dealId={viewerState.dealId}
+          filename={viewerState.filename}
+          page={viewerState.page}
+          snippet={viewerState.snippet}
+          onClose={() => setViewerState(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function MemoSection({
+  stage,
+  theme,
+  onCitationClick,
+}: {
+  stage: AssistantStageOutput;
+  theme: Theme;
+  onCitationClick: (cite: Citation) => void;
+}) {
+  const c = ddTheme(theme);
+  const body = stage.edited_md ?? stage.output_md;
+  const realCites = stage.citations.filter(
+    (cite): cite is Citation => cite !== null
+  );
+  return (
+    <div id={`stage-${stage.id}`} style={{ marginBottom: 26, scrollMarginTop: 24 }}>
+      <h3
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          marginBottom: 8,
+          color: c.t1,
+        }}
+      >
+        {stage.order_index}. {stage.label}
+      </h3>
+      <pre
+        style={{
+          margin: 0,
+          fontSize: 13,
+          color: c.t2,
+          lineHeight: 1.75,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          fontFamily: "inherit",
+        }}
+      >
+        {body}
+      </pre>
+      {realCites.length > 0 && (
+        <div
+          style={{
+            marginTop: 10,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+          }}
+        >
+          {realCites.map((cite, i) => (
+            <button
+              key={i}
+              onClick={() => onCitationClick(cite)}
+              title={cite.text_snippet || ""}
+              style={{
+                fontSize: 10,
+                fontFamily: "var(--font-mono, monospace)",
+                color: ACCENT,
+                background: tint(ACCENT, 10),
+                border: `1px solid ${tint(ACCENT, 30)}`,
+                borderRadius: 4,
+                padding: "2px 7px",
+                cursor: "pointer",
+              }}
+            >
+              {cite.source_file} · p.{cite.page}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectionLabel({ theme, children }: { theme: Theme; children: React.ReactNode }) {
+  const c = ddTheme(theme);
+  return (
+    <div
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        color: c.t3,
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        marginBottom: 10,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}

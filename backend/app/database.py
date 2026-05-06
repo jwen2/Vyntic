@@ -227,7 +227,7 @@ class WorkflowRunRow(Base):
     workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, index=True)
     deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
     run_number = Column(Integer, nullable=False)  # auto-assigned per workflow at create time
-    status = Column(String, default="pending", index=True)  # pending|running|complete|cancelled|error
+    status = Column(String, default="pending", index=True)  # pending|running|checkpoint|complete|cancelled|error
     document_ids_json = Column(Text, default="[]")  # JSON list of doc_ids selected for this run
     started_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     started_at = Column(DateTime, default=datetime.utcnow)
@@ -237,6 +237,12 @@ class WorkflowRunRow(Base):
         "TabularCellRow",
         back_populates="run",
         cascade="all, delete-orphan",
+    )
+    stage_outputs = relationship(
+        "AssistantStageOutputRow",
+        back_populates="run",
+        cascade="all, delete-orphan",
+        order_by="AssistantStageOutputRow.order_index",
     )
 
 
@@ -260,6 +266,35 @@ class TabularCellRow(Base):
     completed_at = Column(DateTime, nullable=True)
 
     run = relationship("WorkflowRunRow", back_populates="cells")
+
+
+# ── Assistant stage outputs (Phase 3: assistant execution + checkpoints) ──
+
+class AssistantStageOutputRow(Base):
+    __tablename__ = "assistant_stage_outputs"
+
+    id = Column(String, primary_key=True, index=True)
+    run_id = Column(String, ForeignKey("workflow_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    # stage_id is a snapshot pointer; if the workflow's stages are edited mid-run
+    # we still want to keep the run intact, hence SET NULL not CASCADE.
+    stage_id = Column(String, ForeignKey("workflow_stages.id", ondelete="SET NULL"), nullable=True, index=True)
+    order_index = Column(Integer, nullable=False)  # snapshot from stage at run-start
+    label = Column(String, nullable=False)  # snapshot
+    prompt_md = Column(Text, default="")  # snapshot of the prompt that ran
+    checkpoint = Column(Boolean, default=False)  # snapshot
+    status = Column(String, default="queued", index=True)  # queued|running|checkpoint|complete|error
+    output_md = Column(Text, default="")  # raw LLM output (cleaned of citation markers)
+    edited_md = Column(Text, nullable=True)  # analyst-edited version supplied at approve time
+    citations_json = Column(Text, default="[]")
+    model = Column(String, default="")
+    fallback = Column(Boolean, default=False)
+    duration_ms = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+
+    run = relationship("WorkflowRunRow", back_populates="stage_outputs")
 
 
 def init_db():
