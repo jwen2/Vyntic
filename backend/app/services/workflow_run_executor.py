@@ -30,7 +30,17 @@ from app.utils.citations import build_context_string, extract_citations
 logger = logging.getLogger(__name__)
 
 _CELL_SEMAPHORE_SIZE = 4
+_TABULAR_DOC_TOP_K = 12
+_TABULAR_SYNTHESIS_MAX_CHUNKS = 32
 _RUN_TASKS: set[asyncio.Task] = set()  # keep strong refs so background tasks aren't GC'd
+
+_TABULAR_OUTPUT_DIRECTIVE = (
+    "\n\nGrounding rules: Use only the numbered source blocks in the provided "
+    "context. Answer the exact extraction prompt for this cell. If the sources "
+    "do not directly support the value, return an empty string. Do not infer, "
+    "estimate, or use outside knowledge. Every non-empty answer must include "
+    "at least one valid [Source N] marker."
+)
 
 
 # ── Event bus ──
@@ -180,13 +190,23 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
     workflow = workflow_store.get_workflow(run.workflow_id) if run else None
     is_synthesis = workflow is not None and workflow.row_source == "multi_doc_synthesis"
     row_question = cell.row_key if is_synthesis else ""
+    retrieval_query = _tabular_retrieval_query(
+        column["label"],
+        column_prompt,
+        row_question=row_question,
+    )
     if is_synthesis:
         user_message = (
             f"Row question: {row_question}\n\nExtraction column: {column['label']}\n\n"
-            f"{column_prompt}{suffix}"
+            f"User extraction prompt:\n{column_prompt}{suffix}"
+            f"{_TABULAR_OUTPUT_DIRECTIVE}"
         )
     else:
-        user_message = column_prompt + suffix
+        user_message = (
+            f"Extraction column: {column['label']}\n\n"
+            f"User extraction prompt:\n{column_prompt}{suffix}"
+            f"{_TABULAR_OUTPUT_DIRECTIVE}"
+        )
 
     try:
         if is_synthesis:
@@ -196,15 +216,26 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
                     chunks = await query_document(
                         deal_id,
                         doc_id,
-                        f"{row_question}\n{column_prompt}",
+                        retrieval_query,
+                        top_k=_TABULAR_DOC_TOP_K,
                     )
                 except Exception:
                     logger.exception("query_document failed: doc=%s", doc_id)
                     chunks = []
                 retrieved.extend(chunks)
+            retrieved = sorted(
+                retrieved,
+                key=lambda chunk: chunk.get("score", 0),
+                reverse=True,
+            )[:_TABULAR_SYNTHESIS_MAX_CHUNKS]
         else:
             doc_id = cell.row_key  # one_doc_per_row: row_key == doc_id
-            retrieved = await query_document(deal_id, doc_id, column_prompt)
+            retrieved = await query_document(
+                deal_id,
+                doc_id,
+                retrieval_query,
+                top_k=_TABULAR_DOC_TOP_K,
+            )
         if not retrieved:
             answer = ""
             citations: list = []
@@ -233,14 +264,33 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
                     full_answer_parts.append(token)
             full_answer = "".join(full_answer_parts)
 
-            full_doc_chunks = None if is_synthesis else get_document_chunks(deal_id, cell.row_key)
+            if is_synthesis:
+                full_doc_chunks = []
+                for doc_id in run.document_ids if run else []:
+                    try:
+                        full_doc_chunks.extend(get_document_chunks(deal_id, doc_id))
+                    except Exception:
+                        logger.exception("get_document_chunks failed: doc=%s", doc_id)
+            else:
+                full_doc_chunks = get_document_chunks(deal_id, cell.row_key)
             cleaned_answer, citations = extract_citations(
                 full_answer,
                 retrieved,
                 deal_id=deal_id,
-                page_context_chunks=full_doc_chunks,
+                page_context_chunks=full_doc_chunks or None,
             )
-            formatted = parse_answer(cleaned_answer, column["format"], column["tags"])
+            cleaned_answer = cleaned_answer.strip()
+            if cleaned_answer and not _has_valid_citation(citations):
+                logger.info(
+                    "Blanking uncited workflow cell answer: cell=%s column=%s",
+                    cell_id,
+                    column["label"],
+                )
+                cleaned_answer = ""
+                citations = []
+                formatted = None
+            else:
+                formatted = parse_answer(cleaned_answer, column["format"], column["tags"])
             meta = get_last_meta()
             workflow_run_store.complete_cell(
                 cell_id,
@@ -260,6 +310,29 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
         await run_event_bus.publish(
             run_id, {"type": "cell", "cell": updated.model_dump(mode="json")}
         )
+
+
+def _tabular_retrieval_query(
+    column_label: str,
+    column_prompt: str,
+    row_question: str = "",
+) -> str:
+    """Use both analyst label and prompt so retrieval matches the intended cell."""
+    parts: list[str] = []
+    row_question = (row_question or "").strip()
+    column_label = (column_label or "").strip()
+    column_prompt = (column_prompt or "").strip()
+    if row_question:
+        parts.append(f"Row question: {row_question}")
+    if column_label:
+        parts.append(f"Column label: {column_label}")
+    if column_prompt and column_prompt.lower() != column_label.lower():
+        parts.append(f"Extraction prompt: {column_prompt}")
+    return "\n".join(parts) or column_prompt or column_label
+
+
+def _has_valid_citation(citations: list) -> bool:
+    return any(citation is not None for citation in citations)
 
 
 async def execute_formula_cell(cell_id: str, run_id: str):

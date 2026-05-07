@@ -15,8 +15,8 @@ import {
   type WorkflowRun,
 } from "@/lib/workflows";
 import DocumentViewer from "@/components/DocumentViewer";
+import AnswerText from "@/components/dd/AnswerText";
 import { ACCENT, AMBER, GREEN, RED, tint } from "./theme";
-import WorkflowMarkdown from "./WorkflowMarkdown";
 
 type Theme = "light" | "dark";
 
@@ -53,6 +53,7 @@ export default function AssistantRun({
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [viewerState, setViewerState] = useState<ViewerState | null>(null);
+  const [activeCitationId, setActiveCitationId] = useState<string | null>(null);
   /** Map<stage_output_id, edited_md_draft> for unsaved edits at the checkpoint. */
   const [editDrafts, setEditDrafts] = useState<Map<string, string>>(new Map());
   /** Stage output id currently being approved (for spinner state). */
@@ -61,12 +62,22 @@ export default function AssistantRun({
   const completedFiredRef = useRef(false);
   onCompleteRef.current = onComplete;
 
-  const handleCitationClick = useCallback((citation: Citation, citDealId: string) => {
+  const handleCitationClick = useCallback((citation: Citation, citDealId: string, id?: string) => {
+    if (id) setActiveCitationId(id);
     setViewerState({
       dealId: citDealId,
       filename: citation.source_file,
       page: citation.page,
       snippet: citation.text_snippet || "",
+    });
+  }, []);
+
+  const applyRunSnapshot = useCallback((nextRun: WorkflowRun) => {
+    setRun(nextRun);
+    setStages((prev) => {
+      const next = new Map(prev);
+      for (const s of nextRun.stage_outputs) next.set(s.id, s);
+      return next;
     });
   }, []);
 
@@ -105,12 +116,7 @@ export default function AssistantRun({
     getRun(runId)
       .then((r) => {
         if (!active) return;
-        setRun(r);
-        setStages((prev) => {
-          const next = new Map(prev);
-          for (const s of r.stage_outputs) next.set(s.id, s);
-          return next;
-        });
+        applyRunSnapshot(r);
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "Failed to load run");
@@ -118,18 +124,42 @@ export default function AssistantRun({
     return () => {
       active = false;
     };
-  }, [runId]);
+  }, [runId, applyRunSnapshot]);
+
+  // SSE is the primary realtime channel, but EventSource can miss a transition
+  // across reconnects. Poll active assistant runs so checkpoint approvals never
+  // leave the UI showing stale stage state.
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const refresh = async () => {
+      if (cancelled) return;
+      try {
+        const nextRun = await getRun(runId);
+        if (!cancelled) applyRunSnapshot(nextRun);
+      } catch {
+        // Keep the existing SSE/error surface; transient refresh failures should
+        // not replace visible workflow output.
+      } finally {
+        if (!cancelled) timeoutId = setTimeout(refresh, 3000);
+      }
+    };
+
+    if (!run || run.status === "pending" || run.status === "running" || run.status === "checkpoint") {
+      timeoutId = setTimeout(refresh, 3000);
+    }
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [run?.status, runId, applyRunSnapshot]);
 
   // SSE subscription
   useEffect(() => {
     const handleEvent = (event: RunStreamEvent) => {
       if (event.type === "snapshot") {
-        setRun(event.run);
-        setStages((prev) => {
-          const next = new Map(prev);
-          for (const s of event.run.stage_outputs) next.set(s.id, s);
-          return next;
-        });
+        applyRunSnapshot(event.run);
       } else if (event.type === "stage") {
         setStages((prev) => {
           const next = new Map(prev);
@@ -149,7 +179,7 @@ export default function AssistantRun({
       // EventSource auto-reconnects; we'll re-snapshot via the GET on remount.
     });
     return close;
-  }, [runId]);
+  }, [runId, applyRunSnapshot]);
 
   // If the run is already complete on initial REST snapshot (e.g. user
   // navigated back to a finished assistant run), fire onComplete too.
@@ -194,21 +224,32 @@ export default function AssistantRun({
       const draft = editDrafts.get(stage.id);
       const editedMd = draft !== undefined && draft !== stage.output_md ? draft : undefined;
       setApproving(stage.id);
+      setError(null);
       try {
-        await approveStage(runId, stage.id, editedMd);
-        // The SSE will deliver the updated stage + run-status events; clear the draft.
+        const approved = await approveStage(runId, stage.id, editedMd);
+        setStages((prev) => {
+          const next = new Map(prev);
+          next.set(approved.id, approved);
+          return next;
+        });
+        setRun((prev) => (prev ? { ...prev, status: "running" } : prev));
         setEditDrafts((prev) => {
           const next = new Map(prev);
           next.delete(stage.id);
           return next;
         });
+        try {
+          applyRunSnapshot(await getRun(runId));
+        } catch {
+          // Polling/SSE will catch the next transition.
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to approve stage");
       } finally {
         setApproving(null);
       }
     },
-    [runId, editDrafts]
+    [runId, editDrafts, applyRunSnapshot]
   );
 
   const setDraft = useCallback((stageId: string, md: string) => {
@@ -389,6 +430,8 @@ export default function AssistantRun({
               onApprove={() => handleApprove(focusedStage)}
               approving={approving === focusedStage.id}
               theme={theme}
+              activeCitationId={activeCitationId}
+              onCitationClick={(cite, id) => handleCitationClick(cite, dealId, id)}
             />
           ) : (
             <div style={{ color: c.t3, fontSize: 12 }}>
@@ -406,6 +449,8 @@ export default function AssistantRun({
                 key={s.id}
                 stage={s}
                 theme={theme}
+                activeCitationId={activeCitationId}
+                onCitationClick={(cite, id) => handleCitationClick(cite, dealId, id)}
               />
             ))}
         </div>
@@ -416,6 +461,7 @@ export default function AssistantRun({
           runHistory={runHistory}
           stage={focusedStage}
           dealId={dealId}
+          activeCitationId={activeCitationId}
           onCitationClick={handleCitationClick}
         />
       </div>
@@ -552,6 +598,8 @@ function StageDetail({
   onApprove,
   approving,
   theme,
+  activeCitationId,
+  onCitationClick,
 }: {
   stage: AssistantStageOutput;
   draft: string | undefined;
@@ -559,6 +607,8 @@ function StageDetail({
   onApprove: () => void;
   approving: boolean;
   theme: Theme;
+  activeCitationId: string | null;
+  onCitationClick: (cite: Citation, id: string) => void;
 }) {
   const c = ddTheme(theme);
   const isCheckpoint = stage.status === "checkpoint";
@@ -645,41 +695,49 @@ function StageDetail({
           Waiting for output…
         </div>
       ) : editable ? (
-        <textarea
-          value={value}
-          onChange={(e) => setDraft(stage.id, e.target.value)}
-          spellCheck={false}
-          style={{
-            width: "100%",
-            minHeight: 280,
-            padding: "12px 14px",
-            background: c.surface,
-            border: `1px solid ${c.border}`,
-            borderLeft: `3px solid ${tint(ACCENT, 50)}`,
-            borderRadius: 8,
-            fontSize: 12.5,
-            color: c.t1,
-            lineHeight: 1.7,
-            fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-            resize: "vertical",
-            outline: "none",
-          }}
-        />
+        <>
+          <AssistantOutputText
+            text={value || ""}
+            citations={stage.citations}
+            activeCitationId={activeCitationId}
+            onCitationClick={onCitationClick}
+            theme={theme}
+          />
+          <details style={{ marginTop: 12 }}>
+            <summary style={{ fontSize: 11, fontWeight: 600, color: c.t3, cursor: "pointer" }}>
+              Edit markdown
+            </summary>
+            <textarea
+              value={value}
+              onChange={(e) => setDraft(stage.id, e.target.value)}
+              spellCheck={false}
+              style={{
+                width: "100%",
+                minHeight: 220,
+                marginTop: 8,
+                padding: "12px 14px",
+                background: c.surface,
+                border: `1px solid ${c.border}`,
+                borderLeft: `3px solid ${tint(ACCENT, 50)}`,
+                borderRadius: 8,
+                fontSize: 12.5,
+                color: c.t1,
+                lineHeight: 1.7,
+                fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+                resize: "vertical",
+                outline: "none",
+              }}
+            />
+          </details>
+        </>
       ) : (
-        <div
-          style={{
-            margin: 0,
-            padding: "12px 14px",
-            background: c.surface,
-            border: `1px solid ${c.border}`,
-            borderLeft: `3px solid ${tint(ACCENT, 30)}`,
-            borderRadius: 8,
-          }}
-        >
-          <WorkflowMarkdown theme={theme} compact>
-            {value || (stage.status === "queued" ? "(queued)" : "")}
-          </WorkflowMarkdown>
-        </div>
+        <AssistantOutputText
+          text={value || (stage.status === "queued" ? "(queued)" : "")}
+          citations={stage.citations}
+          activeCitationId={activeCitationId}
+          onCitationClick={onCitationClick}
+          theme={theme}
+        />
       )}
     </div>
   );
@@ -688,9 +746,13 @@ function StageDetail({
 function CompletedStageBlock({
   stage,
   theme,
+  activeCitationId,
+  onCitationClick,
 }: {
   stage: AssistantStageOutput;
   theme: Theme;
+  activeCitationId: string | null;
+  onCitationClick: (cite: Citation, id: string) => void;
 }) {
   const c = ddTheme(theme);
   return (
@@ -711,20 +773,54 @@ function CompletedStageBlock({
           </span>
         )}
       </summary>
-      <div
-        style={{
-          margin: "8px 0 0 0",
-          padding: "10px 12px",
-          background: c.surfaceAlt,
-          border: `1px solid ${c.border}`,
-          borderRadius: 6,
-        }}
-      >
-        <WorkflowMarkdown theme={theme} compact>
-          {stage.edited_md ?? stage.output_md}
-        </WorkflowMarkdown>
-      </div>
+      <AssistantOutputText
+        text={stage.edited_md ?? stage.output_md}
+        citations={stage.citations}
+        activeCitationId={activeCitationId}
+        onCitationClick={onCitationClick}
+        theme={theme}
+        muted
+      />
     </details>
+  );
+}
+
+function AssistantOutputText({
+  text,
+  citations,
+  activeCitationId,
+  onCitationClick,
+  theme,
+  muted = false,
+}: {
+  text: string;
+  citations: (Citation | null)[];
+  activeCitationId: string | null;
+  onCitationClick: (cite: Citation, id: string) => void;
+  theme: Theme;
+  muted?: boolean;
+}) {
+  const c = ddTheme(theme);
+  return (
+    <div
+      style={{
+        margin: muted ? "8px 0 0 0" : 0,
+        padding: muted ? "10px 12px" : "12px 14px",
+        background: muted ? c.surfaceAlt : c.surface,
+        border: `1px solid ${c.border}`,
+        borderLeft: `3px solid ${tint(ACCENT, muted ? 24 : 35)}`,
+        borderRadius: muted ? 6 : 8,
+        fontSize: 12.5,
+        color: c.t1,
+      }}
+    >
+      <AnswerText
+        text={text}
+        citations={citations}
+        activeCitId={activeCitationId}
+        onCit={onCitationClick}
+      />
+    </div>
   );
 }
 
@@ -733,6 +829,7 @@ function AssistantSourceSidebar({
   run,
   runHistory,
   dealId,
+  activeCitationId,
   theme,
   onCitationClick,
 }: {
@@ -740,8 +837,9 @@ function AssistantSourceSidebar({
   run: WorkflowRun | null;
   runHistory: WorkflowRun[];
   dealId: string;
+  activeCitationId: string | null;
   theme: Theme;
-  onCitationClick: (cite: Citation, dealId: string) => void;
+  onCitationClick: (cite: Citation, dealId: string, id?: string) => void;
 }) {
   const c = ddTheme(theme);
   const realCites = (stage?.citations ?? []).filter(
@@ -780,7 +878,7 @@ function AssistantSourceSidebar({
               realCites.map((cite, i) => (
                 <button
                   key={`${cite.source_file}-${cite.page}-${i}`}
-                  onClick={() => onCitationClick(cite, cite.deal_id || dealId)}
+                  onClick={() => onCitationClick(cite, cite.deal_id || dealId, workflowCitationId(cite, i))}
                   style={{
                     width: "100%",
                     textAlign: "left",
@@ -816,7 +914,7 @@ function AssistantSourceSidebar({
             )}
             {realCites[0] && (
               <button
-                onClick={() => onCitationClick(realCites[0], realCites[0].deal_id || dealId)}
+                onClick={() => onCitationClick(realCites[0], realCites[0].deal_id || dealId, workflowCitationId(realCites[0], 0))}
                 style={{
                   marginTop: 4,
                   padding: "6px 10px",
@@ -868,6 +966,10 @@ function AssistantSourceSidebar({
       </div>
     </aside>
   );
+}
+
+function workflowCitationId(citation: Citation, index: number): string {
+  return `${citation.source_file}_p${citation.page}_${index}`;
 }
 
 // ── helpers ──
