@@ -41,58 +41,61 @@ def format_prompt_suffix(fmt: str, tags: list[str] | None = None) -> str:
     inline as `[Source N]` referencing the numbered context blocks.
     """
     base_cite = (
-        " Cite every claim inline using [Source N] where N is the source number "
-        "from the context above."
+        " If the value is present, append only the supporting [Source N] marker "
+        "after the value. If the value is not found, return an empty string. "
+        "Do not write 'not stated', 'not found', 'N/A', or any explanation."
     )
 
     if fmt == "yes_no":
         return (
-            " Answer with a single word: 'Yes' or 'No'. If the document does "
-            "not provide a clear answer, respond 'Not stated'." + base_cite
+            " Answer with exactly one of: 'Yes' or 'No'." + base_cite
         )
     if fmt == "number":
         return (
-            " Answer with a single number only — no units, no commas, no "
-            "explanation (e.g. 1234 or 12.5). If the document gives a range, "
-            "respond with the midpoint." + base_cite
+            " Return one scalar number only. No label, no units, no commas, no "
+            "sentence. Example: 1234 or 12.5. If the document gives a range, use "
+            "the midpoint." + base_cite
         )
     if fmt == "percentage":
         return (
-            " Answer with a single percentage value followed by '%' (e.g. 42% "
-            "or 12.5%). No explanation." + base_cite
+            " Return one percentage value only. No label, no sentence. Example: "
+            "42% or 12.5%." + base_cite
         )
     if fmt == "monetary_amount":
         return (
-            " Answer with the monetary value only, including currency symbol "
-            "or code and the period (e.g. $50.4M FY2023, €1.2B LTM). No "
-            "additional explanation." + base_cite
+            " Return one monetary value only. Keep the currency symbol/code and "
+            "magnitude if shown, but do not include labels, periods, explanations, "
+            "or surrounding text. Examples: $50.4M, €1.2B, USD 12.5M." + base_cite
         )
     if fmt == "currency":
         return (
-            " Answer with the ISO currency code only (e.g. USD, EUR). If "
-            "multiple, comma-separate them." + base_cite
+            " Return ISO currency code(s) only. If multiple, comma-separate them."
+            + base_cite
         )
     if fmt == "date":
         return (
-            " Answer with a single ISO date (YYYY-MM-DD). If only a year is "
+            "Return one ISO date only (YYYY-MM-DD). If only a year is "
             "stated, respond 'YYYY-01-01'. If a range, respond 'YYYY-MM-DD to "
             "YYYY-MM-DD'." + base_cite
         )
     if fmt == "bulleted_list":
         return (
-            " Answer as a Markdown bulleted list, one item per line, each "
-            "prefixed with '- '. No headings, no surrounding prose." + base_cite
+            " Return at most 3 compact bullets. Each bullet must be one extracted "
+            "fact or value, not a paragraph. No heading, no surrounding prose."
+            + base_cite
         )
     if fmt == "tag":
         if tags:
             options = ", ".join(tags)
             return (
-                f" Answer with exactly one of these labels: {options}. No "
-                "other text." + base_cite
+                f" Return exactly one label from this list: {options}." + base_cite
             )
         return base_cite
     # Default: text / bulleted_list (no tags) / unknown.
-    return base_cite
+    return (
+        " Return the shortest analyst-usable extracted value: a phrase or one "
+        "short sentence maximum. No generic caveats." + base_cite
+    )
 
 
 # ── Parsing helpers ──

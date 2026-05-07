@@ -787,7 +787,7 @@ export default function DocMatrixPanel({
         </div>
       </div>
 
-      <div className="overflow-auto rounded-lg shadow dark:shadow-gray-900/50 bg-white dark:bg-gray-900 max-h-[calc(100vh-220px)]">
+      <div className="min-h-[360px] overflow-auto rounded-lg shadow dark:shadow-gray-900/50 bg-white dark:bg-gray-900 max-h-[calc(100vh-220px)]">
         <table
           className="border-separate border-spacing-0"
           style={{
@@ -927,7 +927,7 @@ export default function DocMatrixPanel({
                             </span>
                           </div>
                           <div>
-                            <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-1.5 sticky top-10 z-[1]">
+                            <div className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 flex items-center gap-1.5 sticky top-10 z-[2] border-b border-gray-200 dark:border-gray-700">
                               <span>PE</span>
                               Diligence columns
                             </div>
@@ -960,7 +960,7 @@ export default function DocMatrixPanel({
                           </div>
                           {QUERY_TEMPLATES.map((cat) => (
                             <div key={cat.name}>
-                              <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-1.5 sticky top-10 z-[1]">
+                              <div className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 flex items-center gap-1.5 sticky top-10 z-[2] border-b border-gray-200 dark:border-gray-700">
                                 <span>{cat.icon}</span>
                                 {cat.name}
                               </div>
@@ -1173,6 +1173,8 @@ function DocColumnEditMenu({
   });
   const [tagInput, setTagInput] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [panelPos, setPanelPos] = useState({ top: 0, left: 0, maxHeight: 560 });
 
   useEffect(() => {
     if (!open) {
@@ -1188,13 +1190,42 @@ function DocColumnEditMenu({
 
   useEffect(() => {
     if (!open) return;
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = 460;
+      const gap = 8;
+      const top = Math.min(rect.bottom + gap, window.innerHeight - 120);
+      const left = Math.min(
+        Math.max(16, rect.right - width),
+        Math.max(16, window.innerWidth - width - 16)
+      );
+      setPanelPos({
+        top,
+        left,
+        maxHeight: Math.max(320, window.innerHeight - top - 16),
+      });
+    };
+    updatePosition();
     const handler = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
   }, [open]);
 
   function updateDraft(patch: Partial<ColumnDraft>) {
@@ -1262,12 +1293,14 @@ function DocColumnEditMenu({
   }
 
   return (
-    <div className="relative" ref={panelRef} onClick={(e) => e.stopPropagation()}>
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
-        className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-30"
+        className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded opacity-0 group-hover:opacity-100 data-[open=true]:opacity-100 transition-opacity disabled:opacity-30"
+        data-open={open}
         title="Edit label, prompt, and format"
       >
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1275,9 +1308,21 @@ function DocColumnEditMenu({
         </svg>
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-[80] mt-1.5 w-80 rounded-xl border border-gray-200 bg-white p-3 shadow-2xl dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-3 flex items-center justify-between">
+      {open &&
+        createPortal(
+        <div
+          ref={panelRef}
+          className="fixed z-[9999] rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+          style={{
+            top: panelPos.top,
+            left: panelPos.left,
+            width: "min(460px, calc(100vw - 32px))",
+            maxHeight: panelPos.maxHeight,
+            overflowY: "auto",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="sticky top-0 z-10 mb-1 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
             <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Edit column</div>
             <button
               type="button"
@@ -1291,6 +1336,7 @@ function DocColumnEditMenu({
             </button>
           </div>
 
+          <div className="px-4 py-3">
           <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Label</label>
           <input
             value={draft.label}
@@ -1389,16 +1435,20 @@ function DocColumnEditMenu({
             </button>
           </div>
           <textarea
-            rows={6}
+            rows={8}
             value={draft.prompt}
             onChange={(event) => updateDraft({ prompt: event.target.value })}
             className="mt-1 w-full resize-none rounded-md border border-gray-200 bg-white px-2 py-2 text-xs leading-relaxed text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
           />
+          </div>
 
-          <div className="mt-3 flex items-center justify-between">
+          <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
             <button
               type="button"
-              onClick={onDelete}
+              onClick={() => {
+                setOpen(false);
+                onDelete();
+              }}
               className="text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400"
             >
               Delete
@@ -1413,7 +1463,7 @@ function DocColumnEditMenu({
             </button>
           </div>
         </div>
-      )}
+        , document.body)}
     </div>
   );
 }

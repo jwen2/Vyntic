@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ddTheme } from "@/components/dd/types";
 import { listDocuments, type DocumentMetadata } from "@/lib/api";
+import type { RowSource } from "@/lib/workflows";
 import { ACCENT, VIOLET } from "./theme";
 
 type Theme = "light" | "dark";
@@ -12,8 +13,9 @@ interface DocumentSelectorModalProps {
   workflowName: string;
   /** Pre-selected doc ids (for re-runs). */
   initialSelected?: string[];
+  rowSource?: RowSource;
   theme: Theme;
-  onConfirm: (documentIds: string[]) => void;
+  onConfirm: (documentIds: string[], synthesisQuestions?: string[]) => void;
   onCancel: () => void;
 }
 
@@ -21,6 +23,7 @@ export default function DocumentSelectorModal({
   dealId,
   workflowName,
   initialSelected = [],
+  rowSource = "one_doc_per_row",
   theme,
   onConfirm,
   onCancel,
@@ -31,6 +34,16 @@ export default function DocumentSelectorModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [questionsText, setQuestionsText] = useState("");
+  const synthesisQuestions = useMemo(
+    () =>
+      questionsText
+        .split("\n")
+        .map((line) => line.trim().replace(/^[-*]\s+/, ""))
+        .filter(Boolean),
+    [questionsText]
+  );
+  const canRun = selected.size > 0 && (rowSource !== "multi_doc_synthesis" || synthesisQuestions.length > 0);
 
   useEffect(() => {
     let active = true;
@@ -112,7 +125,9 @@ export default function DocumentSelectorModal({
           }}
         >
           <div style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>
-            Select documents to run
+            {rowSource === "multi_doc_synthesis"
+              ? "Select documents and synthesis rows"
+              : "Select documents to run"}
           </div>
           <div style={{ fontSize: 12, color: c.t2, marginTop: 2 }}>{workflowName}</div>
         </div>
@@ -160,6 +175,43 @@ export default function DocumentSelectorModal({
             padding: "8px 12px",
           }}
         >
+          {rowSource === "multi_doc_synthesis" && (
+            <div
+              style={{
+                margin: "8px 8px 12px",
+                padding: 12,
+                background: c.surfaceAlt,
+                border: `1px solid ${c.border}`,
+                borderRadius: 8,
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, color: c.t2, marginBottom: 6 }}>
+                Synthesis rows
+              </div>
+              <textarea
+                value={questionsText}
+                onChange={(e) => setQuestionsText(e.target.value)}
+                placeholder={"One question per line, e.g.\nRevenue bridge by period\nCustomer concentration and churn risk\nAdjusted EBITDA add-backs"}
+                style={{
+                  width: "100%",
+                  minHeight: 96,
+                  padding: "8px 10px",
+                  background: c.bg,
+                  border: `1px solid ${c.border}`,
+                  borderRadius: 7,
+                  color: c.t1,
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  resize: "vertical",
+                  outline: "none",
+                  fontFamily: "inherit",
+                }}
+              />
+              <div style={{ fontSize: 10, color: c.t3, marginTop: 6 }}>
+                {synthesisQuestions.length} row{synthesisQuestions.length === 1 ? "" : "s"} will run across all selected documents.
+              </div>
+            </div>
+          )}
           {loading ? (
             <div style={{ color: c.t2, fontSize: 12, textAlign: "center", padding: 24 }}>
               Loading documents…
@@ -238,20 +290,20 @@ export default function DocumentSelectorModal({
               Cancel
             </button>
             <button
-              onClick={() => onConfirm(Array.from(selected))}
-              disabled={selected.size === 0}
+              onClick={() => onConfirm(Array.from(selected), synthesisQuestions)}
+              disabled={!canRun}
               style={{
                 padding: "6px 14px",
-                background: selected.size === 0 ? c.surfaceAlt : ACCENT,
-                color: selected.size === 0 ? c.t3 : "white",
+                background: !canRun ? c.surfaceAlt : ACCENT,
+                color: !canRun ? c.t3 : "white",
                 border: "none",
                 borderRadius: 7,
                 fontSize: 12,
                 fontWeight: 600,
-                cursor: selected.size === 0 ? "not-allowed" : "pointer",
+                cursor: !canRun ? "not-allowed" : "pointer",
               }}
             >
-              Run on {selected.size} doc{selected.size === 1 ? "" : "s"}
+              Run
             </button>
           </div>
         </div>

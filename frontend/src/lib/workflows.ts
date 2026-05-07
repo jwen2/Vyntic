@@ -277,13 +277,17 @@ export type RunStreamEvent =
 export async function startWorkflowRun(
   dealId: string,
   workflowId: string,
-  documentIds: string[]
+  documentIds: string[],
+  synthesisQuestions: string[] = []
 ): Promise<WorkflowRun> {
   const res = await authedFetch(
     `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/runs`,
     {
       method: "POST",
-      body: JSON.stringify({ document_ids: documentIds }),
+      body: JSON.stringify({
+        document_ids: documentIds,
+        synthesis_questions: synthesisQuestions,
+      }),
     }
   );
   return unwrap<WorkflowRun>(res);
@@ -306,6 +310,28 @@ export async function cancelRun(runId: string): Promise<WorkflowRun> {
     method: "POST",
   });
   return unwrap<WorkflowRun>(res);
+}
+
+export async function downloadRunExport(
+  runId: string,
+  format: "xlsx" | "docx"
+): Promise<void> {
+  const res = await authedFetch(
+    `${API_BASE}/runs/${encodeURIComponent(runId)}/export.${format}`
+  );
+  if (!res.ok) throw new Error(await res.text());
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  const filename = match?.[1] ?? `workflow-run.${format}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 /** Approve a checkpointed assistant stage and resume the run. */

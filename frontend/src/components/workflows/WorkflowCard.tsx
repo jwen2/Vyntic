@@ -13,6 +13,7 @@ interface WorkflowCardProps {
   onEdit?: () => void;
   /** Open the doc-selector to start a run. Tabular workflows only in Phase 2. */
   onRun?: () => void;
+  onHistory?: () => void;
   onDelete?: () => void;
 }
 
@@ -22,6 +23,7 @@ export default function WorkflowCard({
   onClone,
   onEdit,
   onRun,
+  onHistory,
   onDelete,
 }: WorkflowCardProps) {
   // Run is live when an onRun handler is wired up.
@@ -121,6 +123,7 @@ export default function WorkflowCard({
         ) : (
           <CardButton label="Edit" onClick={onEdit} theme={theme} />
         )}
+        {onHistory && <CardButton label="History" onClick={onHistory} theme={theme} />}
         {onDelete && !workflow.is_builtin && (
           <CardButton label="Delete" onClick={onDelete} theme={theme} danger />
         )}

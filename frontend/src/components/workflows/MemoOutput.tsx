@@ -3,9 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { ddTheme } from "@/components/dd/types";
 import { listDocuments, type Citation, type DocumentMetadata } from "@/lib/api";
-import { getRun, type AssistantStageOutput, type Workflow, type WorkflowRun } from "@/lib/workflows";
+import {
+  downloadRunExport,
+  getRun,
+  type AssistantStageOutput,
+  type Workflow,
+  type WorkflowRun,
+} from "@/lib/workflows";
 import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT, GREEN, RED, tint } from "./theme";
+import WorkflowMarkdown from "./WorkflowMarkdown";
 
 type Theme = "light" | "dark";
 
@@ -36,6 +43,7 @@ export default function MemoOutput({
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [viewerState, setViewerState] = useState<ViewerState | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -69,6 +77,8 @@ export default function MemoOutput({
     if (!run) return [];
     return [...run.stage_outputs].sort((a, b) => a.order_index - b.order_index);
   }, [run]);
+  const outputLabel = workflow.output_format === "word" ? "Memo Output" : "Extraction Output";
+  const generatedLabel = workflow.output_format === "word" ? "Generated memo" : "Extracted findings";
 
   // Citation tally per source document.
   const citesByDoc = useMemo(() => {
@@ -143,7 +153,7 @@ export default function MemoOutput({
         </button>
         <span style={{ color: c.t4 }}>›</span>
         <span style={{ fontSize: 13, fontWeight: 600 }}>
-          Run #{run.run_number} — Memo Output
+          Run #{run.run_number} — {outputLabel}
         </span>
         <span
           style={{
@@ -172,12 +182,36 @@ export default function MemoOutput({
           Complete
         </span>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: c.t3 }}>
-          Word/PDF export — Phase 4
-        </span>
+        <button
+          onClick={async () => {
+            if (exporting) return;
+            setExporting(true);
+            try {
+              await downloadRunExport(runId, "docx");
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Export failed");
+            } finally {
+              setExporting(false);
+            }
+          }}
+          disabled={exporting}
+          style={{
+            padding: "5px 10px",
+            background: ACCENT,
+            color: "white",
+            border: "none",
+            borderRadius: 7,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: exporting ? "wait" : "pointer",
+            opacity: exporting ? 0.7 : 1,
+          }}
+        >
+          {exporting ? "Exporting..." : "Word"}
+        </button>
       </div>
 
-      {/* Body: memo center + TOC sidebar */}
+      {/* Body: output center + TOC sidebar */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
         <div
           style={{
@@ -190,7 +224,7 @@ export default function MemoOutput({
           }}
         >
           <div style={{ maxWidth: 720, width: "100%" }}>
-            {/* Memo header */}
+            {/* Output header */}
             <div style={{ marginBottom: 28 }}>
               <div
                 style={{
@@ -201,7 +235,7 @@ export default function MemoOutput({
                   marginBottom: 8,
                 }}
               >
-                {workflow.description || "Generated memo"}
+                {workflow.description || generatedLabel}
               </div>
               <h1
                 style={{
@@ -246,7 +280,7 @@ export default function MemoOutput({
                 marginTop: 24,
               }}
             >
-              Memo generated from {run.document_ids.length} document
+              {generatedLabel} generated from {run.document_ids.length} document
               {run.document_ids.length === 1 ? "" : "s"}. All citations link to
               source passages.
             </div>
@@ -376,19 +410,7 @@ function MemoSection({
       >
         {stage.order_index}. {stage.label}
       </h3>
-      <pre
-        style={{
-          margin: 0,
-          fontSize: 13,
-          color: c.t2,
-          lineHeight: 1.75,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          fontFamily: "inherit",
-        }}
-      >
-        {body}
-      </pre>
+      <WorkflowMarkdown theme={theme}>{body}</WorkflowMarkdown>
       {realCites.length > 0 && (
         <div
           style={{

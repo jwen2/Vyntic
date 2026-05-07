@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections import defaultdict
 from typing import Any
 
@@ -21,7 +22,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.llm import get_last_meta, stream_with_fallback
 from app.agents.prompts import SINGLE_DEAL_SYSTEM
-from app.services import workflow_run_store
+from app.services import workflow_run_store, workflow_store
 from app.services.vector_store import get_document_chunks, query_document
 from app.services.workflow_format import format_prompt_suffix, parse_answer
 from app.utils.citations import build_context_string, extract_citations
@@ -96,7 +97,16 @@ async def execute_run(run_id: str, deal_id: str) -> None:
     await run_event_bus.publish(run_id, {"type": "run", "run_id": run_id, "status": "running"})
 
     cells = workflow_run_store.list_queued_cells(run_id)
-    if not cells:
+    extraction_cells = []
+    derived_cells = []
+    for cell in cells:
+        column = workflow_run_store.load_column(cell.column_id)
+        if column and column["is_derived"]:
+            derived_cells.append(cell)
+        else:
+            extraction_cells.append(cell)
+
+    if not extraction_cells and not derived_cells:
         # Empty run — finalize immediately.
         workflow_run_store.set_run_status(run_id, "complete")
         await run_event_bus.publish(run_id, {"type": "run", "run_id": run_id, "status": "complete"})
@@ -116,7 +126,16 @@ async def execute_run(run_id: str, deal_id: str) -> None:
                         run_id, {"type": "cell", "cell": cell.model_dump(mode="json")}
                     )
 
-    await asyncio.gather(*(run_one(c.id) for c in cells))
+    await asyncio.gather(*(run_one(c.id) for c in extraction_cells))
+
+    # Derived/formula columns depend on already-extracted values in the same
+    # row, so evaluate them after extraction cells settle.
+    for cell in derived_cells:
+        updated = await execute_formula_cell(cell.id, run_id)
+        if updated is not None:
+            await run_event_bus.publish(
+                run_id, {"type": "cell", "cell": updated.model_dump(mode="json")}
+            )
 
     _, worst = workflow_run_store.all_cells_terminal(run_id)
     final_status = worst or "complete"
@@ -142,17 +161,7 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
             )
         return
     if column["is_derived"]:
-        # Derived columns need a formula evaluator (Phase 4); skip in Phase 2.
-        workflow_run_store.complete_cell(
-            cell_id,
-            answer="[Derived column — evaluation deferred to Phase 4]",
-            answer_formatted=None,
-            citations=[],
-            model="",
-            fallback=False,
-            duration_ms=0,
-        )
-        updated = workflow_run_store.get_cell(cell_id)
+        updated = await execute_formula_cell(cell_id, run_id)
         if updated is not None:
             await run_event_bus.publish(
                 run_id, {"type": "cell", "cell": updated.model_dump(mode="json")}
@@ -165,15 +174,39 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
             run_id, {"type": "cell", "cell": running.model_dump(mode="json")}
         )
 
-    doc_id = cell.row_key  # one_doc_per_row: row_key == doc_id
     column_prompt = column["prompt"] or column["label"]
     suffix = format_prompt_suffix(column["format"], column["tags"])
-    user_message = column_prompt + suffix
+    run = workflow_run_store.get_run(run_id)
+    workflow = workflow_store.get_workflow(run.workflow_id) if run else None
+    is_synthesis = workflow is not None and workflow.row_source == "multi_doc_synthesis"
+    row_question = cell.row_key if is_synthesis else ""
+    if is_synthesis:
+        user_message = (
+            f"Row question: {row_question}\n\nExtraction column: {column['label']}\n\n"
+            f"{column_prompt}{suffix}"
+        )
+    else:
+        user_message = column_prompt + suffix
 
     try:
-        retrieved = await query_document(deal_id, doc_id, column_prompt)
+        if is_synthesis:
+            retrieved = []
+            for doc_id in run.document_ids if run else []:
+                try:
+                    chunks = await query_document(
+                        deal_id,
+                        doc_id,
+                        f"{row_question}\n{column_prompt}",
+                    )
+                except Exception:
+                    logger.exception("query_document failed: doc=%s", doc_id)
+                    chunks = []
+                retrieved.extend(chunks)
+        else:
+            doc_id = cell.row_key  # one_doc_per_row: row_key == doc_id
+            retrieved = await query_document(deal_id, doc_id, column_prompt)
         if not retrieved:
-            answer = "No relevant content found in this document."
+            answer = ""
             citations: list = []
             formatted: Any = None
             workflow_run_store.complete_cell(
@@ -200,7 +233,7 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
                     full_answer_parts.append(token)
             full_answer = "".join(full_answer_parts)
 
-            full_doc_chunks = get_document_chunks(deal_id, doc_id)
+            full_doc_chunks = None if is_synthesis else get_document_chunks(deal_id, cell.row_key)
             cleaned_answer, citations = extract_citations(
                 full_answer,
                 retrieved,
@@ -219,7 +252,7 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
                 duration_ms=meta.duration_ms if meta else 0,
             )
     except Exception as exc:
-        logger.exception("LLM cell extraction failed: cell=%s doc=%s", cell_id, doc_id)
+        logger.exception("LLM cell extraction failed: cell=%s", cell_id)
         workflow_run_store.error_cell(cell_id, f"{type(exc).__name__}: {exc}")
 
     updated = workflow_run_store.get_cell(cell_id)
@@ -227,6 +260,180 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
         await run_event_bus.publish(
             run_id, {"type": "cell", "cell": updated.model_dump(mode="json")}
         )
+
+
+async def execute_formula_cell(cell_id: str, run_id: str):
+    """Evaluate a derived cell against completed extraction cells in its row."""
+    cell = workflow_run_store.get_cell(cell_id)
+    if cell is None:
+        return None
+    column = workflow_run_store.load_column(cell.column_id)
+    if not column:
+        return workflow_run_store.error_cell(cell_id, "Column not found")
+
+    running = workflow_run_store.mark_cell_running(cell_id)
+    if running is not None:
+        await run_event_bus.publish(
+            run_id, {"type": "cell", "cell": running.model_dump(mode="json")}
+        )
+
+    try:
+        run = workflow_run_store.get_run(run_id)
+        if run is None:
+            return workflow_run_store.error_cell(cell_id, "Run not found")
+        columns = workflow_run_store.load_columns_for_workflow(run.workflow_id)
+        cells = workflow_run_store.list_cells_for_run(run_id)
+        values: dict[str, Any] = {}
+        for other in cells:
+            if other.row_key != cell.row_key or other.id == cell.id:
+                continue
+            other_col = next((c for c in columns if c["id"] == other.column_id), None)
+            if not other_col:
+                continue
+            values[other_col["label"]] = _cell_value(other)
+        answer = _eval_formula(column["formula"], values)
+        formatted = parse_answer(answer, column["format"], column["tags"])
+        return workflow_run_store.complete_cell(
+            cell_id,
+            answer=answer,
+            answer_formatted=formatted,
+            citations=[],
+            model="formula",
+            fallback=False,
+            duration_ms=0,
+        )
+    except Exception as exc:
+        logger.exception("Formula evaluation failed: cell=%s", cell_id)
+        return workflow_run_store.error_cell(cell_id, f"{type(exc).__name__}: {exc}")
+
+
+def _cell_value(cell) -> Any:
+    if cell.answer_formatted is not None:
+        if isinstance(cell.answer_formatted, dict) and "raw" in cell.answer_formatted:
+            return cell.answer_formatted.get("raw")
+        return cell.answer_formatted
+    return cell.answer
+
+
+def _eval_formula(formula: str, values: dict[str, Any]) -> str:
+    expr = (formula or "").strip()
+    if expr.startswith("="):
+        expr = expr[1:].strip()
+    if not expr:
+        return ""
+    if expr.upper().startswith("IF(") and expr.endswith(")"):
+        parts = _split_args(expr[3:-1])
+        if len(parts) >= 3:
+            return str(_eval_formula(parts[1], values) if _eval_condition(parts[0], values) else _eval_formula(parts[2], values)).strip("\"'")
+    if (expr.startswith('"') and expr.endswith('"')) or (expr.startswith("'") and expr.endswith("'")):
+        return expr[1:-1]
+    arithmetic = _eval_arithmetic(expr, values)
+    if arithmetic is not None:
+        return str(int(arithmetic)) if float(arithmetic).is_integer() else f"{arithmetic:.4g}"
+    return str(_resolve_value(expr, values) or "")
+
+
+def _split_args(raw: str) -> list[str]:
+    args: list[str] = []
+    depth = 0
+    quote = ""
+    start = 0
+    for i, ch in enumerate(raw):
+        if quote:
+            if ch == quote:
+                quote = ""
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif ch == "," and depth == 0:
+            args.append(raw[start:i].strip())
+            start = i + 1
+    args.append(raw[start:].strip())
+    return args
+
+
+def _eval_condition(expr: str, values: dict[str, Any]) -> bool:
+    expr = expr.strip()
+    for sep, fn in ((" OR ", any), (" AND ", all)):
+        if sep in expr.upper():
+            parts = re.split(sep, expr, flags=re.IGNORECASE)
+            return fn(_eval_condition(part, values) for part in parts)
+    match = re.match(r"(.+?)\s*(>=|<=|=|==|!=|>|<)\s*(.+)", expr)
+    if not match:
+        return bool(_resolve_value(expr, values))
+    left = _resolve_value(match.group(1), values)
+    right = _resolve_value(match.group(3), values)
+    op = match.group(2)
+    left_num = _to_number(left)
+    right_num = _to_number(right)
+    if left_num is not None and right_num is not None:
+        left_cmp: Any = left_num
+        right_cmp: Any = right_num
+    else:
+        left_cmp = str(left or "").lower()
+        right_cmp = str(right or "").lower()
+    if op in ("=", "=="):
+        return left_cmp == right_cmp
+    if op == "!=":
+        return left_cmp != right_cmp
+    if op == ">":
+        return left_cmp > right_cmp
+    if op == "<":
+        return left_cmp < right_cmp
+    if op == ">=":
+        return left_cmp >= right_cmp
+    if op == "<=":
+        return left_cmp <= right_cmp
+    return False
+
+
+def _resolve_value(token: str, values: dict[str, Any]) -> Any:
+    raw = token.strip().strip("[]").strip()
+    if (raw.startswith('"') and raw.endswith('"')) or (raw.startswith("'") and raw.endswith("'")):
+        return raw[1:-1]
+    for key, value in values.items():
+        if key.lower() == raw.lower():
+            return value
+    num = _to_number(raw)
+    return num if num is not None else raw
+
+
+def _eval_arithmetic(expr: str, values: dict[str, Any]) -> float | None:
+    replaced = expr
+    for key, value in sorted(values.items(), key=lambda kv: len(kv[0]), reverse=True):
+        num = _to_number(value)
+        if num is None:
+            continue
+        replaced = re.sub(rf"\[{re.escape(key)}\]", str(num), replaced, flags=re.IGNORECASE)
+    if re.search(r"[A-Za-z\[\]]", replaced) or not re.fullmatch(r"[\d\s+\-*/().]+", replaced):
+        return None
+    try:
+        return float(eval(replaced, {"__builtins__": {}}, {}))
+    except Exception:
+        return None
+
+
+def _to_number(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, dict):
+        if isinstance(value.get("amount"), (int, float)):
+            return float(value["amount"])
+        value = value.get("raw", "")
+    text = str(value or "")
+    match = re.search(r"-?\d[\d,]*(?:\.\d+)?", text)
+    if not match:
+        return None
+    try:
+        return float(match.group(0).replace(",", ""))
+    except ValueError:
+        return None
 
 
 # ── Assistant runs (Phase 3) ──
@@ -237,6 +444,18 @@ _PRIOR_STAGE_HEADER = (
     "facts for this stage. If a prior output conflicts with the source documents, "
     "trust the prior output (the analyst has approved it)."
 )
+
+_ASSISTANT_OUTPUT_DIRECTIVE = (
+    "Output discipline: default to analyst-ready extracted findings, not long-form "
+    "narrative. Use compact bullets, short tables, or labeled values. Each finding "
+    "should carry a valid [Source N] marker from the numbered document context. "
+    "Do not cite filenames, page numbers, or quotes unless they correspond to a "
+    "provided [Source N] marker. If this stage explicitly asks you to compose a "
+    "memo, keep the memo concise and preserve citations; otherwise avoid memo "
+    "prose and do not add generic background."
+)
+
+_ASSISTANT_DOC_TOP_K = 14
 
 
 async def execute_assistant_run(run_id: str, deal_id: str) -> None:
@@ -313,6 +532,8 @@ async def execute_assistant_stage(
     user_message = (
         f"Stage instructions ({stage.label}):\n\n{stage.prompt_md}\n"
         + prior_section
+        + "\n\n"
+        + _ASSISTANT_OUTPUT_DIRECTIVE
         + "\n\nWrite the markdown output for this stage. Use [Source N] markers "
         "when grounding claims in the document context above."
     )
@@ -321,7 +542,12 @@ async def execute_assistant_stage(
         all_chunks: list = []
         for doc_id in document_ids:
             try:
-                chunks = await query_document(deal_id, doc_id, stage.prompt_md or stage.label)
+                chunks = await query_document(
+                    deal_id,
+                    doc_id,
+                    stage.prompt_md or stage.label,
+                    top_k=_ASSISTANT_DOC_TOP_K,
+                )
             except Exception:
                 logger.exception("query_document failed: doc=%s", doc_id)
                 chunks = []
@@ -346,14 +572,20 @@ async def execute_assistant_stage(
                 full_answer_parts.append(token)
         full_answer = "".join(full_answer_parts)
 
-        # For citations we use the union of retrieved chunks. We don't
-        # have per-doc full text (multi-doc), so page_context_chunks is
-        # omitted — extract_citations falls back to retrieved-chunk pages.
+        # For citations we use the union of retrieved chunks for source-number
+        # mapping, plus full same-page context from selected docs to enrich
+        # snippets without changing the mapping.
+        page_context_chunks: list = []
+        for doc_id in document_ids:
+            try:
+                page_context_chunks.extend(get_document_chunks(deal_id, doc_id))
+            except Exception:
+                logger.exception("get_document_chunks failed: doc=%s", doc_id)
         cleaned_answer, citations = extract_citations(
             full_answer,
             all_chunks,
             deal_id=deal_id,
-            page_context_chunks=None,
+            page_context_chunks=page_context_chunks or None,
         )
         meta = get_last_meta()
         workflow_run_store.complete_stage(

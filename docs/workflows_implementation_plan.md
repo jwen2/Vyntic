@@ -184,6 +184,76 @@ tabular_cells:
 
 Newest entries at the top. Each entry: date, phase step, what landed, file paths.
 
+### 2026-05-06 — Phase 4 v1 close ✅
+
+Finished the Phase 4 workflow polish pass.
+
+**Files added:**
+- `backend/app/services/workflow_exports.py` — server-side Excel and Word
+  export helpers using `openpyxl` and `python-docx`.
+
+**Files modified:**
+- `backend/app/api/routes_workflow_runs.py` — tabular multi-doc synthesis run
+  creation plus `GET /runs/{run_id}/export.xlsx` and
+  `GET /runs/{run_id}/export.docx`.
+- `backend/app/models/workflow_run.py` — `synthesis_questions` on run-create.
+- `backend/app/services/workflow_run_store.py` — generic row keys for tabular
+  runs, full cell/column loaders for export and formulas.
+- `backend/app/services/workflow_run_executor.py` — formula cells now evaluate
+  after extraction cells; multi-doc synthesis cells retrieve across all selected
+  documents.
+- `frontend/src/lib/workflows.ts` — synthesis-question run payload and export
+  download client.
+- `frontend/src/components/workflows/DocumentSelectorModal.tsx` — synthesis row
+  editor shown for `multi_doc_synthesis`.
+- `frontend/src/components/workflows/TabularRun.tsx` — synthesis rows render in
+  the grid, derived columns are included, completed tabular runs expose Excel
+  export.
+- `frontend/src/components/workflows/MemoOutput.tsx` — Word export button.
+- `frontend/src/components/workflows/WorkflowsView.tsx`,
+  `WorkflowLibrary.tsx`, `WorkflowCard.tsx` — run history drawer and ability to
+  reopen existing runs.
+
+**Verification status:**
+- ✅ Backend py_compile for changed workflow modules.
+- ✅ Frontend `npm run build`.
+- ✅ Formula evaluator sanity check in backend container:
+  `IF(CoC="No" AND Exclusivity="Yes", "High", "Low") → High`,
+  `[Reported EBITDA]+[Owner Adj] → 15`.
+
+### 2026-05-05 — Phase 3.5 value-first workflow outputs ✅
+
+Added a value-first extraction pass after reviewing the Mike workflow model and
+the Phase 3 run implementation. Decision: no schema overhaul yet. Vyntic's
+durable run/cell/stage model is the right foundation; the missing piece was
+the output contract and presentation layer.
+
+**Files modified:**
+- `backend/app/services/workflow_format.py` — format suffixes now instruct
+  the LLM to return compact values first, with citations after the value.
+  Numbers, percentages, dates, currencies, tags, and yes/no answers are
+  constrained to analyst-usable cells instead of explanatory prose. Missing
+  values should return blank.
+- `backend/app/services/workflow_run_executor.py` — assistant stages now get
+  an output discipline directive: default to extracted findings, compact
+  bullets, short tables, or labeled values; only write memo prose when the
+  stage explicitly asks for a memo.
+- `frontend/src/components/workflows/TabularRun.tsx` — completed tabular
+  cells render from `answer_formatted` first and show only the compact value
+  in-grid. Cells stay collapsed to one small line; clicking a value opens its
+  supporting document when citations exist.
+- `frontend/src/components/workflows/MemoOutput.tsx` — assistant output labels
+  now distinguish memo output from extraction output for markdown-style runs.
+
+**Recommendation for Phase 4:**
+- Add an explicit workflow-level `output_style` enum:
+  `value_extract | findings_pack | memo_draft`.
+- Add a right-side cell/detail drawer for tabular runs so the compact grid
+  stays clean while full rationale, citations, model metadata, and analyst
+  edits remain one click away.
+- Add built-in templates specifically for source extraction, such as
+  "Key Metrics Extract", "Contract Terms Extract", and "Management Q&A Extract."
+
 ### 2026-05-05 — Phase 3 assistant execution + checkpoints ✅ (backend verified end-to-end)
 
 Phase 3 ships the assistant workflow execution path: serial stage runs,
@@ -427,13 +497,16 @@ Notes for Phase 2:
 - [x] Phase 3.7 — `MemoOutput.tsx`
 - [x] Phase 3.8 — `WorkflowsView` + library wiring
 - [x] Phase 3.9 — Backend end-to-end verified (FE blocked on dev-proxy SSE — works on docker prod 3100)
-- [ ] Phase 4.1 — Excel export for tabular runs
-- [ ] Phase 4.2 — Word/PDF export for assistant memos
-- [ ] Phase 4.3 — Formula columns evaluator
-- [ ] Phase 4.4 — Multi-doc synthesis row execution
-- [ ] Phase 4.5 — Run history viewer + "open existing run" entry point
+- [x] Phase 4.1 — Excel export for tabular runs
+- [x] Phase 4.2 — Word export for assistant memos
+- [x] Phase 4.3 — Formula columns evaluator
+- [x] Phase 4.4 — Multi-doc synthesis row execution
+- [x] Phase 4.5 — Run history viewer + "open existing run" entry point
 
-**Next session: start Phase 4 (polish for v1 close).** Top priorities are export (Word/PDF for memos via python-docx, Excel for tabular runs by extending `exportMatrix.ts`) and the run-history entry point so analysts can re-open completed assistant runs into MemoOutput without starting a new run. Lower-priority: formula column evaluator and multi-doc synthesis. Before shipping, fix the Next.js dev-server SSE buffering quirk (set `NEXT_PUBLIC_API_URL=http://localhost:8000` + CORS, or move off the proxy) so live updates are observable on `npm run dev` too.
+**Next session: UX improvements.** Phase 4 is implemented for v1. Remaining
+product/design work should focus on making workflow runs feel analyst-native:
+compact model-ready grids, clearer cell detail/source drawers, better synthesis
+question presets, and export polish.
 
 ## 9. How to resume in a future session
 
