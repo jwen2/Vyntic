@@ -11,8 +11,8 @@ import {
   type WorkflowRun,
 } from "@/lib/workflows";
 import DocumentViewer from "@/components/DocumentViewer";
+import AnswerText from "@/components/dd/AnswerText";
 import { ACCENT, GREEN, RED, tint } from "./theme";
-import WorkflowMarkdown from "./WorkflowMarkdown";
 
 type Theme = "light" | "dark";
 
@@ -43,6 +43,7 @@ export default function MemoOutput({
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [viewerState, setViewerState] = useState<ViewerState | null>(null);
+  const [activeCitationId, setActiveCitationId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -259,7 +260,9 @@ export default function MemoOutput({
                 key={stage.id}
                 stage={stage}
                 theme={theme}
-                onCitationClick={(cite) => {
+                activeCitationId={activeCitationId}
+                onCitationClick={(cite, id) => {
+                  setActiveCitationId(id);
                   setViewerState({
                     dealId,
                     filename: cite.source_file,
@@ -387,17 +390,16 @@ export default function MemoOutput({
 function MemoSection({
   stage,
   theme,
+  activeCitationId,
   onCitationClick,
 }: {
   stage: AssistantStageOutput;
   theme: Theme;
-  onCitationClick: (cite: Citation) => void;
+  activeCitationId: string | null;
+  onCitationClick: (cite: Citation, id: string) => void;
 }) {
   const c = ddTheme(theme);
   const body = stage.edited_md ?? stage.output_md;
-  const realCites = stage.citations.filter(
-    (cite): cite is Citation => cite !== null
-  );
   return (
     <div id={`stage-${stage.id}`} style={{ marginBottom: 26, scrollMarginTop: 24 }}>
       <h3
@@ -410,37 +412,20 @@ function MemoSection({
       >
         {stage.order_index}. {stage.label}
       </h3>
-      <WorkflowMarkdown theme={theme}>{body}</WorkflowMarkdown>
-      {realCites.length > 0 && (
-        <div
-          style={{
-            marginTop: 10,
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 6,
-          }}
-        >
-          {realCites.map((cite, i) => (
-            <button
-              key={i}
-              onClick={() => onCitationClick(cite)}
-              title={cite.text_snippet || ""}
-              style={{
-                fontSize: 10,
-                fontFamily: "var(--font-mono, monospace)",
-                color: ACCENT,
-                background: tint(ACCENT, 10),
-                border: `1px solid ${tint(ACCENT, 30)}`,
-                borderRadius: 4,
-                padding: "2px 7px",
-                cursor: "pointer",
-              }}
-            >
-              {cite.source_file} · p.{cite.page}
-            </button>
-          ))}
-        </div>
-      )}
+      <div
+        style={{
+          padding: "2px 0",
+          fontSize: 13,
+          color: c.t2,
+        }}
+      >
+        <AnswerText
+          text={body}
+          citations={stage.citations}
+          activeCitId={activeCitationId}
+          onCit={onCitationClick}
+        />
+      </div>
     </div>
   );
 }
