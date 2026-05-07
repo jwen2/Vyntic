@@ -5,11 +5,13 @@ import {
   cloneWorkflow,
   createWorkflow,
   deleteWorkflow,
+  listRuns,
   listWorkflows,
   startWorkflowRun,
   updateWorkflow,
   Workflow,
   WorkflowCreatePayload,
+  WorkflowRun,
   WorkflowType,
   WorkflowUpdatePayload,
 } from "@/lib/workflows";
@@ -44,6 +46,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   const [screen, setScreen] = useState<ScreenState>({ kind: "library" });
   /** When non-null, the doc-selector modal is open for this workflow id. */
   const [runModalWorkflowId, setRunModalWorkflowId] = useState<string | null>(null);
+  const [historyWorkflowId, setHistoryWorkflowId] = useState<string | null>(null);
   const [runStartError, setRunStartError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -128,10 +131,10 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   }, []);
 
   const handleRunConfirmed = useCallback(
-    async (workflowId: string, documentIds: string[]) => {
+    async (workflowId: string, documentIds: string[], synthesisQuestions: string[] = []) => {
       setRunStartError(null);
       try {
-        const run = await startWorkflowRun(dealId, workflowId, documentIds);
+        const run = await startWorkflowRun(dealId, workflowId, documentIds, synthesisQuestions);
         setRunModalWorkflowId(null);
         setScreen({ kind: "run", workflowId, runId: run.id });
       } catch (err) {
@@ -140,6 +143,15 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
     },
     [dealId]
   );
+
+  const handleOpenRun = useCallback((workflow: Workflow, run: WorkflowRun) => {
+    setHistoryWorkflowId(null);
+    if (workflow.type === "assistant" && run.status === "complete") {
+      setScreen({ kind: "memo", workflowId: workflow.id, runId: run.id });
+    } else {
+      setScreen({ kind: "run", workflowId: workflow.id, runId: run.id });
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -205,18 +217,33 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   const modalWorkflow = runModalWorkflowId
     ? workflows.find((w) => w.id === runModalWorkflowId) ?? null
     : null;
+  const historyWorkflow = historyWorkflowId
+    ? workflows.find((w) => w.id === historyWorkflowId) ?? null
+    : null;
   const renderModal = () => (
     <>
       {modalWorkflow && (
         <DocumentSelectorModal
           dealId={dealId}
           workflowName={modalWorkflow.name}
+          rowSource={modalWorkflow.row_source}
           theme={theme}
           onCancel={() => {
             setRunModalWorkflowId(null);
             setRunStartError(null);
           }}
-          onConfirm={(docIds) => handleRunConfirmed(modalWorkflow.id, docIds)}
+          onConfirm={(docIds, questions) =>
+            handleRunConfirmed(modalWorkflow.id, docIds, questions ?? [])
+          }
+        />
+      )}
+      {historyWorkflow && (
+        <RunHistoryModal
+          dealId={dealId}
+          workflow={historyWorkflow}
+          theme={theme}
+          onClose={() => setHistoryWorkflowId(null)}
+          onOpen={(run) => handleOpenRun(historyWorkflow, run)}
         />
       )}
       {runStartError && modalWorkflow && (
@@ -313,6 +340,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           onEdit={handleEdit}
           onNew={handleNew}
           onRun={handleRunRequested}
+          onHistory={(workflowId) => setHistoryWorkflowId(workflowId)}
         />
         {renderModal()}
       </>
@@ -382,4 +410,145 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
       onBack={() => setScreen({ kind: "library" })}
     />
   );
+}
+
+function RunHistoryModal({
+  dealId,
+  workflow,
+  theme,
+  onClose,
+  onOpen,
+}: {
+  dealId: string;
+  workflow: Workflow;
+  theme: Theme;
+  onClose: () => void;
+  onOpen: (run: WorkflowRun) => void;
+}) {
+  const c = ddTheme(theme);
+  const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    listRuns(dealId, workflow.id)
+      .then((items) => {
+        if (active) setRuns(items);
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : "Failed to load run history");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [dealId, workflow.id]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        justifyContent: "flex-end",
+        zIndex: 1000,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "min(420px, 92vw)",
+          height: "100%",
+          background: c.surface,
+          borderLeft: `1px solid ${c.border}`,
+          padding: 18,
+          overflowY: "auto",
+          boxShadow: "-16px 0 40px rgba(0,0,0,0.35)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>Run history</div>
+            <div style={{ fontSize: 12, color: c.t2, marginTop: 2 }}>{workflow.name}</div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 6,
+              border: `1px solid ${c.border}`,
+              background: c.surfaceAlt,
+              color: c.t2,
+              cursor: "pointer",
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ color: c.t2, fontSize: 12 }}>Loading runs...</div>
+        ) : error ? (
+          <div style={{ color: "#ef4444", fontSize: 12 }}>{error}</div>
+        ) : runs.length === 0 ? (
+          <div style={{ color: c.t3, fontSize: 12 }}>No runs yet.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {runs.map((run) => (
+              <button
+                key={run.id}
+                onClick={() => onOpen(run)}
+                style={{
+                  textAlign: "left",
+                  padding: "10px 12px",
+                  background: c.surfaceAlt,
+                  border: `1px solid ${c.border}`,
+                  borderRadius: 8,
+                  color: c.t1,
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>Run #{run.run_number}</span>
+                  <span style={{ fontSize: 10, color: statusColor(run.status), fontWeight: 700, textTransform: "uppercase" }}>
+                    {run.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, color: c.t3, marginTop: 4 }}>
+                  {formatRunDate(run.completed_at ?? run.started_at)} · {run.document_ids.length} doc
+                  {run.document_ids.length === 1 ? "" : "s"}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function statusColor(status: WorkflowRun["status"]): string {
+  if (status === "complete") return "#22c55e";
+  if (status === "error" || status === "cancelled") return "#ef4444";
+  if (status === "checkpoint") return "#f59e0b";
+  return "#2563eb";
+}
+
+function formatRunDate(iso: string | null): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }

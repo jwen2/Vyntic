@@ -4,23 +4,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ddTheme } from "@/components/dd/types";
 import {
   listDocuments,
-  type CellData,
   type Citation,
   type DocumentMetadata,
 } from "@/lib/api";
 import {
   cancelRun,
+  downloadRunExport,
   getRun,
+  listRuns,
   subscribeRun,
   type CellStatus,
   type RunStatus,
   type RunStreamEvent,
   type TabularCell,
+  type WorkflowColumn,
   type Workflow,
   type WorkflowRun,
 } from "@/lib/workflows";
-import { getFormatShort, type ColumnFormat } from "@/lib/matrixColumnConfig";
-import MatrixCell from "@/components/MatrixCell";
+import { getFormatShort } from "@/lib/matrixColumnConfig";
 import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "./theme";
 
@@ -60,6 +61,9 @@ export default function TabularRun({
   const [log, setLog] = useState<RunLogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [runHistory, setRunHistory] = useState<WorkflowRun[]>([]);
+  const [selectedCellKey, setSelectedCellKey] = useState<string | null>(null);
   const [viewerState, setViewerState] = useState<{
     dealId: string;
     filename: string;
@@ -79,11 +83,24 @@ export default function TabularRun({
     });
   }, []);
 
-  // Filter to extraction columns only — derived columns are stubbed in Phase 2.
-  const extractionColumns = useMemo(
-    () => workflow.columns.filter((col) => !col.is_derived).sort((a, b) => a.order_index - b.order_index),
+  const runColumns = useMemo(
+    () => workflow.columns.slice().sort((a, b) => a.order_index - b.order_index),
     [workflow.columns]
   );
+
+  useEffect(() => {
+    let active = true;
+    listRuns(dealId, workflow.id)
+      .then((items) => {
+        if (active) setRunHistory(items);
+      })
+      .catch(() => {
+        if (active) setRunHistory([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [dealId, workflow.id]);
 
   // Initial document load
   useEffect(() => {
@@ -190,7 +207,15 @@ export default function TabularRun({
   }, [runId, workflow.columns, docs]);
 
   const documentIds = useMemo(() => run?.document_ids ?? [], [run]);
-  const totalCells = documentIds.length * extractionColumns.length;
+  const rowKeys = useMemo(() => {
+    if (workflow.row_source === "one_doc_per_row") return documentIds;
+    const keys: string[] = [];
+    cells.forEach((cell) => {
+      if (!keys.includes(cell.row_key)) keys.push(cell.row_key);
+    });
+    return keys;
+  }, [workflow.row_source, documentIds, cells]);
+  const totalCells = rowKeys.length * runColumns.length;
   const completeCells = useMemo(() => {
     let count = 0;
     cells.forEach((cell) => {
@@ -198,6 +223,41 @@ export default function TabularRun({
     });
     return count;
   }, [cells]);
+  const selectedCell = useMemo(() => {
+    if (!selectedCellKey) return null;
+    return cells.get(selectedCellKey) ?? null;
+  }, [selectedCellKey, cells]);
+  const selectedColumn = useMemo(() => {
+    if (!selectedCell) return null;
+    return runColumns.find((col) => col.id === selectedCell.column_id) ?? null;
+  }, [selectedCell, runColumns]);
+  const selectedRowLabel = useMemo(() => {
+    if (!selectedCell) return "";
+    if (workflow.row_source !== "one_doc_per_row") return selectedCell.row_key;
+    return docs.find((doc) => doc.doc_id === selectedCell.row_key)?.filename ?? selectedCell.row_key.slice(0, 8);
+  }, [selectedCell, workflow.row_source, docs]);
+  const highRiskCount = useMemo(() => {
+    let count = 0;
+    cells.forEach((cell) => {
+      const text = stripSourceMarkers(cell.answer || "").trim();
+      if (cell.status === "complete" && /\bhigh\b/i.test(text)) count += 1;
+    });
+    return count;
+  }, [cells]);
+
+  useEffect(() => {
+    if (selectedCellKey && cells.has(selectedCellKey)) return;
+    for (const rowKey of rowKeys) {
+      for (const col of runColumns) {
+        const key = cellKey(rowKey, col.id);
+        const cell = cells.get(key);
+        if (cell?.status === "complete") {
+          setSelectedCellKey(key);
+          return;
+        }
+      }
+    }
+  }, [selectedCellKey, cells, rowKeys, runColumns]);
 
   const elapsedLabel = useMemo(() => {
     if (!run) return "";
@@ -222,6 +282,18 @@ export default function TabularRun({
       setCancelling(false);
     }
   }, [runId, cancelling]);
+
+  const handleExport = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await downloadRunExport(runId, "xlsx");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }, [runId, exporting]);
 
   if (error && !run) {
     return (
@@ -317,7 +389,7 @@ export default function TabularRun({
             </div>
             <div style={{ fontSize: 11, color: c.t3, marginTop: 1 }}>
               {documentIds.length} doc{documentIds.length === 1 ? "" : "s"} ·{" "}
-              {extractionColumns.length} col{extractionColumns.length === 1 ? "" : "s"}
+              {runColumns.length} col{runColumns.length === 1 ? "" : "s"}
             </div>
           </div>
         </div>
@@ -352,6 +424,25 @@ export default function TabularRun({
               {cancelling ? "Cancelling…" : "Cancel"}
             </button>
           )}
+          {isTerminal && (
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              style={{
+                padding: "5px 10px",
+                background: ACCENT,
+                border: "none",
+                color: "white",
+                borderRadius: 7,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: exporting ? "wait" : "pointer",
+                opacity: exporting ? 0.7 : 1,
+              }}
+            >
+              {exporting ? "Exporting..." : "Excel"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -360,7 +451,7 @@ export default function TabularRun({
         style={{
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "280px 1fr",
+          gridTemplateColumns: "260px minmax(0, 1fr) 340px",
           minHeight: 0,
         }}
       >
@@ -382,7 +473,7 @@ export default function TabularRun({
           <div style={{ padding: "0 8px", overflowY: "auto", flex: "0 1 auto", maxHeight: "55%" }}>
             {documentIds.map((docId) => {
               const doc = docs.find((d) => d.doc_id === docId);
-              const docCells = extractionColumns.map((col) => cells.get(cellKey(docId, col.id)));
+              const docCells = runColumns.map((col) => cells.get(cellKey(docId, col.id)));
               const allDone = docCells.every((cell) => cell?.status === "complete");
               const anyError = docCells.some((cell) => cell?.status === "error");
               const anyRunning = docCells.some((cell) => cell?.status === "running");
@@ -473,24 +564,36 @@ export default function TabularRun({
         {/* Right: grid + cell detail */}
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
+            <SummaryCards
+              theme={theme}
+              documents={documentIds.length}
+              completeCells={completeCells}
+              totalCells={totalCells}
+              highRiskCount={highRiskCount}
+              elapsedLabel={elapsedLabel}
+              runId={run?.id ?? runId}
+            />
             <table
               style={{
+                minWidth: Math.max(760, 260 + runColumns.length * 160),
                 width: "100%",
-                borderCollapse: "collapse",
+                tableLayout: "fixed",
+                borderCollapse: "separate",
+                borderSpacing: 0,
                 fontSize: 11,
                 background: c.surface,
                 border: `1px solid ${c.border}`,
-                borderRadius: 10,
+                borderRadius: 8,
                 overflow: "hidden",
               }}
             >
               <thead>
                 <tr>
-                  <th style={cellHeaderStyle(c)}>Document</th>
-                  {extractionColumns.map((col) => (
+                  <th style={{ ...cellHeaderStyle(c), width: 260, position: "sticky", left: 0, zIndex: 2 }}>Document</th>
+                  {runColumns.map((col) => (
                     <th key={col.id} style={cellHeaderStyle(c)}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>{col.label}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{col.label}</span>
                         <span
                           style={{
                             fontSize: 8,
@@ -511,23 +614,36 @@ export default function TabularRun({
                 </tr>
               </thead>
               <tbody>
-                {documentIds.map((docId) => {
-                  const doc = docs.find((d) => d.doc_id === docId);
+                {rowKeys.map((rowKey) => {
+                  const doc = docs.find((d) => d.doc_id === rowKey);
                   return (
-                    <tr key={docId}>
-                      <td style={cellBodyStyle(c)}>{doc?.filename ?? docId.slice(0, 8)}</td>
-                      {extractionColumns.map((col) => {
-                        const cell = cells.get(cellKey(docId, col.id));
+                    <tr key={rowKey}>
+                      <td style={{ ...cellBodyStyle(c), width: 260, position: "sticky", left: 0, zIndex: 1 }}>
+                        <div
+                          style={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            fontWeight: 500,
+                          }}
+                          title={workflow.row_source === "one_doc_per_row" ? doc?.filename ?? rowKey : rowKey}
+                        >
+                          {workflow.row_source === "one_doc_per_row"
+                            ? doc?.filename ?? rowKey.slice(0, 8)
+                            : rowKey}
+                        </div>
+                      </td>
+                      {runColumns.map((col) => {
+                        const cell = cells.get(cellKey(rowKey, col.id));
                         if (cell && cell.status === "complete") {
-                          // Delegate to MatrixCell for full markdown + clickable
-                          // citations. MatrixCell renders its own <td>.
                           return (
-                            <MatrixCell
+                            <ValueCell
                               key={col.id}
-                              cell={tabularCellToCellData(cell)}
-                              dealId={dealId}
-                              query={col.prompt || col.label}
-                              onCitationClick={handleCitationClick}
+                              cell={cell}
+                              column={col}
+                              selected={selectedCellKey === cellKey(rowKey, col.id)}
+                              onSelect={() => setSelectedCellKey(cellKey(rowKey, col.id))}
+                              theme={theme}
                             />
                           );
                         }
@@ -544,6 +660,17 @@ export default function TabularRun({
             </table>
           </div>
         </div>
+
+        <RunDetailSidebar
+          theme={theme}
+          run={run}
+          runHistory={runHistory}
+          selectedCell={selectedCell}
+          selectedColumn={selectedColumn}
+          selectedRowLabel={selectedRowLabel}
+          dealId={dealId}
+          onCitationClick={handleCitationClick}
+        />
       </div>
 
       {viewerState && (
@@ -559,16 +686,413 @@ export default function TabularRun({
   );
 }
 
-/** Map our TabularCell shape to the CellData shape MatrixCell expects. */
-function tabularCellToCellData(cell: TabularCell): CellData {
-  return {
-    answer: cell.answer || "",
-    citations: cell.citations,
-    status: "complete",
-    model: cell.model || undefined,
-    fallback: cell.fallback,
-    duration_ms: cell.duration_ms,
-  };
+function ValueCell({
+  cell,
+  column,
+  selected,
+  onSelect,
+  theme,
+}: {
+  cell: TabularCell;
+  column: WorkflowColumn;
+  selected: boolean;
+  onSelect: () => void;
+  theme: Theme;
+}) {
+  const c = ddTheme(theme);
+  const citations = cell.citations.filter((cite): cite is Citation => cite !== null);
+  const display = formatCellValue(cell, column);
+  const fullAnswer = stripSourceMarkers(cell.answer).trim();
+  const displayText = Array.isArray(display) ? display[0] ?? "" : display;
+  const hasSource = displayText !== "" && citations.length > 0;
+
+  return (
+    <td
+      onClick={onSelect}
+      style={{
+        ...cellBodyStyle(c),
+        padding: "5px 8px",
+        fontSize: 11,
+        lineHeight: 1.2,
+        cursor: "pointer",
+        background: selected ? tint(ACCENT, 12) : c.surface,
+        boxShadow: selected ? `inset 0 0 0 1px ${tint(ACCENT, 55)}` : undefined,
+      }}
+      title={fullAnswer || (Array.isArray(display) ? display.join("; ") : display)}
+    >
+      <DisplayValue value={displayText} column={column} theme={theme} hasSource={hasSource} />
+    </td>
+  );
+}
+
+function DisplayValue({
+  value,
+  column,
+  theme,
+  hasSource,
+}: {
+  value: string;
+  column: WorkflowColumn;
+  theme: Theme;
+  hasSource?: boolean;
+}) {
+  const c = ddTheme(theme);
+  const label = value || "";
+  const lower = label.toLowerCase();
+  const pill =
+    lower === "yes"
+      ? { bg: tint(GREEN, 20), fg: GREEN }
+      : lower === "no"
+        ? { bg: tint(RED, 16), fg: RED }
+        : lower === "high"
+          ? { bg: tint(RED, 16), fg: RED }
+          : lower === "medium"
+            ? { bg: tint(AMBER, 16), fg: AMBER }
+            : lower === "low"
+              ? { bg: tint(GREEN, 20), fg: GREEN }
+              : null;
+  if (pill && label) {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          maxWidth: "100%",
+          padding: "2px 8px",
+          borderRadius: 4,
+          fontSize: 10,
+          fontWeight: 700,
+          background: pill.bg,
+          color: pill.fg,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+    );
+  }
+  const muted = !label || lower === "n/a" || lower === "na" || lower === "not disclosed";
+  return (
+    <span
+      style={{
+        display: "block",
+        color: muted ? c.t3 : c.t1,
+        maxWidth: 220,
+        minHeight: 13,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        fontFamily:
+          column.format === "number" ||
+          column.format === "percentage" ||
+          column.format === "monetary_amount"
+            ? "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
+            : "inherit",
+        fontVariantNumeric: "tabular-nums",
+        textDecoration: hasSource ? `underline dotted ${tint(ACCENT, 45)}` : "none",
+        textUnderlineOffset: 3,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function SummaryCards({
+  theme,
+  documents,
+  completeCells,
+  totalCells,
+  highRiskCount,
+  elapsedLabel,
+  runId,
+}: {
+  theme: Theme;
+  documents: number;
+  completeCells: number;
+  totalCells: number;
+  highRiskCount: number;
+  elapsedLabel: string;
+  runId: string;
+}) {
+  const c = ddTheme(theme);
+  const cards = [
+    { label: "Documents", value: String(documents) },
+    { label: "Cells Extracted", value: `${completeCells}/${totalCells}` },
+    { label: "High Risk", value: String(highRiskCount), color: highRiskCount > 0 ? RED : c.t1 },
+    { label: "Run Time", value: elapsedLabel || "0s" },
+    { label: "Run ID", value: runId.slice(0, 8), mono: true },
+  ];
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          style={{
+            minWidth: 104,
+            padding: "8px 12px",
+            background: c.surface,
+            border: `1px solid ${c.border}`,
+            borderRadius: 8,
+          }}
+        >
+          <div style={{ fontSize: 9, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, fontWeight: 700 }}>
+            {card.label}
+          </div>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: card.color || c.t1,
+              fontFamily: card.mono ? "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)" : "inherit",
+            }}
+          >
+            {card.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RunDetailSidebar({
+  theme,
+  run,
+  runHistory,
+  selectedCell,
+  selectedColumn,
+  selectedRowLabel,
+  dealId,
+  onCitationClick,
+}: {
+  theme: Theme;
+  run: WorkflowRun | null;
+  runHistory: WorkflowRun[];
+  selectedCell: TabularCell | null;
+  selectedColumn: WorkflowColumn | null;
+  selectedRowLabel: string;
+  dealId: string;
+  onCitationClick: (citation: Citation, dealId: string) => void;
+}) {
+  const c = ddTheme(theme);
+  const citations = selectedCell?.citations.filter((cite): cite is Citation => cite !== null) ?? [];
+  const display = selectedCell && selectedColumn ? formatCellValue(selectedCell, selectedColumn) : "";
+  const displayText = Array.isArray(display) ? display[0] ?? "" : display;
+  const answer = selectedCell ? stripSourceMarkers(selectedCell.answer).trim() : "";
+  return (
+    <aside
+      style={{
+        borderLeft: `1px solid ${c.border}`,
+        background: c.surfaceAlt,
+        minHeight: 0,
+        overflowY: "auto",
+        padding: 16,
+      }}
+    >
+      <SectionLabel theme={theme}>Cell Detail</SectionLabel>
+      <div
+        style={{
+          padding: "12px 14px",
+          background: c.surface,
+          border: `1px solid ${selectedCell ? tint(ACCENT, 45) : c.border}`,
+          borderRadius: 10,
+          marginBottom: 20,
+        }}
+      >
+        {selectedCell && selectedColumn ? (
+          <>
+            <div style={{ fontSize: 10, color: c.t3, marginBottom: 7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {selectedRowLabel} → {selectedColumn.label}
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <DisplayValue value={displayText} column={selectedColumn} theme={theme} />
+            </div>
+            <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.6, marginBottom: 12 }}>
+              {answer || "No answer captured for this cell yet."}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, marginBottom: 7 }}>
+              Citations ({citations.length})
+            </div>
+            {citations.length ? (
+              citations.map((cite, index) => (
+                <button
+                  key={`${cite.source_file}-${cite.page}-${index}`}
+                  onClick={() => onCitationClick(cite, cite.deal_id || dealId)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "8px 10px",
+                    background: c.bg,
+                    border: "none",
+                    borderLeft: `3px solid ${ACCENT}`,
+                    borderRadius: 6,
+                    marginBottom: 7,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontSize: 10, color: ACCENT, fontFamily: "var(--font-mono, monospace)", marginBottom: 4 }}>
+                    {cite.source_file} · p.{cite.page}
+                  </div>
+                  <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.5, fontStyle: "italic" }}>
+                    {cite.text_snippet || "Open source passage"}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div style={{ fontSize: 11, color: c.t3 }}>No citations captured.</div>
+            )}
+            {citations[0] && (
+              <button
+                onClick={() => onCitationClick(citations[0], citations[0].deal_id || dealId)}
+                style={{
+                  marginTop: 6,
+                  padding: "6px 10px",
+                  border: `1px solid ${c.border}`,
+                  borderRadius: 7,
+                  background: c.surfaceAlt,
+                  color: c.t1,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Open in Viewer
+              </button>
+            )}
+          </>
+        ) : (
+          <div style={{ fontSize: 12, color: c.t3, lineHeight: 1.5 }}>
+            Select a completed cell to inspect extracted text and citations.
+          </div>
+        )}
+      </div>
+
+      <SectionLabel theme={theme}>Run History</SectionLabel>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+        {runHistory.slice(0, 6).map((item) => {
+          const current = item.id === run?.id;
+          return (
+            <div
+              key={item.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 10px",
+                borderRadius: 6,
+                background: current ? c.surface : "transparent",
+                border: current ? `1px solid ${c.border}` : "1px solid transparent",
+              }}
+            >
+              <span style={{ fontSize: 11, fontWeight: current ? 700 : 500, color: current ? c.t1 : c.t3 }}>
+                Run #{item.run_number}
+              </span>
+              <span style={{ fontSize: 10, color: c.t3, fontFamily: "var(--font-mono, monospace)" }}>
+                {formatRunDate(item.started_at)}
+              </span>
+            </div>
+          );
+        })}
+        {runHistory.length === 0 && <div style={{ fontSize: 11, color: c.t3 }}>No prior runs.</div>}
+      </div>
+    </aside>
+  );
+}
+
+function formatCellValue(cell: TabularCell, column: WorkflowColumn): string | string[] {
+  const formatted = cell.answer_formatted;
+  if (Array.isArray(formatted)) {
+    return formatted.map((item) => String(item)).filter(Boolean);
+  }
+  if (typeof formatted === "boolean") {
+    return formatted ? "Yes" : "No";
+  }
+  if (typeof formatted === "number") {
+    if (column.format === "percentage") return `${formatted}%`;
+    return Number.isInteger(formatted) ? String(formatted) : String(formatted);
+  }
+  if (typeof formatted === "string" && formatted.trim()) {
+    return formatted.trim();
+  }
+  if (formatted && typeof formatted === "object") {
+    const maybeRaw = (formatted as { raw?: unknown }).raw;
+    if (typeof maybeRaw === "string" && maybeRaw.trim()) {
+      return compactScalar(maybeRaw, column.format);
+    }
+    const amount = (formatted as { amount?: unknown }).amount;
+    const currency = (formatted as { currency?: unknown }).currency;
+    if (amount != null || currency != null) {
+      return [currency, amount].filter(Boolean).join(" ");
+    }
+  }
+
+  const raw = stripSourceMarkers(cell.answer).trim();
+  if (!raw || isMissingValue(raw)) return "";
+  const scalar = compactScalar(raw, column.format);
+  if (scalar || column.format !== "bulleted_list") return scalar;
+  if (column.format === "bulleted_list") {
+    const bullets = raw
+      .split(/\n+/)
+      .map((line) => line.replace(/^\s*[-*•]\s+/, "").trim())
+      .filter(Boolean);
+    if (bullets.length) return bullets;
+  }
+  return raw.split(/\n+/)[0].trim();
+}
+
+function compactScalar(value: string, format: WorkflowColumn["format"]): string {
+  const cleaned = stripSourceMarkers(value).trim();
+  if (!cleaned || isMissingValue(cleaned)) return "";
+
+  if (format === "monetary_amount") {
+    const match = cleaned.match(
+      /(?:[$€£¥]\s*|(?:USD|EUR|GBP|JPY|CAD|AUD|CNY|CHF|HKD|INR|SGD)\s*)?-?\d[\d,]*(?:\.\d+)?\s*(?:[kKmMbB])?/
+    );
+    return match?.[0]?.replace(/\s+/g, "") ?? "";
+  }
+  if (format === "percentage") {
+    const match = cleaned.match(/-?\d+(?:\.\d+)?\s*%/);
+    return match?.[0]?.replace(/\s+/g, "") ?? "";
+  }
+  if (format === "number") {
+    const match = cleaned.match(/-?\d[\d,]*(?:\.\d+)?/);
+    return match?.[0]?.replace(/,/g, "") ?? "";
+  }
+  if (format === "currency") {
+    const matches = cleaned.match(/\b(?:USD|EUR|GBP|JPY|CAD|AUD|CNY|CHF|HKD|INR|SGD)\b/g);
+    return matches?.join(", ") ?? "";
+  }
+  if (format === "yes_no") {
+    const first = cleaned.split(/\W+/)[0]?.toLowerCase();
+    if (first === "yes") return "Yes";
+    if (first === "no") return "No";
+    return "";
+  }
+  if (format === "date") {
+    const match = cleaned.match(/\d{4}-\d{2}-\d{2}(?:\s+to\s+\d{4}-\d{2}-\d{2})?/);
+    return match?.[0] ?? "";
+  }
+  return cleaned.split(/\n+/)[0].trim();
+}
+
+function isMissingValue(value: string): boolean {
+  return /^(not stated|not disclosed|not specified|not provided|not mentioned|not addressed|not available|not found|no relevant|n\/a|unknown|unclear)\b/i.test(
+    value.replace(/[.\s]+$/g, "").trim()
+  );
+}
+
+function stripSourceMarkers(value: string): string {
+  return value
+    .replace(/\[Source\s+\d+\]/gi, "")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .trim();
+}
+
+function formatRunDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // ── helpers ──
@@ -698,8 +1222,9 @@ function DocStatusIcon({ status }: { status: CellStatus }) {
 
 function cellHeaderStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
   return {
-    padding: "8px 10px",
+    padding: "7px 9px",
     borderBottom: `1px solid ${c.border}`,
+    borderRight: `1px solid ${c.border}`,
     color: c.t2,
     fontSize: 10,
     fontWeight: 600,
@@ -708,15 +1233,21 @@ function cellHeaderStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
     textAlign: "left",
     whiteSpace: "nowrap",
     background: c.surfaceAlt,
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
   };
 }
 
 function cellBodyStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
   return {
-    padding: "10px",
+    padding: "8px 10px",
     borderBottom: `1px solid ${c.border}`,
+    borderRight: `1px solid ${c.border}`,
     color: c.t1,
-    verticalAlign: "top",
+    verticalAlign: "middle",
+    height: 38,
+    background: c.surface,
   };
 }
 

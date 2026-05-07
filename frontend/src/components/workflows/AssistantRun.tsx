@@ -7,6 +7,7 @@ import {
   approveStage,
   cancelRun,
   getRun,
+  listRuns,
   subscribeRun,
   type AssistantStageOutput,
   type RunStreamEvent,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/workflows";
 import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT, AMBER, GREEN, RED, tint } from "./theme";
+import WorkflowMarkdown from "./WorkflowMarkdown";
 
 type Theme = "light" | "dark";
 
@@ -47,6 +49,7 @@ export default function AssistantRun({
   const [run, setRun] = useState<WorkflowRun | null>(null);
   const [stages, setStages] = useState<Map<string, AssistantStageOutput>>(new Map());
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
+  const [runHistory, setRunHistory] = useState<WorkflowRun[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [viewerState, setViewerState] = useState<ViewerState | null>(null);
@@ -81,6 +84,20 @@ export default function AssistantRun({
       active = false;
     };
   }, [dealId]);
+
+  useEffect(() => {
+    let active = true;
+    listRuns(dealId, workflow.id)
+      .then((items) => {
+        if (active) setRunHistory(items);
+      })
+      .catch(() => {
+        if (active) setRunHistory([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [dealId, workflow.id]);
 
   // Initial run snapshot (REST), in case SSE snapshot is delayed.
   useEffect(() => {
@@ -372,7 +389,6 @@ export default function AssistantRun({
               onApprove={() => handleApprove(focusedStage)}
               approving={approving === focusedStage.id}
               theme={theme}
-              onCitationClick={(cite) => handleCitationClick(cite, dealId)}
             />
           ) : (
             <div style={{ color: c.t3, fontSize: 12 }}>
@@ -390,10 +406,18 @@ export default function AssistantRun({
                 key={s.id}
                 stage={s}
                 theme={theme}
-                onCitationClick={(cite) => handleCitationClick(cite, dealId)}
               />
             ))}
         </div>
+
+        <AssistantSourceSidebar
+          theme={theme}
+          run={run}
+          runHistory={runHistory}
+          stage={focusedStage}
+          dealId={dealId}
+          onCitationClick={handleCitationClick}
+        />
       </div>
 
       {viewerState && (
@@ -528,7 +552,6 @@ function StageDetail({
   onApprove,
   approving,
   theme,
-  onCitationClick,
 }: {
   stage: AssistantStageOutput;
   draft: string | undefined;
@@ -536,7 +559,6 @@ function StageDetail({
   onApprove: () => void;
   approving: boolean;
   theme: Theme;
-  onCitationClick: (cite: Citation) => void;
 }) {
   const c = ddTheme(theme);
   const isCheckpoint = stage.status === "checkpoint";
@@ -644,7 +666,7 @@ function StageDetail({
           }}
         />
       ) : (
-        <pre
+        <div
           style={{
             margin: 0,
             padding: "12px 14px",
@@ -652,20 +674,13 @@ function StageDetail({
             border: `1px solid ${c.border}`,
             borderLeft: `3px solid ${tint(ACCENT, 30)}`,
             borderRadius: 8,
-            fontSize: 12.5,
-            color: c.t1,
-            lineHeight: 1.7,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            fontFamily: "inherit",
           }}
         >
-          {value || (stage.status === "queued" ? "(queued)" : "")}
-        </pre>
+          <WorkflowMarkdown theme={theme} compact>
+            {value || (stage.status === "queued" ? "(queued)" : "")}
+          </WorkflowMarkdown>
+        </div>
       )}
-
-      {/* Citations */}
-      <CitationList stage={stage} theme={theme} onCitationClick={onCitationClick} />
     </div>
   );
 }
@@ -673,11 +688,9 @@ function StageDetail({
 function CompletedStageBlock({
   stage,
   theme,
-  onCitationClick,
 }: {
   stage: AssistantStageOutput;
   theme: Theme;
-  onCitationClick: (cite: Citation) => void;
 }) {
   const c = ddTheme(theme);
   return (
@@ -698,90 +711,162 @@ function CompletedStageBlock({
           </span>
         )}
       </summary>
-      <pre
+      <div
         style={{
           margin: "8px 0 0 0",
           padding: "10px 12px",
           background: c.surfaceAlt,
           border: `1px solid ${c.border}`,
           borderRadius: 6,
-          fontSize: 12,
-          color: c.t1,
-          lineHeight: 1.6,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          fontFamily: "inherit",
         }}
       >
-        {stage.edited_md ?? stage.output_md}
-      </pre>
-      <CitationList stage={stage} theme={theme} onCitationClick={onCitationClick} />
+        <WorkflowMarkdown theme={theme} compact>
+          {stage.edited_md ?? stage.output_md}
+        </WorkflowMarkdown>
+      </div>
     </details>
   );
 }
 
-function CitationList({
+function AssistantSourceSidebar({
   stage,
+  run,
+  runHistory,
+  dealId,
   theme,
   onCitationClick,
 }: {
-  stage: AssistantStageOutput;
+  stage: AssistantStageOutput | null;
+  run: WorkflowRun | null;
+  runHistory: WorkflowRun[];
+  dealId: string;
   theme: Theme;
-  onCitationClick: (cite: Citation) => void;
+  onCitationClick: (cite: Citation, dealId: string) => void;
 }) {
   const c = ddTheme(theme);
-  const realCites = stage.citations.filter(
+  const realCites = (stage?.citations ?? []).filter(
     (cite): cite is Citation => cite !== null
   );
-  if (realCites.length === 0) return null;
   return (
-    <div style={{ marginTop: 14 }}>
+    <aside
+      style={{
+        width: 320,
+        flexShrink: 0,
+        borderLeft: `1px solid ${c.border}`,
+        background: c.surfaceAlt,
+        overflowY: "auto",
+        padding: 16,
+      }}
+    >
+      <SectionLabel theme={theme}>Sources Cited</SectionLabel>
       <div
         style={{
-          fontSize: 10,
-          fontWeight: 700,
-          color: c.t3,
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          marginBottom: 6,
+          padding: "12px 14px",
+          background: c.surface,
+          border: `1px solid ${stage ? tint(ACCENT, 35) : c.border}`,
+          borderRadius: 10,
+          marginBottom: 20,
         }}
       >
-        Citations ({realCites.length})
+        {stage ? (
+          <>
+            <div style={{ fontSize: 10, color: c.t3, marginBottom: 8 }}>
+              Stage {stage.order_index}: {stage.label}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, marginBottom: 8 }}>
+              Citations ({realCites.length})
+            </div>
+            {realCites.length ? (
+              realCites.map((cite, i) => (
+                <button
+                  key={`${cite.source_file}-${cite.page}-${i}`}
+                  onClick={() => onCitationClick(cite, cite.deal_id || dealId)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "8px 10px",
+                    background: c.bg,
+                    border: "none",
+                    borderLeft: `3px solid ${ACCENT}`,
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    marginBottom: 7,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: ACCENT,
+                      fontFamily: "var(--font-mono, monospace)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {cite.source_file} · p.{cite.page}
+                  </div>
+                  <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.5, fontStyle: "italic" }}>
+                    {cite.text_snippet || "Open source passage"}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div style={{ fontSize: 11, color: c.t3, lineHeight: 1.5 }}>
+                No valid source markers were captured for this stage.
+              </div>
+            )}
+            {realCites[0] && (
+              <button
+                onClick={() => onCitationClick(realCites[0], realCites[0].deal_id || dealId)}
+                style={{
+                  marginTop: 4,
+                  padding: "6px 10px",
+                  border: `1px solid ${c.border}`,
+                  borderRadius: 7,
+                  background: c.surfaceAlt,
+                  color: c.t1,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Open in Viewer
+              </button>
+            )}
+          </>
+        ) : (
+          <div style={{ fontSize: 12, color: c.t3 }}>No active stage yet.</div>
+        )}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {realCites.map((cite, i) => (
-          <button
-            key={i}
-            onClick={() => onCitationClick(cite)}
-            style={{
-              textAlign: "left",
-              padding: "8px 10px",
-              background: c.surfaceAlt,
-              border: `1px solid ${c.border}`,
-              borderLeft: `3px solid ${ACCENT}`,
-              borderRadius: 6,
-              cursor: "pointer",
-              color: c.t1,
-            }}
-          >
+
+      <SectionLabel theme={theme}>Run History</SectionLabel>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+        {runHistory.slice(0, 6).map((item) => {
+          const current = item.id === run?.id;
+          return (
             <div
+              key={item.id}
               style={{
-                fontSize: 10,
-                fontWeight: 600,
-                color: ACCENT,
-                fontFamily: "var(--font-mono, monospace)",
-                marginBottom: 4,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 10px",
+                borderRadius: 6,
+                background: current ? c.surface : "transparent",
+                border: current ? `1px solid ${c.border}` : "1px solid transparent",
               }}
             >
-              {cite.source_file} · p.{cite.page}
+              <span style={{ fontSize: 11, fontWeight: current ? 700 : 500, color: current ? c.t1 : c.t3 }}>
+                Run #{item.run_number}
+              </span>
+              <span style={{ fontSize: 10, color: c.t3, fontFamily: "var(--font-mono, monospace)" }}>
+                {formatRunDate(item.started_at)}
+              </span>
             </div>
-            <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.5, fontStyle: "italic" }}>
-              {cite.text_snippet ? `“${cite.text_snippet}”` : "(no snippet)"}
-            </div>
-          </button>
-        ))}
+          );
+        })}
+        {runHistory.length === 0 && <div style={{ fontSize: 11, color: c.t3 }}>No prior runs.</div>}
       </div>
-    </div>
+    </aside>
   );
 }
 
@@ -806,6 +891,12 @@ function formatDuration(ms: number): string {
   const m = Math.floor(s / 60);
   const rs = Math.round(s - m * 60);
   return `${m}m ${rs}s`;
+}
+
+function formatRunDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function pillProps(status: WorkflowRun["status"]): {

@@ -16,6 +16,7 @@ short-lived token via `?token=` query param so EventSource clients (which can't
 set Authorization headers) still authenticate cleanly.
 """
 import asyncio
+import io
 import json
 import logging
 
@@ -31,6 +32,11 @@ from app.models.workflow_run import (
     WorkflowRunCreate,
 )
 from app.services import workflow_run_store, workflow_store
+from app.services.workflow_exports import (
+    build_assistant_docx,
+    build_tabular_xlsx,
+    safe_export_filename,
+)
 from app.services.workflow_run_executor import (
     kick_off_assistant_run,
     kick_off_run,
@@ -65,11 +71,24 @@ async def create_run(
         column_ids = [c.id for c in workflow.columns]
         if not column_ids:
             raise HTTPException(status_code=400, detail="Workflow has no columns to extract")
+        row_keys = None
+        if workflow.row_source == "multi_doc_synthesis":
+            row_keys = [
+                q.strip()
+                for q in payload.synthesis_questions
+                if q and q.strip()
+            ]
+            if not row_keys:
+                raise HTTPException(
+                    status_code=400,
+                    detail="At least one synthesis question is required",
+                )
         run = workflow_run_store.create_run(
             workflow_id=workflow_id,
             deal_id=deal_id,
             document_ids=payload.document_ids,
             column_ids=column_ids,
+            row_keys=row_keys,
             started_by=current_user.id,
         )
         kick_off_run(run.id, deal_id)
@@ -110,6 +129,42 @@ def get_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Run not found")
     require_deal_access(current_user, run.deal_id)
     return run
+
+
+@router.get("/runs/{run_id}/export.xlsx")
+def export_tabular_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
+    run = workflow_run_store.get_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    require_deal_access(current_user, run.deal_id)
+    workflow = workflow_store.get_workflow(run.workflow_id)
+    if not workflow or workflow.type != "tabular":
+        raise HTTPException(status_code=400, detail="Run is not a tabular workflow")
+    content = build_tabular_xlsx(run, workflow)
+    filename = safe_export_filename(workflow.name, run.run_number, "xlsx")
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/runs/{run_id}/export.docx")
+def export_assistant_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
+    run = workflow_run_store.get_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    require_deal_access(current_user, run.deal_id)
+    workflow = workflow_store.get_workflow(run.workflow_id)
+    if not workflow or workflow.type != "assistant":
+        raise HTTPException(status_code=400, detail="Run is not an assistant workflow")
+    content = build_assistant_docx(run, workflow)
+    filename = safe_export_filename(workflow.name, run.run_number, "docx")
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/runs/{run_id}/cancel", response_model=WorkflowRun)

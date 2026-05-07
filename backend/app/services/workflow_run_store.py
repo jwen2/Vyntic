@@ -131,11 +131,13 @@ def create_run(
     deal_id: str,
     document_ids: list[str],
     column_ids: list[str],
+    row_keys: list[str] | None = None,
     started_by: int | None = None,
 ) -> WorkflowRun:
-    """Insert a new run + queued cells (one per (doc, column) pair).
+    """Insert a new run + queued cells (one per (row, column) pair).
 
-    `column_ids` should be the non-derived column IDs from the workflow template.
+    `row_keys` defaults to document_ids for one-doc-per-row workflows. For
+    multi-doc synthesis, row_keys are analyst-supplied questions.
     """
     db = SessionLocal()
     try:
@@ -158,14 +160,15 @@ def create_run(
         )
         db.add(run)
         db.flush()
-        # Generate one queued cell per (doc, column).
-        for doc_id in document_ids:
+        rows = row_keys if row_keys is not None else document_ids
+        # Generate one queued cell per (row, column).
+        for row_key in rows:
             for column_id in column_ids:
                 db.add(
                     TabularCellRow(
                         id=_new_id(),
                         run_id=run_id,
-                        row_key=doc_id,
+                        row_key=row_key,
                         column_id=column_id,
                         status="queued",
                     )
@@ -376,7 +379,43 @@ def load_column(column_id: str):
             "format": row.format or "text",
             "tags": row.tags,
             "is_derived": bool(row.is_derived),
+            "formula": row.formula or "",
         }
+    finally:
+        db.close()
+
+
+def list_cells_for_run(run_id: str) -> list[TabularCell]:
+    db = SessionLocal()
+    try:
+        rows = db.query(TabularCellRow).filter(TabularCellRow.run_id == run_id).all()
+        return [_row_to_cell(r) for r in rows]
+    finally:
+        db.close()
+
+
+def load_columns_for_workflow(workflow_id: str) -> list[dict]:
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(WorkflowColumnRow)
+            .filter(WorkflowColumnRow.workflow_id == workflow_id)
+            .order_by(WorkflowColumnRow.order_index.asc())
+            .all()
+        )
+        return [
+            {
+                "id": row.id,
+                "label": row.label,
+                "prompt": row.prompt or "",
+                "format": row.format or "text",
+                "tags": row.tags,
+                "is_derived": bool(row.is_derived),
+                "formula": row.formula or "",
+                "order_index": row.order_index,
+            }
+            for row in rows
+        ]
     finally:
         db.close()
 

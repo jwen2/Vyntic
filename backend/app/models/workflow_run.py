@@ -71,8 +71,13 @@ class WorkflowRunCreate(BaseModel):
     For assistant runs, `document_ids` may be empty if the workflow doesn't
     need document grounding (rare); the executor will still run but each
     stage gets no retrieved context.
+
+    For tabular multi-doc synthesis workflows, `synthesis_questions` supplies
+    the row labels. Each question becomes one row and every extraction column
+    is run against the selected documents.
     """
     document_ids: list[str] = Field(default_factory=list)
+    synthesis_questions: list[str] = Field(default_factory=list)
 
 
 class StageApprovePayload(BaseModel):

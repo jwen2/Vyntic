@@ -16,6 +16,7 @@ interface WorkflowLibraryProps {
   onNew: (type: WorkflowType) => void;
   /** Open the doc-selector modal to start a run (tabular or assistant). */
   onRun?: (workflowId: string) => void;
+  onHistory?: (workflowId: string) => void;
 }
 
 export default function WorkflowLibrary({
@@ -25,6 +26,7 @@ export default function WorkflowLibrary({
   onEdit,
   onNew,
   onRun,
+  onHistory,
 }: WorkflowLibraryProps) {
   const c = ddTheme(theme);
   const [query, setQuery] = useState("");
@@ -163,6 +165,7 @@ export default function WorkflowLibrary({
                 theme={theme}
                 onClone={() => onClone(wf.id)}
                 onRun={onRun ? () => onRun(wf.id) : undefined}
+                onHistory={onHistory ? () => onHistory(wf.id) : undefined}
               />
             ))}
           </div>
@@ -240,6 +243,7 @@ export default function WorkflowLibrary({
                 theme={theme}
                 onEdit={() => onEdit(wf.id)}
                 onRun={onRun ? () => onRun(wf.id) : undefined}
+                onHistory={onHistory ? () => onHistory(wf.id) : undefined}
               />
             ))}
           </div>
