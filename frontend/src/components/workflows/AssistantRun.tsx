@@ -72,6 +72,15 @@ export default function AssistantRun({
     });
   }, []);
 
+  const applyRunSnapshot = useCallback((nextRun: WorkflowRun) => {
+    setRun(nextRun);
+    setStages((prev) => {
+      const next = new Map(prev);
+      for (const s of nextRun.stage_outputs) next.set(s.id, s);
+      return next;
+    });
+  }, []);
+
   // Initial document load (for the input-docs sidebar)
   useEffect(() => {
     let active = true;
@@ -107,12 +116,7 @@ export default function AssistantRun({
     getRun(runId)
       .then((r) => {
         if (!active) return;
-        setRun(r);
-        setStages((prev) => {
-          const next = new Map(prev);
-          for (const s of r.stage_outputs) next.set(s.id, s);
-          return next;
-        });
+        applyRunSnapshot(r);
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "Failed to load run");
@@ -120,18 +124,42 @@ export default function AssistantRun({
     return () => {
       active = false;
     };
-  }, [runId]);
+  }, [runId, applyRunSnapshot]);
+
+  // SSE is the primary realtime channel, but EventSource can miss a transition
+  // across reconnects. Poll active assistant runs so checkpoint approvals never
+  // leave the UI showing stale stage state.
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const refresh = async () => {
+      if (cancelled) return;
+      try {
+        const nextRun = await getRun(runId);
+        if (!cancelled) applyRunSnapshot(nextRun);
+      } catch {
+        // Keep the existing SSE/error surface; transient refresh failures should
+        // not replace visible workflow output.
+      } finally {
+        if (!cancelled) timeoutId = setTimeout(refresh, 3000);
+      }
+    };
+
+    if (!run || run.status === "pending" || run.status === "running" || run.status === "checkpoint") {
+      timeoutId = setTimeout(refresh, 3000);
+    }
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [run?.status, runId, applyRunSnapshot]);
 
   // SSE subscription
   useEffect(() => {
     const handleEvent = (event: RunStreamEvent) => {
       if (event.type === "snapshot") {
-        setRun(event.run);
-        setStages((prev) => {
-          const next = new Map(prev);
-          for (const s of event.run.stage_outputs) next.set(s.id, s);
-          return next;
-        });
+        applyRunSnapshot(event.run);
       } else if (event.type === "stage") {
         setStages((prev) => {
           const next = new Map(prev);
@@ -151,7 +179,7 @@ export default function AssistantRun({
       // EventSource auto-reconnects; we'll re-snapshot via the GET on remount.
     });
     return close;
-  }, [runId]);
+  }, [runId, applyRunSnapshot]);
 
   // If the run is already complete on initial REST snapshot (e.g. user
   // navigated back to a finished assistant run), fire onComplete too.
@@ -196,21 +224,32 @@ export default function AssistantRun({
       const draft = editDrafts.get(stage.id);
       const editedMd = draft !== undefined && draft !== stage.output_md ? draft : undefined;
       setApproving(stage.id);
+      setError(null);
       try {
-        await approveStage(runId, stage.id, editedMd);
-        // The SSE will deliver the updated stage + run-status events; clear the draft.
+        const approved = await approveStage(runId, stage.id, editedMd);
+        setStages((prev) => {
+          const next = new Map(prev);
+          next.set(approved.id, approved);
+          return next;
+        });
+        setRun((prev) => (prev ? { ...prev, status: "running" } : prev));
         setEditDrafts((prev) => {
           const next = new Map(prev);
           next.delete(stage.id);
           return next;
         });
+        try {
+          applyRunSnapshot(await getRun(runId));
+        } catch {
+          // Polling/SSE will catch the next transition.
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to approve stage");
       } finally {
         setApproving(null);
       }
     },
-    [runId, editDrafts]
+    [runId, editDrafts, applyRunSnapshot]
   );
 
   const setDraft = useCallback((stageId: string, md: string) => {
