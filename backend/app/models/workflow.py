@@ -14,6 +14,14 @@ WorkflowType = Literal["assistant", "tabular"]
 RowSource = Literal["one_doc_per_row", "multi_doc_synthesis"]
 OutputFormat = Literal["word", "markdown", "excel"]
 ColumnFormat = Literal[
+    # New typed-cell answer shapes.
+    "metric",
+    "bool",
+    "enum",
+    "prose",
+    "list",
+    "kv",
+    # Legacy formats kept for backwards compatibility during migration.
     "text",
     "bulleted_list",
     "number",

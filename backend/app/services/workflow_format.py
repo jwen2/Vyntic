@@ -13,6 +13,7 @@ Two responsibilities:
 """
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -20,6 +21,7 @@ from typing import Any
 _BULLET_LINE_RE = re.compile(r"^\s*[-*•]\s+(.*\S)\s*$")
 _NUMBER_RE = re.compile(r"-?\d{1,3}(?:[, ]\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?")
 _PERCENT_RE = re.compile(r"(-?\d+(?:\.\d+)?)\s*%")
+_SOURCE_RE = re.compile(r"\[Source\s+\d+\]", re.IGNORECASE)
 _CURRENCY_SYMBOL_TO_CODE = {
     "$": "USD",
     "€": "EUR",
@@ -46,6 +48,42 @@ def format_prompt_suffix(fmt: str, tags: list[str] | None = None) -> str:
         "Do not write 'not stated', 'not found', 'N/A', or any explanation."
     )
 
+    if fmt == "metric":
+        return (
+            " Return one compact metric value only, preserving any unit, currency, "
+            "percentage sign, magnitude suffix, and period if present. Examples: "
+            "$50.4M FY2024, 12.5%, 2.1x MOIC, 18 months." + base_cite
+        )
+    if fmt == "bool":
+        return " Answer with exactly one of: 'Yes' or 'No'." + base_cite
+    if fmt == "enum":
+        if tags:
+            options = ", ".join(tags)
+            return f" Return exactly one label from this list: {options}." + base_cite
+        return " Return one short categorical label only." + base_cite
+    if fmt == "prose":
+        return (
+            " Return valid JSON only with this shape: "
+            '{"summary": string, "body": string, "caveats": [{"text": string, '
+            '"severity": "info" | "warn" | "risk"}]}. Summary is one sentence. '
+            "Body contains the full analyst-usable prose answer. Surface any "
+            "'but', 'unless', exception, or caveat as a caveat with severity warn "
+            "or risk. Put [Source N] markers inside the relevant string values."
+        )
+    if fmt == "list":
+        return (
+            " Return valid JSON only with this shape: "
+            '{"items": [{"text": string}], "ordered": boolean}. Each item is one '
+            "trigger, event, condition, or fact; do not nest. Put [Source N] "
+            "markers inside the relevant item text."
+        )
+    if fmt == "kv":
+        return (
+            " Return valid JSON only with this shape: "
+            '{"pairs": [{"key": string, "value": string | number, "unit": string}]}. '
+            "Use the canonical key names from the prompt when possible. Put "
+            "[Source N] markers inside the relevant key or value strings."
+        )
     if fmt == "yes_no":
         return (
             " Answer with exactly one of: 'Yes' or 'No'." + base_cite
@@ -112,6 +150,52 @@ def _parse_number(answer: str) -> float | None:
         return None
 
 
+def _strip_sources(value: str) -> str:
+    return _SOURCE_RE.sub("", value or "").strip()
+
+
+def _strip_code_fence(value: str) -> str:
+    stripped = value.strip()
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", stripped, re.IGNORECASE | re.DOTALL)
+    return fence.group(1).strip() if fence else stripped
+
+
+def _load_json_object(answer: str) -> dict[str, Any] | None:
+    stripped = _strip_code_fence(answer)
+    try:
+        value = json.loads(stripped)
+        return value if isinstance(value, dict) else None
+    except json.JSONDecodeError:
+        pass
+
+    # Defensive fallback for answers that wrap the JSON in a sentence.
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            value = json.loads(stripped[start:end + 1])
+            return value if isinstance(value, dict) else None
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
+def _first_sentence(answer: str) -> str:
+    cleaned = " ".join(_strip_sources(answer).split())
+    if not cleaned:
+        return ""
+    match = re.search(r"(.+?[.!?])(?:\s|$)", cleaned)
+    return match.group(1).strip() if match else cleaned
+
+
+def _looks_list_shaped(answer: str) -> bool:
+    lines = [line.strip() for line in answer.splitlines() if line.strip()]
+    if len(lines) < 2:
+        return False
+    bullet_count = sum(1 for line in lines if _BULLET_LINE_RE.match(line) or re.match(r"^\d+\.\s+", line))
+    return bullet_count >= 2
+
+
 def _parse_percent(answer: str) -> float | None:
     match = _PERCENT_RE.search(answer)
     if match:
@@ -161,6 +245,13 @@ def _parse_yes_no(answer: str) -> bool | None:
     return None
 
 
+def _parse_bool_shape(answer: str) -> dict[str, bool] | None:
+    parsed = _parse_yes_no(answer)
+    if parsed is None:
+        return None
+    return {"value": parsed}
+
+
 def _parse_currency(answer: str) -> list[str]:
     found = []
     for raw in re.findall(r"[A-Z]{3}", answer):
@@ -188,6 +279,43 @@ def _parse_monetary(answer: str) -> dict | None:
     }
 
 
+def _parse_metric(answer: str) -> dict | None:
+    cleaned = _strip_sources(answer)
+    value = _parse_number(cleaned)
+    if value is None:
+        return None
+
+    currencies = _parse_currency(cleaned)
+    unit_parts: list[str] = []
+    if currencies:
+        unit_parts.append(currencies[0])
+    if "%" in cleaned:
+        unit_parts.append("%")
+    magnitude = re.search(r"\b(?:thousand|million|billion|mm|bn)\b|(?<=\d)\s*[kKmMbB]\b", cleaned)
+    if magnitude:
+        unit_parts.append(magnitude.group(0).strip())
+    multiple = re.search(r"\b(?:x|turns?|moic|dpi|irr)\b", cleaned, re.IGNORECASE)
+    if multiple:
+        unit_parts.append(multiple.group(0))
+
+    period = None
+    period_match = re.search(
+        r"\b(?:FY|LTM|Q[1-4]|H[12])\s*'?20\d{2}\b|\b20\d{2}\b",
+        cleaned,
+        re.IGNORECASE,
+    )
+    if period_match:
+        period = period_match.group(0)
+
+    unit = " ".join(dict.fromkeys(part for part in unit_parts if part)) or None
+    return {
+        "value": value,
+        "unit": unit,
+        "period": period,
+        "raw": cleaned.strip(),
+    }
+
+
 def _parse_date(answer: str) -> str | None:
     iso = _DATE_ISO_RE.search(answer)
     if iso:
@@ -211,6 +339,21 @@ def _parse_date(answer: str) -> str | None:
     return None
 
 
+def _parse_date_shape(answer: str) -> dict | None:
+    cleaned = _strip_sources(answer)
+    iso = _parse_date(cleaned)
+    if not iso:
+        return None
+    granularity = "day"
+    if re.search(r"\bQ[1-4]\s*'?20\d{2}\b", cleaned, re.IGNORECASE):
+        granularity = "quarter"
+    elif re.search(r"\b(19|20)\d{2}\b", cleaned) and not re.search(r"\d{4}-\d{2}-\d{2}", cleaned) and not _DATE_VERBOSE_RE.search(cleaned):
+        granularity = "year"
+    elif re.search(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+(?:19|20)\d{2}\b", cleaned, re.IGNORECASE):
+        granularity = "month"
+    return {"iso": iso, "granularity": granularity}
+
+
 def _parse_bulleted_list(answer: str) -> list[str]:
     items = []
     for line in answer.splitlines():
@@ -224,6 +367,97 @@ def _parse_bulleted_list(answer: str) -> list[str]:
     return cleaned
 
 
+def _normalize_list_item(item: Any) -> dict[str, Any] | None:
+    if isinstance(item, str):
+        text = _strip_sources(item)
+        return {"text": text} if text else None
+    if isinstance(item, dict):
+        text = _strip_sources(str(item.get("text") or ""))
+        if not text:
+            return None
+        citation_ids = item.get("citation_ids")
+        normalized = {"text": text}
+        if isinstance(citation_ids, list):
+            normalized["citation_ids"] = [str(v) for v in citation_ids if v is not None]
+        return normalized
+    return None
+
+
+def _parse_list_shape(answer: str) -> dict | None:
+    obj = _load_json_object(answer)
+    if obj is not None:
+        raw_items = obj.get("items")
+        if isinstance(raw_items, list):
+            items = []
+            for item in raw_items:
+                normalized = _normalize_list_item(item)
+                if normalized:
+                    items.append(normalized)
+            return {"items": items, "ordered": bool(obj.get("ordered", False))}
+
+    legacy_items = _parse_bulleted_list(answer)
+    numbered = any(re.match(r"^\s*\d+\.\s+", line) for line in answer.splitlines())
+    return {
+        "items": [{"text": _strip_sources(item)} for item in legacy_items if _strip_sources(item)],
+        "ordered": numbered,
+    }
+
+
+def _normalize_caveat(item: Any) -> dict[str, Any] | None:
+    if isinstance(item, str):
+        text = _strip_sources(item)
+        return {"text": text, "severity": "info"} if text else None
+    if not isinstance(item, dict):
+        return None
+    text = _strip_sources(str(item.get("text") or ""))
+    if not text:
+        return None
+    severity = str(item.get("severity") or "info").lower()
+    if severity not in {"info", "warn", "risk"}:
+        severity = "info"
+    normalized: dict[str, Any] = {"text": text, "severity": severity}
+    citation_ids = item.get("citation_ids")
+    if isinstance(citation_ids, list):
+        normalized["citation_ids"] = [str(v) for v in citation_ids if v is not None]
+    return normalized
+
+
+def _parse_prose(answer: str) -> dict:
+    obj = _load_json_object(answer)
+    if obj is not None:
+        summary = _strip_sources(str(obj.get("summary") or ""))
+        body = _strip_sources(str(obj.get("body") or ""))
+        caveats_raw = obj.get("caveats") if isinstance(obj.get("caveats"), list) else []
+        caveats = []
+        for caveat in caveats_raw:
+            normalized = _normalize_caveat(caveat)
+            if normalized:
+                caveats.append(normalized)
+        if not body:
+            body = summary
+        if not summary:
+            summary = _first_sentence(body)
+        return {"summary": summary, "body": body, "caveats": caveats}
+
+    cleaned = _strip_sources(answer)
+    caveats = []
+    if _looks_list_shaped(cleaned):
+        caveats.append({
+            "text": "Answer looks list-shaped — consider switching column to List.",
+            "severity": "info",
+        })
+    elif re.search(r"\b(?:but|however|unless|except|provided that)\b", cleaned, re.IGNORECASE):
+        caveats.append({
+            "text": "Review caveat language in the answer.",
+            "severity": "warn",
+        })
+    return {
+        "summary": _first_sentence(cleaned),
+        "body": cleaned,
+        "caveats": caveats,
+    }
+
+
 def _parse_tag(answer: str, tags: list[str] | None) -> str | None:
     if not tags:
         return answer.strip() or None
@@ -234,6 +468,57 @@ def _parse_tag(answer: str, tags: list[str] | None) -> str | None:
     return None
 
 
+def _parse_enum(answer: str, tags: list[str] | None) -> dict | None:
+    parsed = _parse_tag(answer, tags)
+    if parsed is None:
+        parsed = _strip_sources(answer).splitlines()[0].strip() if _strip_sources(answer) else None
+    if not parsed:
+        return None
+    result: dict[str, Any] = {"value": parsed}
+    if tags:
+        result["allowed"] = tags
+    return result
+
+
+def _normalize_kv_pair(item: Any) -> dict[str, Any] | None:
+    if not isinstance(item, dict):
+        return None
+    key = _strip_sources(str(item.get("key") or ""))
+    value = item.get("value")
+    if not key or value is None:
+        return None
+    normalized: dict[str, Any] = {
+        "key": key,
+        "value": _strip_sources(value) if isinstance(value, str) else value,
+    }
+    unit = item.get("unit")
+    if unit is not None and str(unit).strip():
+        normalized["unit"] = str(unit).strip()
+    return normalized
+
+
+def _parse_kv(answer: str) -> dict | None:
+    obj = _load_json_object(answer)
+    if obj is not None and isinstance(obj.get("pairs"), list):
+        pairs = []
+        for pair in obj["pairs"]:
+            normalized = _normalize_kv_pair(pair)
+            if normalized:
+                pairs.append(normalized)
+        return {"pairs": pairs}
+
+    pairs = []
+    for part in re.split(r";|\n", answer):
+        if ":" not in part:
+            continue
+        key, value = part.split(":", 1)
+        key = _strip_sources(key)
+        value = _strip_sources(value)
+        if key and value:
+            pairs.append({"key": key, "value": value})
+    return {"pairs": pairs} if pairs else None
+
+
 def parse_answer(answer: str, fmt: str, tags: list[str] | None = None) -> Any:
     """Best-effort structured parse of an LLM answer per column format.
 
@@ -242,6 +527,18 @@ def parse_answer(answer: str, fmt: str, tags: list[str] | None = None) -> Any:
     """
     if not answer:
         return None
+    if fmt == "metric":
+        return _parse_metric(answer)
+    if fmt == "bool":
+        return _parse_bool_shape(answer)
+    if fmt == "enum":
+        return _parse_enum(answer, tags)
+    if fmt == "prose":
+        return _parse_prose(answer)
+    if fmt == "list":
+        return _parse_list_shape(answer)
+    if fmt == "kv":
+        return _parse_kv(answer)
     if fmt == "yes_no":
         return _parse_yes_no(answer)
     if fmt == "number":
@@ -253,7 +550,7 @@ def parse_answer(answer: str, fmt: str, tags: list[str] | None = None) -> Any:
     if fmt == "currency":
         return _parse_currency(answer)
     if fmt == "date":
-        return _parse_date(answer)
+        return _parse_date_shape(answer)
     if fmt == "bulleted_list":
         return _parse_bulleted_list(answer)
     if fmt == "tag":

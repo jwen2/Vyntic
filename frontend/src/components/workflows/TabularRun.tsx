@@ -38,6 +38,7 @@ import AnswerText, { CitBadge } from "@/components/dd/AnswerText";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "./theme";
+import CellRenderer, { type CellDensity } from "./cells/CellRenderer";
 
 type Theme = "light" | "dark";
 
@@ -94,6 +95,12 @@ export default function TabularRun({
     snippet: string;
   } | null>(null);
   const WIDTH_KEY = `vyntic_workflow_widths_${workflow.id}`;
+  const DENSITY_KEY = `vyntic_workflow_density_${workflow.id}`;
+  const [density, setDensity] = useState<CellDensity>(() => {
+    if (typeof window === "undefined") return "comfortable";
+    const raw = window.localStorage.getItem(DENSITY_KEY);
+    return raw === "compact" || raw === "comfortable" || raw === "reader" ? raw : "comfortable";
+  });
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -125,6 +132,12 @@ export default function TabularRun({
       localStorage.setItem(WIDTH_KEY, JSON.stringify(colWidths));
     } catch {}
   }, [colWidths, WIDTH_KEY]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DENSITY_KEY, density);
+    } catch {}
+  }, [density, DENSITY_KEY]);
 
   const getColWidth = useCallback(
     (key: string, fallback: number) => colWidths[key] ?? fallback,
@@ -217,7 +230,7 @@ export default function TabularRun({
         label: patch.label,
         prompt: patch.prompt,
         format: patch.format,
-        tags: patch.format === "tag" ? patch.tags : null,
+        tags: patch.format === "tag" || patch.format === "enum" ? patch.tags : null,
       });
       const nextWorkflow: Workflow = {
         ...workflow,
@@ -547,6 +560,7 @@ export default function TabularRun({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <RunStatusPill status={run?.status ?? "pending"} theme={theme} />
+          <DensityToggle value={density} onChange={setDensity} theme={theme} />
           <span
             style={{
               fontSize: 11,
@@ -856,6 +870,7 @@ export default function TabularRun({
                               onRetry={() => handleRetryCell(cell.id)}
                               retrying={retryingCellIds.has(cell.id)}
                               theme={theme}
+                              density={density}
                             />
                           );
                         }
@@ -923,6 +938,7 @@ function ValueCell({
   onRetry,
   retrying,
   theme,
+  density,
 }: {
   cell: TabularCell;
   column: WorkflowColumn;
@@ -931,6 +947,7 @@ function ValueCell({
   onRetry: () => void;
   retrying: boolean;
   theme: Theme;
+  density: CellDensity;
 }) {
   const c = ddTheme(theme);
   const citations = cell.citations.filter((cite): cite is Citation => cite !== null);
@@ -945,17 +962,18 @@ function ValueCell({
       className="group/cell"
       style={{
         ...cellBodyStyle(c),
-        padding: "5px 8px",
+        padding: 0,
         fontSize: 11,
         lineHeight: 1.2,
         cursor: "pointer",
         position: "relative",
+        verticalAlign: "top",
         background: selected ? tint(ACCENT, 12) : c.surface,
         boxShadow: selected ? `inset 0 0 0 1px ${tint(ACCENT, 55)}` : undefined,
       }}
       title={fullAnswer || (Array.isArray(display) ? display.join("; ") : display)}
     >
-      <DisplayValue value={displayText} column={column} theme={theme} hasSource={hasSource} />
+      <CellRenderer cell={cell} column={column} theme={theme} density={density} />
       <button
         type="button"
         onClick={(e) => {
@@ -1066,7 +1084,8 @@ function DisplayValue({
         fontFamily:
           column.format === "number" ||
           column.format === "percentage" ||
-          column.format === "monetary_amount"
+          column.format === "monetary_amount" ||
+          column.format === "metric"
             ? "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
             : "inherit",
         fontVariantNumeric: "tabular-nums",
@@ -1132,6 +1151,63 @@ function SummaryCards({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function DensityToggle({
+  value,
+  onChange,
+  theme,
+}: {
+  value: CellDensity;
+  onChange: (value: CellDensity) => void;
+  theme: Theme;
+}) {
+  const c = ddTheme(theme);
+  const options: Array<{ value: CellDensity; label: string }> = [
+    { value: "compact", label: "Compact" },
+    { value: "comfortable", label: "Comfortable" },
+    { value: "reader", label: "Reader" },
+  ];
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Grid density"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+        padding: 2,
+        borderRadius: 7,
+        border: `1px solid ${c.border}`,
+        background: c.surfaceAlt,
+      }}
+    >
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(option.value)}
+            style={{
+              border: "none",
+              borderRadius: 5,
+              background: active ? c.surface : "transparent",
+              color: active ? c.t1 : c.t3,
+              padding: "3px 8px",
+              fontSize: 10,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            {option.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -1331,6 +1407,37 @@ function formatCellValue(cell: TabularCell, column: WorkflowColumn): string | st
     if (typeof maybeRaw === "string" && maybeRaw.trim()) {
       return compactScalar(maybeRaw, column.format);
     }
+    const summary = (formatted as { summary?: unknown }).summary;
+    if (typeof summary === "string" && summary.trim()) return summary.trim();
+    const body = (formatted as { body?: unknown }).body;
+    if (typeof body === "string" && body.trim()) return body.trim().split(/\n+/)[0].trim();
+    const items = (formatted as { items?: unknown }).items;
+    if (Array.isArray(items)) {
+      return items
+        .map((item) =>
+          typeof item === "object" && item !== null && "text" in item
+            ? String((item as { text?: unknown }).text ?? "")
+            : String(item)
+        )
+        .filter(Boolean);
+    }
+    const pairs = (formatted as { pairs?: unknown }).pairs;
+    if (Array.isArray(pairs)) {
+      return pairs
+        .map((pair) => {
+          if (!pair || typeof pair !== "object") return "";
+          const p = pair as { key?: unknown; value?: unknown; unit?: unknown };
+          return [p.key, [p.value, p.unit].filter(Boolean).join(" ")].filter(Boolean).join(": ");
+        })
+        .filter(Boolean);
+    }
+    const iso = (formatted as { iso?: unknown }).iso;
+    if (typeof iso === "string" && iso.trim()) return iso.trim();
+    const shapedValue = (formatted as { value?: unknown }).value;
+    const unit = (formatted as { unit?: unknown }).unit;
+    if (typeof shapedValue === "boolean") return shapedValue ? "Yes" : "No";
+    if (typeof shapedValue === "string" && shapedValue.trim()) return shapedValue.trim();
+    if (typeof shapedValue === "number") return [shapedValue, unit].filter(Boolean).join(" ");
     const amount = (formatted as { amount?: unknown }).amount;
     const currency = (formatted as { currency?: unknown }).currency;
     if (amount != null || currency != null) {
@@ -1356,7 +1463,7 @@ function compactScalar(value: string, format: WorkflowColumn["format"]): string 
   const cleaned = stripSourceMarkers(value).trim();
   if (!cleaned || isMissingValue(cleaned)) return "";
 
-  if (format === "monetary_amount") {
+  if (format === "metric" || format === "monetary_amount") {
     const match = cleaned.match(
       /(?:[$€£¥]\s*|(?:USD|EUR|GBP|JPY|CAD|AUD|CNY|CHF|HKD|INR|SGD)\s*)?-?\d[\d,]*(?:\.\d+)?\s*(?:[kKmMbB])?/
     );
@@ -1374,7 +1481,7 @@ function compactScalar(value: string, format: WorkflowColumn["format"]): string 
     const matches = cleaned.match(/\b(?:USD|EUR|GBP|JPY|CAD|AUD|CNY|CHF|HKD|INR|SGD)\b/g);
     return matches?.join(", ") ?? "";
   }
-  if (format === "yes_no") {
+  if (format === "yes_no" || format === "bool") {
     const first = cleaned.split(/\W+/)[0]?.toLowerCase();
     if (first === "yes") return "Yes";
     if (first === "no") return "No";
@@ -1383,6 +1490,9 @@ function compactScalar(value: string, format: WorkflowColumn["format"]): string 
   if (format === "date") {
     const match = cleaned.match(/\d{4}-\d{2}-\d{2}(?:\s+to\s+\d{4}-\d{2}-\d{2})?/);
     return match?.[0] ?? "";
+  }
+  if (format === "enum") {
+    return cleaned.split(/\n+/)[0].trim();
   }
   return cleaned.split(/\n+/)[0].trim();
 }
@@ -1893,7 +2003,7 @@ function ColumnEditMenu({
                     onChange={(e) =>
                       updateDraft({
                         format: e.target.value as ColumnFormat,
-                        tags: e.target.value === "tag" ? draft.tags : [],
+                        tags: e.target.value === "tag" || e.target.value === "enum" ? draft.tags : [],
                       })
                     }
                     style={inputStyle(c)}
@@ -1932,7 +2042,7 @@ function ColumnEditMenu({
                 </Field>
               </div>
 
-              {draft.format === "tag" && (
+              {(draft.format === "tag" || draft.format === "enum") && (
                 <Field label="Tags" theme={theme} style={{ marginTop: 12 }}>
                   <div
                     style={{

@@ -104,8 +104,35 @@ def _export_value(cell: TabularCell | None) -> Any:
         return ""
     formatted = cell.answer_formatted
     if isinstance(formatted, dict):
+        if "summary" in formatted or "body" in formatted:
+            return formatted.get("summary") or formatted.get("body") or ""
+        if "items" in formatted and isinstance(formatted["items"], list):
+            return "; ".join(
+                str(item.get("text", item)) if isinstance(item, dict) else str(item)
+                for item in formatted["items"]
+                if item
+            )
+        if "pairs" in formatted and isinstance(formatted["pairs"], list):
+            exported_pairs = []
+            for pair in formatted["pairs"]:
+                if not isinstance(pair, dict):
+                    continue
+                key = pair.get("key")
+                value = pair.get("value")
+                unit = pair.get("unit")
+                if key and value is not None:
+                    exported_pairs.append(f"{key}: {value}{(' ' + str(unit)) if unit else ''}")
+            return "; ".join(exported_pairs)
+        if "iso" in formatted:
+            return formatted["iso"] or ""
         if "raw" in formatted and formatted["raw"]:
             return formatted["raw"]
+        if "value" in formatted:
+            value = formatted["value"]
+            unit = formatted.get("unit")
+            if unit:
+                return f"{value} {unit}"
+            return value
         if "amount" in formatted:
             return formatted["amount"] if formatted["amount"] is not None else ""
     if isinstance(formatted, list):

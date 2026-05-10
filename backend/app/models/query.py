@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -6,6 +8,8 @@ class Citation(BaseModel):
     page: int
     text_snippet: str
     deal_id: str | None = None
+    kind: Literal["extracted", "derived"] = "extracted"
+    span_label: str | None = None
 
 
 class QueryRequest(BaseModel):
