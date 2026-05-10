@@ -390,7 +390,7 @@ function listValue(formatted: unknown, raw: string): { items: Array<{ text: stri
   if (obj && Array.isArray(obj.items)) {
     return { items: obj.items.map(normalizeListItem).filter((v): v is { text: string } => Boolean(v)), ordered: Boolean(obj.ordered) };
   }
-  if (Array.isArray(formatted)) return { items: formatted.map((item) => ({ text: String(item) })).filter((item) => item.text), ordered: false };
+  if (Array.isArray(formatted)) return { items: formatted.map((item) => ({ text: stripSourceMarkers(String(item)) })).filter((item) => item.text), ordered: false };
   const items = raw
     .split(/\n+/)
     .map((line) => line.replace(/^\s*(?:[-*•]|\d+\.)\s+/, "").trim())
@@ -416,9 +416,12 @@ function kvValue(formatted: unknown, raw: string): { pairs: Array<{ key: string;
 }
 
 function normalizeListItem(item: unknown): { text: string } | null {
-  if (typeof item === "string") return item.trim() ? { text: item.trim() } : null;
+  if (typeof item === "string") {
+    const text = stripSourceMarkers(item);
+    return text ? { text } : null;
+  }
   const obj = asRecord(item);
-  const text = str(obj?.text);
+  const text = stripSourceMarkers(str(obj?.text));
   return text ? { text } : null;
 }
 

@@ -33,6 +33,7 @@ import {
   type ColumnFormat,
 } from "@/lib/matrixColumnConfig";
 import AnswerText from "@/components/dd/AnswerText";
+import CitationSnippet from "@/components/dd/CitationSnippet";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "./theme";
@@ -1381,14 +1382,11 @@ function CellSourcesPanel({
       <div style={{ fontSize: 10, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {rowLabel} → {column.label}
       </div>
-      <CellRenderer cell={cell} column={column} theme={theme} density="reader" />
       <div
         style={{
           fontSize: 12,
           color: c.t1,
           lineHeight: 1.6,
-          paddingTop: 12,
-          borderTop: `1px solid ${c.border}`,
         }}
       >
         {answer ? (
@@ -1438,7 +1436,11 @@ function CellSourcesPanel({
                   {cite.source_file}
                 </div>
                 <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.45 }}>
-                  {cite.text_snippet || "Open the source document to inspect this span."}
+                  <CitationSnippet
+                    sourceFile={cite.source_file}
+                    text={cite.text_snippet || "Open the source document to inspect this span."}
+                    variant="viewer"
+                  />
                 </div>
               </button>
             );
