@@ -86,14 +86,30 @@ def increment_doc_count(deal_id: str, count: int = 1):
 def add_document(deal_id: str, doc: DocumentMetadata):
     db = SessionLocal()
     try:
-        row = DocumentRow(
-            doc_id=doc.doc_id,
-            deal_id=deal_id,
-            filename=doc.filename,
-            page_count=doc.page_count,
-            chunk_count=doc.chunk_count,
-        )
-        db.add(row)
+        row = db.query(DocumentRow).filter(
+            DocumentRow.deal_id == deal_id,
+            DocumentRow.filename == doc.filename,
+        ).first()
+        if row:
+            row.doc_id = doc.doc_id
+            row.page_count = doc.page_count
+            row.chunk_count = doc.chunk_count
+        else:
+            row = DocumentRow(
+                doc_id=doc.doc_id,
+                deal_id=deal_id,
+                filename=doc.filename,
+                page_count=doc.page_count,
+                chunk_count=doc.chunk_count,
+            )
+            db.add(row)
+
+        db.flush()
+        deal_row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
+        if deal_row:
+            deal_row.document_count = db.query(DocumentRow).filter(
+                DocumentRow.deal_id == deal_id,
+            ).count()
         db.commit()
     finally:
         db.close()

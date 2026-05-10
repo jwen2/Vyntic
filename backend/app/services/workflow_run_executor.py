@@ -20,7 +20,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.agents.llm import get_last_meta, stream_with_fallback
+from app.agents.llm import LLMConfigurationError, ensure_llm_configured, get_last_meta, stream_with_fallback
 from app.agents.prompts import SINGLE_DEAL_SYSTEM
 from app.services import workflow_run_store, workflow_store
 from app.services.vector_store import get_document_chunks, query_document
@@ -259,6 +259,17 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
         await run_event_bus.publish(
             run_id, {"type": "cell", "cell": running.model_dump(mode="json")}
         )
+
+    try:
+        ensure_llm_configured()
+    except LLMConfigurationError as exc:
+        workflow_run_store.error_cell(cell_id, str(exc))
+        updated = workflow_run_store.get_cell(cell_id)
+        if updated is not None:
+            await run_event_bus.publish(
+                run_id, {"type": "cell", "cell": updated.model_dump(mode="json")}
+            )
+        return
 
     column_prompt = column["prompt"] or column["label"]
     suffix = format_prompt_suffix(column["format"], column["tags"])

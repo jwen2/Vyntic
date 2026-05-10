@@ -12,7 +12,7 @@ services:
       - CHROMA_PERSIST_DIR=/app/data/chroma
       - UPLOADS_DIR=/app/data/uploads
       - AGENTIC_FEATURES=${AGENTIC_FEATURES:-true}
-      - SEED_SAMPLE_DATA=${SEED_SAMPLE_DATA:-false}
+      - SEED_SAMPLE_DATA=${SEED_SAMPLE_DATA:-true}
     volumes:
       - ./backend/app:/app/app
       - ./data:/app/data
