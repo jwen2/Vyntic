@@ -37,6 +37,65 @@ function normalizeSeverityTag(raw: string): "DEAL-BREAKER" | "MATERIAL" | "NOTEW
   return "NOTEWORTHY";
 }
 
+function renderBoldWithSources(
+  str: string,
+  key: string,
+  citations: (Citation | null)[],
+  activeCitId: string | null,
+  onCit: (c: Citation, id: string) => void,
+  isDark: boolean
+): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const sourceRe = /\[Source\s+(\d+)\]/gi;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let k = 0;
+
+  while ((m = sourceRe.exec(str)) !== null) {
+    const before = str.slice(last, m.index);
+    if (before) {
+      parts.push(
+        <strong
+          key={`${key}-bt${k++}`}
+          style={{ fontWeight: 600, color: isDark ? "#f1f5f9" : "#1e293b" }}
+        >
+          {before}
+        </strong>
+      );
+    }
+
+    const i = parseInt(m[1], 10) - 1;
+    const c = citations[i];
+    if (c) {
+      const id = citId(c, i);
+      parts.push(
+        <CitBadge
+          key={`${key}-bc${k++}`}
+          cit={c}
+          id={id}
+          active={activeCitId === id}
+          onClick={() => onCit(c, id)}
+        />
+      );
+    }
+    last = m.index + m[0].length;
+  }
+
+  const rest = str.slice(last);
+  if (rest) {
+    parts.push(
+      <strong
+        key={`${key}-be`}
+        style={{ fontWeight: 600, color: isDark ? "#f1f5f9" : "#1e293b" }}
+      >
+        {rest}
+      </strong>
+    );
+  }
+
+  return parts;
+}
+
 /** Render a single line with inline formatting: **bold**, [SEVERITY], [Source N]. */
 function renderInline(
   str: string,
@@ -101,14 +160,7 @@ function renderInline(
         );
       }
     } else if (bold) {
-      parts.push(
-        <strong
-          key={`${key}-b${k++}`}
-          style={{ fontWeight: 600, color: isDark ? "#f1f5f9" : "#1e293b" }}
-        >
-          {bold}
-        </strong>
-      );
+      parts.push(...renderBoldWithSources(bold, `${key}-b${k++}`, citations, activeCitId, onCit, isDark));
     } else if (srcN) {
       const i = parseInt(srcN, 10) - 1;
       const c = citations[i];
@@ -124,7 +176,7 @@ function renderInline(
           />
         );
       } else {
-        parts.push(<span key={`${key}-c${k++}`}>[Source {srcN}]</span>);
+        k++;
       }
     }
     last = m.index + m[0].length;
