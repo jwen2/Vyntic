@@ -5,6 +5,7 @@ zero context leak between deals (equivalent to Pinecone namespaces).
 """
 from __future__ import annotations
 from collections.abc import Callable
+from itertools import zip_longest
 from typing import Optional
 
 import chromadb
@@ -13,6 +14,19 @@ from app.models.document import Chunk
 from app.services.embedder import embed_texts, embed_query
 
 _client: Optional[chromadb.PersistentClient] = None
+
+
+def _metadata_or_empty(meta: object) -> dict:
+    return meta if isinstance(meta, dict) else {}
+
+
+def _result_lists(results: dict | None) -> tuple[list, list, list]:
+    if not results or not results.get("documents") or not results["documents"]:
+        return [], [], []
+    documents = results["documents"][0] or []
+    metadatas = (results.get("metadatas") or [[]])[0] or []
+    distances = (results.get("distances") or [[]])[0] or []
+    return documents, metadatas, distances
 
 
 def _get_client() -> chromadb.PersistentClient:
@@ -109,20 +123,20 @@ async def query_deal(deal_id: str, query_text: str, top_k: int | None = None) ->
     )
 
     retrieved = []
-    if results and results["documents"] and results["documents"][0]:
-        for doc, meta, distance in zip(
-            results["documents"][0],
-            results["metadatas"][0],
-            results["distances"][0],
-        ):
-            retrieved.append({
-                "content": doc,
-                "doc_id": meta.get("doc_id", ""),
-                "source_file": meta.get("source_file", ""),
-                "page": meta.get("page", 0),
-                "section_type": meta.get("section_type", "text"),
-                "score": 1 - distance,  # Convert distance to similarity
-            })
+    documents, metadatas, distances = _result_lists(results)
+    for doc, meta, distance in zip_longest(documents, metadatas, distances):
+        if not doc:
+            continue
+        meta = _metadata_or_empty(meta)
+        score = 1 - distance if isinstance(distance, (int, float)) else 0
+        retrieved.append({
+            "content": doc,
+            "doc_id": meta.get("doc_id", ""),
+            "source_file": meta.get("source_file", ""),
+            "page": meta.get("page", 0),
+            "section_type": meta.get("section_type", "text"),
+            "score": score,  # Convert distance to similarity
+        })
 
     return retrieved
 
@@ -152,20 +166,20 @@ async def query_document(deal_id: str, doc_id: str, query_text: str, top_k: int 
     )
 
     retrieved = []
-    if results and results["documents"] and results["documents"][0]:
-        for doc, meta, distance in zip(
-            results["documents"][0],
-            results["metadatas"][0],
-            results["distances"][0],
-        ):
-            retrieved.append({
-                "content": doc,
-                "doc_id": meta.get("doc_id", ""),
-                "source_file": meta.get("source_file", ""),
-                "page": meta.get("page", 0),
-                "section_type": meta.get("section_type", "text"),
-                "score": 1 - distance,
-            })
+    documents, metadatas, distances = _result_lists(results)
+    for doc, meta, distance in zip_longest(documents, metadatas, distances):
+        if not doc:
+            continue
+        meta = _metadata_or_empty(meta)
+        score = 1 - distance if isinstance(distance, (int, float)) else 0
+        retrieved.append({
+            "content": doc,
+            "doc_id": meta.get("doc_id", doc_id),
+            "source_file": meta.get("source_file", ""),
+            "page": meta.get("page", 0),
+            "section_type": meta.get("section_type", "text"),
+            "score": score,
+        })
 
     return retrieved
 
@@ -188,7 +202,13 @@ def get_document_chunks(deal_id: str, doc_id: str) -> list[dict]:
         return []
 
     chunks: list[dict] = []
-    for doc, meta in zip(results["documents"], results["metadatas"]):
+    for doc, meta in zip_longest(
+        results["documents"],
+        results.get("metadatas") or [],
+    ):
+        if not doc:
+            continue
+        meta = _metadata_or_empty(meta)
         chunks.append({
             "content": doc,
             "source_file": meta.get("source_file", ""),
@@ -226,7 +246,13 @@ async def get_all_chunks(deal_id: str, limit: int | None = None) -> list[dict]:
         )
         if not results or not results.get("documents"):
             break
-        for doc, meta in zip(results["documents"], results["metadatas"]):
+        for doc, meta in zip_longest(
+            results["documents"],
+            results.get("metadatas") or [],
+        ):
+            if not doc:
+                continue
+            meta = _metadata_or_empty(meta)
             chunks.append({
                 "content": doc,
                 "source_file": meta.get("source_file", ""),
