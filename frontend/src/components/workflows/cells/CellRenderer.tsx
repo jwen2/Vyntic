@@ -14,6 +14,8 @@ interface CellRendererProps {
   column: WorkflowColumn;
   theme: Theme;
   density?: CellDensity;
+  onCitationClick?: (citation: Citation, id: string) => void;
+  citationIdPrefix?: string;
 }
 
 type AnyRecord = Record<string, unknown>;
@@ -23,6 +25,8 @@ export default function CellRenderer({
   column,
   theme,
   density = "comfortable",
+  onCitationClick,
+  citationIdPrefix,
 }: CellRendererProps) {
   const formatted = cell.answer_formatted;
   const raw = stripSourceMarkers(cell.answer || "").trim();
@@ -36,34 +40,38 @@ export default function CellRenderer({
   }
 
   if (shape === "metric") {
-    return <MetricCell value={metricValue(formatted, raw)} citations={cell.citations} theme={theme} />;
+    return <MetricCell value={metricValue(formatted, raw)} citations={cell.citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "date") {
-    return <DateCell value={dateValue(formatted, raw)} citations={cell.citations} theme={theme} />;
+    return <DateCell value={dateValue(formatted, raw)} citations={cell.citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "bool") {
-    return <BoolCell value={boolValue(formatted, raw)} citations={cell.citations} theme={theme} />;
+    return <BoolCell value={boolValue(formatted, raw)} citations={cell.citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "enum") {
-    return <EnumCell value={enumValue(formatted, raw)} citations={cell.citations} theme={theme} />;
+    return <EnumCell value={enumValue(formatted, raw)} citations={cell.citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "list") {
-    return <ListCell value={listValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} />;
+    return <ListCell value={listValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "kv") {
-    return <KVCell value={kvValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} />;
+    return <KVCell value={kvValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
-  return <ProseCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} />;
+  return <ProseCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
 }
 
 function MetricCell({
   value,
   citations,
   theme,
+  onCitationClick,
+  citationIdPrefix,
 }: {
   value: { value: string; unit?: string; period?: string } | null;
   citations: (Citation | null)[];
   theme: Theme;
+  onCitationClick?: (citation: Citation, id: string) => void;
+  citationIdPrefix?: string;
 }) {
   const c = ddTheme(theme);
   if (!value || !value.value) return <EmptyCell reason="Out of scope" theme={theme} />;
@@ -76,12 +84,12 @@ function MetricCell({
         {value.unit && <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 10, color: c.t3 }}>{value.unit}</span>}
       </div>
       {value.period && <div style={{ fontSize: 9.5, color: c.t3 }}>{value.period}</div>}
-      <CitationRow citations={citations} theme={theme} />
+      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
 
-function DateCell({ value, citations, theme }: { value: string; citations: (Citation | null)[]; theme: Theme }) {
+function DateCell({ value, citations, theme, onCitationClick, citationIdPrefix }: { value: string; citations: (Citation | null)[]; theme: Theme; onCitationClick?: (citation: Citation, id: string) => void; citationIdPrefix?: string }) {
   const c = ddTheme(theme);
   if (!value) return <EmptyCell reason="Out of scope" theme={theme} />;
   return (
@@ -89,12 +97,12 @@ function DateCell({ value, citations, theme }: { value: string; citations: (Cita
       <span style={{ alignSelf: "flex-start", fontSize: 10.5, padding: "3px 7px", borderRadius: 5, border: `1px solid ${c.border}`, color: c.t1, fontFamily: "var(--font-mono, monospace)", fontVariantNumeric: "tabular-nums" }}>
         {formatDateLabel(value)}
       </span>
-      <CitationRow citations={citations} theme={theme} />
+      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
 
-function BoolCell({ value, citations, theme }: { value: boolean | null; citations: (Citation | null)[]; theme: Theme }) {
+function BoolCell({ value, citations, theme, onCitationClick, citationIdPrefix }: { value: boolean | null; citations: (Citation | null)[]; theme: Theme; onCitationClick?: (citation: Citation, id: string) => void; citationIdPrefix?: string }) {
   if (value == null) return <EmptyCell reason="Out of scope" theme={theme} />;
   const color = value ? GREEN : RED;
   return (
@@ -102,12 +110,12 @@ function BoolCell({ value, citations, theme }: { value: boolean | null; citation
       <span style={{ alignSelf: "flex-start", padding: "2px 8px", borderRadius: 4, background: tint(color, 18), color, fontSize: 10, fontWeight: 800 }}>
         {value ? "Yes" : "No"}
       </span>
-      <CitationRow citations={citations} theme={theme} />
+      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
 
-function EnumCell({ value, citations, theme }: { value: string; citations: (Citation | null)[]; theme: Theme }) {
+function EnumCell({ value, citations, theme, onCitationClick, citationIdPrefix }: { value: string; citations: (Citation | null)[]; theme: Theme; onCitationClick?: (citation: Citation, id: string) => void; citationIdPrefix?: string }) {
   const c = ddTheme(theme);
   if (!value) return <EmptyCell reason="Out of scope" theme={theme} />;
   const tone = /high|risk|aggressive/i.test(value) ? RED : /medium|mixed/i.test(value) ? AMBER : /low|strong/i.test(value) ? GREEN : VIOLET;
@@ -116,7 +124,7 @@ function EnumCell({ value, citations, theme }: { value: string; citations: (Cita
       <span style={{ alignSelf: "flex-start", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "2px 8px", borderRadius: 4, background: tint(tone, 18), color: tone, fontSize: 10, fontWeight: 800 }}>
         {value}
       </span>
-      <CitationRow citations={citations} theme={theme} />
+      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
@@ -126,11 +134,15 @@ function ProseCell({
   citations,
   density,
   theme,
+  onCitationClick,
+  citationIdPrefix,
 }: {
   value: { summary: string; body: string; caveats: Array<{ text: string; severity: "info" | "warn" | "risk" }> };
   citations: (Citation | null)[];
   density: CellDensity;
   theme: Theme;
+  onCitationClick?: (citation: Citation, id: string) => void;
+  citationIdPrefix?: string;
 }) {
   const c = ddTheme(theme);
   if (!value.summary && !value.body) return <EmptyCell reason="Out of scope" theme={theme} />;
@@ -151,7 +163,7 @@ function ProseCell({
           ))}
         </div>
       )}
-      <CitationRow citations={citations} theme={theme} />
+      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
@@ -161,11 +173,15 @@ function ListCell({
   citations,
   density,
   theme,
+  onCitationClick,
+  citationIdPrefix,
 }: {
   value: { items: Array<{ text: string }>; ordered: boolean };
   citations: (Citation | null)[];
   density: CellDensity;
   theme: Theme;
+  onCitationClick?: (citation: Citation, id: string) => void;
+  citationIdPrefix?: string;
 }) {
   const c = ddTheme(theme);
   if (value.items.length === 0) return <EmptyCell reason="No items found" theme={theme} />;
@@ -181,7 +197,7 @@ function ListCell({
           <span>{item.text}</span>
         </div>
       ))}
-      <CitationRow citations={citations} theme={theme} />
+      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
@@ -191,11 +207,15 @@ function KVCell({
   citations,
   density,
   theme,
+  onCitationClick,
+  citationIdPrefix,
 }: {
   value: { pairs: Array<{ key: string; value: string | number; unit?: string }> };
   citations: (Citation | null)[];
   density: CellDensity;
   theme: Theme;
+  onCitationClick?: (citation: Citation, id: string) => void;
+  citationIdPrefix?: string;
 }) {
   const c = ddTheme(theme);
   if (value.pairs.length === 0) return <EmptyCell reason="Out of scope" theme={theme} />;
@@ -210,7 +230,7 @@ function KVCell({
           </span>
         </div>
       ))}
-      <CitationRow citations={citations} theme={theme} />
+      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
@@ -227,17 +247,54 @@ function EmptyCell({ reason, tone, theme }: { reason: string; tone?: "error"; th
   );
 }
 
-function CitationRow({ citations, theme }: { citations: (Citation | null)[]; theme: Theme }) {
+function CitationRow({
+  citations,
+  theme,
+  onCitationClick,
+  citationIdPrefix = "cell",
+}: {
+  citations: (Citation | null)[];
+  theme: Theme;
+  onCitationClick?: (citation: Citation, id: string) => void;
+  citationIdPrefix?: string;
+}) {
   const c = ddTheme(theme);
   const real = citations.filter((citation): citation is Citation => citation !== null);
   if (real.length === 0) return null;
   return (
     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 1 }}>
-      {real.slice(0, 4).map((citation, index) => (
-        <span key={`${citation.source_file}-${citation.page}-${index}`} style={{ fontSize: 9, color: citation.kind === "derived" ? VIOLET : ACCENT, fontFamily: "var(--font-mono, monospace)", fontWeight: 700 }}>
-          [{index + 1}]
-        </span>
-      ))}
+      {real.slice(0, 4).map((citation, index) => {
+        const id = `${citationIdPrefix}_${index}`;
+        const label = citation.span_label || `${citation.kind === "derived" ? "D" : "S"}${index + 1}`;
+        const style: React.CSSProperties = {
+          border: "none",
+          background: "transparent",
+          padding: 0,
+          fontSize: 9,
+          color: citation.kind === "derived" ? VIOLET : ACCENT,
+          fontFamily: "var(--font-mono, monospace)",
+          fontWeight: 700,
+          cursor: onCitationClick ? "pointer" : "default",
+        };
+        return onCitationClick ? (
+          <button
+            key={`${citation.source_file}-${citation.page}-${index}`}
+            type="button"
+            style={style}
+            title={`${citation.source_file} p.${citation.page}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onCitationClick(citation, id);
+            }}
+          >
+            [{label}]
+          </button>
+        ) : (
+          <span key={`${citation.source_file}-${citation.page}-${index}`} style={style}>
+            [{label}]
+          </span>
+        );
+      })}
       {real.length > 4 && <span style={{ fontSize: 9, color: c.t3 }}>+{real.length - 4}</span>}
     </div>
   );

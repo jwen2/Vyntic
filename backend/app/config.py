@@ -59,6 +59,7 @@ class Settings(BaseSettings):
 
     # Feature flags
     agentic_features: bool = False
+    seed_sample_data: bool = True
 
     class Config:
         env_file = ".env"

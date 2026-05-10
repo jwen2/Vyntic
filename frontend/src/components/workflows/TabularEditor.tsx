@@ -15,6 +15,12 @@ import type {
   WorkflowUpdatePayload,
 } from "@/lib/workflows";
 import { ACCENT, RED, VIOLET, tint } from "./theme";
+import {
+  CellRenderPreview,
+  ShapeOptionsInspector,
+  ShapePicker,
+  detectShape,
+} from "./cells/ShapeControls";
 
 type Theme = "light" | "dark";
 
@@ -82,22 +88,6 @@ const FORMAT_BADGE_COLOR: Record<ColumnFormat, string> = {
   date: ACCENT,
   tag: "#f59e0b",
 };
-
-const SHAPE_OPTIONS: Array<{
-  value: ColumnFormat;
-  label: string;
-  glyph: string;
-  example: string;
-  color: string;
-}> = [
-  { value: "metric", label: "Metric", glyph: "#", example: "$50.4M · 12.5%", color: "#22c55e" },
-  { value: "date", label: "Date", glyph: "◷", example: "Mar 31, 2026", color: "#22c55e" },
-  { value: "bool", label: "Boolean", glyph: "Y", example: "Yes / No", color: "#22c55e" },
-  { value: "enum", label: "Enum", glyph: "◉", example: "High · Medium · Low", color: "#f59e0b" },
-  { value: "prose", label: "Prose", glyph: "¶", example: "Summary + caveats", color: ACCENT },
-  { value: "list", label: "List", glyph: "≡", example: "One item per line", color: "#f59e0b" },
-  { value: "kv", label: "Key / Value", glyph: "⌗", example: "Cap · Basket · Survival", color: VIOLET },
-];
 
 export default function TabularEditor(props: TabularEditorProps) {
   const { theme, onBack } = props;
@@ -647,20 +637,17 @@ export default function TabularEditor(props: TabularEditorProps) {
                   </Field>
                 )}
                 {(activeColumn.format === "tag" || activeColumn.format === "enum") && (
-                  <Field label="Allowed tag values (comma-separated)" theme={theme}>
-                    <input
-                      value={(activeColumn.tags ?? []).join(", ")}
+                  <Field label="Shape options" theme={theme}>
+                    <ShapeOptionsInspector
+                      format={activeColumn.format}
+                      tags={activeColumn.tags ?? []}
                       disabled={isReadOnly}
-                      onChange={(e) =>
+                      onTagsChange={(tags) =>
                         patchActiveColumn({
-                          tags: e.target.value
-                            .split(",")
-                            .map((t) => t.trim())
-                            .filter(Boolean),
+                          tags,
                         })
                       }
-                      placeholder="High, Medium, Low"
-                      style={inputStyle(c)}
+                      theme={theme}
                     />
                   </Field>
                 )}
@@ -709,6 +696,12 @@ export default function TabularEditor(props: TabularEditorProps) {
               extractions.
             </div>
           </div>
+          {activeColumn && !activeColumn.is_derived && (
+            <div>
+              <SectionLabel theme={theme}>Selected cell preview</SectionLabel>
+              <CellRenderPreview column={activeColumn} theme={theme} />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -763,77 +756,6 @@ function Field({
       {children}
     </div>
   );
-}
-
-function ShapePicker({
-  value,
-  onChange,
-  disabled,
-  theme,
-}: {
-  value: ColumnFormat;
-  onChange: (value: ColumnFormat) => void;
-  disabled?: boolean;
-  theme: Theme;
-}) {
-  const c = ddTheme(theme);
-  const activeValue = normalizeShape(value);
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(112px, 1fr))", gap: 7 }}>
-      {SHAPE_OPTIONS.map((shape) => {
-        const active = shape.value === activeValue;
-        return (
-          <button
-            key={shape.value}
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(shape.value)}
-            style={{
-              minHeight: 74,
-              textAlign: "left",
-              padding: "8px 9px",
-              borderRadius: 7,
-              border: `1px solid ${active ? shape.color : c.border}`,
-              background: active ? tint(shape.color, 13) : c.surfaceAlt,
-              color: c.t1,
-              cursor: disabled ? "not-allowed" : "pointer",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-              opacity: disabled ? 0.65 : 1,
-            }}
-          >
-            <span style={{ color: active ? shape.color : c.t3, fontFamily: "'DM Mono', monospace", fontSize: 13, fontWeight: 800 }}>
-              {shape.glyph}
-            </span>
-            <span style={{ fontSize: 11, fontWeight: 750 }}>{shape.label}</span>
-            <span style={{ fontSize: 9.5, color: c.t3, lineHeight: 1.25 }}>{shape.example}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function normalizeShape(format: ColumnFormat): ColumnFormat {
-  if (format === "number" || format === "percentage" || format === "monetary_amount" || format === "currency") return "metric";
-  if (format === "yes_no") return "bool";
-  if (format === "tag") return "enum";
-  if (format === "text") return "prose";
-  if (format === "bulleted_list") return "list";
-  return format;
-}
-
-function detectShape(input: string): (typeof SHAPE_OPTIONS)[number] | null {
-  const text = input.toLowerCase();
-  const pick = (format: ColumnFormat) => SHAPE_OPTIONS.find((shape) => shape.value === format) ?? null;
-  if (/\b(list|enumerate|each|every)\b/.test(text)) return pick("list");
-  if (/\bextract\b.+(?:,| and ).+(?:,| and )/.test(text)) return pick("kv");
-  if (/\b(summarize|describe|explain|clause|provision|risk|caveat)\b/.test(text)) return pick("prose");
-  if (/\b(revenue|ebitda|margin|nav|moic|dpi|irr|amount|price|\$|%|multiple)\b/.test(text)) return pick("metric");
-  if (/\b(date|closing|expiration|vintage|maturity)\b/.test(text)) return pick("date");
-  if (/^\s*(does|do|is|are|has|have|can|will|should)\b/.test(text) || /\byes\/?no\b/.test(text)) return pick("bool");
-  return null;
 }
 
 function ColumnCard({
