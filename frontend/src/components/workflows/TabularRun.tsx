@@ -26,19 +26,24 @@ import {
   type WorkflowRun,
 } from "@/lib/workflows";
 import {
-  FORMAT_OPTIONS,
   PE_COLUMN_PRESETS,
-  TAG_COLORS,
   buildFallbackPrompt,
   getFormatShort,
   getPresetConfig,
   type ColumnFormat,
 } from "@/lib/matrixColumnConfig";
-import AnswerText, { CitBadge } from "@/components/dd/AnswerText";
+import AnswerText from "@/components/dd/AnswerText";
+import CitationSnippet from "@/components/dd/CitationSnippet";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "./theme";
 import CellRenderer, { type CellDensity } from "./cells/CellRenderer";
+import {
+  CellRenderPreview,
+  ShapeOptionsInspector,
+  ShapePicker,
+  detectShape,
+} from "./cells/ShapeControls";
 
 type Theme = "light" | "dark";
 
@@ -871,6 +876,7 @@ export default function TabularRun({
                               retrying={retryingCellIds.has(cell.id)}
                               theme={theme}
                               density={density}
+                              onCitationClick={handleCitationClick}
                             />
                           );
                         }
@@ -939,6 +945,7 @@ function ValueCell({
   retrying,
   theme,
   density,
+  onCitationClick,
 }: {
   cell: TabularCell;
   column: WorkflowColumn;
@@ -948,13 +955,11 @@ function ValueCell({
   retrying: boolean;
   theme: Theme;
   density: CellDensity;
+  onCitationClick: (citation: Citation, id: string) => void;
 }) {
   const c = ddTheme(theme);
-  const citations = cell.citations.filter((cite): cite is Citation => cite !== null);
   const display = formatCellValue(cell, column);
   const fullAnswer = stripSourceMarkers(cell.answer).trim();
-  const displayText = Array.isArray(display) ? display[0] ?? "" : display;
-  const hasSource = displayText !== "" && citations.length > 0;
 
   return (
     <td
@@ -973,7 +978,14 @@ function ValueCell({
       }}
       title={fullAnswer || (Array.isArray(display) ? display.join("; ") : display)}
     >
-      <CellRenderer cell={cell} column={column} theme={theme} density={density} />
+      <CellRenderer
+        cell={cell}
+        column={column}
+        theme={theme}
+        density={density}
+        onCitationClick={onCitationClick}
+        citationIdPrefix={`${cell.id}_${column.id}`}
+      />
       <button
         type="button"
         onClick={(e) => {
@@ -1237,7 +1249,6 @@ function RunDetailSidebar({
 }) {
   const c = ddTheme(theme);
   const citations = selectedCell?.citations ?? [];
-  const nonNullCitations = citations.filter((cite): cite is Citation => cite !== null);
   const answer = selectedCell ? demoteHeadings(selectedCell.answer).trim() : "";
   return (
     <aside
@@ -1292,67 +1303,16 @@ function RunDetailSidebar({
           marginBottom: 20,
         }}
       >
-        {selectedCell && selectedColumn ? (
-          <>
-            <div style={{ fontSize: 10, color: c.t3, marginBottom: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {selectedRowLabel} → {selectedColumn.label}
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: c.t1,
-                lineHeight: 1.6,
-                marginBottom: 12,
-              }}
-            >
-              {answer ? (
-                <AnswerText
-                  text={answer}
-                  citations={citations}
-                  activeCitId={activeCitId}
-                  onCit={onCitationClick}
-                />
-              ) : (
-                <span style={{ color: c.t3 }}>No answer captured for this cell yet.</span>
-              )}
-            </div>
-            {nonNullCitations.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  alignItems: "center",
-                  paddingTop: 10,
-                  borderTop: `1px solid ${c.border}`,
-                }}
-              >
-                <span style={{ fontSize: 10, fontWeight: 700, color: c.t3, marginRight: 2 }}>
-                  Sources
-                </span>
-                {nonNullCitations.map((cite, index) => {
-                  const id = `${cite.source_file}_p${cite.page}_${index}`;
-                  return (
-                    <CitBadge
-                      key={id}
-                      cit={cite}
-                      id={id}
-                      active={activeCitId === id}
-                      onClick={() => onCitationClick(cite, id)}
-                    />
-                  );
-                })}
-              </div>
-            )}
-            {nonNullCitations.length === 0 && (
-              <div style={{ fontSize: 11, color: c.t3 }}>No citations captured.</div>
-            )}
-          </>
-        ) : (
-          <div style={{ fontSize: 12, color: c.t3, lineHeight: 1.5 }}>
-            Select a completed cell to inspect extracted text and citations.
-          </div>
-        )}
+        <CellSourcesPanel
+          theme={theme}
+          cell={selectedCell}
+          column={selectedColumn}
+          rowLabel={selectedRowLabel}
+          answer={answer}
+          citations={citations}
+          activeCitId={activeCitId}
+          onCitationClick={onCitationClick}
+        />
       </div>
 
       <SectionLabel theme={theme}>Run History</SectionLabel>
@@ -1384,6 +1344,112 @@ function RunDetailSidebar({
         {runHistory.length === 0 && <div style={{ fontSize: 11, color: c.t3 }}>No prior runs.</div>}
       </div>
     </aside>
+  );
+}
+
+function CellSourcesPanel({
+  theme,
+  cell,
+  column,
+  rowLabel,
+  answer,
+  citations,
+  activeCitId,
+  onCitationClick,
+}: {
+  theme: Theme;
+  cell: TabularCell | null;
+  column: WorkflowColumn | null;
+  rowLabel: string;
+  answer: string;
+  citations: (Citation | null)[];
+  activeCitId: string | null;
+  onCitationClick: (citation: Citation, id: string) => void;
+}) {
+  const c = ddTheme(theme);
+  const nonNullCitations = citations.filter((cite): cite is Citation => cite !== null);
+
+  if (!cell || !column) {
+    return (
+      <div style={{ fontSize: 12, color: c.t3, lineHeight: 1.5 }}>
+        Select a completed cell to inspect extracted text and citations.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ fontSize: 10, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {rowLabel} → {column.label}
+      </div>
+      <div
+        style={{
+          fontSize: 12,
+          color: c.t1,
+          lineHeight: 1.6,
+        }}
+      >
+        {answer ? (
+          <AnswerText
+            text={answer}
+            citations={citations}
+            activeCitId={activeCitId}
+            onCit={onCitationClick}
+          />
+        ) : (
+          <span style={{ color: c.t3 }}>No answer captured for this cell yet.</span>
+        )}
+      </div>
+      {nonNullCitations.length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Source spans
+          </div>
+          {nonNullCitations.map((cite, index) => {
+            const kind = cite.kind ?? "extracted";
+            const id = `${cell.id}_source_${index}`;
+            const active = activeCitId === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onCitationClick(cite, id)}
+                style={{
+                  textAlign: "left",
+                  border: `1px solid ${active ? tint(ACCENT, 55) : c.border}`,
+                  borderRadius: 8,
+                  background: active ? tint(ACCENT, 10) : c.surfaceAlt,
+                  color: c.t1,
+                  padding: 10,
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 750, color: kind === "derived" ? VIOLET : ACCENT }}>
+                    {cite.span_label || `${kind === "derived" ? "Derived" : "Source"} ${index + 1}`}
+                  </span>
+                  <span style={{ fontSize: 10, color: c.t3, fontFamily: "var(--font-mono, monospace)" }}>
+                    p.{cite.page}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 5 }}>
+                  {cite.source_file}
+                </div>
+                <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.45 }}>
+                  <CitationSnippet
+                    sourceFile={cite.source_file}
+                    text={cite.text_snippet || "Open the source document to inspect this span."}
+                    variant="viewer"
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ fontSize: 11, color: c.t3 }}>No citations captured.</div>
+      )}
+    </div>
   );
 }
 
@@ -1789,10 +1855,13 @@ function ColumnEditMenu({
     format: column.format,
     tags: column.tags ?? [],
   });
-  const [tagInput, setTagInput] = useState("");
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, maxHeight: 560 });
+  const autoDetectedShape = useMemo(
+    () => detectShape(`${draft.label}\n${draft.prompt}`),
+    [draft.label, draft.prompt]
+  );
 
   useEffect(() => {
     if (!open) {
@@ -1802,7 +1871,6 @@ function ColumnEditMenu({
         format: column.format,
         tags: column.tags ?? [],
       });
-      setTagInput("");
     }
   }, [column, open]);
 
@@ -1854,30 +1922,6 @@ function ColumnEditMenu({
       format: preset?.format || draft.format,
       tags: preset?.tags || draft.tags,
     });
-  }
-
-  function commitTag() {
-    const tag = tagInput.trim();
-    if (!tag) {
-      setTagInput("");
-      return;
-    }
-    setDraft((prev) => ({
-      ...prev,
-      tags: prev.tags.includes(tag) ? prev.tags : [...prev.tags, tag],
-    }));
-    setTagInput("");
-  }
-
-  function handleTagKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter" || event.key === ",") {
-      event.preventDefault();
-      commitTag();
-      return;
-    }
-    if (event.key === "Backspace" && tagInput === "" && draft.tags.length > 0) {
-      updateDraft({ tags: draft.tags.slice(0, -1) });
-    }
   }
 
   async function handleSave() {
@@ -1996,24 +2040,40 @@ function ColumnEditMenu({
                 />
               </Field>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
-                <Field label="Format" theme={theme}>
-                  <select
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginTop: 12 }}>
+                <Field label="Answer shape" theme={theme}>
+                  <ShapePicker
                     value={draft.format}
-                    onChange={(e) =>
+                    onChange={(format) =>
                       updateDraft({
-                        format: e.target.value as ColumnFormat,
-                        tags: e.target.value === "tag" || e.target.value === "enum" ? draft.tags : [],
+                        format,
+                        tags: format === "enum" ? draft.tags : [],
                       })
                     }
-                    style={inputStyle(c)}
-                  >
-                    {FORMAT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    theme={theme}
+                  />
+                  {autoDetectedShape && autoDetectedShape.value !== draft.format && (
+                    <div style={{ fontSize: 10, color: c.t3, marginTop: 7, lineHeight: 1.45 }}>
+                      Suggested:{" "}
+                      <button
+                        type="button"
+                        onClick={() => updateDraft({ format: autoDetectedShape.value })}
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          color: autoDetectedShape.color,
+                          cursor: "pointer",
+                          padding: 0,
+                          fontSize: 10,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {autoDetectedShape.label.toLowerCase()}
+                      </button>
+                      {" · "}
+                      {autoDetectedShape.example}
+                    </div>
+                  )}
                 </Field>
                 <Field label="Preset" theme={theme}>
                   <select
@@ -2043,58 +2103,13 @@ function ColumnEditMenu({
               </div>
 
               {(draft.format === "tag" || draft.format === "enum") && (
-                <Field label="Tags" theme={theme} style={{ marginTop: 12 }}>
-                  <div
-                    style={{
-                      minHeight: 32,
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 4,
-                      padding: "6px 8px",
-                      borderRadius: 6,
-                      border: `1px solid ${c.border}`,
-                      background: c.bg,
-                    }}
-                  >
-                    {draft.tags.map((tag, idx) => (
-                      <span
-                        key={tag}
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${TAG_COLORS[idx % TAG_COLORS.length]}`}
-                      >
-                        {tag}
-                        <button
-                          onClick={() => updateDraft({ tags: draft.tags.filter((t) => t !== tag) })}
-                          style={{
-                            border: "none",
-                            background: "transparent",
-                            color: "currentColor",
-                            cursor: "pointer",
-                            opacity: 0.7,
-                            padding: 0,
-                            fontSize: 10,
-                          }}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                    <input
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={handleTagKeyDown}
-                      onBlur={commitTag}
-                      placeholder={draft.tags.length === 0 ? "Add tag…" : ""}
-                      style={{
-                        flex: 1,
-                        minWidth: 70,
-                        background: "transparent",
-                        border: "none",
-                        outline: "none",
-                        color: c.t1,
-                        fontSize: 12,
-                      }}
-                    />
-                  </div>
+                <Field label="Shape options" theme={theme} style={{ marginTop: 12 }}>
+                  <ShapeOptionsInspector
+                    format={draft.format}
+                    tags={draft.tags}
+                    onTagsChange={(tags) => updateDraft({ tags })}
+                    theme={theme}
+                  />
                 </Field>
               )}
 
@@ -2129,6 +2144,23 @@ function ColumnEditMenu({
                   fontFamily: "inherit",
                 }}
               />
+              <div style={{ marginTop: 12 }}>
+                <Field label="Cell preview" theme={theme}>
+                  <CellRenderPreview
+                    column={{
+                      id: column.id,
+                      order_index: column.order_index,
+                      label: draft.label,
+                      prompt: draft.prompt,
+                      format: draft.format,
+                      tags: draft.tags,
+                      is_derived: column.is_derived,
+                      formula: column.formula,
+                    }}
+                    theme={theme}
+                  />
+                </Field>
+              </div>
             </div>
             <div
               style={{

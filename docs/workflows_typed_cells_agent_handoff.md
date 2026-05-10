@@ -263,6 +263,33 @@ Frontend:
 
 ## Progress Log
 
+### 2026-05-10 · Phase 4/5/6 completion pass
+
+- Added shared shape authoring controls in `frontend/src/components/workflows/cells/ShapeControls.tsx`.
+- Reused the same `ShapePicker`, `ShapeOptionsInspector`, passive `detectShape()` hints, and `CellRenderPreview` in both:
+  - `frontend/src/components/workflows/TabularEditor.tsx`
+  - `frontend/src/components/workflows/TabularRun.tsx` in-run column edit menu
+- Added a selected-cell preview in the workflow editor so analysts can see a comfortable-density typed cell before running.
+- Made in-grid citation chips clickable when rendered inside the run grid; citation clicks still open `DocumentViewer` at the cited page/snippet.
+- Replaced the old run sidebar answer/source block with `CellSourcesPanel`, which renders:
+  - the selected typed cell in reader density
+  - the full extracted answer with inline citation handling
+  - every non-null source span with default `kind = extracted` behavior and optional `span_label`
+- Added Phase 6 migration support:
+  - `backend/app/services/workflow_format_migration.py`
+  - `backend/scripts/migrate_workflow_formats.py`
+  - `backend/tests/test_workflow_format_migration.py`
+- Added `SEED_SAMPLE_DATA` startup flag and set Docker dev default to `false` so local backend health is not blocked by sample document ingestion after container recreation.
+- Migration behavior is dry-run by default. Write mode is explicit:
+  - Dry run: `PYTHONPATH=. python scripts/migrate_workflow_formats.py`
+  - Apply: `PYTHONPATH=. python scripts/migrate_workflow_formats.py --write`
+
+Verification:
+
+- `npm run build` from `frontend/` passed.
+- `PYTHONPATH=. .venv/bin/pytest tests/test_workflow_format_typed.py tests/test_workflow_format_migration.py` from `backend/` passed: 13 tests.
+- Recreated Docker dev services with `docker compose -p spokematrix up -d --build --force-recreate --renew-anon-volumes backend frontend-dev`, then recreated backend with the seed flag. Verified `http://localhost:3200/login` returns 200 and `http://localhost:8000/health` returns `{"status":"ok","service":"vyntic"}`.
+
 ### 2026-05-10 · Phase 2/3/4 foundations
 
 - Added `frontend/src/components/workflows/cells/CellRenderer.tsx`.
@@ -311,4 +338,4 @@ Verification:
 
 ## Current Status
 
-Phase 0 is complete. Phase 1 typed data contract is implemented and focused tests pass. Phase 2 renderer foundation, Phase 3 density foundation, and the first Phase 4 editor shape-picker pass are implemented. Remaining Phase 4 work: shape-specific options, live render preview, and reuse in the in-run column edit modal. Phase 5 provenance panel is not started.
+Phase 0 is complete. Phase 1 typed data contract is implemented and focused tests pass. Phase 2 renderer foundation and Phase 3 density controls are implemented. Phase 4 is implemented for editor and in-run column editing, including shape-specific enum options and render preview. Phase 5 provenance scaffold is implemented as a first `CellSourcesPanel` pass. Phase 6 migration support is implemented as an opt-in dry-run/write helper and CLI script. Phase 7 remains later work for server-computed quality signals, compare-across-rows mode, anchor row selection, and diff highlighting.

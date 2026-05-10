@@ -110,7 +110,6 @@ async def _ingest_file(sample_dir: Path, deal_id: str, filename: str) -> bool:
         chunks = chunk_sections(sections, deal_id, doc_metadata.doc_id)
         doc_metadata.chunk_count = len(chunks)
         await upsert_chunks(deal_id, chunks)
-        deal_store.increment_doc_count(deal_id)
         deal_store.add_document(deal_id, doc_metadata)
         logger.info(f"  Ingested {filename} → {len(chunks)} chunks")
         return True

@@ -88,9 +88,13 @@ async def startup():
         )
         logger.info(f"Created default admin user: {settings.default_admin_email}")
 
-    # Seed sample data (skips deals that already exist in DB)
-    from app.seed import seed_sample_data
-    await seed_sample_data(admin_user_id=admin.id)
+    # Seed sample data (skips deals that already exist in DB). Local Docker dev
+    # can disable this to avoid blocking startup on document ingestion.
+    if settings.seed_sample_data:
+        from app.seed import seed_sample_data
+        await seed_sample_data(admin_user_id=admin.id)
+    else:
+        logger.info("Sample data seeding disabled via SEED_SAMPLE_DATA=false")
 
     # Seed built-in workflow templates (idempotent)
     from app.services.workflow_seed import seed_builtin_workflows

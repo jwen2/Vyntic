@@ -2,6 +2,7 @@
 Shared LLM helper with automatic fallback from primary to backup model.
 """
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -24,12 +25,25 @@ class LLMCallMeta:
 _last_meta: LLMCallMeta | None = None
 
 
+class LLMConfigurationError(RuntimeError):
+    """Raised when the backend cannot initialize the configured LLM provider."""
+
+
 def get_last_meta() -> LLMCallMeta | None:
     return _last_meta
 
 
+def ensure_llm_configured() -> None:
+    if not settings.gemini_api_key and not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+        raise LLMConfigurationError(
+            "GEMINI_API_KEY is not configured. Set GEMINI_API_KEY in your shell or .env, "
+            "then recreate the backend container before running workflows."
+        )
+
+
 def get_llm(model: str | None = None) -> ChatGoogleGenerativeAI:
     """Create a Gemini LLM instance."""
+    ensure_llm_configured()
     return ChatGoogleGenerativeAI(
         model=model or settings.gemini_model,
         google_api_key=settings.gemini_api_key,
@@ -44,6 +58,8 @@ async def invoke_with_fallback(messages: list[BaseMessage]) -> str:
         llm = get_llm(settings.gemini_model)
         response = await llm.ainvoke(messages)
         return response.content
+    except LLMConfigurationError:
+        raise
     except Exception as e:
         if settings.gemini_fallback_model:
             logger.warning(f"Primary model failed ({e}), falling back to {settings.gemini_fallback_model}")
@@ -67,6 +83,8 @@ async def stream_with_fallback(messages: list[BaseMessage]):
         llm = get_llm(settings.gemini_model)
         async for chunk in llm.astream(messages):
             yield chunk
+    except LLMConfigurationError:
+        raise
     except Exception as e:
         if settings.gemini_fallback_model:
             logger.warning(f"Primary model failed ({e}), falling back to {settings.gemini_fallback_model}")
