@@ -68,6 +68,27 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
 
   const handleClone = useCallback(
     async (workflowId: string) => {
+      // If we've already cloned this built-in for this deal, opening that
+      // existing copy is almost always what the analyst wants. Cloning silently
+      // a second time was generating a graveyard of duplicate "QofE Bridge (Copy)"
+      // workflows in the library and making analysts think their saves had
+      // reverted. Surface the choice instead of guessing.
+      const existing = workflows.filter(
+        (w) => !w.is_builtin && w.cloned_from === workflowId
+      );
+      if (existing.length > 0) {
+        const mostRecent = existing
+          .slice()
+          .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
+        const open = window.confirm(
+          `You already have ${existing.length === 1 ? "a copy" : `${existing.length} copies`} of this workflow ("${mostRecent.name}"). ` +
+            `Click OK to open the most recent copy, or Cancel to make a brand-new copy.`
+        );
+        if (open) {
+          setScreen({ kind: "editor", workflowId: mostRecent.id });
+          return;
+        }
+      }
       try {
         const cloned = await cloneWorkflow(dealId, workflowId);
         await refresh();
@@ -76,7 +97,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
         setError(err instanceof Error ? err.message : "Failed to clone workflow");
       }
     },
-    [dealId, refresh]
+    [dealId, refresh, workflows]
   );
 
   const handleEdit = useCallback((workflowId: string) => {
@@ -153,7 +174,10 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
     }
   }, []);
 
-  if (loading) {
+  // Only block on the initial fetch — subsequent refreshes happen in the
+  // background so we don't unmount the editor mid-save (which used to wipe
+  // its "Saved" indicator and confuse the user into thinking nothing happened).
+  if (loading && workflows.length === 0) {
     return (
       <div
         style={{
@@ -323,6 +347,11 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           workflow={workflow}
           theme={theme}
           onBack={() => setScreen({ kind: "library" })}
+          onWorkflowChange={(updated) =>
+            setWorkflows((prev) =>
+              prev.map((w) => (w.id === updated.id ? updated : w))
+            )
+          }
         />
         {renderModal()}
       </>

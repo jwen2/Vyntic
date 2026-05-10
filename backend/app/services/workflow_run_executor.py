@@ -90,6 +90,82 @@ def kick_off_run(run_id: str, deal_id: str) -> None:
     task.add_done_callback(_RUN_TASKS.discard)
 
 
+def kick_off_cell_retry(cell_id: str, run_id: str, deal_id: str) -> None:
+    """Schedule a single cell retry. Used when an analyst rerun a cell or a
+    column from the run UI without restarting the whole run."""
+
+    async def _runner() -> None:
+        # Flip run status back to 'running' so the UI badge updates.
+        run = workflow_run_store.get_run(run_id)
+        if run is not None and run.status in ("complete", "cancelled", "error"):
+            workflow_run_store.set_run_status(run_id, "running")
+            await run_event_bus.publish(
+                run_id, {"type": "run", "run_id": run_id, "status": "running"}
+            )
+        try:
+            await execute_cell(cell_id, run_id, deal_id)
+        except Exception as exc:
+            logger.exception("Unhandled error retrying cell: cell=%s", cell_id)
+            cell = workflow_run_store.error_cell(cell_id, f"Unhandled: {exc}")
+            if cell is not None:
+                await run_event_bus.publish(
+                    run_id, {"type": "cell", "cell": cell.model_dump(mode="json")}
+                )
+        # If everything settled, finalize run status.
+        all_done, worst = workflow_run_store.all_cells_terminal(run_id)
+        if all_done:
+            final_status = worst or "complete"
+            workflow_run_store.set_run_status(run_id, final_status)
+            await run_event_bus.publish(
+                run_id, {"type": "run", "run_id": run_id, "status": final_status}
+            )
+
+    task = asyncio.create_task(_runner())
+    _RUN_TASKS.add(task)
+    task.add_done_callback(_RUN_TASKS.discard)
+
+
+def kick_off_column_retry(cell_ids: list[str], run_id: str, deal_id: str) -> None:
+    """Schedule retries for every cell in a column with bounded concurrency."""
+
+    async def _runner() -> None:
+        run = workflow_run_store.get_run(run_id)
+        if run is not None and run.status in ("complete", "cancelled", "error"):
+            workflow_run_store.set_run_status(run_id, "running")
+            await run_event_bus.publish(
+                run_id, {"type": "run", "run_id": run_id, "status": "running"}
+            )
+        semaphore = asyncio.Semaphore(_CELL_SEMAPHORE_SIZE)
+
+        async def run_one(cell_id: str) -> None:
+            async with semaphore:
+                try:
+                    await execute_cell(cell_id, run_id, deal_id)
+                except Exception as exc:
+                    logger.exception(
+                        "Unhandled error retrying cell: cell=%s", cell_id
+                    )
+                    cell = workflow_run_store.error_cell(cell_id, f"Unhandled: {exc}")
+                    if cell is not None:
+                        await run_event_bus.publish(
+                            run_id,
+                            {"type": "cell", "cell": cell.model_dump(mode="json")},
+                        )
+
+        await asyncio.gather(*(run_one(cid) for cid in cell_ids))
+        all_done, worst = workflow_run_store.all_cells_terminal(run_id)
+        if all_done:
+            final_status = worst or "complete"
+            workflow_run_store.set_run_status(run_id, final_status)
+            await run_event_bus.publish(
+                run_id, {"type": "run", "run_id": run_id, "status": final_status}
+            )
+
+    task = asyncio.create_task(_runner())
+    _RUN_TASKS.add(task)
+    task.add_done_callback(_RUN_TASKS.discard)
+
+
 def kick_off_assistant_run(run_id: str, deal_id: str) -> None:
     """Schedule `execute_assistant_run`. Idempotent — calling it on a run
     that's still running is a no-op (the running task picks up the same

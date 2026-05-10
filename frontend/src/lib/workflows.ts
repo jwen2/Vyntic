@@ -164,6 +164,26 @@ export async function deleteWorkflow(dealId: string, workflowId: string): Promis
   if (!res.ok) throw new Error(await res.text());
 }
 
+export interface WorkflowColumnPatch {
+  label?: string;
+  prompt?: string;
+  format?: ColumnFormat;
+  tags?: string[] | null;
+}
+
+export async function patchWorkflowColumn(
+  dealId: string,
+  workflowId: string,
+  columnId: string,
+  patch: WorkflowColumnPatch
+): Promise<WorkflowColumn> {
+  const res = await authedFetch(
+    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/columns/${encodeURIComponent(columnId)}`,
+    { method: "PATCH", body: JSON.stringify(patch) }
+  );
+  return unwrap<WorkflowColumn>(res);
+}
+
 export async function cloneWorkflow(dealId: string, workflowId: string): Promise<Workflow> {
   const res = await authedFetch(
     `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/clone`,
@@ -303,6 +323,25 @@ export async function listRuns(dealId: string, workflowId: string): Promise<Work
 export async function getRun(runId: string): Promise<WorkflowRun> {
   const res = await authedFetch(`${API_BASE}/runs/${encodeURIComponent(runId)}`);
   return unwrap<WorkflowRun>(res);
+}
+
+export async function retryCell(runId: string, cellId: string): Promise<TabularCell> {
+  const res = await authedFetch(
+    `${API_BASE}/runs/${encodeURIComponent(runId)}/cells/${encodeURIComponent(cellId)}/retry`,
+    { method: "POST" }
+  );
+  return unwrap<TabularCell>(res);
+}
+
+export async function retryColumn(
+  runId: string,
+  columnId: string
+): Promise<{ requeued: number }> {
+  const res = await authedFetch(
+    `${API_BASE}/runs/${encodeURIComponent(runId)}/columns/${encodeURIComponent(columnId)}/retry`,
+    { method: "POST" }
+  );
+  return unwrap<{ requeued: number }>(res);
 }
 
 export async function cancelRun(runId: string): Promise<WorkflowRun> {

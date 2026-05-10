@@ -4,10 +4,25 @@ Run/cell endpoints will land in Phase 2 (separate router).
 """
 from fastapi import APIRouter, Depends, HTTPException
 
+from pydantic import BaseModel
+
 from app.auth import get_current_user, require_deal_access
 from app.database import UserRow
-from app.models.workflow import Workflow, WorkflowCreate, WorkflowUpdate
+from app.models.workflow import (
+    ColumnFormat,
+    Workflow,
+    WorkflowColumn,
+    WorkflowCreate,
+    WorkflowUpdate,
+)
 from app.services import workflow_store
+
+
+class WorkflowColumnPatch(BaseModel):
+    label: str | None = None
+    prompt: str | None = None
+    format: ColumnFormat | None = None
+    tags: list[str] | None = None
 
 router = APIRouter(tags=["workflows"])
 
@@ -87,6 +102,42 @@ def delete_deal_workflow(
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
     return {"ok": True}
+
+
+@router.patch(
+    "/deals/{deal_id}/workflows/{workflow_id}/columns/{column_id}",
+    response_model=WorkflowColumn,
+)
+def patch_workflow_column(
+    deal_id: str,
+    workflow_id: str,
+    column_id: str,
+    data: WorkflowColumnPatch,
+    current_user: UserRow = Depends(get_current_user),
+):
+    """Update a single column's label / prompt / format / tags in place.
+    Used by the run UI to edit a column without rebuilding the whole workflow
+    template (which would cascade-delete prior cells)."""
+    require_deal_access(current_user, deal_id)
+    existing = workflow_store.get_workflow(workflow_id)
+    if not existing or existing.deal_id != deal_id:
+        raise HTTPException(status_code=404, detail="Workflow not found in this deal")
+    if existing.is_builtin:
+        raise HTTPException(
+            status_code=403,
+            detail="Built-in workflows are read-only; clone first",
+        )
+    updated = workflow_store.update_column(
+        workflow_id,
+        column_id,
+        label=data.label,
+        prompt=data.prompt,
+        format=data.format,
+        tags=data.tags,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Column not found in this workflow")
+    return updated
 
 
 @router.post("/deals/{deal_id}/workflows/{workflow_id}/clone", response_model=Workflow)

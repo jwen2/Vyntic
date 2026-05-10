@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ddTheme } from "@/components/dd/types";
 import {
   listDocuments,
@@ -12,6 +13,9 @@ import {
   downloadRunExport,
   getRun,
   listRuns,
+  patchWorkflowColumn,
+  retryCell as retryCellApi,
+  retryColumn as retryColumnApi,
   subscribeRun,
   type CellStatus,
   type RunStatus,
@@ -21,7 +25,17 @@ import {
   type Workflow,
   type WorkflowRun,
 } from "@/lib/workflows";
-import { getFormatShort } from "@/lib/matrixColumnConfig";
+import {
+  FORMAT_OPTIONS,
+  PE_COLUMN_PRESETS,
+  TAG_COLORS,
+  buildFallbackPrompt,
+  getFormatShort,
+  getPresetConfig,
+  type ColumnFormat,
+} from "@/lib/matrixColumnConfig";
+import AnswerText, { CitBadge } from "@/components/dd/AnswerText";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "./theme";
 
@@ -35,6 +49,8 @@ interface TabularRunProps {
   onBack: () => void;
   /** Called once when run reaches a terminal state (complete/error/cancelled). */
   onComplete?: (run: WorkflowRun) => void;
+  /** Bubbled up so the parent's workflow list can refresh after a column edit. */
+  onWorkflowChange?: (workflow: Workflow) => void;
 }
 
 interface RunLogEntry {
@@ -49,12 +65,18 @@ const cellKey = (rowKey: string, columnId: string) => `${rowKey}__${columnId}`;
 export default function TabularRun({
   dealId,
   runId,
-  workflow,
+  workflow: workflowProp,
   theme,
   onBack,
   onComplete,
+  onWorkflowChange,
 }: TabularRunProps) {
   const c = ddTheme(theme);
+  const [workflow, setWorkflow] = useState<Workflow>(workflowProp);
+  useEffect(() => setWorkflow(workflowProp), [workflowProp]);
+  const onWorkflowChangeRef = useRef(onWorkflowChange);
+  onWorkflowChangeRef.current = onWorkflowChange;
+
   const [run, setRun] = useState<WorkflowRun | null>(null);
   const [cells, setCells] = useState<Map<string, TabularCell>>(new Map());
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
@@ -64,28 +86,158 @@ export default function TabularRun({
   const [exporting, setExporting] = useState(false);
   const [runHistory, setRunHistory] = useState<WorkflowRun[]>([]);
   const [selectedCellKey, setSelectedCellKey] = useState<string | null>(null);
+  const [activeCitId, setActiveCitId] = useState<string | null>(null);
   const [viewerState, setViewerState] = useState<{
     dealId: string;
     filename: string;
     page: number;
     snippet: string;
   } | null>(null);
+  const WIDTH_KEY = `vyntic_workflow_widths_${workflow.id}`;
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(WIDTH_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+    } catch {}
+    return {};
+  });
+  const [resizingKey, setResizingKey] = useState<string | null>(null);
+  const [pendingColumnRetry, setPendingColumnRetry] = useState<{
+    columnId: string;
+    label: string;
+  } | null>(null);
+  const [retryingCellIds, setRetryingCellIds] = useState<Set<string>>(new Set());
   const onCompleteRef = useRef(onComplete);
   const completedFiredRef = useRef(false);
   onCompleteRef.current = onComplete;
 
-  const handleCitationClick = useCallback((citation: Citation, citDealId: string) => {
-    setViewerState({
-      dealId: citDealId,
-      filename: citation.source_file,
-      page: citation.page,
-      snippet: citation.text_snippet || "",
-    });
-  }, []);
+  const COL_DOC = 260;
+  const COL_DEFAULT = 200;
+  const MIN_COL_WIDTH = 140;
+  const MAX_COL_WIDTH = 1200;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WIDTH_KEY, JSON.stringify(colWidths));
+    } catch {}
+  }, [colWidths, WIDTH_KEY]);
+
+  const getColWidth = useCallback(
+    (key: string, fallback: number) => colWidths[key] ?? fallback,
+    [colWidths]
+  );
+
+  const startColResize = useCallback(
+    (e: React.MouseEvent, key: string, startWidth: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      setResizingKey(key);
+      const onMove = (mv: MouseEvent) => {
+        const delta = mv.clientX - startX;
+        const next = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, startWidth + delta));
+        setColWidths((prev) => ({ ...prev, [key]: next }));
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        setResizingKey(null);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    []
+  );
+
+  const handleCitationClick = useCallback(
+    (citation: Citation, citId: string) => {
+      setActiveCitId(citId);
+      setViewerState({
+        dealId: citation.deal_id || dealId,
+        filename: citation.source_file,
+        page: citation.page,
+        snippet: citation.text_snippet || "",
+      });
+    },
+    [dealId]
+  );
 
   const runColumns = useMemo(
     () => workflow.columns.slice().sort((a, b) => a.order_index - b.order_index),
     [workflow.columns]
+  );
+
+  const handleRetryCell = useCallback(
+    async (cellId: string) => {
+      setRetryingCellIds((prev) => {
+        const next = new Set(prev);
+        next.add(cellId);
+        return next;
+      });
+      try {
+        await retryCellApi(runId, cellId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Retry failed");
+      } finally {
+        setRetryingCellIds((prev) => {
+          const next = new Set(prev);
+          next.delete(cellId);
+          return next;
+        });
+      }
+    },
+    [runId]
+  );
+
+  const handleRetryColumn = useCallback(
+    async (columnId: string) => {
+      try {
+        await retryColumnApi(runId, columnId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Column retry failed");
+      }
+    },
+    [runId]
+  );
+
+  const handleSaveColumn = useCallback(
+    async (columnId: string, patch: { label: string; prompt: string; format: ColumnFormat; tags: string[] }): Promise<{ promptChanged: boolean }> => {
+      const current = workflow.columns.find((col) => col.id === columnId);
+      if (!current) return { promptChanged: false };
+      const promptChanged = current.prompt.trim() !== patch.prompt.trim();
+      const updated = await patchWorkflowColumn(dealId, workflow.id, columnId, {
+        label: patch.label,
+        prompt: patch.prompt,
+        format: patch.format,
+        tags: patch.format === "tag" ? patch.tags : null,
+      });
+      const nextWorkflow: Workflow = {
+        ...workflow,
+        columns: workflow.columns.map((col) =>
+          col.id === columnId
+            ? {
+                ...col,
+                label: updated.label,
+                prompt: updated.prompt,
+                format: updated.format,
+                tags: updated.tags ?? null,
+              }
+            : col
+        ),
+      };
+      setWorkflow(nextWorkflow);
+      onWorkflowChangeRef.current?.(nextWorkflow);
+      return { promptChanged };
+    },
+    [workflow, dealId]
   );
 
   useEffect(() => {
@@ -575,8 +727,9 @@ export default function TabularRun({
             />
             <table
               style={{
-                minWidth: Math.max(760, 260 + runColumns.length * 160),
-                width: "100%",
+                width:
+                  getColWidth("doc", COL_DOC) +
+                  runColumns.reduce((sum, col) => sum + getColWidth(col.id, COL_DEFAULT), 0),
                 tableLayout: "fixed",
                 borderCollapse: "separate",
                 borderSpacing: 0,
@@ -584,31 +737,87 @@ export default function TabularRun({
                 background: c.surface,
                 border: `1px solid ${c.border}`,
                 borderRadius: 8,
-                overflow: "hidden",
               }}
             >
+              <colgroup>
+                <col style={{ width: getColWidth("doc", COL_DOC) }} />
+                {runColumns.map((col) => (
+                  <col key={col.id} style={{ width: getColWidth(col.id, COL_DEFAULT) }} />
+                ))}
+              </colgroup>
               <thead>
                 <tr>
-                  <th style={{ ...cellHeaderStyle(c), width: 260, position: "sticky", left: 0, zIndex: 2 }}>Document</th>
+                  <th style={cellHeaderStyle(c)}>
+                    Document
+                    <ColResizeHandle
+                      active={resizingKey === "doc"}
+                      onMouseDown={(e) =>
+                        startColResize(e, "doc", getColWidth("doc", COL_DOC))
+                      }
+                    />
+                  </th>
                   {runColumns.map((col) => (
-                    <th key={col.id} style={cellHeaderStyle(c)}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{col.label}</span>
-                        <span
-                          style={{
-                            fontSize: 8,
-                            padding: "1px 5px",
-                            borderRadius: 3,
-                            background: tint(VIOLET, 18),
-                            color: VIOLET,
-                            fontWeight: 700,
-                            letterSpacing: "0.06em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {getFormatShort(col.format)}
-                        </span>
+                    <th key={col.id} style={cellHeaderStyle(c)} className="group/header">
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 6, minWidth: 0 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {col.label}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 8,
+                                padding: "1px 5px",
+                                borderRadius: 3,
+                                background: tint(VIOLET, 18),
+                                color: VIOLET,
+                                fontWeight: 700,
+                                letterSpacing: "0.06em",
+                                textTransform: "uppercase",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {getFormatShort(col.format)}
+                            </span>
+                          </div>
+                          {col.prompt && col.prompt !== col.label && (
+                            <div
+                              style={{
+                                fontSize: 9,
+                                color: c.t3,
+                                fontWeight: 400,
+                                marginTop: 2,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                textTransform: "none",
+                                letterSpacing: 0,
+                              }}
+                              title={col.prompt}
+                            >
+                              {col.prompt}
+                            </div>
+                          )}
+                        </div>
+                        {!workflow.is_builtin && (
+                          <ColumnEditMenu
+                            column={col}
+                            theme={theme}
+                            onSave={async (patch) => {
+                              const { promptChanged } = await handleSaveColumn(col.id, patch);
+                              if (promptChanged) {
+                                setPendingColumnRetry({ columnId: col.id, label: patch.label });
+                              }
+                            }}
+                          />
+                        )}
                       </div>
+                      <ColResizeHandle
+                        active={resizingKey === col.id}
+                        onMouseDown={(e) =>
+                          startColResize(e, col.id, getColWidth(col.id, COL_DEFAULT))
+                        }
+                      />
                     </th>
                   ))}
                 </tr>
@@ -618,7 +827,7 @@ export default function TabularRun({
                   const doc = docs.find((d) => d.doc_id === rowKey);
                   return (
                     <tr key={rowKey}>
-                      <td style={{ ...cellBodyStyle(c), width: 260, position: "sticky", left: 0, zIndex: 1 }}>
+                      <td style={cellBodyStyle(c)}>
                         <div
                           style={{
                             overflow: "hidden",
@@ -635,14 +844,17 @@ export default function TabularRun({
                       </td>
                       {runColumns.map((col) => {
                         const cell = cells.get(cellKey(rowKey, col.id));
+                        const key = cellKey(rowKey, col.id);
                         if (cell && cell.status === "complete") {
                           return (
                             <ValueCell
                               key={col.id}
                               cell={cell}
                               column={col}
-                              selected={selectedCellKey === cellKey(rowKey, col.id)}
-                              onSelect={() => setSelectedCellKey(cellKey(rowKey, col.id))}
+                              selected={selectedCellKey === key}
+                              onSelect={() => setSelectedCellKey(key)}
+                              onRetry={() => handleRetryCell(cell.id)}
+                              retrying={retryingCellIds.has(cell.id)}
                               theme={theme}
                             />
                           );
@@ -668,8 +880,10 @@ export default function TabularRun({
           selectedCell={selectedCell}
           selectedColumn={selectedColumn}
           selectedRowLabel={selectedRowLabel}
-          dealId={dealId}
+          activeCitId={activeCitId}
           onCitationClick={handleCitationClick}
+          onRetryCell={handleRetryCell}
+          retrying={selectedCell ? retryingCellIds.has(selectedCell.id) : false}
         />
       </div>
 
@@ -682,6 +896,21 @@ export default function TabularRun({
           onClose={() => setViewerState(null)}
         />
       )}
+
+      {pendingColumnRetry && (
+        <ConfirmDialog
+          title="Re-run with updated prompt?"
+          message={`This will discard existing answers for "${pendingColumnRetry.label}" and re-run the updated prompt against ${rowKeys.length} ${rowKeys.length === 1 ? "row" : "rows"}.`}
+          confirmLabel="Re-run"
+          cancelLabel="Keep existing"
+          onConfirm={() => {
+            const { columnId } = pendingColumnRetry;
+            setPendingColumnRetry(null);
+            void handleRetryColumn(columnId);
+          }}
+          onCancel={() => setPendingColumnRetry(null)}
+        />
+      )}
     </div>
   );
 }
@@ -691,12 +920,16 @@ function ValueCell({
   column,
   selected,
   onSelect,
+  onRetry,
+  retrying,
   theme,
 }: {
   cell: TabularCell;
   column: WorkflowColumn;
   selected: boolean;
   onSelect: () => void;
+  onRetry: () => void;
+  retrying: boolean;
   theme: Theme;
 }) {
   const c = ddTheme(theme);
@@ -709,19 +942,68 @@ function ValueCell({
   return (
     <td
       onClick={onSelect}
+      className="group/cell"
       style={{
         ...cellBodyStyle(c),
         padding: "5px 8px",
         fontSize: 11,
         lineHeight: 1.2,
         cursor: "pointer",
+        position: "relative",
         background: selected ? tint(ACCENT, 12) : c.surface,
         boxShadow: selected ? `inset 0 0 0 1px ${tint(ACCENT, 55)}` : undefined,
       }}
       title={fullAnswer || (Array.isArray(display) ? display.join("; ") : display)}
     >
       <DisplayValue value={displayText} column={column} theme={theme} hasSource={hasSource} />
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!retrying) onRetry();
+        }}
+        className="opacity-0 group-hover/cell:opacity-100 transition-opacity"
+        style={{
+          position: "absolute",
+          top: 3,
+          right: 3,
+          width: 18,
+          height: 18,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 4,
+          border: `1px solid ${c.border}`,
+          background: c.surface,
+          color: retrying ? c.t3 : c.t2,
+          cursor: retrying ? "wait" : "pointer",
+          padding: 0,
+        }}
+        title="Re-run this cell"
+        aria-label="Retry cell"
+      >
+        <RetryIcon spinning={retrying} />
+      </button>
     </td>
+  );
+}
+
+function RetryIcon({ spinning = false }: { spinning?: boolean }) {
+  return (
+    <svg
+      className={spinning ? "dd-spin" : undefined}
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 4v6h6M20 20v-6h-6M5.07 9A8 8 0 0119.93 9M18.93 15A8 8 0 014.07 15" />
+    </svg>
   );
 }
 
@@ -861,8 +1143,10 @@ function RunDetailSidebar({
   selectedCell,
   selectedColumn,
   selectedRowLabel,
-  dealId,
+  activeCitId,
   onCitationClick,
+  onRetryCell,
+  retrying,
 }: {
   theme: Theme;
   run: WorkflowRun | null;
@@ -870,14 +1154,15 @@ function RunDetailSidebar({
   selectedCell: TabularCell | null;
   selectedColumn: WorkflowColumn | null;
   selectedRowLabel: string;
-  dealId: string;
-  onCitationClick: (citation: Citation, dealId: string) => void;
+  activeCitId: string | null;
+  onCitationClick: (citation: Citation, id: string) => void;
+  onRetryCell: (cellId: string) => void;
+  retrying: boolean;
 }) {
   const c = ddTheme(theme);
-  const citations = selectedCell?.citations.filter((cite): cite is Citation => cite !== null) ?? [];
-  const display = selectedCell && selectedColumn ? formatCellValue(selectedCell, selectedColumn) : "";
-  const displayText = Array.isArray(display) ? display[0] ?? "" : display;
-  const answer = selectedCell ? stripSourceMarkers(selectedCell.answer).trim() : "";
+  const citations = selectedCell?.citations ?? [];
+  const nonNullCitations = citations.filter((cite): cite is Citation => cite !== null);
+  const answer = selectedCell ? demoteHeadings(selectedCell.answer).trim() : "";
   return (
     <aside
       style={{
@@ -888,7 +1173,40 @@ function RunDetailSidebar({
         padding: 16,
       }}
     >
-      <SectionLabel theme={theme}>Cell Detail</SectionLabel>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        }}
+      >
+        <SectionLabel theme={theme}>Cell Detail</SectionLabel>
+        {selectedCell && (
+          <button
+            type="button"
+            onClick={() => !retrying && onRetryCell(selectedCell.id)}
+            disabled={retrying}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 8px",
+              borderRadius: 6,
+              border: `1px solid ${c.border}`,
+              background: c.surface,
+              color: c.t2,
+              fontSize: 10,
+              fontWeight: 600,
+              cursor: retrying ? "wait" : "pointer",
+              opacity: retrying ? 0.6 : 1,
+            }}
+          >
+            <RetryIcon spinning={retrying} />
+            {retrying ? "Re-running…" : "Rerun cell"}
+          </button>
+        )}
+      </div>
       <div
         style={{
           padding: "12px 14px",
@@ -900,63 +1218,58 @@ function RunDetailSidebar({
       >
         {selectedCell && selectedColumn ? (
           <>
-            <div style={{ fontSize: 10, color: c.t3, marginBottom: 7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 10, color: c.t3, marginBottom: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {selectedRowLabel} → {selectedColumn.label}
             </div>
-            <div style={{ marginBottom: 10 }}>
-              <DisplayValue value={displayText} column={selectedColumn} theme={theme} />
+            <div
+              style={{
+                fontSize: 12,
+                color: c.t1,
+                lineHeight: 1.6,
+                marginBottom: 12,
+              }}
+            >
+              {answer ? (
+                <AnswerText
+                  text={answer}
+                  citations={citations}
+                  activeCitId={activeCitId}
+                  onCit={onCitationClick}
+                />
+              ) : (
+                <span style={{ color: c.t3 }}>No answer captured for this cell yet.</span>
+              )}
             </div>
-            <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.6, marginBottom: 12 }}>
-              {answer || "No answer captured for this cell yet."}
-            </div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, marginBottom: 7 }}>
-              Citations ({citations.length})
-            </div>
-            {citations.length ? (
-              citations.map((cite, index) => (
-                <button
-                  key={`${cite.source_file}-${cite.page}-${index}`}
-                  onClick={() => onCitationClick(cite, cite.deal_id || dealId)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "8px 10px",
-                    background: c.bg,
-                    border: "none",
-                    borderLeft: `3px solid ${ACCENT}`,
-                    borderRadius: 6,
-                    marginBottom: 7,
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontSize: 10, color: ACCENT, fontFamily: "var(--font-mono, monospace)", marginBottom: 4 }}>
-                    {cite.source_file} · p.{cite.page}
-                  </div>
-                  <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.5, fontStyle: "italic" }}>
-                    {cite.text_snippet || "Open source passage"}
-                  </div>
-                </button>
-              ))
-            ) : (
-              <div style={{ fontSize: 11, color: c.t3 }}>No citations captured.</div>
-            )}
-            {citations[0] && (
-              <button
-                onClick={() => onCitationClick(citations[0], citations[0].deal_id || dealId)}
+            {nonNullCitations.length > 0 && (
+              <div
                 style={{
-                  marginTop: 6,
-                  padding: "6px 10px",
-                  border: `1px solid ${c.border}`,
-                  borderRadius: 7,
-                  background: c.surfaceAlt,
-                  color: c.t1,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: "pointer",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  alignItems: "center",
+                  paddingTop: 10,
+                  borderTop: `1px solid ${c.border}`,
                 }}
               >
-                Open in Viewer
-              </button>
+                <span style={{ fontSize: 10, fontWeight: 700, color: c.t3, marginRight: 2 }}>
+                  Sources
+                </span>
+                {nonNullCitations.map((cite, index) => {
+                  const id = `${cite.source_file}_p${cite.page}_${index}`;
+                  return (
+                    <CitBadge
+                      key={id}
+                      cit={cite}
+                      id={id}
+                      active={activeCitId === id}
+                      onClick={() => onCitationClick(cite, id)}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            {nonNullCitations.length === 0 && (
+              <div style={{ fontSize: 11, color: c.t3 }}>No citations captured.</div>
             )}
           </>
         ) : (
@@ -1078,6 +1391,13 @@ function isMissingValue(value: string): boolean {
   return /^(not stated|not disclosed|not specified|not provided|not mentioned|not addressed|not available|not found|no relevant|n\/a|unknown|unclear)\b/i.test(
     value.replace(/[.\s]+$/g, "").trim()
   );
+}
+
+// The row → column label at the top of the cell-detail panel already names
+// the column, so any LLM-emitted "## Share-based Compensation" line is
+// redundant. Demote markdown headings to bold paragraph text.
+function demoteHeadings(value: string): string {
+  return value.replace(/^#{1,6}\s+(.+)$/gm, "**$1**");
 }
 
 function stripSourceMarkers(value: string): string {
@@ -1222,7 +1542,7 @@ function DocStatusIcon({ status }: { status: CellStatus }) {
 
 function cellHeaderStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
   return {
-    padding: "7px 9px",
+    padding: "7px 12px 7px 9px",
     borderBottom: `1px solid ${c.border}`,
     borderRight: `1px solid ${c.border}`,
     color: c.t2,
@@ -1231,11 +1551,9 @@ function cellHeaderStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
     textTransform: "uppercase",
     letterSpacing: "0.05em",
     textAlign: "left",
-    whiteSpace: "nowrap",
     background: c.surfaceAlt,
-    position: "sticky",
-    top: 0,
-    zIndex: 1,
+    position: "relative",
+    verticalAlign: "top",
   };
 }
 
@@ -1299,4 +1617,500 @@ function PlaceholderCell({
     );
   }
   return null;
+}
+
+function ColResizeHandle({
+  active,
+  onMouseDown,
+}: {
+  active: boolean;
+  onMouseDown: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onDragStart={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      draggable={false}
+      title="Drag to resize"
+      className="hover:bg-blue-400/40"
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: 6,
+        cursor: "col-resize",
+        userSelect: "none",
+        background: active ? "rgba(59, 130, 246, 0.55)" : "transparent",
+        transition: "background 120ms",
+        zIndex: 5,
+      }}
+    />
+  );
+}
+
+interface ColumnDraft {
+  label: string;
+  prompt: string;
+  format: ColumnFormat;
+  tags: string[];
+}
+
+function ColumnEditMenu({
+  column,
+  theme,
+  onSave,
+}: {
+  column: WorkflowColumn;
+  theme: Theme;
+  onSave: (patch: ColumnDraft) => Promise<void> | void;
+}) {
+  const c = ddTheme(theme);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState<ColumnDraft>({
+    label: column.label,
+    prompt: column.prompt,
+    format: column.format,
+    tags: column.tags ?? [],
+  });
+  const [tagInput, setTagInput] = useState("");
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, maxHeight: 560 });
+
+  useEffect(() => {
+    if (!open) {
+      setDraft({
+        label: column.label,
+        prompt: column.prompt,
+        format: column.format,
+        tags: column.tags ?? [],
+      });
+      setTagInput("");
+    }
+  }, [column, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = 460;
+      const top = Math.min(rect.bottom + 6, window.innerHeight - 120);
+      const left = Math.min(
+        Math.max(16, rect.right - width),
+        Math.max(16, window.innerWidth - width - 16)
+      );
+      setPos({ top, left, maxHeight: Math.max(320, window.innerHeight - top - 16) });
+    };
+    updatePosition();
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
+
+  function updateDraft(patch: Partial<ColumnDraft>) {
+    setDraft((prev) => ({ ...prev, ...patch }));
+  }
+
+  function autoGeneratePrompt() {
+    const label = draft.label.trim();
+    if (!label) return;
+    const preset = getPresetConfig(label);
+    updateDraft({
+      prompt: preset?.prompt || buildFallbackPrompt(label, draft.format, draft.tags),
+      format: preset?.format || draft.format,
+      tags: preset?.tags || draft.tags,
+    });
+  }
+
+  function commitTag() {
+    const tag = tagInput.trim();
+    if (!tag) {
+      setTagInput("");
+      return;
+    }
+    setDraft((prev) => ({
+      ...prev,
+      tags: prev.tags.includes(tag) ? prev.tags : [...prev.tags, tag],
+    }));
+    setTagInput("");
+  }
+
+  function handleTagKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      commitTag();
+      return;
+    }
+    if (event.key === "Backspace" && tagInput === "" && draft.tags.length > 0) {
+      updateDraft({ tags: draft.tags.slice(0, -1) });
+    }
+  }
+
+  async function handleSave() {
+    const label = draft.label.trim();
+    const prompt = draft.prompt.trim();
+    if (!label || !prompt) return;
+    setSaving(true);
+    try {
+      await onSave({ label, prompt, format: draft.format, tags: draft.tags });
+      setOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="opacity-50 group-hover/header:opacity-100 transition-opacity"
+        style={{
+          flexShrink: 0,
+          width: 18,
+          height: 18,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 4,
+          border: "none",
+          background: "transparent",
+          color: c.t2,
+          cursor: "pointer",
+          padding: 0,
+        }}
+        title="Edit column label, prompt, and format"
+        aria-label="Edit column"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <circle cx="12" cy="6" r="1.2" />
+          <circle cx="12" cy="12" r="1.2" />
+          <circle cx="12" cy="18" r="1.2" />
+        </svg>
+      </button>
+
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={panelRef}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "fixed",
+              top: pos.top,
+              left: pos.left,
+              width: "min(460px, calc(100vw - 32px))",
+              maxHeight: pos.maxHeight,
+              overflowY: "auto",
+              background: c.surface,
+              border: `1px solid ${c.border}`,
+              borderRadius: 12,
+              boxShadow: "0 16px 40px rgba(15,23,42,0.25)",
+              zIndex: 9999,
+              color: c.t1,
+              fontSize: 12,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 16px",
+                borderBottom: `1px solid ${c.border}`,
+                position: "sticky",
+                top: 0,
+                background: c.surface,
+                zIndex: 1,
+              }}
+            >
+              <div style={{ fontWeight: 600 }}>Edit column</div>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: c.t2,
+                  cursor: "pointer",
+                  fontSize: 16,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ padding: 16 }}>
+              <Field label="Label" theme={theme}>
+                <input
+                  value={draft.label}
+                  onChange={(e) => {
+                    const label = e.target.value;
+                    const preset = getPresetConfig(label);
+                    updateDraft({
+                      label,
+                      ...(preset
+                        ? { prompt: preset.prompt, format: preset.format, tags: preset.tags || [] }
+                        : {}),
+                    });
+                  }}
+                  style={inputStyle(c)}
+                />
+              </Field>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+                <Field label="Format" theme={theme}>
+                  <select
+                    value={draft.format}
+                    onChange={(e) =>
+                      updateDraft({
+                        format: e.target.value as ColumnFormat,
+                        tags: e.target.value === "tag" ? draft.tags : [],
+                      })
+                    }
+                    style={inputStyle(c)}
+                  >
+                    {FORMAT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Preset" theme={theme}>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      if (!name) return;
+                      const preset = PE_COLUMN_PRESETS.find((p) => p.name === name);
+                      if (!preset) return;
+                      updateDraft({
+                        label: preset.name,
+                        prompt: preset.prompt,
+                        format: preset.format,
+                        tags: preset.tags || [],
+                      });
+                    }}
+                    style={inputStyle(c)}
+                  >
+                    <option value="">Choose…</option>
+                    {PE_COLUMN_PRESETS.map((preset) => (
+                      <option key={preset.name} value={preset.name}>
+                        {preset.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              {draft.format === "tag" && (
+                <Field label="Tags" theme={theme} style={{ marginTop: 12 }}>
+                  <div
+                    style={{
+                      minHeight: 32,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 4,
+                      padding: "6px 8px",
+                      borderRadius: 6,
+                      border: `1px solid ${c.border}`,
+                      background: c.bg,
+                    }}
+                  >
+                    {draft.tags.map((tag, idx) => (
+                      <span
+                        key={tag}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${TAG_COLORS[idx % TAG_COLORS.length]}`}
+                      >
+                        {tag}
+                        <button
+                          onClick={() => updateDraft({ tags: draft.tags.filter((t) => t !== tag) })}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: "currentColor",
+                            cursor: "pointer",
+                            opacity: 0.7,
+                            padding: 0,
+                            fontSize: 10,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={handleTagKeyDown}
+                      onBlur={commitTag}
+                      placeholder={draft.tags.length === 0 ? "Add tag…" : ""}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "transparent",
+                        border: "none",
+                        outline: "none",
+                        color: c.t1,
+                        fontSize: 12,
+                      }}
+                    />
+                  </div>
+                </Field>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Prompt
+                </span>
+                <button
+                  onClick={autoGeneratePrompt}
+                  disabled={!draft.label.trim()}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: ACCENT,
+                    fontSize: 11,
+                    cursor: draft.label.trim() ? "pointer" : "not-allowed",
+                    opacity: draft.label.trim() ? 1 : 0.4,
+                  }}
+                >
+                  Auto-generate
+                </button>
+              </div>
+              <textarea
+                rows={8}
+                value={draft.prompt}
+                onChange={(e) => updateDraft({ prompt: e.target.value })}
+                style={{
+                  ...inputStyle(c),
+                  marginTop: 4,
+                  resize: "none",
+                  lineHeight: 1.55,
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                padding: "12px 16px",
+                borderTop: `1px solid ${c.border}`,
+                position: "sticky",
+                bottom: 0,
+                background: c.surface,
+              }}
+            >
+              <button
+                onClick={() => setOpen(false)}
+                style={{
+                  padding: "6px 12px",
+                  border: `1px solid ${c.border}`,
+                  borderRadius: 7,
+                  background: "transparent",
+                  color: c.t2,
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !draft.label.trim() || !draft.prompt.trim()}
+                style={{
+                  padding: "6px 14px",
+                  border: "none",
+                  borderRadius: 7,
+                  background: ACCENT,
+                  color: "white",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: saving ? "wait" : "pointer",
+                  opacity: saving || !draft.label.trim() || !draft.prompt.trim() ? 0.5 : 1,
+                }}
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
+
+function Field({
+  label,
+  theme,
+  children,
+  style,
+}: {
+  label: string;
+  theme: Theme;
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}) {
+  const c = ddTheme(theme);
+  return (
+    <label style={{ display: "block", ...style }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          color: c.t3,
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      {children}
+    </label>
+  );
+}
+
+function inputStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "6px 8px",
+    border: `1px solid ${c.border}`,
+    borderRadius: 6,
+    background: c.bg,
+    color: c.t1,
+    fontSize: 12,
+    outline: "none",
+  };
 }

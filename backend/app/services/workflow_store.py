@@ -135,6 +135,54 @@ def create_workflow(
         db.close()
 
 
+def update_column(
+    workflow_id: str,
+    column_id: str,
+    *,
+    label: str | None = None,
+    prompt: str | None = None,
+    format: str | None = None,
+    tags: list[str] | None = None,
+) -> WorkflowColumn | None:
+    """Update a single column in place. Unlike `update_workflow`, this does
+    NOT delete-and-recreate the column row, so existing cells in past runs
+    keep their FK to it."""
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(WorkflowColumnRow)
+            .filter(
+                WorkflowColumnRow.id == column_id,
+                WorkflowColumnRow.workflow_id == workflow_id,
+            )
+            .first()
+        )
+        if not row:
+            return None
+        if label is not None:
+            row.label = label
+        if prompt is not None:
+            row.prompt = prompt
+        if format is not None:
+            row.format = format
+        if tags is not None:
+            row.tags_json = json.dumps(tags) if tags else "null"
+        db.commit()
+        db.refresh(row)
+        return WorkflowColumn(
+            id=row.id,
+            order_index=row.order_index,
+            label=row.label,
+            prompt=row.prompt or "",
+            format=row.format or "text",
+            tags=row.tags,
+            is_derived=bool(row.is_derived),
+            formula=row.formula,
+        )
+    finally:
+        db.close()
+
+
 def update_workflow(workflow_id: str, data: WorkflowUpdate) -> Workflow | None:
     db = SessionLocal()
     try:
