@@ -347,6 +347,63 @@ def error_cell(cell_id: str, error_message: str) -> TabularCell | None:
         db.close()
 
 
+def requeue_cell(cell_id: str) -> TabularCell | None:
+    """Reset a cell back to 'queued' so it can be re-executed. Clears any
+    prior answer / citations / error state."""
+    db = SessionLocal()
+    try:
+        row = db.query(TabularCellRow).filter(TabularCellRow.id == cell_id).first()
+        if not row:
+            return None
+        row.status = "queued"
+        row.answer = ""
+        row.answer_formatted_json = "null"
+        row.citations_json = "[]"
+        row.model = ""
+        row.fallback = False
+        row.duration_ms = 0
+        row.error_message = None
+        row.started_at = None
+        row.completed_at = None
+        db.commit()
+        db.refresh(row)
+        return _row_to_cell(row)
+    finally:
+        db.close()
+
+
+def requeue_cells_for_column(run_id: str, column_id: str) -> list[TabularCell]:
+    """Reset every cell in this run for a given column back to 'queued'.
+    Used when the column's prompt is edited from the run page."""
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(TabularCellRow)
+            .filter(
+                TabularCellRow.run_id == run_id,
+                TabularCellRow.column_id == column_id,
+            )
+            .all()
+        )
+        for row in rows:
+            row.status = "queued"
+            row.answer = ""
+            row.answer_formatted_json = "null"
+            row.citations_json = "[]"
+            row.model = ""
+            row.fallback = False
+            row.duration_ms = 0
+            row.error_message = None
+            row.started_at = None
+            row.completed_at = None
+        db.commit()
+        for row in rows:
+            db.refresh(row)
+        return [_row_to_cell(r) for r in rows]
+    finally:
+        db.close()
+
+
 def all_cells_terminal(run_id: str) -> tuple[bool, CellStatus | None]:
     """Return (all_terminal, worst_status). worst_status is 'error' if any cell
     errored, else 'complete' if all complete, else None when not all terminal."""

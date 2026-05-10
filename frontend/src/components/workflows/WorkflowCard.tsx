@@ -119,7 +119,7 @@ export default function WorkflowCard({
           theme={theme}
         />
         {workflow.is_builtin ? (
-          <CardButton label="Edit Copy" onClick={onClone} theme={theme} />
+          <CardButton label="Clone to edit" onClick={onClone} theme={theme} />
         ) : (
           <CardButton label="Edit" onClick={onEdit} theme={theme} />
         )}

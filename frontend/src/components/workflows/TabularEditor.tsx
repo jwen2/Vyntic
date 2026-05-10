@@ -303,7 +303,22 @@ export default function TabularEditor(props: TabularEditorProps) {
               Built-in · Read only
             </span>
           )}
-          {saveMessage && <span style={{ fontSize: 11, color: c.t2 }}>{saveMessage}</span>}
+          {saveMessage && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "4px 10px",
+                borderRadius: 6,
+                background: /fail|error/i.test(saveMessage)
+                  ? tint(RED, 18)
+                  : tint("#22c55e", 18),
+                color: /fail|error/i.test(saveMessage) ? RED : "#16a34a",
+              }}
+            >
+              {/fail|error/i.test(saveMessage) ? "✕" : "✓"} {saveMessage}
+            </span>
+          )}
           {!isReadOnly && (
             <button
               onClick={handleSave}
@@ -406,8 +421,9 @@ export default function TabularEditor(props: TabularEditorProps) {
             </div>
             {rowSource === "multi_doc_synthesis" && (
               <div style={{ fontSize: 10, color: c.t3, marginTop: 6, lineHeight: 1.5 }}>
-                Multi-doc synthesis rows are defined at run time (Phase 4). Phase 1
-                stores the choice; the run UI will surface the question editor.
+                Each row is a synthesis question you'll enter when you launch the
+                run. The retriever pulls relevant chunks from every selected
+                document, then the LLM answers each column for that question.
               </div>
             )}
           </div>
@@ -505,8 +521,8 @@ export default function TabularEditor(props: TabularEditorProps) {
                     lineHeight: 1.5,
                   }}
                 >
-                  Derived columns compute from other columns (e.g. risk tier from CoC + exclusivity).
-                  Formula evaluation lands in Phase 4 — Phase 1 stores the formula text only.
+                  Derived columns compute from other columns (e.g. risk tier from CoC + exclusivity)
+                  using a spreadsheet-style formula referencing other column labels.
                 </div>
               ) : (
                 columns
@@ -639,7 +655,7 @@ export default function TabularEditor(props: TabularEditorProps) {
               }}
             >
               Preview uses placeholder data. Run the workflow to populate with real
-              extractions (Phase 2).
+              extractions.
             </div>
           </div>
         </div>

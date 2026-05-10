@@ -39,6 +39,8 @@ from app.services.workflow_exports import (
 )
 from app.services.workflow_run_executor import (
     kick_off_assistant_run,
+    kick_off_cell_retry,
+    kick_off_column_retry,
     kick_off_run,
     run_event_bus,
 )
@@ -181,6 +183,54 @@ def cancel_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Run vanished")
     return refreshed
+
+
+@router.post("/runs/{run_id}/cells/{cell_id}/retry")
+async def retry_cell(
+    run_id: str,
+    cell_id: str,
+    current_user: UserRow = Depends(get_current_user),
+):
+    """Re-run a single tabular cell. Resets it to queued and kicks off the
+    cell executor. Used by the run UI's per-cell retry button."""
+    run = workflow_run_store.get_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    require_deal_access(current_user, run.deal_id)
+    cell = workflow_run_store.get_cell(cell_id)
+    if not cell or cell.run_id != run_id:
+        raise HTTPException(status_code=404, detail="Cell not found in this run")
+    requeued = workflow_run_store.requeue_cell(cell_id)
+    if requeued is None:
+        raise HTTPException(status_code=404, detail="Cell vanished")
+    await run_event_bus.publish(
+        run_id, {"type": "cell", "cell": requeued.model_dump(mode="json")}
+    )
+    kick_off_cell_retry(cell_id, run_id, run.deal_id)
+    return requeued
+
+
+@router.post("/runs/{run_id}/columns/{column_id}/retry")
+async def retry_column(
+    run_id: str,
+    column_id: str,
+    current_user: UserRow = Depends(get_current_user),
+):
+    """Re-run every cell in a column for this run. Used after the column's
+    prompt is edited from the run UI."""
+    run = workflow_run_store.get_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    require_deal_access(current_user, run.deal_id)
+    requeued = workflow_run_store.requeue_cells_for_column(run_id, column_id)
+    if not requeued:
+        raise HTTPException(status_code=404, detail="No cells found for that column in this run")
+    for cell in requeued:
+        await run_event_bus.publish(
+            run_id, {"type": "cell", "cell": cell.model_dump(mode="json")}
+        )
+    kick_off_column_retry([c.id for c in requeued], run_id, run.deal_id)
+    return {"requeued": len(requeued)}
 
 
 @router.post(
