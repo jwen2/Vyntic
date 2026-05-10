@@ -210,6 +210,32 @@ export type StageOutputStatus =
   | "complete"
   | "error";
 
+export interface Caveat {
+  text: string;
+  severity: "info" | "warn" | "risk";
+  citation_ids?: string[];
+}
+
+export interface ListItem {
+  text: string;
+  citation_ids?: string[];
+}
+
+export type TypedCellValue =
+  | { value: number; unit?: string | null; period?: string | null; raw?: string | null }
+  | { iso: string; granularity: "day" | "month" | "quarter" | "year" }
+  | { value: boolean }
+  | { value: string; allowed?: string[] }
+  | { summary: string; body: string; caveats: Caveat[] }
+  | { items: ListItem[]; ordered: boolean }
+  | { pairs: Array<{ key: string; value: string | number; unit?: string | null }> };
+
+export interface CellQuality {
+  coverage: number;
+  agreement?: "match" | "diff";
+  hallucination_risk: "low" | "med" | "high";
+}
+
 export interface TabularCell {
   id: string;
   run_id: string;
@@ -217,9 +243,10 @@ export interface TabularCell {
   column_id: string;
   status: CellStatus;
   answer: string;
-  /** Format-parsed value (number, bool, list, {amount,currency}, etc.) — null on parse failure. */
-  answer_formatted: unknown;
+  /** Format-parsed value. New typed-cell shapes use object values; legacy formats may still be scalar/list. */
+  answer_formatted: TypedCellValue | string | number | boolean | string[] | unknown[] | Record<string, unknown> | null;
   citations: (Citation | null)[];
+  quality?: CellQuality | null;
   model: string;
   fallback: boolean;
   duration_ms: number;

@@ -22,6 +22,7 @@ class TabularCell(BaseModel):
     answer: str = ""
     answer_formatted: Any = None  # parsed value per column format (number, bool, list, etc.)
     citations: list[Citation | None] = Field(default_factory=list)
+    quality: dict[str, Any] | None = None
     model: str = ""
     fallback: bool = False
     duration_ms: int = 0

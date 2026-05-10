@@ -53,6 +53,8 @@ export interface Citation {
   page: number;
   text_snippet: string;
   deal_id?: string;
+  kind?: "extracted" | "derived";
+  span_label?: string | null;
 }
 
 export interface CellData {
