@@ -58,7 +58,6 @@ class Settings(BaseSettings):
     max_concurrent_llm_calls: int = 3
 
     # Feature flags
-    agentic_features: bool = False
     seed_sample_data: bool = True
 
     class Config:
