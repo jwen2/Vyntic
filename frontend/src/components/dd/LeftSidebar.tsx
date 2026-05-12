@@ -7,9 +7,12 @@ import type { Finding, DocCoverage, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 
 interface Props {
-  mode: "assistant" | "agent" | "workstreams";
+  // "agent" hosts the assistant-chat experience (renamed from "assistant" 2026-05-11).
+  // The old multi-step agent workspace was retired in the same change.
+  mode: "agent" | "workstreams";
   findings: Finding[];
   docs: DocCoverage[];
+  /** @deprecated — agent run history is no longer surfaced; props remain until follow-up cleanup PR. */
   sessions: InvestigationSummary[];
   assistantHistory: ConversationEntry[];
   assistantHistoryLoaded: boolean;
@@ -76,7 +79,7 @@ export default function LeftSidebar({
         padding: 14,
       }}
     >
-      {mode === "assistant" ? (
+      {mode === "agent" ? (
         <AssistantSidebarContent
           history={assistantHistory}
           historyLoaded={assistantHistoryLoaded}
@@ -262,7 +265,7 @@ function AssistantSidebarContent({
           }}>
             V
           </div>
-          <span style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>Assistant</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>Agent</span>
         </div>
         <button
           type="button"
@@ -330,7 +333,7 @@ function AssistantSidebarContent({
             cursor: "pointer",
           }}
         >
-          <SectionLabel color={c.t3} marginBottom={0}>Assistant History</SectionLabel>
+          <SectionLabel color={c.t3} marginBottom={0}>Agent History</SectionLabel>
           <svg
             width="12"
             height="12"

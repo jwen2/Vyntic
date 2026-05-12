@@ -21,11 +21,11 @@ type ChatMessage = {
 };
 
 const ASSISTANT_PROMPTS = [
-  "Summarize the investment thesis and the three biggest diligence questions.",
-  "Find the strongest evidence for and against revenue quality.",
-  "What could break this deal or materially change valuation?",
-  "Compare management claims against the underlying support in the documents.",
-  "Draft an IC-style diligence memo with cited bullets.",
+  "Find all red flags and deal-breakers across every document in this deal room. Focus on anything that could affect valuation or close probability.",
+  "Cross-validate all revenue and EBITDA figures across the CIM, QoE report, and financial statements. Flag any discrepancies and explain their implications.",
+  "Perform a deep scan of the Legal DD document. Identify all litigation exposure, IP risks, regulatory concerns, and undisclosed liabilities.",
+  "Identify concentration risks across customers, suppliers, and key employees. Quantify exposure and highlight renewal, retention, or continuity risks.",
+  "Find cross-document inconsistencies across the CIM, QoE, financials, legal documents, and operations materials. Highlight metric mismatches, contradictory claims, and missing evidence.",
 ];
 
 function messageId(prefix: string) {
@@ -46,6 +46,9 @@ export default function DealAssistantPanel({
   onCit,
   onOpenDocument,
   onConversationSaved,
+  onProactiveScan,
+  pendingPrompt,
+  pendingPromptSignal,
 }: {
   deal: Deal;
   documents: DocumentMetadata[];
@@ -55,6 +58,11 @@ export default function DealAssistantPanel({
   onCit: (citation: Citation, id: string) => void;
   onOpenDocument: (citation: Citation) => void;
   onConversationSaved?: (entry: ConversationEntry) => void;
+  /** Optional — when present, the empty state shows a "Run Proactive Scan" CTA. */
+  onProactiveScan?: () => void;
+  /** Auto-submit this prompt when the signal value increments. Used by "Ask about this document". */
+  pendingPrompt?: string | null;
+  pendingPromptSignal?: number;
 }) {
   const { theme } = useTheme();
   const c = ddTheme(theme);
@@ -68,6 +76,7 @@ export default function DealAssistantPanel({
   const endRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const newChatMountedRef = useRef(false);
+  const lastPendingSignalRef = useRef<number>(pendingPromptSignal ?? 0);
 
   const selectedDocs = useMemo(
     () => documents.filter((doc) => selectedDocIds.includes(doc.doc_id)),
@@ -282,6 +291,16 @@ export default function DealAssistantPanel({
     );
   }, []);
 
+  // Auto-submit on a fresh pending prompt signal (used by "Ask about this document").
+  useEffect(() => {
+    if (pendingPromptSignal === undefined || pendingPromptSignal === 0) return;
+    if (lastPendingSignalRef.current === pendingPromptSignal) return;
+    lastPendingSignalRef.current = pendingPromptSignal;
+    const text = (pendingPrompt ?? "").trim();
+    if (!text) return;
+    submit(text);
+  }, [pendingPrompt, pendingPromptSignal, submit]);
+
   return (
     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: c.bg }}>
       <div className="dd-scroll" style={{ flex: 1, overflowY: "auto" }}>
@@ -290,9 +309,11 @@ export default function DealAssistantPanel({
             <InitialAssistantState
               dealName={deal.name}
               docCount={documents.length}
+              totalPages={documents.reduce((sum, doc) => sum + (doc.page_count || 0), 0)}
               loading={false}
               prompts={ASSISTANT_PROMPTS}
               onPrompt={submit}
+              onProactiveScan={onProactiveScan}
               theme={theme}
             />
           ) : (
@@ -441,22 +462,41 @@ export default function DealAssistantPanel({
 function InitialAssistantState({
   dealName,
   docCount,
+  totalPages,
   loading,
   prompts,
   onPrompt,
+  onProactiveScan,
   theme,
 }: {
   dealName: string;
   docCount: number;
+  totalPages: number;
   loading: boolean;
   prompts: string[];
   onPrompt: (prompt: string) => void;
+  onProactiveScan?: () => void;
   theme: "light" | "dark";
 }) {
   const c = ddTheme(theme);
+  const isDark = theme === "dark";
   return (
     <div style={{ minHeight: "calc(100vh - 280px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 640, textAlign: "center" }}>
+        {/* Status pill — ported from AgentIdleState 2026-05-11 */}
+        <div style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          padding: "4px 12px",
+          background: c.surface,
+          border: `1px solid ${c.border}`,
+          borderRadius: 99,
+          marginBottom: 18,
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
+          <span style={{ fontSize: 12, color: c.t2, fontWeight: 500 }}>Agent ready · {dealName}</span>
+        </div>
         <div style={{
           width: 38,
           height: 38,
@@ -478,6 +518,55 @@ function InitialAssistantState({
         <p style={{ fontSize: 13, color: c.t2, lineHeight: 1.6, marginBottom: 24 }}>
           Chat across {docCount} document{docCount === 1 ? "" : "s"} with cited answers.
         </p>
+
+        {/* Proactive Scan CTA — ported from AgentIdleState 2026-05-11. Only when the parent wires the callback. */}
+        {onProactiveScan && (
+          <button
+            type="button"
+            onClick={onProactiveScan}
+            disabled={loading}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#f59e0b")}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = isDark ? "#92400e44" : "#fde68a")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              gap: 12,
+              padding: "14px 16px",
+              background: isDark ? "#78350f22" : "#fffbeb",
+              border: `1px solid ${isDark ? "#92400e44" : "#fde68a"}`,
+              borderRadius: 10,
+              cursor: loading ? "default" : "pointer",
+              marginBottom: 20,
+              textAlign: "left",
+              transition: "border-color .12s",
+            }}
+          >
+            <span style={{
+              width: 36, height: 36, borderRadius: 8,
+              background: isDark ? "#78350f44" : "#fef3c7",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 18, flexShrink: 0,
+            }}>🔍</span>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: c.t1 }}>Run Proactive Scan</span>
+              <span style={{ display: "block", fontSize: 12, color: c.t2, marginTop: 1 }}>
+                {totalPages > 0
+                  ? `Sweep all ${totalPages} pages to find hidden risks, buried clauses, and data room gaps`
+                  : "Sweep the deal room to find hidden risks, buried clauses, and data room gaps"}
+              </span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.t3} strokeWidth="2"><path d="M5 3l14 9-14 9V3z" /></svg>
+          </button>
+        )}
+
+        <div style={{
+          fontSize: 11, fontWeight: 600, color: c.t3,
+          textTransform: "uppercase", letterSpacing: "0.06em",
+          marginBottom: 10, textAlign: "left",
+        }}>
+          Suggested investigations
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, opacity: loading ? 0.55 : 1 }}>
           {prompts.map((prompt) => (
             <button

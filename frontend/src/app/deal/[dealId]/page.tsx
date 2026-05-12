@@ -72,15 +72,19 @@ function saveCacheToLocal(dealId: string, cache: WorkstreamCache) {
 }
 
 function loadNavFromLocal(dealId: string): NavState {
-  if (typeof window === "undefined") return { mode: "assistant", selectedWorkstream: null };
+  if (typeof window === "undefined") return { mode: "agent", selectedWorkstream: null };
   try {
     const raw = localStorage.getItem(TAB_PREFIX + dealId);
-    if (!raw) return { mode: "assistant", selectedWorkstream: null };
-    const parsed = JSON.parse(raw) as Partial<NavState>;
-    const mode =
-      parsed.mode === "workstreams" || parsed.mode === "agent" || parsed.mode === "workflows"
-        ? parsed.mode
-        : "assistant";
+    if (!raw) return { mode: "agent", selectedWorkstream: null };
+    const parsed = JSON.parse(raw) as { mode?: string; selectedWorkstream?: WorkstreamId | null };
+    // Migrate legacy "assistant" → "agent" (Assistant tab renamed to Agent 2026-05-11).
+    // The old multi-step "agent" workspace mode also folds into the new "agent" (assistant chat).
+    const normalizedMode: string | undefined =
+      parsed.mode === "assistant" ? "agent" : parsed.mode;
+    const mode: DealWorkspaceMode =
+      normalizedMode === "workstreams" || normalizedMode === "agent" || normalizedMode === "workflows"
+        ? (normalizedMode as DealWorkspaceMode)
+        : "agent";
     const selectedWorkstream = parsed.selectedWorkstream && LINKABLE_WORKSTREAMS.includes(parsed.selectedWorkstream)
       ? parsed.selectedWorkstream
       : null;
@@ -88,7 +92,7 @@ function loadNavFromLocal(dealId: string): NavState {
   } catch {
     const legacy = localStorage.getItem(TAB_PREFIX + dealId) as WorkstreamId | null;
     return {
-      mode: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? "workstreams" : "assistant",
+      mode: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? "workstreams" : "agent",
       selectedWorkstream: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? legacy : null,
     };
   }
@@ -111,7 +115,7 @@ export default function DealWorkspacePage() {
   const [deal, setDeal] = useState<Deal | null>(null);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<DealWorkspaceMode>("assistant");
+  const [mode, setMode] = useState<DealWorkspaceMode>("agent");
   const [selectedWorkstream, setSelectedWorkstream] = useState<WorkstreamId | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [selectedAgentRunId, setSelectedAgentRunId] = useState<string | null>(null);
@@ -190,7 +194,7 @@ export default function DealWorkspacePage() {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setMode("assistant");
+        setMode("agent");
         setSelectedWorkstream(null);
         return;
       }
@@ -280,29 +284,20 @@ export default function DealWorkspacePage() {
     setActiveCit(null);
     setSelectedQuestion(finding.qid);
     setSelectedAgentFinding(null);
+    setSelectedAgentRunId(null);
 
+    // Agent findings no longer have a dedicated focus surface (the multi-step
+    // Agent workspace was retired 2026-05-11). Best fallback: open the citation
+    // in the doc viewer, else route to the linked workstream.
     if (finding.origin === "agent") {
-      if (!finding.producerId) {
-        const citation = citationFromFinding(finding);
-        if (citation) {
-          handleViewDocument(citation);
-          return;
-        }
-        setMode("workstreams");
-        setSelectedAgentRunId(null);
-        setSelectedWorkstream(LINKABLE_WORKSTREAMS.includes(finding.ws) ? finding.ws : null);
+      const citation = citationFromFinding(finding);
+      if (citation) {
+        handleViewDocument(citation);
         return;
       }
-      setMode("agent");
-      setSelectedWorkstream(null);
-      setSelectedAgentRunId(finding.producerId || null);
-      setSelectedAgentFinding(finding);
-      setAgentFocusNonce((nonce) => nonce + 1);
-      return;
     }
 
     setMode("workstreams");
-    setSelectedAgentRunId(null);
     setSelectedWorkstream(LINKABLE_WORKSTREAMS.includes(finding.ws) ? finding.ws : null);
   }, [citationFromFinding, handleViewDocument]);
 
@@ -313,20 +308,18 @@ export default function DealWorkspacePage() {
 
   const handleMode = useCallback((nextMode: DealWorkspaceMode) => {
     setMode(nextMode);
-    if (nextMode === "assistant" || nextMode === "agent" || nextMode === "workflows") {
+    if (nextMode === "agent" || nextMode === "workflows") {
       setSelectedWorkstream(null);
       setSelectedQuestion(null);
       setSelectedAgentFinding(null);
       setActiveCit(null);
       setSelectedDocId(null);
     }
-    if (nextMode !== "agent") {
-      setSelectedAgentRunId(null);
-    }
+    setSelectedAgentRunId(null);
   }, []);
 
   const handleNewAssistantChat = useCallback(() => {
-    setMode("assistant");
+    setMode("agent");
     setSelectedWorkstream(null);
     setSelectedQuestion(null);
     setSelectedAgentRunId(null);
@@ -338,7 +331,7 @@ export default function DealWorkspacePage() {
   }, []);
 
   const handleSelectAssistantHistory = useCallback((entry: ConversationEntry) => {
-    setMode("assistant");
+    setMode("agent");
     setSelectedWorkstream(null);
     setSelectedQuestion(null);
     setSelectedAgentRunId(null);
@@ -494,21 +487,6 @@ export default function DealWorkspacePage() {
           {mode === "workflows" ? (
             <WorkflowsView dealId={dealId} theme={theme} />
           ) : mode === "agent" ? (
-            <AgentWorkspaceView
-              deal={deal}
-              documents={documents}
-              onFindings={addFindings}
-              onOpenDocument={handleViewDocument}
-              onExport={() => setShowReport(true)}
-              focusInvestigationId={selectedAgentRunId}
-              focusFinding={selectedAgentFinding}
-              focusSignal={agentFocusNonce}
-              onHistoryChange={fetchAgentHistory}
-              pendingPrompt={pendingAgentPrompt?.prompt ?? null}
-              pendingPromptSignal={pendingAgentPrompt?.signal ?? 0}
-              onProactiveScan={handleAgentProactiveScan}
-            />
-          ) : mode === "assistant" ? (
             <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden", borderRight: activeCit ? `1px solid ${c.border}` : "none" }}>
               <DealAssistantPanel
                 deal={deal}
@@ -519,6 +497,9 @@ export default function DealWorkspacePage() {
                 onCit={handleCit}
                 onOpenDocument={handleViewDocument}
                 onConversationSaved={handleAssistantConversationSaved}
+                onProactiveScan={handleAgentProactiveScan}
+                pendingPrompt={pendingAgentPrompt?.prompt ?? null}
+                pendingPromptSignal={pendingAgentPrompt?.signal ?? 0}
               />
             </div>
           ) : selectedDocId ? (
@@ -584,7 +565,7 @@ export default function DealWorkspacePage() {
             />
           )}
 
-          {activeCit && (mode === "workstreams" || mode === "assistant") && (
+          {activeCit && (mode === "workstreams" || mode === "agent") && (
             <CitationPanel
               citation={activeCit.c}
               onClose={() => setActiveCit(null)}
