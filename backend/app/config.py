@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Google Gemini LLM
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.1-flash-lite-preview"
+    gemini_model: str = "gemini-3.1-flash-lite"
     gemini_fallback_model: str = "gemini-3-flash-preview"
 
     # Gemini Embeddings
