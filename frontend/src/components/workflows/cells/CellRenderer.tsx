@@ -7,7 +7,7 @@ import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "../theme";
 
 type Theme = "light" | "dark";
-export type CellDensity = "compact" | "comfortable" | "reader";
+export type CellDensity = "compact" | "comfortable";
 
 interface CellRendererProps {
   cell: TabularCell;
@@ -151,11 +151,6 @@ function ProseCell({
       <div style={{ fontSize: 11.5, color: c.t1, lineHeight: 1.45, whiteSpace: density === "compact" ? "nowrap" : "normal", overflow: density === "compact" ? "hidden" : "visible", textOverflow: density === "compact" ? "ellipsis" : undefined }}>
         {value.summary || value.body}
       </div>
-      {density === "reader" && value.body && value.body !== value.summary && (
-        <div style={{ marginTop: 2, paddingLeft: 8, borderLeft: `2px solid ${tint(ACCENT, 45)}`, color: c.t2, fontSize: 10.5, lineHeight: 1.55 }}>
-          {value.body}
-        </div>
-      )}
       {value.caveats.length > 0 && (
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
           {value.caveats.slice(0, density === "compact" ? 1 : 3).map((caveat, index) => (
@@ -185,7 +180,7 @@ function ListCell({
 }) {
   const c = ddTheme(theme);
   if (value.items.length === 0) return <EmptyCell reason="No items found" theme={theme} />;
-  const visibleItems = density === "compact" ? value.items.slice(0, 1) : value.items.slice(0, density === "reader" ? 12 : 5);
+  const visibleItems = density === "compact" ? value.items.slice(0, 1) : value.items.slice(0, 5);
   return (
     <div style={cellShell(c)}>
       <div style={{ fontSize: 9.5, color: c.t3, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -371,7 +366,9 @@ function enumValue(formatted: unknown, raw: string): string {
   return isMissing(raw) ? "" : raw.split(/\n+/)[0].trim();
 }
 
-function proseValue(formatted: unknown, raw: string): { summary: string; body: string; caveats: Array<{ text: string; severity: "info" | "warn" | "risk" }> } {
+export type ProseValue = { summary: string; body: string; caveats: Array<{ text: string; severity: "info" | "warn" | "risk" }> };
+
+export function proseValue(formatted: unknown, raw: string): ProseValue {
   const obj = asRecord(formatted);
   if (obj && ("summary" in obj || "body" in obj)) {
     return {
@@ -448,7 +445,7 @@ function str(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function stripSourceMarkers(value: string): string {
+export function stripSourceMarkers(value: string): string {
   return value.replace(/\[Source\s+\d+\]/gi, "").trim();
 }
 

@@ -38,6 +38,9 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "./theme";
 import CellRenderer, { type CellDensity } from "./cells/CellRenderer";
+import CompareView from "./CompareView";
+
+type WorkflowView = "compact" | "comfortable" | "compare";
 import {
   CellRenderPreview,
   ShapeOptionsInspector,
@@ -100,12 +103,15 @@ export default function TabularRun({
     snippet: string;
   } | null>(null);
   const WIDTH_KEY = `vyntic_workflow_widths_${workflow.id}`;
-  const DENSITY_KEY = `vyntic_workflow_density_${workflow.id}`;
-  const [density, setDensity] = useState<CellDensity>(() => {
+  const VIEW_KEY = `vyntic_workflow_density_${workflow.id}`;
+  const [view, setView] = useState<WorkflowView>(() => {
     if (typeof window === "undefined") return "comfortable";
-    const raw = window.localStorage.getItem(DENSITY_KEY);
-    return raw === "compact" || raw === "comfortable" || raw === "reader" ? raw : "comfortable";
+    const raw = window.localStorage.getItem(VIEW_KEY);
+    if (raw === "compact" || raw === "comfortable" || raw === "compare") return raw;
+    // Migrate legacy "reader" — Compare replaces it.
+    return "comfortable";
   });
+  const density: CellDensity = view === "compare" ? "comfortable" : view;
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -140,9 +146,9 @@ export default function TabularRun({
 
   useEffect(() => {
     try {
-      localStorage.setItem(DENSITY_KEY, density);
+      localStorage.setItem(VIEW_KEY, view);
     } catch {}
-  }, [density, DENSITY_KEY]);
+  }, [view, VIEW_KEY]);
 
   const getColWidth = useCallback(
     (key: string, fallback: number) => colWidths[key] ?? fallback,
@@ -565,7 +571,7 @@ export default function TabularRun({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <RunStatusPill status={run?.status ?? "pending"} theme={theme} />
-          <DensityToggle value={density} onChange={setDensity} theme={theme} />
+          <ViewSwitcher value={view} onChange={setView} theme={theme} />
           <span
             style={{
               fontSize: 11,
@@ -744,6 +750,18 @@ export default function TabularRun({
               elapsedLabel={elapsedLabel}
               runId={run?.id ?? runId}
             />
+            {view === "compare" ? (
+              <CompareView
+                workflowId={workflow.id}
+                columns={runColumns}
+                rowKeys={rowKeys}
+                cells={cells}
+                docs={docs}
+                rowSourceIsDoc={workflow.row_source === "one_doc_per_row"}
+                theme={theme}
+                onCitationClick={handleCitationClick}
+              />
+            ) : (
             <table
               style={{
                 width:
@@ -891,6 +909,7 @@ export default function TabularRun({
                 })}
               </tbody>
             </table>
+            )}
           </div>
         </div>
 
@@ -1167,25 +1186,25 @@ function SummaryCards({
   );
 }
 
-function DensityToggle({
+function ViewSwitcher({
   value,
   onChange,
   theme,
 }: {
-  value: CellDensity;
-  onChange: (value: CellDensity) => void;
+  value: WorkflowView;
+  onChange: (value: WorkflowView) => void;
   theme: Theme;
 }) {
   const c = ddTheme(theme);
-  const options: Array<{ value: CellDensity; label: string }> = [
-    { value: "compact", label: "Compact" },
-    { value: "comfortable", label: "Comfortable" },
-    { value: "reader", label: "Reader" },
+  const options: Array<{ value: WorkflowView; label: string; title: string }> = [
+    { value: "compact", label: "Compact", title: "Dense rows for scanning many docs" },
+    { value: "comfortable", label: "Comfortable", title: "Default — summary + caveats per cell" },
+    { value: "compare", label: "Compare", title: "One column, all docs side-by-side with diff" },
   ];
   return (
     <div
       role="radiogroup"
-      aria-label="Grid density"
+      aria-label="Workflow view"
       style={{
         display: "flex",
         alignItems: "center",
@@ -1204,6 +1223,7 @@ function DensityToggle({
             type="button"
             role="radio"
             aria-checked={active}
+            title={option.title}
             onClick={() => onChange(option.value)}
             style={{
               border: "none",
