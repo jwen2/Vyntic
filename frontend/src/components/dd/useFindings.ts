@@ -8,7 +8,14 @@ function loadFindings(dealId: string): Finding[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY(dealId));
-    if (raw) return JSON.parse(raw) as Finding[];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Array<Finding & { origin?: string | null }>;
+    // Migrate legacy origin: "agent" → null (Agent feature retired 2026-05-12).
+    // Findings with that origin still render in the deal's risk list — they just
+    // route through the default workstream-based path, not an agent-specific one.
+    return parsed.map((f) =>
+      f && (f.origin as string | null) === "agent" ? { ...f, origin: null } : f
+    ) as Finding[];
   } catch {}
   return [];
 }

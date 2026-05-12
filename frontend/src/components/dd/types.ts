@@ -3,7 +3,7 @@ import type { Citation } from "@/lib/api";
 
 export type FindingSeverity = "deal-breaker" | "material" | "noteworthy";
 export type FindingStatus = null | "validated" | "rejected" | "review";
-export type FindingOrigin = null | "agent" | "scan";
+export type FindingOrigin = null | "scan";
 
 export interface Finding {
   id: string;
@@ -22,19 +22,9 @@ export interface Finding {
   origin: FindingOrigin;
   /** Best source citation for opening the document viewer directly. */
   sourceCitation?: Citation | null;
-  /** Producer id, e.g. persisted agent investigation id. */
+  /** @deprecated — was the agent investigation id; kept on the type to avoid breaking persisted findings. */
   producerId?: string | null;
 }
-
-export interface AgentPlanTask {
-  id: string;
-  label: string;
-  docs: string[];
-  /** "1m 10s" format */
-  eta: string;
-}
-
-export type AgentPhase = "prompt" | "plan" | "running" | "done";
 
 export interface DocCoverage {
   id: string;

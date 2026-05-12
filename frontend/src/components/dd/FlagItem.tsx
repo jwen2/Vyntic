@@ -74,23 +74,6 @@ export default function FlagItem({ f, active, onSelect, onStatus, onNote }: Prop
           >
             {f.title}
           </div>
-          {f.origin === "agent" && (
-            <span
-              style={{
-                fontSize: 8,
-                fontWeight: 700,
-                padding: "1px 4px",
-                borderRadius: 3,
-                background: "#1e3a8a",
-                color: "#93c5fd",
-                letterSpacing: "0.05em",
-                flexShrink: 0,
-                marginTop: 1,
-              }}
-            >
-              AGENT
-            </span>
-          )}
           {f.origin === "scan" && (
             <span
               style={{

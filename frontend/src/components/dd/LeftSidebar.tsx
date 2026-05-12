@@ -2,28 +2,23 @@
 
 import { useState } from "react";
 import type React from "react";
-import type { ConversationEntry, InvestigationSummary } from "@/lib/api";
+import type { ConversationEntry } from "@/lib/api";
 import type { Finding, DocCoverage, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 
 interface Props {
-  // "agent" hosts the assistant-chat experience (renamed from "assistant" 2026-05-11).
-  // The old multi-step agent workspace was retired in the same change.
+  // "agent" hosts the assistant-chat experience.
   mode: "agent" | "workstreams";
   findings: Finding[];
   docs: DocCoverage[];
-  /** @deprecated — agent run history is no longer surfaced; props remain until follow-up cleanup PR. */
-  sessions: InvestigationSummary[];
   assistantHistory: ConversationEntry[];
   assistantHistoryLoaded: boolean;
   activeAssistantEntryId: string | null;
-  activeSessionId: string | null;
   activeWs: string | null;
   activeDocId: string | null;
   theme: "light" | "dark";
   onNewAssistantChat: () => void;
   onSelectAssistantHistory: (entry: ConversationEntry) => void;
-  onSelectSession: (sessionId: string) => void;
   onSelectDocument: (docId: string | null) => void;
   onDeleteDocument?: (doc: DocCoverage) => void;
   onSelectFinding: (f: Finding) => void;
@@ -40,17 +35,14 @@ export default function LeftSidebar({
   mode,
   findings,
   docs,
-  sessions,
   assistantHistory,
   assistantHistoryLoaded,
   activeAssistantEntryId,
-  activeSessionId,
   activeWs,
   activeDocId,
   theme,
   onNewAssistantChat,
   onSelectAssistantHistory,
-  onSelectSession,
   onSelectDocument,
   onDeleteDocument,
   onSelectFinding,
@@ -62,10 +54,6 @@ export default function LeftSidebar({
   const totalPages = docs.reduce((sum, doc) => sum + doc.pages, 0);
   const citedPages = docs.reduce((sum, doc) => sum + doc.cited, 0);
   const coveragePct = totalPages > 0 ? Math.round((citedPages / totalPages) * 100) : 0;
-  const visibleSessions = [...sessions]
-    .sort((a, b) => sessionTime(b) - sessionTime(a))
-    .slice(0, 5);
-  const hiddenSessionCount = Math.max(0, sessions.length - visibleSessions.length);
 
   return (
     <aside
@@ -91,8 +79,6 @@ export default function LeftSidebar({
           onSelectEntry={onSelectAssistantHistory}
         />
       ) : (
-        <>
-      {mode === "workstreams" ? (
         <>
           <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
             <SectionLabel color={c.t3} marginBottom={0}>Documents</SectionLabel>
@@ -121,42 +107,6 @@ export default function LeftSidebar({
               ))}
             </div>
           )}
-        </>
-      ) : (
-        <>
-          <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-            <SectionLabel color={c.t3} marginBottom={0}>Agent Sessions</SectionLabel>
-            {sessions.length > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, padding: "1px 6px", background: c.surface, borderRadius: 99 }}>
-                {visibleSessions.length}/{sessions.length}
-              </span>
-            )}
-          </div>
-
-          {sessions.length === 0 ? (
-            <div style={{ padding: "8px", fontSize: 12, color: c.t3, lineHeight: 1.45 }}>
-              No saved sessions yet. Start with the AI agent to create a persisted thread.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
-              {visibleSessions.map((session) => (
-                <SessionRow
-                  key={session.id}
-                  session={session}
-                  active={session.id === activeSessionId}
-                  theme={theme}
-                  onSelect={onSelectSession}
-                />
-              ))}
-              {hiddenSessionCount > 0 && (
-                <div style={{ padding: "3px 8px", fontSize: 10, color: c.t3 }}>
-                  {hiddenSessionCount} older session{hiddenSessionCount > 1 ? "s" : ""} hidden
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
 
       <div
         style={{
@@ -188,7 +138,7 @@ export default function LeftSidebar({
 
       {findings.length === 0 && (
         <div style={{ padding: "8px", fontSize: 12, color: c.t3, lineHeight: 1.45 }}>
-          No findings yet. Ask the agent to scan the deal room.
+          No findings yet. Run a Proactive Scan to surface deal-breakers.
         </div>
       )}
 
@@ -442,61 +392,6 @@ function AssistantHistoryRow({
   );
 }
 
-function SessionRow({
-  session,
-  active,
-  theme,
-  onSelect,
-}: {
-  session: InvestigationSummary;
-  active: boolean;
-  theme: "light" | "dark";
-  onSelect: (sessionId: string) => void;
-}) {
-  const c = ddTheme(theme);
-  const isDark = theme === "dark";
-  const date = formatSessionDate(session.updated_at || session.created_at);
-  const statusColor = session.status === "complete" ? "#22c55e" : session.status === "error" ? "#ef4444" : "#f59e0b";
-  const bg = active ? (isDark ? "#1e293b" : "#ffffff") : "transparent";
-
-  return (
-    <button
-      type="button"
-      title={session.goal || "Agent session"}
-      onClick={() => onSelect(session.id)}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = isDark ? c.surface : "#ffffff";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = bg;
-      }}
-      style={{
-        width: "100%",
-        display: "block",
-        padding: "8px 9px",
-        background: bg,
-        border: `1px solid ${active ? `${ACCENT}55` : "transparent"}`,
-        borderRadius: 7,
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "background .1s, border-color .1s",
-      }}
-    >
-      <span style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor, flexShrink: 0 }} />
-        <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {session.goal || "General diligence investigation"}
-        </span>
-      </span>
-      <span style={{ display: "flex", alignItems: "center", gap: 7, color: c.t3, fontSize: 10 }}>
-        <span>{date}</span>
-        <span className="font-mono-dm">{session.finding_count} flags</span>
-        {session.followup_count > 0 && <span className="font-mono-dm">{session.followup_count} replies</span>}
-      </span>
-    </button>
-  );
-}
-
 function DocRow({
   doc,
   active,
@@ -725,13 +620,6 @@ function formatSessionDate(raw: string | null): string {
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return "Saved";
   return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function sessionTime(session: InvestigationSummary): number {
-  const raw = session.updated_at || session.created_at;
-  if (!raw) return 0;
-  const parsed = new Date(raw).getTime();
-  return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 function SectionLabel({

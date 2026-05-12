@@ -9,13 +9,11 @@ import {
   listDeals,
   listConversations,
   listDocuments,
-  listInvestigations,
   deleteDocument,
   DocumentMetadata,
   getMe,
   getAuthToken,
 } from "@/lib/api";
-import type { InvestigationSummary } from "@/lib/api";
 import { DD_WORKSTREAMS, WorkstreamId } from "@/lib/queryTemplates";
 import DocumentViewer from "@/components/DocumentViewer";
 import ReportModal from "@/components/ReportModal";
@@ -27,7 +25,6 @@ import TopBar, { DealWorkspaceMode } from "@/components/dd/TopBar";
 import LeftSidebar from "@/components/dd/LeftSidebar";
 import DDWorkstreamView from "@/components/dd/DDWorkstreamView";
 import CitationPanel from "@/components/dd/CitationPanel";
-import AgentWorkspaceView from "@/components/dd/AgentWorkspaceView";
 import DealAssistantPanel from "@/components/assistant/DealAssistantPanel";
 import WorkstreamListView from "@/components/dd/WorkstreamListView";
 import DocumentDetailView from "@/components/dd/DocumentDetailView";
@@ -118,16 +115,12 @@ export default function DealWorkspacePage() {
   const [mode, setMode] = useState<DealWorkspaceMode>("agent");
   const [selectedWorkstream, setSelectedWorkstream] = useState<WorkstreamId | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
-  const [selectedAgentRunId, setSelectedAgentRunId] = useState<string | null>(null);
-  const [selectedAgentFinding, setSelectedAgentFinding] = useState<Finding | null>(null);
-  const [agentFocusNonce, setAgentFocusNonce] = useState(0);
-  const [agentHistory, setAgentHistory] = useState<InvestigationSummary[]>([]);
   const [assistantHistory, setAssistantHistory] = useState<ConversationEntry[]>([]);
   const [assistantHistoryLoaded, setAssistantHistoryLoaded] = useState(false);
   const [selectedAssistantEntryId, setSelectedAssistantEntryId] = useState<string | null>(null);
   const [assistantNewChatSignal, setAssistantNewChatSignal] = useState(0);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [pendingAgentPrompt, setPendingAgentPrompt] = useState<{ prompt: string; signal: number } | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<{ prompt: string; signal: number } | null>(null);
   const [proactiveScanAutoRunSignal, setProactiveScanAutoRunSignal] = useState(0);
   const [showReport, setShowReport] = useState(false);
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<DocCoverage | null>(null);
@@ -175,17 +168,6 @@ export default function DealWorkspacePage() {
     });
   }, [dealId]);
 
-  const citationFromFinding = useCallback((finding: Finding): Citation | null => {
-    if (finding.sourceCitation) return finding.sourceCitation;
-    const match = finding.src.match(/^(.+?)\s+[·-]\s+p\.?(\d+)$/i);
-    if (!match) return null;
-    return {
-      source_file: match[1].trim(),
-      page: Number.parseInt(match[2], 10),
-      text_snippet: finding.detail,
-    };
-  }, []);
-
   const handleCit = useCallback((citation: Citation, id: string) => {
     setActiveCit((prev) => (prev?.id === id ? null : { c: citation, id }));
   }, []);
@@ -226,15 +208,6 @@ export default function DealWorkspacePage() {
     }
   }, [dealId]);
 
-  const fetchAgentHistory = useCallback(async () => {
-    try {
-      const items = await listInvestigations(dealId);
-      setAgentHistory(items);
-    } catch {
-      setAgentHistory([]);
-    }
-  }, [dealId]);
-
   const fetchAssistantHistory = useCallback(async () => {
     try {
       const items = await listConversations(dealId, "assistant");
@@ -255,11 +228,10 @@ export default function DealWorkspacePage() {
     Promise.all([
       fetchDeal(),
       fetchDocuments(),
-      fetchAgentHistory(),
       fetchAssistantHistory(),
       getMe().catch(() => router.push("/login")),
     ]).finally(() => setLoading(false));
-  }, [fetchAgentHistory, fetchAssistantHistory, fetchDeal, fetchDocuments, router]);
+  }, [fetchAssistantHistory, fetchDeal, fetchDocuments, router]);
 
   const docCoverage = useMemo(
     () => computeCoverage(documents, resultCache, findings),
@@ -283,23 +255,9 @@ export default function DealWorkspacePage() {
   const onSelectFinding = useCallback((finding: Finding) => {
     setActiveCit(null);
     setSelectedQuestion(finding.qid);
-    setSelectedAgentFinding(null);
-    setSelectedAgentRunId(null);
-
-    // Agent findings no longer have a dedicated focus surface (the multi-step
-    // Agent workspace was retired 2026-05-11). Best fallback: open the citation
-    // in the doc viewer, else route to the linked workstream.
-    if (finding.origin === "agent") {
-      const citation = citationFromFinding(finding);
-      if (citation) {
-        handleViewDocument(citation);
-        return;
-      }
-    }
-
     setMode("workstreams");
     setSelectedWorkstream(LINKABLE_WORKSTREAMS.includes(finding.ws) ? finding.ws : null);
-  }, [citationFromFinding, handleViewDocument]);
+  }, []);
 
   const onOpenFindingSource = useCallback((finding: Finding) => {
     if (!finding.sourceCitation) return;
@@ -311,19 +269,15 @@ export default function DealWorkspacePage() {
     if (nextMode === "agent" || nextMode === "workflows") {
       setSelectedWorkstream(null);
       setSelectedQuestion(null);
-      setSelectedAgentFinding(null);
       setActiveCit(null);
       setSelectedDocId(null);
     }
-    setSelectedAgentRunId(null);
   }, []);
 
   const handleNewAssistantChat = useCallback(() => {
     setMode("agent");
     setSelectedWorkstream(null);
     setSelectedQuestion(null);
-    setSelectedAgentRunId(null);
-    setSelectedAgentFinding(null);
     setSelectedDocId(null);
     setActiveCit(null);
     setSelectedAssistantEntryId(null);
@@ -334,8 +288,6 @@ export default function DealWorkspacePage() {
     setMode("agent");
     setSelectedWorkstream(null);
     setSelectedQuestion(null);
-    setSelectedAgentRunId(null);
-    setSelectedAgentFinding(null);
     setSelectedDocId(null);
     setActiveCit(null);
     setSelectedAssistantEntryId(entry.id);
@@ -347,24 +299,11 @@ export default function DealWorkspacePage() {
     void fetchAssistantHistory();
   }, [fetchAssistantHistory]);
 
-  const handleSelectAgentSession = useCallback((sessionId: string) => {
-    setMode("agent");
-    setSelectedWorkstream(null);
-    setSelectedQuestion(null);
-    setSelectedAgentFinding(null);
-    setActiveCit(null);
-    setSelectedDocId(null);
-    setSelectedAgentRunId(sessionId);
-    setAgentFocusNonce((nonce) => nonce + 1);
-  }, []);
-
-  const handleAgentProactiveScan = useCallback(() => {
+  const handleProactiveScan = useCallback(() => {
     setMode("workstreams");
     setSelectedWorkstream("proactive_scan");
     setSelectedDocId(null);
     setSelectedQuestion(null);
-    setSelectedAgentRunId(null);
-    setSelectedAgentFinding(null);
     setActiveCit(null);
     setProactiveScanAutoRunSignal((n) => n + 1);
   }, []);
@@ -376,11 +315,9 @@ export default function DealWorkspacePage() {
     setMode("agent");
     setSelectedWorkstream(null);
     setSelectedQuestion(null);
-    setSelectedAgentFinding(null);
-    setSelectedAgentRunId(null);
     setActiveCit(null);
     setSelectedDocId(null);
-    setPendingAgentPrompt({ prompt: scoped, signal: Date.now() });
+    setPendingPrompt({ prompt: scoped, signal: Date.now() });
   }, []);
 
   const handleDeleteDocument = useCallback(async () => {
@@ -458,17 +395,14 @@ export default function DealWorkspacePage() {
             mode={mode}
             findings={findings}
             docs={docCoverage}
-            sessions={agentHistory}
             assistantHistory={assistantHistory}
             assistantHistoryLoaded={assistantHistoryLoaded}
             activeAssistantEntryId={selectedAssistantEntryId}
-            activeSessionId={selectedAgentRunId}
             activeWs={selectedWorkstream}
             activeDocId={selectedDocId}
             theme={theme}
             onNewAssistantChat={handleNewAssistantChat}
             onSelectAssistantHistory={handleSelectAssistantHistory}
-            onSelectSession={handleSelectAgentSession}
             onSelectDocument={(docId) => {
               setSelectedDocId(docId);
               if (docId) {
@@ -497,9 +431,9 @@ export default function DealWorkspacePage() {
                 onCit={handleCit}
                 onOpenDocument={handleViewDocument}
                 onConversationSaved={handleAssistantConversationSaved}
-                onProactiveScan={handleAgentProactiveScan}
-                pendingPrompt={pendingAgentPrompt?.prompt ?? null}
-                pendingPromptSignal={pendingAgentPrompt?.signal ?? 0}
+                onProactiveScan={handleProactiveScan}
+                pendingPrompt={pendingPrompt?.prompt ?? null}
+                pendingPromptSignal={pendingPrompt?.signal ?? 0}
               />
             </div>
           ) : selectedDocId ? (
@@ -559,7 +493,6 @@ export default function DealWorkspacePage() {
               onSelect={(workstreamId) => {
                 setSelectedWorkstream(workstreamId);
                 setSelectedQuestion(null);
-                setSelectedAgentRunId(null);
                 setActiveCit(null);
               }}
             />
