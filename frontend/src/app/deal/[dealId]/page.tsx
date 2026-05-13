@@ -393,12 +393,10 @@ export default function DealWorkspacePage() {
         {mode !== "workflows" && (
           <LeftSidebar
             mode={mode}
-            findings={findings}
             docs={docCoverage}
             assistantHistory={assistantHistory}
             assistantHistoryLoaded={assistantHistoryLoaded}
             activeAssistantEntryId={selectedAssistantEntryId}
-            activeWs={selectedWorkstream}
             activeDocId={selectedDocId}
             theme={theme}
             onNewAssistantChat={handleNewAssistantChat}
@@ -412,8 +410,6 @@ export default function DealWorkspacePage() {
               }
             }}
             onDeleteDocument={(doc) => setConfirmDeleteDoc(doc)}
-            onSelectFinding={onSelectFinding}
-            onOpenSource={onOpenFindingSource}
           />
         )}
 
