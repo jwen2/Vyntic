@@ -5,7 +5,7 @@ services:
       - "8000:8000"
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_MODEL=gemini-3.1-flash-lite-preview
+      - GEMINI_MODEL=gemini-3.1-flash-lite
       - GEMINI_FALLBACK_MODEL=gemini-3-flash-preview
       - EMBEDDING_MODEL=models/gemini-embedding-001
       - DATABASE_URL=sqlite:////app/data/vyntic.db
