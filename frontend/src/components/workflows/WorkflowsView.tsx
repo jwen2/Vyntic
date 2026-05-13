@@ -251,6 +251,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           dealId={dealId}
           workflowName={modalWorkflow.name}
           rowSource={modalWorkflow.row_source}
+          isBuiltin={modalWorkflow.is_builtin}
           theme={theme}
           onCancel={() => {
             setRunModalWorkflowId(null);

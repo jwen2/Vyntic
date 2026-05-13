@@ -81,10 +81,10 @@ async def create_run(
                 if q and q.strip()
             ]
             if not row_keys:
-                raise HTTPException(
-                    status_code=400,
-                    detail="At least one synthesis question is required",
-                )
+                # Built-in synthesis templates run one-click: default the single
+                # row label to the workflow name. User-built synthesis workflows
+                # can still supply their own rows via synthesis_questions.
+                row_keys = [workflow.name]
         run = workflow_run_store.create_run(
             workflow_id=workflow_id,
             deal_id=deal_id,

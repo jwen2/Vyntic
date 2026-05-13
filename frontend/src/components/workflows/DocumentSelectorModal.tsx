@@ -14,6 +14,12 @@ interface DocumentSelectorModalProps {
   /** Pre-selected doc ids (for re-runs). */
   initialSelected?: string[];
   rowSource?: RowSource;
+  /**
+   * Built-in templates use the workflow name as the single synthesis row
+   * (handled server-side). Skip the user-facing "synthesis rows" textarea
+   * for them so they run one-click.
+   */
+  isBuiltin?: boolean;
   theme: Theme;
   onConfirm: (documentIds: string[], synthesisQuestions?: string[]) => void;
   onCancel: () => void;
@@ -24,6 +30,7 @@ export default function DocumentSelectorModal({
   workflowName,
   initialSelected = [],
   rowSource = "one_doc_per_row",
+  isBuiltin = false,
   theme,
   onConfirm,
   onCancel,
@@ -43,7 +50,8 @@ export default function DocumentSelectorModal({
         .filter(Boolean),
     [questionsText]
   );
-  const canRun = selected.size > 0 && (rowSource !== "multi_doc_synthesis" || synthesisQuestions.length > 0);
+  const needsSynthesisRows = rowSource === "multi_doc_synthesis" && !isBuiltin;
+  const canRun = selected.size > 0 && (!needsSynthesisRows || synthesisQuestions.length > 0);
 
   useEffect(() => {
     let active = true;
@@ -125,7 +133,7 @@ export default function DocumentSelectorModal({
           }}
         >
           <div style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>
-            {rowSource === "multi_doc_synthesis"
+            {needsSynthesisRows
               ? "Select documents and synthesis rows"
               : "Select documents to run"}
           </div>
@@ -175,7 +183,7 @@ export default function DocumentSelectorModal({
             padding: "8px 12px",
           }}
         >
-          {rowSource === "multi_doc_synthesis" && (
+          {needsSynthesisRows && (
             <div
               style={{
                 margin: "8px 8px 12px",
