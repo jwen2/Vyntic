@@ -4,14 +4,13 @@ import type React from "react";
 import type { Deal } from "@/lib/api";
 import { ACCENT, ddTheme } from "./types";
 
-export type DealWorkspaceMode = "agent" | "workstreams" | "workflows";
+export type DealWorkspaceMode = "agent" | "workflows" | "brief";
 
 interface TopBarProps {
   deal: Deal;
   mode: DealWorkspaceMode;
   onMode: (mode: DealWorkspaceMode) => void;
   dealBreakers: number;
-  onExport: () => void;
   onBack: () => void;
   onToggleTheme: () => void;
   theme: "light" | "dark";
@@ -22,7 +21,6 @@ export default function TopBar({
   mode,
   onMode,
   dealBreakers,
-  onExport,
   onBack,
   onToggleTheme,
   theme,
@@ -134,21 +132,6 @@ export default function TopBar({
         )}
       </button>
 
-      <button
-        onClick={onExport}
-        style={{
-          padding: "5px 14px",
-          background: ACCENT,
-          color: "white",
-          borderRadius: 6,
-          fontSize: 12,
-          fontWeight: 600,
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        Export
-      </button>
     </div>
   );
 }
@@ -174,24 +157,23 @@ function ModeSegmentedControl({
       ),
     },
     {
-      key: "workstreams",
-      label: "Workstreams",
-      icon: (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-          <rect x="14" y="14" width="7" height="7" rx="1" />
-        </svg>
-      ),
-    },
-    {
       key: "workflows",
       label: "Workflows",
       icon: (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" />
-          <path d="M11 7.5h2M16.5 8v2M11 16.5h2" />
+        </svg>
+      ),
+    },
+    {
+      key: "brief",
+      label: "Brief",
+      icon: (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+          <path d="M8 13h8" />
+          <path d="M8 17h6" />
         </svg>
       ),
     },

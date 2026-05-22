@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Deal,
@@ -9,96 +9,48 @@ import {
   listDeals,
   listConversations,
   listDocuments,
-  deleteDocument,
   DocumentMetadata,
   getMe,
   getAuthToken,
 } from "@/lib/api";
-import { DD_WORKSTREAMS, WorkstreamId } from "@/lib/queryTemplates";
 import DocumentViewer from "@/components/DocumentViewer";
-import ReportModal from "@/components/ReportModal";
-import ConfirmDialog from "@/components/ConfirmDialog";
 import { useTheme } from "@/components/ThemeProvider";
-import type { QuestionResult } from "@/components/WorkstreamPanel";
 
 import TopBar, { DealWorkspaceMode } from "@/components/dd/TopBar";
 import LeftSidebar from "@/components/dd/LeftSidebar";
-import DDWorkstreamView from "@/components/dd/DDWorkstreamView";
-import CitationPanel from "@/components/dd/CitationPanel";
 import DealAssistantPanel from "@/components/assistant/DealAssistantPanel";
-import WorkstreamListView from "@/components/dd/WorkstreamListView";
-import DocumentDetailView from "@/components/dd/DocumentDetailView";
-import ProactiveScanPanel from "@/components/ProactiveScanPanel";
 import WorkflowsView from "@/components/workflows/WorkflowsView";
+import DealBriefDashboard from "@/components/dd/DealBriefDashboard";
 import { useFindings } from "@/components/dd/useFindings";
-import { computeCoverage } from "@/components/dd/coverage";
-import { extractScanFindings } from "@/components/dd/extractScanFindings";
 import { ddTheme } from "@/components/dd/types";
-import type { DocCoverage, Finding } from "@/components/dd/types";
 
-type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
-type NavState = { mode: DealWorkspaceMode; selectedWorkstream: WorkstreamId | null };
-
-const CACHE_PREFIX = "vyntic_ws_cache_";
 const TAB_PREFIX = "vyntic_ws_tab_";
-const DETAIL_WORKSTREAMS: WorkstreamId[] = ["financial", "commercial", "operational", "legal"];
-const LINKABLE_WORKSTREAMS: WorkstreamId[] = [...DETAIL_WORKSTREAMS, "proactive_scan"];
 
-function loadCacheFromLocal(dealId: string): WorkstreamCache {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(CACHE_PREFIX + dealId);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return {};
-}
-
-function saveCacheToLocal(dealId: string, cache: WorkstreamCache) {
-  if (typeof window === "undefined") return;
-  try {
-    const persistable: WorkstreamCache = {};
-    for (const [wsId, questions] of Object.entries(cache)) {
-      const filtered: Record<string, QuestionResult> = {};
-      for (const [q, r] of Object.entries(questions)) {
-        if (r.status === "complete" || r.status === "error") filtered[q] = r;
-      }
-      if (Object.keys(filtered).length > 0) persistable[wsId] = filtered;
-    }
-    localStorage.setItem(CACHE_PREFIX + dealId, JSON.stringify(persistable));
-  } catch {}
-}
-
-function loadNavFromLocal(dealId: string): NavState {
-  if (typeof window === "undefined") return { mode: "agent", selectedWorkstream: null };
+function loadModeFromLocal(dealId: string): DealWorkspaceMode {
+  if (typeof window === "undefined") return "agent";
   try {
     const raw = localStorage.getItem(TAB_PREFIX + dealId);
-    if (!raw) return { mode: "agent", selectedWorkstream: null };
-    const parsed = JSON.parse(raw) as { mode?: string; selectedWorkstream?: WorkstreamId | null };
-    // Migrate legacy "assistant" → "agent" (Assistant tab renamed to Agent 2026-05-11).
-    // The old multi-step "agent" workspace mode also folds into the new "agent" (assistant chat).
-    const normalizedMode: string | undefined =
-      parsed.mode === "assistant" ? "agent" : parsed.mode;
-    const mode: DealWorkspaceMode =
-      normalizedMode === "workstreams" || normalizedMode === "agent" || normalizedMode === "workflows"
-        ? (normalizedMode as DealWorkspaceMode)
-        : "agent";
-    const selectedWorkstream = parsed.selectedWorkstream && LINKABLE_WORKSTREAMS.includes(parsed.selectedWorkstream)
-      ? parsed.selectedWorkstream
-      : null;
-    return { mode, selectedWorkstream };
+    if (!raw) return "agent";
+    const parsed = JSON.parse(raw) as { mode?: string };
+    // Migrate legacy modes to current ones:
+    //   "assistant" → "agent" (rename, PR #75)
+    //   "workstreams" → "brief" (Workstreams tab retired, PR #80 — Brief is its
+    //     closest surviving sibling)
+    if (parsed.mode === "assistant") return "agent";
+    if (parsed.mode === "workstreams") return "brief";
+    if (parsed.mode === "agent" || parsed.mode === "workflows" || parsed.mode === "brief") {
+      return parsed.mode;
+    }
+    return "agent";
   } catch {
-    const legacy = localStorage.getItem(TAB_PREFIX + dealId) as WorkstreamId | null;
-    return {
-      mode: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? "workstreams" : "agent",
-      selectedWorkstream: legacy && LINKABLE_WORKSTREAMS.includes(legacy) ? legacy : null,
-    };
+    return "agent";
   }
 }
 
-function saveNavToLocal(dealId: string, nav: NavState) {
+function saveModeToLocal(dealId: string, mode: DealWorkspaceMode) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(TAB_PREFIX + dealId, JSON.stringify(nav));
+    localStorage.setItem(TAB_PREFIX + dealId, JSON.stringify({ mode }));
   } catch {}
 }
 
@@ -113,22 +65,15 @@ export default function DealWorkspacePage() {
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<DealWorkspaceMode>("agent");
-  const [selectedWorkstream, setSelectedWorkstream] = useState<WorkstreamId | null>(null);
-  const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [assistantHistory, setAssistantHistory] = useState<ConversationEntry[]>([]);
   const [assistantHistoryLoaded, setAssistantHistoryLoaded] = useState(false);
   const [selectedAssistantEntryId, setSelectedAssistantEntryId] = useState<string | null>(null);
   const [assistantNewChatSignal, setAssistantNewChatSignal] = useState(0);
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [pendingPrompt, setPendingPrompt] = useState<{ prompt: string; signal: number } | null>(null);
-  const [proactiveScanAutoRunSignal, setProactiveScanAutoRunSignal] = useState(0);
-  const [showReport, setShowReport] = useState(false);
-  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<DocCoverage | null>(null);
-  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
-  const [deleteDocError, setDeleteDocError] = useState<string | null>(null);
-  const [resultCache, setResultCache] = useState<WorkstreamCache>({});
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
-  const { findings, addFindings, syncScanFindings } = useFindings(dealId);
+  // useFindings is kept so the deal-breaker pill in TopBar still works for any
+  // findings persisted in localStorage from prior workstream runs. No new
+  // findings are produced after the Workstreams tab retired in PR #80.
+  const { findings } = useFindings(dealId);
 
   const [viewerState, setViewerState] = useState<{
     dealId: string;
@@ -138,26 +83,12 @@ export default function DealWorkspacePage() {
   } | null>(null);
 
   useEffect(() => {
-    const nav = loadNavFromLocal(dealId);
-    setMode(nav.mode);
-    setSelectedWorkstream(nav.selectedWorkstream);
-    setResultCache(loadCacheFromLocal(dealId));
+    setMode(loadModeFromLocal(dealId));
   }, [dealId]);
 
   useEffect(() => {
-    saveNavToLocal(dealId, { mode, selectedWorkstream });
-  }, [dealId, mode, selectedWorkstream]);
-
-  const updateCacheForWorkstream = useCallback(
-    (workstreamId: string, results: Record<string, QuestionResult>) => {
-      setResultCache((prev) => {
-        const next = { ...prev, [workstreamId]: results };
-        saveCacheToLocal(dealId, next);
-        return next;
-      });
-    },
-    [dealId]
-  );
+    saveModeToLocal(dealId, mode);
+  }, [dealId, mode]);
 
   const handleViewDocument = useCallback((citation: Citation) => {
     setViewerState({
@@ -177,7 +108,6 @@ export default function DealWorkspacePage() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setMode("agent");
-        setSelectedWorkstream(null);
         return;
       }
       if (e.key === "Escape") {
@@ -233,52 +163,20 @@ export default function DealWorkspacePage() {
     ]).finally(() => setLoading(false));
   }, [fetchAssistantHistory, fetchDeal, fetchDocuments, router]);
 
-  const docCoverage = useMemo(
-    () => computeCoverage(documents, resultCache, findings),
-    [documents, resultCache, findings]
-  );
   const dealBreakers = findings.filter((f) => f.sev === "deal-breaker").length;
-
-  const scanCache = resultCache["proactive_scan"];
-  useEffect(() => {
-    if (!scanCache) return;
-    const templates =
-      DD_WORKSTREAMS.find((w) => w.id === "proactive_scan")?.templates || [];
-    syncScanFindings(extractScanFindings(scanCache, templates));
-  }, [scanCache, syncScanFindings]);
 
   useEffect(() => {
     setAssistantHistoryLoaded(false);
     setSelectedAssistantEntryId(null);
   }, [dealId]);
 
-  const onSelectFinding = useCallback((finding: Finding) => {
-    setActiveCit(null);
-    setSelectedQuestion(finding.qid);
-    setMode("workstreams");
-    setSelectedWorkstream(LINKABLE_WORKSTREAMS.includes(finding.ws) ? finding.ws : null);
-  }, []);
-
-  const onOpenFindingSource = useCallback((finding: Finding) => {
-    if (!finding.sourceCitation) return;
-    handleViewDocument(finding.sourceCitation);
-  }, [handleViewDocument]);
-
   const handleMode = useCallback((nextMode: DealWorkspaceMode) => {
     setMode(nextMode);
-    if (nextMode === "agent" || nextMode === "workflows") {
-      setSelectedWorkstream(null);
-      setSelectedQuestion(null);
-      setActiveCit(null);
-      setSelectedDocId(null);
-    }
+    setActiveCit(null);
   }, []);
 
   const handleNewAssistantChat = useCallback(() => {
     setMode("agent");
-    setSelectedWorkstream(null);
-    setSelectedQuestion(null);
-    setSelectedDocId(null);
     setActiveCit(null);
     setSelectedAssistantEntryId(null);
     setAssistantNewChatSignal((signal) => signal + 1);
@@ -286,9 +184,6 @@ export default function DealWorkspacePage() {
 
   const handleSelectAssistantHistory = useCallback((entry: ConversationEntry) => {
     setMode("agent");
-    setSelectedWorkstream(null);
-    setSelectedQuestion(null);
-    setSelectedDocId(null);
     setActiveCit(null);
     setSelectedAssistantEntryId(entry.id);
   }, []);
@@ -299,46 +194,13 @@ export default function DealWorkspacePage() {
     void fetchAssistantHistory();
   }, [fetchAssistantHistory]);
 
+  // The Agent tab still exposes a "Run Proactive Scan" CTA on its empty state.
+  // It now jumps to the Workflows tab (the new home of the Proactive Scan
+  // built-in template). Future polish could auto-kick-off a run.
   const handleProactiveScan = useCallback(() => {
-    setMode("workstreams");
-    setSelectedWorkstream("proactive_scan");
-    setSelectedDocId(null);
-    setSelectedQuestion(null);
+    setMode("workflows");
     setActiveCit(null);
-    setProactiveScanAutoRunSignal((n) => n + 1);
   }, []);
-
-  const handleAskAboutDocument = useCallback((docName: string, prompt: string) => {
-    const trimmed = prompt.trim();
-    if (!trimmed) return;
-    const scoped = `Focus exclusively on the document "${docName}". ${trimmed}`;
-    setMode("agent");
-    setSelectedWorkstream(null);
-    setSelectedQuestion(null);
-    setActiveCit(null);
-    setSelectedDocId(null);
-    setPendingPrompt({ prompt: scoped, signal: Date.now() });
-  }, []);
-
-  const handleDeleteDocument = useCallback(async () => {
-    if (!confirmDeleteDoc) return;
-    setDeletingDocId(confirmDeleteDoc.id);
-    setDeleteDocError(null);
-    try {
-      await deleteDocument(dealId, confirmDeleteDoc.id);
-      setDocuments((prev) => prev.filter((doc) => doc.doc_id !== confirmDeleteDoc.id));
-      if (selectedDocId === confirmDeleteDoc.id) setSelectedDocId(null);
-      setViewerState((prev) =>
-        prev?.filename === confirmDeleteDoc.name ? null : prev
-      );
-      setConfirmDeleteDoc(null);
-      await Promise.all([fetchDeal(), fetchDocuments()]);
-    } catch (err) {
-      setDeleteDocError(err instanceof Error ? err.message : "Failed to delete document");
-    } finally {
-      setDeletingDocId(null);
-    }
-  }, [confirmDeleteDoc, dealId, fetchDeal, fetchDocuments, selectedDocId]);
 
   if (loading) {
     return (
@@ -362,10 +224,6 @@ export default function DealWorkspacePage() {
     );
   }
 
-  const activeWorkstream = selectedWorkstream
-    ? DD_WORKSTREAMS.find((workstream) => workstream.id === selectedWorkstream)
-    : null;
-
   return (
     <div
       style={{
@@ -383,40 +241,35 @@ export default function DealWorkspacePage() {
         mode={mode}
         onMode={handleMode}
         dealBreakers={dealBreakers}
-        onExport={() => setShowReport(true)}
         onBack={() => router.push("/")}
         onToggleTheme={toggleTheme}
         theme={theme}
       />
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {mode !== "workflows" && (
+        {mode === "agent" && (
           <LeftSidebar
-            mode={mode}
-            docs={docCoverage}
             assistantHistory={assistantHistory}
             assistantHistoryLoaded={assistantHistoryLoaded}
             activeAssistantEntryId={selectedAssistantEntryId}
-            activeDocId={selectedDocId}
             theme={theme}
             onNewAssistantChat={handleNewAssistantChat}
             onSelectAssistantHistory={handleSelectAssistantHistory}
-            onSelectDocument={(docId) => {
-              setSelectedDocId(docId);
-              if (docId) {
-                setSelectedWorkstream(null);
-                setSelectedQuestion(null);
-                setActiveCit(null);
-              }
-            }}
-            onDeleteDocument={(doc) => setConfirmDeleteDoc(doc)}
           />
         )}
 
         <main style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, background: c.bg }}>
           {mode === "workflows" ? (
             <WorkflowsView dealId={dealId} theme={theme} />
-          ) : mode === "agent" ? (
+          ) : mode === "brief" ? (
+            <div style={{ flex: 1, width: "100%", minWidth: 0, overflow: "auto" }}>
+              <DealBriefDashboard
+                dealId={dealId}
+                theme={theme}
+                onCit={handleCit}
+              />
+            </div>
+          ) : (
             <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden", borderRight: activeCit ? `1px solid ${c.border}` : "none" }}>
               <DealAssistantPanel
                 deal={deal}
@@ -428,78 +281,8 @@ export default function DealWorkspacePage() {
                 onOpenDocument={handleViewDocument}
                 onConversationSaved={handleAssistantConversationSaved}
                 onProactiveScan={handleProactiveScan}
-                pendingPrompt={pendingPrompt?.prompt ?? null}
-                pendingPromptSignal={pendingPrompt?.signal ?? 0}
               />
             </div>
-          ) : selectedDocId ? (
-            (() => {
-              const doc = docCoverage.find((d) => d.id === selectedDocId);
-              if (!doc) return null;
-              return (
-                <DocumentDetailView
-                  doc={doc}
-                  findings={findings}
-                  theme={theme}
-                  onBack={() => setSelectedDocId(null)}
-                  onSelectFinding={onSelectFinding}
-                  onOpenSource={onOpenFindingSource}
-                  onAsk={(prompt) => handleAskAboutDocument(doc.name, prompt)}
-                />
-              );
-            })()
-          ) : activeWorkstream ? (
-            <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden", borderRight: activeCit ? `1px solid ${c.border}` : "none" }}>
-              {activeWorkstream.id === "proactive_scan" ? (
-                <ProactiveScanPanel
-                  dealId={dealId}
-                  workstream={activeWorkstream}
-                  cachedResults={resultCache[activeWorkstream.id] || {}}
-                  onResultsChange={(results) => updateCacheForWorkstream(activeWorkstream.id, results)}
-                  onViewDocument={handleViewDocument}
-                  autoRunSignal={proactiveScanAutoRunSignal}
-                />
-              ) : (
-                <DDWorkstreamView
-                  dealId={dealId}
-                  workstream={activeWorkstream}
-                  cachedResults={resultCache[activeWorkstream.id] || {}}
-                  onResultsChange={(results) => updateCacheForWorkstream(activeWorkstream.id, results)}
-                  activeCitId={activeCit?.id ?? null}
-                  onCit={handleCit}
-                  focusQuery={selectedQuestion}
-                  onBack={() => {
-                    setSelectedWorkstream(null);
-                    setSelectedQuestion(null);
-                    setActiveCit(null);
-                  }}
-                />
-              )}
-            </div>
-          ) : (
-            <WorkstreamListView
-              dealId={dealId}
-              workstreams={DD_WORKSTREAMS}
-              resultCache={resultCache}
-              findings={findings}
-              theme={theme}
-              onSelectFinding={onSelectFinding}
-              onCit={handleCit}
-              onCacheUpdate={updateCacheForWorkstream}
-              onSelect={(workstreamId) => {
-                setSelectedWorkstream(workstreamId);
-                setSelectedQuestion(null);
-                setActiveCit(null);
-              }}
-            />
-          )}
-
-          {activeCit && (mode === "workstreams" || mode === "agent") && (
-            <CitationPanel
-              citation={activeCit.c}
-              onClose={() => setActiveCit(null)}
-              onOpenDocument={handleViewDocument}
-            />
           )}
         </main>
       </div>
@@ -511,31 +294,6 @@ export default function DealWorkspacePage() {
           page={viewerState.page}
           snippet={viewerState.snippet}
           onClose={() => setViewerState(null)}
-        />
-      )}
-
-      {showReport && (
-        <ReportModal
-          deal={deal}
-          resultCache={resultCache}
-          onClose={() => setShowReport(false)}
-        />
-      )}
-
-      {confirmDeleteDoc && (
-        <ConfirmDialog
-          title="Delete Document"
-          message={
-            deleteDocError ||
-            `Remove "${confirmDeleteDoc.name}" and all of its indexed chunks? This cannot be undone.`
-          }
-          confirmLabel={deletingDocId === confirmDeleteDoc.id ? "Deleting..." : "Delete"}
-          onConfirm={handleDeleteDocument}
-          onCancel={() => {
-            if (deletingDocId) return;
-            setDeleteDocError(null);
-            setConfirmDeleteDoc(null);
-          }}
         />
       )}
     </div>
