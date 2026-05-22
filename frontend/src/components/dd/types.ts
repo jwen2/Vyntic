@@ -1,9 +1,16 @@
-import type { WorkstreamId } from "@/lib/queryTemplates";
 import type { Citation } from "@/lib/api";
 
 export type FindingSeverity = "deal-breaker" | "material" | "noteworthy";
 export type FindingStatus = null | "validated" | "rejected" | "review";
 export type FindingOrigin = null | "scan";
+
+/**
+ * Legacy DD workstream identifier — kept as a string so old findings persisted
+ * in localStorage continue to deserialize after the Workstreams tab was
+ * retired in PR #80. New findings emitted by the Proactive Scan workflow
+ * (future work) should leave this empty or set a sensible category tag.
+ */
+export type LegacyWorkstreamId = string;
 
 export interface Finding {
   id: string;
@@ -12,7 +19,7 @@ export interface Finding {
   detail: string;
   /** Human-readable source, e.g. "QoE Report · p.23" */
   src: string;
-  ws: WorkstreamId;
+  ws: LegacyWorkstreamId;
   /** Linked DD question query (matches Workstream template.query), or null */
   qid: string | null;
   /** 0–100 confidence */

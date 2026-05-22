@@ -317,42 +317,10 @@ export interface StreamErrorEvent {
 
 export type StreamEvent = StreamTokenEvent | StreamDoneEvent | StreamErrorEvent;
 
-// ── Workstream SSE events (question-keyed instead of query-keyed) ──
-
-export interface WorkstreamTokenEvent {
-  type: "token";
-  deal_id: string;
-  question: string;
-  token: string;
-}
-
-export interface WorkstreamDoneEvent {
-  type: "done";
-  deal_id: string;
-  question: string;
-  answer: string;
-  citations: (Citation | null)[];
-  model?: string;
-  fallback?: boolean;
-  duration_ms?: number;
-}
-
-export interface WorkstreamErrorEvent {
-  type: "error";
-  deal_id: string;
-  question: string;
-  error: string;
-}
-
-export type WorkstreamEvent =
-  | WorkstreamTokenEvent
-  | WorkstreamDoneEvent
-  | WorkstreamErrorEvent;
-
 /**
- * Opens a streaming SSE connection to the matrix compare endpoint.
- * Calls onEvent for each parsed SSE event (token, done, error).
- * Returns an AbortController so the caller can cancel.
+ * Opens a streaming SSE connection to the matrix compare endpoint (deal
+ * comparison view). Calls onEvent for each parsed SSE event (token, done,
+ * error). Returns an AbortController so the caller can cancel.
  */
 export function matrixCompareStream(
   deal_ids: string[],
@@ -397,7 +365,6 @@ export function matrixCompareStream(
 
         buffer += decoder.decode(value, { stream: true });
 
-        // Parse SSE lines: "data: {...}\n\n"
         const lines = buffer.split("\n\n");
         buffer = lines.pop() || "";
 
@@ -424,179 +391,37 @@ export function matrixCompareStream(
   return controller;
 }
 
-/**
- * Opens a streaming SSE connection to run a workstream against a single deal.
- * Calls onEvent for each parsed SSE event (token, done, error).
- * Returns an AbortController so the caller can cancel.
- */
-export function workstreamStream(
-  dealId: string,
-  workstream: string,
-  questions: string[],
-  onEvent: (event: WorkstreamEvent) => void,
-  onFinish?: () => void,
-  onError?: (err: Error) => void
-): AbortController {
-  const controller = new AbortController();
+// ── Query stream events (used by the Agent chat surface) ──
 
-  (async () => {
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      const token = getAuthToken();
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(
-        `${API_BASE}/deals/${dealId}/workstream/stream`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ workstream, questions }),
-          signal: controller.signal,
-        }
-      );
-
-      if (!res.ok) {
-        const text = await res.text();
-        onError?.(new Error(text));
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        onError?.(new Error("No response body"));
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(trimmed.slice(6)) as WorkstreamEvent;
-            onEvent(event);
-          } catch {
-            // skip malformed
-          }
-        }
-      }
-
-      onFinish?.();
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        onError?.(err as Error);
-      }
-    }
-  })();
-
-  return controller;
-}
-
-// ── Sweep SSE events (proactive scan) ──
-
-export interface SweepMetaEvent {
-  type: "sweep_meta";
+export interface QueryStreamTokenEvent {
+  type: "token";
   deal_id: string;
-  total_chunks: number;
-  total_questions: number;
+  question: string;
+  token: string;
 }
 
-export interface SweepDoneEvent {
-  type: "sweep_done";
+export interface QueryStreamDoneEvent {
+  type: "done";
   deal_id: string;
-  model: string;
-  fallback: boolean;
-  duration_ms: number;
+  question: string;
+  answer: string;
+  citations: (Citation | null)[];
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
 }
 
-export type SweepEvent = WorkstreamEvent | SweepMetaEvent | SweepDoneEvent;
-
-/**
- * Opens a streaming SSE connection to run a proactive sweep scan on a deal.
- * Unlike workstream queries, the sweep scans ALL document chunks.
- * Returns an AbortController so the caller can cancel.
- */
-export function sweepStream(
-  dealId: string,
-  questions: string[],
-  onEvent: (event: SweepEvent) => void,
-  onFinish?: () => void,
-  onError?: (err: Error) => void
-): AbortController {
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      const token = getAuthToken();
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(
-        `${API_BASE}/deals/${dealId}/sweep/stream`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ questions }),
-          signal: controller.signal,
-        }
-      );
-
-      if (!res.ok) {
-        const text = await res.text();
-        onError?.(new Error(text));
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        onError?.(new Error("No response body"));
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(trimmed.slice(6)) as SweepEvent;
-            onEvent(event);
-          } catch {
-            // skip malformed
-          }
-        }
-      }
-
-      onFinish?.();
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        onError?.(err as Error);
-      }
-    }
-  })();
-
-  return controller;
+export interface QueryStreamErrorEvent {
+  type: "error";
+  deal_id: string;
+  question: string;
+  error: string;
 }
+
+export type QueryStreamEvent =
+  | QueryStreamTokenEvent
+  | QueryStreamDoneEvent
+  | QueryStreamErrorEvent;
 
 // ── Doc-Matrix SSE events (doc_id keyed) ──
 
@@ -726,78 +551,13 @@ export function docMatrixStream(
   return controller;
 }
 
-// ── IC Report Generation ──
-
-export interface ReportCitation {
-  source_file: string;
-  page: number;
-  text_snippet: string;
-}
-
-export interface ReportQuestion {
-  label: string;
-  question: string;
-  answer: string;
-  citations: ReportCitation[];
-}
-
-export interface ReportWorkstream {
-  workstream_id: string;
-  workstream_name: string;
-  questions: ReportQuestion[];
-}
-
-export interface ReportDeal {
-  deal_id: string;
-  name: string;
-  stage?: string;
-  tags?: string[];
-  document_count?: number;
-  workstreams: ReportWorkstream[];
-}
-
-export interface ICReportRequest {
-  title?: string;
-  deals: ReportDeal[];
-}
-
-export async function generateICReport(request: ICReportRequest): Promise<void> {
-  const res = await fetchWrapper(`${API_BASE}/reports/ic`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text);
-  }
-
-  // Extract filename from Content-Disposition header
-  const disposition = res.headers.get("Content-Disposition") || "";
-  const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
-  const filename = filenameMatch?.[1] || "IC-Report.docx";
-
-  // Download the blob
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
 /**
- * Stream a single question against a deal with optional workstream context.
+ * Stream a single question against a deal. Used by the Agent chat surface.
  */
 export function singleQuestionStream(
   dealId: string,
   question: string,
-  workstream: string,
-  onEvent: (event: WorkstreamEvent) => void,
+  onEvent: (event: QueryStreamEvent) => void,
   onFinish?: () => void,
   onError?: (err: Error) => void
 ): AbortController {
@@ -810,11 +570,11 @@ export function singleQuestionStream(
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const res = await fetch(
-        `${API_BASE}/deals/${dealId}/workstream/query/stream`,
+        `${API_BASE}/deals/${dealId}/query/stream`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({ question, workstream }),
+          body: JSON.stringify({ question }),
           signal: controller.signal,
         }
       );
@@ -847,7 +607,7 @@ export function singleQuestionStream(
           const trimmed = line.trim();
           if (!trimmed.startsWith("data: ")) continue;
           try {
-            const event = JSON.parse(trimmed.slice(6)) as WorkstreamEvent;
+            const event = JSON.parse(trimmed.slice(6)) as QueryStreamEvent;
             onEvent(event);
           } catch {
             // skip malformed

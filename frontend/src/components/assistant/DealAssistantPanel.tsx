@@ -196,7 +196,6 @@ export default function DealAssistantPanel({
     controllerRef.current = singleQuestionStream(
       deal.deal_id,
       scopedQuestion,
-      "assistant",
       (event) => {
         if (event.type === "token") {
           setMessages((prev) =>

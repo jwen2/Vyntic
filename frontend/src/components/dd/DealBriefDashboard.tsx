@@ -1,14 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Workstream } from "@/lib/queryTemplates";
-import type { QuestionResult } from "@/components/WorkstreamPanel";
-import type { Citation, WorkstreamEvent } from "@/lib/api";
-import { workstreamStream } from "@/lib/api";
+import type { Citation } from "@/lib/api";
+import { listDocuments } from "@/lib/api";
+import {
+  listRuns,
+  startWorkflowRun,
+  subscribeRun,
+  type RunStreamEvent,
+  type TabularCell,
+  type Workflow,
+  type WorkflowColumn,
+  type WorkflowRun,
+} from "@/lib/workflows";
+import { getWorkflow } from "@/lib/workflows";
 import type { Finding, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 
-type WorkstreamCache = Record<string, Record<string, QuestionResult>>;
+// Local shape mirrors the old WorkstreamPanel.QuestionResult — the brief's
+// parsing/rendering code below was written against this interface and was
+// kept verbatim when the Workstreams tab was retired.
+interface QuestionResult {
+  answer: string;
+  citations: (Citation | null)[];
+  status: "pending" | "loading" | "complete" | "error";
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
+  completed_at?: number;
+}
+
+// Local shape mirrors the old Workstream type. The brief only uses
+// `templates` for label/query lookups.
+interface BriefTemplate { label: string; query: string }
+interface BriefWorkstreamShim { id: "proactive_scan"; templates: BriefTemplate[] }
+
+const PROACTIVE_SCAN_WORKFLOW_ID = "builtin_proactive_scan";
+
 type OverrideStore = Record<string, Record<string, string>>;
 
 const OVERRIDE_KEY_PREFIX = "vyntic_brief_overrides_";
@@ -31,14 +59,182 @@ interface BriefDiffSnapshot {
 
 interface Props {
   dealId: string;
-  workstreams: Workstream[];
-  resultCache: WorkstreamCache;
-  findings: Finding[];
   theme: "light" | "dark";
-  onOpenProactiveScan: () => void;
-  onSelectFinding: (finding: Finding) => void;
+  /** Optional — opens a citation in the doc viewer. */
   onCit?: (citation: Citation, id: string) => void;
-  onCacheUpdate?: (workstreamId: string, results: Record<string, QuestionResult>) => void;
+}
+
+function cellsToScanResults(cells: TabularCell[], columns: WorkflowColumn[]): Record<string, QuestionResult> {
+  const colById = new Map(columns.map((col) => [col.id, col]));
+  const out: Record<string, QuestionResult> = {};
+  for (const cell of cells) {
+    const col = colById.get(cell.column_id);
+    if (!col) continue;
+    // Brief lookups key by template.query == column.prompt verbatim.
+    out[col.prompt] = {
+      answer: cell.answer || "",
+      citations: cell.citations || [],
+      status:
+        cell.status === "complete"
+          ? "complete"
+          : cell.status === "error"
+            ? "error"
+            : cell.status === "running"
+              ? "loading"
+              : "pending",
+      model: cell.model,
+      fallback: cell.fallback,
+      duration_ms: cell.duration_ms,
+      completed_at: cell.completed_at ? new Date(cell.completed_at).getTime() : undefined,
+    };
+  }
+  return out;
+}
+
+function workflowToScanShim(workflow: Workflow | null): BriefWorkstreamShim | null {
+  if (!workflow || workflow.type !== "tabular") return null;
+  return {
+    id: "proactive_scan",
+    templates: workflow.columns
+      .slice()
+      .sort((a, b) => a.order_index - b.order_index)
+      .map((col) => ({ label: col.label, query: col.prompt })),
+  };
+}
+
+/**
+ * Fetches the latest Proactive Scan workflow run for the deal and exposes it
+ * in the legacy QuestionResult shape so the brief's parsing/rendering code
+ * (~1.5k lines below) can stay untouched.
+ */
+function useProactiveScanRun(dealId: string) {
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [run, setRun] = useState<WorkflowRun | null>(null);
+  const [scanResults, setScanResults] = useState<Record<string, QuestionResult>>({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch the workflow definition once on mount (or dealId change) so we know
+  // the column layout the brief expects.
+  useEffect(() => {
+    let active = true;
+    getWorkflow(dealId, PROACTIVE_SCAN_WORKFLOW_ID)
+      .then((wf) => {
+        if (active) setWorkflow(wf);
+      })
+      .catch((err) => {
+        if (active) setError((err as Error).message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [dealId]);
+
+  // Fetch the latest completed-or-running run on dealId change.
+  useEffect(() => {
+    let active = true;
+    listRuns(dealId, PROACTIVE_SCAN_WORKFLOW_ID)
+      .then((runs) => {
+        if (!active) return;
+        const latest =
+          runs.find((r) => r.status === "running") ||
+          runs.find((r) => r.status === "complete") ||
+          null;
+        setRun(latest);
+        if (latest && workflow) {
+          setScanResults(cellsToScanResults(latest.cells, workflow.columns));
+        } else {
+          setScanResults({});
+        }
+      })
+      .catch((err) => {
+        if (active) setError((err as Error).message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [dealId, workflow]);
+
+  // Live-update from SSE while a run is in progress.
+  useEffect(() => {
+    if (!run || !workflow || run.status !== "running") return;
+    const unsubscribe = subscribeRun(run.id, (event: RunStreamEvent) => {
+      if (event.type === "snapshot") {
+        setRun(event.run);
+        setScanResults(cellsToScanResults(event.run.cells, workflow.columns));
+      } else if (event.type === "cell") {
+        setScanResults((prev) => {
+          const col = workflow.columns.find((c) => c.id === event.cell.column_id);
+          if (!col) return prev;
+          return {
+            ...prev,
+            [col.prompt]: {
+              answer: event.cell.answer || "",
+              citations: event.cell.citations || [],
+              status:
+                event.cell.status === "complete"
+                  ? "complete"
+                  : event.cell.status === "error"
+                    ? "error"
+                    : event.cell.status === "running"
+                      ? "loading"
+                      : "pending",
+              model: event.cell.model,
+              fallback: event.cell.fallback,
+              duration_ms: event.cell.duration_ms,
+              completed_at: event.cell.completed_at
+                ? new Date(event.cell.completed_at).getTime()
+                : undefined,
+            },
+          };
+        });
+      } else if (event.type === "run") {
+        setRun((prev) => (prev ? { ...prev, status: event.status } : prev));
+      }
+    });
+    return unsubscribe;
+  }, [run, workflow]);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const docs = await listDocuments(dealId);
+      if (docs.length === 0) {
+        throw new Error("Upload at least one document before running the brief.");
+      }
+      const newRun = await startWorkflowRun(
+        dealId,
+        PROACTIVE_SCAN_WORKFLOW_ID,
+        docs.map((d) => d.doc_id),
+        [],
+      );
+      setRun(newRun);
+      // Seed scanResults with loading state for every column so the UI shows
+      // the panels animating while cells stream in.
+      if (workflow) {
+        const seeded: Record<string, QuestionResult> = {};
+        for (const col of workflow.columns) {
+          seeded[col.prompt] = { answer: "", citations: [], status: "loading" };
+        }
+        setScanResults(seeded);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dealId, workflow]);
+
+  return {
+    workflow,
+    run,
+    scanWorkstream: workflowToScanShim(workflow),
+    scanResults,
+    refresh,
+    refreshing,
+    error,
+  };
 }
 
 interface BriefField {
@@ -135,23 +331,34 @@ const VALUE_PATTERN = /(?:[$€£]\s?\d[\d,.]*(?:\s?(?:m|mm|bn|k))?|\d+(?:\.\d+)
 
 export default function DealBriefDashboard({
   dealId,
-  workstreams,
-  resultCache,
-  findings,
   theme,
-  onOpenProactiveScan,
-  onSelectFinding,
   onCit,
-  onCacheUpdate,
 }: Props) {
   const c = ddTheme(theme);
-  const scanWorkstream = workstreams.find((w) => w.id === "proactive_scan");
-  const scanResults = resultCache.proactive_scan || {};
+  // Findings are no longer auto-extracted from a workstream cache.
+  // The PR that re-wires findings from workflow-run output is a follow-up.
+  const findings: Finding[] = [];
+  const onSelectFinding = useCallback((_finding: Finding) => {
+    // No-op until findings are re-wired.
+  }, []);
+
+  const {
+    workflow,
+    scanWorkstream,
+    scanResults,
+    refresh: kickOffRun,
+    refreshing,
+    error: runError,
+  } = useProactiveScanRun(dealId);
+
   const scanTemplates = scanWorkstream?.templates || [];
   const completed = scanTemplates.filter((template) => scanResults[template.query]?.status === "complete").length;
   const total = scanTemplates.length;
   const scanStarted = Object.values(scanResults).some((result) => result.status !== "pending");
   const isLoading = Object.values(scanResults).some((result) => result.status === "loading");
+  // "Run Deal Brief" CTA shows when no completed cells exist yet.
+  const hasAnyCompleted = Object.values(scanResults).some((r) => r.status === "complete");
+  const onOpenProactiveScan = kickOffRun;
 
   const [overrides, setOverrides] = useState<OverrideStore>({});
 
@@ -220,7 +427,6 @@ export default function DealBriefDashboard({
   const [rerunning, setRerunning] = useState(false);
   const [diff, setDiff] = useState<BriefDiffSnapshot | null>(null);
   const [diffOpen, setDiffOpen] = useState(false);
-  const controllerRef = useRef<AbortController | null>(null);
   const beforeSnapshotRef = useRef<{
     snapshot: BriefField[];
     transaction: BriefField[];
@@ -238,12 +444,6 @@ export default function DealBriefDashboard({
     setDiffOpen(false);
   }, [dealId]);
 
-  useEffect(() => {
-    return () => {
-      controllerRef.current?.abort();
-    };
-  }, []);
-
   const persistDiff = useCallback(
     (next: BriefDiffSnapshot | null) => {
       setDiff(next);
@@ -257,84 +457,54 @@ export default function DealBriefDashboard({
   );
 
   const handleRerun = useCallback(() => {
-    if (rerunning || !scanWorkstream || !onCacheUpdate) return;
-    const queries = scanWorkstream.templates.map((t) => t.query);
-    if (queries.length === 0) return;
-
+    if (refreshing || !scanWorkstream) return;
     beforeSnapshotRef.current = {
       snapshot: snapshotFields.map((f) => ({ ...f })),
       transaction: transactionFields.map((f) => ({ ...f })),
       previousAt: lastScanAt ?? undefined,
     };
-
-    let working: Record<string, QuestionResult> = {};
-    for (const q of queries) {
-      working[q] = { answer: "", citations: [], status: "loading" };
-    }
-    onCacheUpdate("proactive_scan", working);
     setRerunning(true);
+    void kickOffRun().finally(() => setRerunning(false));
+    // Diff snapshot logic stays — once the new run completes the hook updates
+    // scanResults via SSE and the field-extraction below re-derives fields.
+    // We compute the diff in a separate effect (see below).
+  }, [kickOffRun, lastScanAt, refreshing, scanWorkstream, snapshotFields, transactionFields]);
 
-    const handleEvent = (event: WorkstreamEvent) => {
-      const q = event.question;
-      if (event.type === "token") {
-        const prev = working[q] || { answer: "", citations: [], status: "loading" };
-        working = {
-          ...working,
-          [q]: { ...prev, answer: prev.answer + event.token, status: "loading" },
-        };
-      } else if (event.type === "done") {
-        working = {
-          ...working,
-          [q]: {
-            answer: event.answer,
-            citations: event.citations,
-            status: "complete",
-            model: event.model,
-            fallback: event.fallback,
-            duration_ms: event.duration_ms,
-            completed_at: Date.now(),
-          },
-        };
-      } else if (event.type === "error") {
-        working = { ...working, [q]: { answer: event.error, citations: [], status: "error" } };
-      }
-      onCacheUpdate("proactive_scan", working);
-    };
-
-    controllerRef.current?.abort();
-    controllerRef.current = workstreamStream(
-      dealId,
-      "proactive_scan",
-      queries,
-      handleEvent,
-      () => {
-        setRerunning(false);
-        const before = beforeSnapshotRef.current;
-        if (!before) return;
-        const newSnapshotFields = mergeOverrides(
-          extractFields(working[scanWorkstream.templates.find((t) => t.label === DEAL_SNAPSHOT_LABEL)?.query || ""]?.answer, SNAPSHOT_FIELDS),
-          overrides.snapshot,
-          SNAPSHOT_FIELDS
-        );
-        const newTransactionFields = mergeOverrides(
-          extractFields(working[scanWorkstream.templates.find((t) => t.label === PROPOSED_TRANSACTION_LABEL)?.query || ""]?.answer, TRANSACTION_FIELDS),
-          overrides.transaction,
-          TRANSACTION_FIELDS
-        );
-        const changes = [
-          ...diffPanel("snapshot", "Deal Snapshot", before.snapshot, newSnapshotFields),
-          ...diffPanel("transaction", "Proposed Transaction", before.transaction, newTransactionFields),
-        ];
-        const next: BriefDiffSnapshot = { changes, at: Date.now(), previousAt: before.previousAt };
-        persistDiff(next);
-        if (changes.length > 0) setDiffOpen(true);
-      },
-      (err) => {
-        console.error("brief rerun error:", err);
-        setRerunning(false);
-      }
+  // After a rerun completes, compute the diff against the snapshot we took
+  // at kickoff time. `rerunning` flips to false once the new run is queued,
+  // but we want to wait until ALL cells are complete to compare.
+  useEffect(() => {
+    if (rerunning) return;
+    const before = beforeSnapshotRef.current;
+    if (!before) return;
+    if (!hasAnyCompleted || isLoading) return;
+    if (!scanWorkstream) return;
+    const newSnapshotFields = mergeOverrides(
+      extractFields(
+        scanResults[scanWorkstream.templates.find((t) => t.label === DEAL_SNAPSHOT_LABEL)?.query || ""]?.answer,
+        SNAPSHOT_FIELDS,
+      ),
+      overrides.snapshot,
+      SNAPSHOT_FIELDS,
     );
-  }, [dealId, lastScanAt, onCacheUpdate, overrides.snapshot, overrides.transaction, persistDiff, rerunning, scanWorkstream, snapshotFields, transactionFields]);
+    const newTransactionFields = mergeOverrides(
+      extractFields(
+        scanResults[scanWorkstream.templates.find((t) => t.label === PROPOSED_TRANSACTION_LABEL)?.query || ""]?.answer,
+        TRANSACTION_FIELDS,
+      ),
+      overrides.transaction,
+      TRANSACTION_FIELDS,
+    );
+    const changes = [
+      ...diffPanel("snapshot", "Deal Snapshot", before.snapshot, newSnapshotFields),
+      ...diffPanel("transaction", "Proposed Transaction", before.transaction, newTransactionFields),
+    ];
+    const next: BriefDiffSnapshot = { changes, at: Date.now(), previousAt: before.previousAt };
+    persistDiff(next);
+    if (changes.length > 0) setDiffOpen(true);
+    beforeSnapshotRef.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAnyCompleted, isLoading, rerunning]);
 
   const dismissDiff = useCallback(() => {
     persistDiff(null);
@@ -394,11 +564,11 @@ export default function DealBriefDashboard({
         </div>
         <div className="flex items-center" style={{ gap: 8, flexShrink: 0 }}>
           {sourceCount > 0 && <SourcePill count={sourceCount} theme={theme} />}
-          {scanStarted && onCacheUpdate && (
+          {scanStarted && (
             <button
               onClick={handleRerun}
-              disabled={rerunning}
-              title="Re-run the proactive scan"
+              disabled={rerunning || refreshing}
+              title="Re-run the deal brief"
               style={{
                 fontSize: 12,
                 fontWeight: 600,
@@ -426,7 +596,7 @@ export default function DealBriefDashboard({
               cursor: "pointer",
             }}
           >
-            {scanStarted ? "Open Scan" : "Run Scan"}
+            {scanStarted ? "Re-run Brief" : "Run Deal Brief"}
           </button>
         </div>
       </div>
@@ -516,7 +686,7 @@ function EmptyBrief({ theme, onOpenProactiveScan }: { theme: "light" | "dark"; o
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: c.t1, marginBottom: 4 }}>No Deal Brief yet</div>
         <div style={{ fontSize: 12, color: c.t2 }}>
-          Run the proactive scan to extract the target profile, transaction terms, financial highlights, and diligence actions from the VDR.
+          Run the deal brief to extract the target profile, transaction terms, financial highlights, and diligence actions from the VDR.
         </div>
       </div>
       <button
@@ -532,7 +702,7 @@ function EmptyBrief({ theme, onOpenProactiveScan }: { theme: "light" | "dark"; o
           cursor: "pointer",
         }}
       >
-        Start Scan
+        Run Deal Brief
       </button>
     </div>
   );
@@ -1428,7 +1598,7 @@ function Placeholder({ text, theme }: { text: string; theme: "light" | "dark" })
 }
 
 function resultByLabel(
-  workstream: Workstream | undefined,
+  workstream: BriefWorkstreamShim | null,
   results: Record<string, QuestionResult>,
   label: string
 ): QuestionResult | undefined {
