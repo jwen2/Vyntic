@@ -129,6 +129,11 @@ def format_prompt_suffix(fmt: str, tags: list[str] | None = None) -> str:
                 f" Return exactly one label from this list: {options}." + base_cite
             )
         return base_cite
+    if fmt == "markdown":
+        # No shape or length constraint — emit whatever markdown the prompt
+        # asks for, including tables and multi-section headings. Used for
+        # columns where the LLM needs full markdown freedom.
+        return base_cite
     # Default: text / bulleted_list (no tags) / unknown.
     return (
         " Return the shortest analyst-usable extracted value: a phrase or one "

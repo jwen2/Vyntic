@@ -78,6 +78,7 @@ const FORMAT_BADGE_COLOR: Record<ColumnFormat, string> = {
   prose: ACCENT,
   list: "#f59e0b",
   kv: VIOLET,
+  markdown: ACCENT,
   text: ACCENT,
   bulleted_list: ACCENT,
   number: ACCENT,
