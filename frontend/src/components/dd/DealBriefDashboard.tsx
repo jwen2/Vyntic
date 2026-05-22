@@ -70,9 +70,67 @@ interface Props {
   onFindingsExtracted?: (findings: Finding[]) => void;
 }
 
+/**
+ * Synthesize a markdown-shape `answer` from the cell's structured
+ * `answer_formatted`. The brief's ~1.5k lines of parsers (extractFields,
+ * extractMetrics, extractFinancialTables, extractThesisSections,
+ * extractActionItems) were written against the workstream-era prose output —
+ * line-based "Field: Value", bullet lists, narrative prose. The new typed-cell
+ * pipeline instructs the LLM to return JSON for kv/list shapes, which the
+ * parsers can't read. This adapter rebuilds the markdown form the parsers
+ * expect so the brief renders correctly without rewriting the parsers.
+ *
+ * Prose cells fall through to `cell.answer` (the raw streamed text) since the
+ * prose extractor already handles that.
+ */
+function synthesizeBriefAnswer(cell: TabularCell): string {
+  const raw = cell.answer || "";
+  const formatted = cell.answer_formatted;
+  if (formatted == null || typeof formatted !== "object") return raw;
+
+  // KV cells (Deal snapshot, Proposed transaction):
+  //   { pairs: [{ key, value, unit? }] } -> "Key: Value\nKey: Value"
+  const pairs = (formatted as { pairs?: Array<{ key?: string; value?: string | number; unit?: string | null }> }).pairs;
+  if (Array.isArray(pairs)) {
+    const lines = pairs
+      .map((p) => {
+        const key = (p?.key ?? "").trim();
+        const value = p?.value;
+        if (!key || value == null || value === "") return null;
+        const unit = (p?.unit ?? "").trim();
+        return `${key}: ${value}${unit ? ` ${unit}` : ""}`;
+      })
+      .filter((s): s is string => Boolean(s));
+    return lines.length > 0 ? lines.join("\n") : raw;
+  }
+
+  // List cells (Analyst next actions, Hidden financial risks, etc.):
+  //   { items: [{ text }], ordered } -> "- text\n- text"
+  const items = (formatted as { items?: Array<{ text?: string } | string>; ordered?: boolean }).items;
+  if (Array.isArray(items)) {
+    const ordered = Boolean((formatted as { ordered?: boolean }).ordered);
+    const lines = items
+      .map((item, i) => {
+        const text = typeof item === "string" ? item : (item?.text ?? "");
+        const trimmed = text.trim();
+        if (!trimmed) return null;
+        return ordered ? `${i + 1}. ${trimmed}` : `- ${trimmed}`;
+      })
+      .filter((s): s is string => Boolean(s));
+    return lines.length > 0 ? lines.join("\n") : raw;
+  }
+
+  // Prose cells: prefer body, then summary, then raw. The brief's extractors
+  // for thesis / financial tables / metrics work on free-form prose.
+  const prose = formatted as { summary?: string; body?: string };
+  if (typeof prose.body === "string" && prose.body.trim()) return prose.body;
+  if (typeof prose.summary === "string" && prose.summary.trim()) return prose.summary;
+  return raw;
+}
+
 function cellToQuestionResult(cell: TabularCell): QuestionResult {
   return {
-    answer: cell.answer || "",
+    answer: synthesizeBriefAnswer(cell),
     citations: cell.citations || [],
     status:
       cell.status === "complete"
