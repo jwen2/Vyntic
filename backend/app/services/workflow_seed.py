@@ -1,8 +1,14 @@
-"""Seed 8 built-in workflow templates idempotently on app startup.
+"""Seed built-in workflow templates idempotently on app startup.
 
 Built-ins are deal_id=NULL (visible across all deals) and is_builtin=True.
 We use deterministic IDs so re-seeding is a no-op once they exist.
+
+On every startup we also reconcile existing built-ins against the source —
+if a column's label/prompt/format/tags drifted (because the source code was
+updated), we patch the row in place. This preserves column IDs so existing
+run history keeps working, while letting prompt/format tweaks propagate.
 """
+import json
 import logging
 
 from app.database import SessionLocal, WorkflowRow
@@ -662,9 +668,13 @@ PROACTIVE_SCAN = WorkflowCreate(
         WorkflowColumnInput(order_index=2,  label="Proposed transaction",
             prompt="Extract WHAT IS BEING PROPOSED in this deal from the full VDR. Use this exact field format with one field per line where evidence exists, and write \"Not found\" when the VDR does not support the field: Transaction type: [platform acquisition/add-on/minority investment/recap/carve-out/etc.]\nPurchase price: [amount if disclosed]\nEnterprise value: [amount if disclosed]\nOwnership: [stake or control position]\nValuation: [EV/Revenue, EV/EBITDA, ARR multiple, or other disclosed multiple]\nFinancing: [debt/equity assumptions if disclosed]\nTiming: [LOI, exclusivity, bid process, close timing, or key dates]. Include [Source N] citations for the most important fields.",
             format="kv"),
+        # Uses `markdown` format so the LLM can emit a clean Yahoo-Finance
+        # style table. Asking for tables under the `prose` JSON shape
+        # produced literal `\n` characters bleeding into rendered cells and
+        # malformed mixed JSON/markdown blobs the brief couldn't parse.
         WorkflowColumnInput(order_index=3,  label="Key financial highlights",
             prompt="Extract ALL KEY FINANCIAL DATA from the VDR that a PE analyst would want in a first-pass deal brief. If an income statement, QoE table, financial model, or monthly/quarterly financials are available, present the financials in Yahoo Finance style markdown tables: first an \"Annual Financials\" table with rows for Revenue, Gross Profit/Gross Margin, EBITDA, Adjusted EBITDA, EBITDA Margin, Net Income if available, Capex, Free Cash Flow, Net Debt/Cash, and other relevant metrics; then a \"Quarterly Financials\" table for available quarters using the same row style. Include [Source N] citations in the relevant table cells or row labels. Do not invent unavailable metrics; write \"Not found\" in table cells when a critical metric is missing.",
-            format="prose"),
+            format="markdown"),
         WorkflowColumnInput(order_index=4,  label="Investment thesis",
             prompt="Synthesize the INVESTMENT THESIS for this deal grounded only in the VDR. Use these exact section headings on their own lines, each followed by 3-5 short bullet points starting with \"- \". Keep each bullet to one sentence and include [Source N] citations where the VDR supports the claim:\nThesis: [why this is an attractive acquisition — market position, growth, durable economics]\nValue creation levers: [pricing, cost takeout, M&A roll-up, ops improvements, channel/geo expansion]\nExit considerations: [likely exit paths, comparable multiples or buyer universe, time-to-exit assumptions]\nRisks to thesis: [key risks that could break the thesis — concentration, regulatory, key-person, cyclicality]\nIf a section has no support in the VDR, write a single bullet \"- Not found\" under that heading. Do not invent claims.",
             format="prose"),
@@ -712,22 +722,74 @@ BUILTIN_TEMPLATES: list[tuple[str, WorkflowCreate]] = [
 ]
 
 
+def _reconcile_builtin_columns(db, workflow_row: WorkflowRow, source: WorkflowCreate, builtin_id: str) -> None:
+    """Patch label/prompt/format/tags on existing built-in columns when the
+    source has drifted. Matches columns by `order_index` so IDs are preserved
+    (existing run cells keep referencing the same column_id). Doesn't add or
+    remove columns — schema changes that need new columns should ship under a
+    new built-in id.
+    """
+    existing_cols = {c.order_index: c for c in workflow_row.columns}
+    changed: list[str] = []
+    for source_col in source.columns:
+        existing = existing_cols.get(source_col.order_index)
+        if existing is None:
+            continue
+        diffs: list[str] = []
+        if existing.label != source_col.label:
+            existing.label = source_col.label
+            diffs.append("label")
+        if existing.prompt != source_col.prompt:
+            existing.prompt = source_col.prompt
+            diffs.append("prompt")
+        if existing.format != source_col.format:
+            existing.format = source_col.format
+            diffs.append("format")
+        src_tags_json = json.dumps(source_col.tags) if source_col.tags else "null"
+        if (existing.tags_json or "null") != src_tags_json:
+            existing.tags_json = src_tags_json
+            diffs.append("tags")
+        if diffs:
+            changed.append(f"col[{source_col.order_index}]:{','.join(diffs)}")
+    # Also reconcile workflow-level fields that we treat as source-of-truth.
+    if workflow_row.name != source.name:
+        workflow_row.name = source.name
+        changed.append("name")
+    if workflow_row.description != source.description:
+        workflow_row.description = source.description
+        changed.append("description")
+    if workflow_row.row_source != source.row_source:
+        workflow_row.row_source = source.row_source
+        changed.append("row_source")
+    if workflow_row.output_format != source.output_format:
+        workflow_row.output_format = source.output_format
+        changed.append("output_format")
+    if changed:
+        db.commit()
+        logger.info("Reconciled built-in %s: %s", builtin_id, "; ".join(changed))
+
+
 def seed_builtin_workflows():
-    """Insert built-in workflow templates idempotently. Safe to call on every startup."""
+    """Insert (or reconcile) built-in workflow templates. Safe on every startup."""
     db = SessionLocal()
     try:
-        existing_ids = {row.id for row in db.query(WorkflowRow.id).filter(WorkflowRow.is_builtin.is_(True)).all()}
+        existing = {
+            row.id: row
+            for row in db.query(WorkflowRow).filter(WorkflowRow.is_builtin.is_(True)).all()
+        }
+
+        for builtin_id, payload in BUILTIN_TEMPLATES:
+            row = existing.get(builtin_id)
+            if row is not None:
+                _reconcile_builtin_columns(db, row, payload, builtin_id)
+                continue
+            workflow_store.create_workflow(
+                deal_id=None,
+                data=payload,
+                created_by=None,
+                is_builtin=True,
+                workflow_id=builtin_id,
+            )
+            logger.info("Seeded built-in workflow: %s (%s)", payload.name, builtin_id)
     finally:
         db.close()
-
-    for builtin_id, payload in BUILTIN_TEMPLATES:
-        if builtin_id in existing_ids:
-            continue
-        workflow_store.create_workflow(
-            deal_id=None,
-            data=payload,
-            created_by=None,
-            is_builtin=True,
-            workflow_id=builtin_id,
-        )
-        logger.info("Seeded built-in workflow: %s (%s)", payload.name, builtin_id)

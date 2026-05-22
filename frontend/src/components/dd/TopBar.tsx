@@ -11,6 +11,8 @@ interface TopBarProps {
   mode: DealWorkspaceMode;
   onMode: (mode: DealWorkspaceMode) => void;
   dealBreakers: number;
+  documentCount: number;
+  onOpenDocuments: () => void;
   onBack: () => void;
   onToggleTheme: () => void;
   theme: "light" | "dark";
@@ -21,6 +23,8 @@ export default function TopBar({
   mode,
   onMode,
   dealBreakers,
+  documentCount,
+  onOpenDocuments,
   onBack,
   onToggleTheme,
   theme,
@@ -103,6 +107,30 @@ export default function TopBar({
           </span>
         </div>
       )}
+
+      <button
+        title="Manage documents"
+        onClick={onOpenDocuments}
+        className="flex items-center"
+        style={{
+          gap: 5,
+          padding: "4px 9px",
+          height: 26,
+          background: c.surface,
+          color: c.t2,
+          border: `1px solid ${c.border}`,
+          borderRadius: 6,
+          cursor: "pointer",
+          fontSize: 11,
+          fontWeight: 600,
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+        </svg>
+        <span>{documentCount}</span>
+      </button>
 
       <button
         title={theme === "dark" ? "Light mode" : "Dark mode"}

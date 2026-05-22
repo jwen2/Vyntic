@@ -47,4 +47,10 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      # Keep .next out of the host bind mount. Without this, the dev build
+      # cache lives on the host filesystem; macOS bind-mount FS sync lag
+      # under rapid rebuilds corrupts vendor-chunk references and produces
+      # `Cannot find module './vendor-chunks/...'` 500s. Mirrors the
+      # production frontend service which isolates `.next-docker` the same way.
+      - /app/.next
     restart: unless-stopped

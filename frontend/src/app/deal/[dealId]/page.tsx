@@ -21,6 +21,7 @@ import LeftSidebar from "@/components/dd/LeftSidebar";
 import DealAssistantPanel from "@/components/assistant/DealAssistantPanel";
 import WorkflowsView from "@/components/workflows/WorkflowsView";
 import DealBriefDashboard from "@/components/dd/DealBriefDashboard";
+import DocumentsModal from "@/components/dd/DocumentsModal";
 import { useFindings } from "@/components/dd/useFindings";
 import { ddTheme } from "@/components/dd/types";
 
@@ -70,10 +71,11 @@ export default function DealWorkspacePage() {
   const [selectedAssistantEntryId, setSelectedAssistantEntryId] = useState<string | null>(null);
   const [assistantNewChatSignal, setAssistantNewChatSignal] = useState(0);
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
-  // useFindings is kept so the deal-breaker pill in TopBar still works for any
-  // findings persisted in localStorage from prior workstream runs. No new
-  // findings are produced after the Workstreams tab retired in PR #80.
-  const { findings } = useFindings(dealId);
+  const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
+  // useFindings persists scan-extracted findings to localStorage and drives
+  // the deal-breaker pill in TopBar. New findings flow in from the Brief tab
+  // via syncScanFindings whenever a Proactive Scan workflow run completes.
+  const { findings, syncScanFindings } = useFindings(dealId);
 
   const [viewerState, setViewerState] = useState<{
     dealId: string;
@@ -241,6 +243,8 @@ export default function DealWorkspacePage() {
         mode={mode}
         onMode={handleMode}
         dealBreakers={dealBreakers}
+        documentCount={documents.length}
+        onOpenDocuments={() => setDocumentsModalOpen(true)}
         onBack={() => router.push("/")}
         onToggleTheme={toggleTheme}
         theme={theme}
@@ -267,6 +271,7 @@ export default function DealWorkspacePage() {
                 dealId={dealId}
                 theme={theme}
                 onCit={handleCit}
+                onFindingsExtracted={syncScanFindings}
               />
             </div>
           ) : (
@@ -294,6 +299,26 @@ export default function DealWorkspacePage() {
           page={viewerState.page}
           snippet={viewerState.snippet}
           onClose={() => setViewerState(null)}
+        />
+      )}
+
+      {documentsModalOpen && (
+        <DocumentsModal
+          dealId={dealId}
+          documents={documents}
+          theme={theme}
+          onClose={() => setDocumentsModalOpen(false)}
+          onDocumentDeleted={(docId) => {
+            setDocuments((prev) => prev.filter((d) => d.doc_id !== docId));
+            // If the doc viewer was showing the deleted doc, close it.
+            setViewerState((prev) =>
+              prev && documents.find((d) => d.doc_id === docId)?.filename === prev.filename
+                ? null
+                : prev,
+            );
+            // Refresh deal-level metadata (document_count) on the side.
+            void fetchDeal();
+          }}
         />
       )}
     </div>

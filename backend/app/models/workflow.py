@@ -21,6 +21,11 @@ ColumnFormat = Literal[
     "prose",
     "list",
     "kv",
+    # Free-form markdown — no JSON or brevity constraint. Use for columns
+    # whose prompts ask for rich markdown (Yahoo-Finance tables, multi-section
+    # narrative with custom headings). Differs from "text" which forces
+    # "shortest analyst-usable value: a phrase or one short sentence maximum".
+    "markdown",
     # Legacy formats kept for backwards compatibility during migration.
     "text",
     "bulleted_list",

@@ -14,6 +14,7 @@ import {
   type WorkflowRun,
 } from "@/lib/workflows";
 import { getWorkflow } from "@/lib/workflows";
+import { extractFindingsFromRun } from "./extractFindingsFromRun";
 import type { Finding, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 
@@ -62,11 +63,74 @@ interface Props {
   theme: "light" | "dark";
   /** Optional — opens a citation in the doc viewer. */
   onCit?: (citation: Citation, id: string) => void;
+  /**
+   * Called whenever a Proactive Scan run completes and produces structured
+   * findings. Parent wires this to `useFindings.syncScanFindings`.
+   */
+  onFindingsExtracted?: (findings: Finding[]) => void;
+}
+
+/**
+ * Synthesize a markdown-shape `answer` from the cell's structured
+ * `answer_formatted`. The brief's ~1.5k lines of parsers (extractFields,
+ * extractMetrics, extractFinancialTables, extractThesisSections,
+ * extractActionItems) were written against the workstream-era prose output —
+ * line-based "Field: Value", bullet lists, narrative prose. The new typed-cell
+ * pipeline instructs the LLM to return JSON for kv/list shapes, which the
+ * parsers can't read. This adapter rebuilds the markdown form the parsers
+ * expect so the brief renders correctly without rewriting the parsers.
+ *
+ * Prose cells fall through to `cell.answer` (the raw streamed text) since the
+ * prose extractor already handles that.
+ */
+function synthesizeBriefAnswer(cell: TabularCell): string {
+  const raw = cell.answer || "";
+  const formatted = cell.answer_formatted;
+  if (formatted == null || typeof formatted !== "object") return raw;
+
+  // KV cells (Deal snapshot, Proposed transaction):
+  //   { pairs: [{ key, value, unit? }] } -> "Key: Value\nKey: Value"
+  const pairs = (formatted as { pairs?: Array<{ key?: string; value?: string | number; unit?: string | null }> }).pairs;
+  if (Array.isArray(pairs)) {
+    const lines = pairs
+      .map((p) => {
+        const key = (p?.key ?? "").trim();
+        const value = p?.value;
+        if (!key || value == null || value === "") return null;
+        const unit = (p?.unit ?? "").trim();
+        return `${key}: ${value}${unit ? ` ${unit}` : ""}`;
+      })
+      .filter((s): s is string => Boolean(s));
+    return lines.length > 0 ? lines.join("\n") : raw;
+  }
+
+  // List cells (Analyst next actions, Hidden financial risks, etc.):
+  //   { items: [{ text }], ordered } -> "- text\n- text"
+  const items = (formatted as { items?: Array<{ text?: string } | string>; ordered?: boolean }).items;
+  if (Array.isArray(items)) {
+    const ordered = Boolean((formatted as { ordered?: boolean }).ordered);
+    const lines = items
+      .map((item, i) => {
+        const text = typeof item === "string" ? item : (item?.text ?? "");
+        const trimmed = text.trim();
+        if (!trimmed) return null;
+        return ordered ? `${i + 1}. ${trimmed}` : `- ${trimmed}`;
+      })
+      .filter((s): s is string => Boolean(s));
+    return lines.length > 0 ? lines.join("\n") : raw;
+  }
+
+  // Prose cells: prefer body, then summary, then raw. The brief's extractors
+  // for thesis / financial tables / metrics work on free-form prose.
+  const prose = formatted as { summary?: string; body?: string };
+  if (typeof prose.body === "string" && prose.body.trim()) return prose.body;
+  if (typeof prose.summary === "string" && prose.summary.trim()) return prose.summary;
+  return raw;
 }
 
 function cellToQuestionResult(cell: TabularCell): QuestionResult {
   return {
-    answer: cell.answer || "",
+    answer: synthesizeBriefAnswer(cell),
     citations: cell.citations || [],
     status:
       cell.status === "complete"
@@ -222,11 +286,21 @@ function useProactiveScanRun(dealId: string) {
     }
   }, [dealId, workflow]);
 
+  // Extract structured findings from the latest run's cells. Pure derived
+  // state — recomputes whenever the run changes. The brief's findings panel
+  // reads from here; the parent useFindings hook is fed via the
+  // onFindingsExtracted callback in the dashboard body.
+  const findings: Finding[] = useMemo(() => {
+    if (!run || !workflow) return [];
+    return extractFindingsFromRun(run.cells, workflow.columns);
+  }, [run, workflow]);
+
   return {
     workflow,
     run,
     scanWorkstream: workflowToScanShim(workflow),
     scanResults,
+    findings,
     refresh,
     refreshing,
     error,
@@ -329,23 +403,38 @@ export default function DealBriefDashboard({
   dealId,
   theme,
   onCit,
+  onFindingsExtracted,
 }: Props) {
   const c = ddTheme(theme);
-  // Findings are no longer auto-extracted from a workstream cache.
-  // The PR that re-wires findings from workflow-run output is a follow-up.
-  const findings: Finding[] = [];
+  // Findings are auto-extracted from the latest completed Proactive Scan run.
+  // useProactiveScanRun returns them; we expose them locally for the brief's
+  // own findings panel and re-emit via onFindingsExtracted so the parent's
+  // useFindings hook can persist them.
   const onSelectFinding = useCallback((_finding: Finding) => {
-    // No-op until findings are re-wired.
+    // Brief's finding rows aren't routable to a per-workstream view since the
+    // workstreams tab is gone. Future: open the doc viewer at the citation.
   }, []);
 
   const {
     workflow,
+    run,
     scanWorkstream,
     scanResults,
+    findings,
     refresh: kickOffRun,
     refreshing,
     error: runError,
   } = useProactiveScanRun(dealId);
+
+  // Push extracted findings up to the parent (which owns useFindings) so the
+  // deal-breaker pill in TopBar reflects current data. Only fires once per
+  // distinct findings list — onFindingsExtracted is responsible for de-duping.
+  useEffect(() => {
+    if (!onFindingsExtracted) return;
+    if (!run || run.status !== "complete") return;
+    onFindingsExtracted(findings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run?.id, run?.status, findings.length]);
 
   const scanTemplates = scanWorkstream?.templates || [];
   const completed = scanTemplates.filter((template) => scanResults[template.query]?.status === "complete").length;

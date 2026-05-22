@@ -5,6 +5,7 @@ export type ColumnFormat =
   | "prose"
   | "list"
   | "kv"
+  | "markdown"
   | "text"
   | "bulleted_list"
   | "number"
@@ -39,6 +40,7 @@ export const FORMAT_OPTIONS: Array<{ value: ColumnFormat; label: string; short: 
   { value: "prose", label: "Prose", short: "Prose" },
   { value: "list", label: "List", short: "List" },
   { value: "kv", label: "Key / Value", short: "KV" },
+  { value: "markdown", label: "Markdown", short: "MD" },
   { value: "text", label: "Free text", short: "Text" },
   { value: "bulleted_list", label: "Bulleted list", short: "List" },
   { value: "number", label: "Number", short: "123" },
