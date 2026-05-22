@@ -14,6 +14,7 @@ import {
   type WorkflowRun,
 } from "@/lib/workflows";
 import { getWorkflow } from "@/lib/workflows";
+import { extractFindingsFromRun } from "./extractFindingsFromRun";
 import type { Finding, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 
@@ -62,6 +63,11 @@ interface Props {
   theme: "light" | "dark";
   /** Optional — opens a citation in the doc viewer. */
   onCit?: (citation: Citation, id: string) => void;
+  /**
+   * Called whenever a Proactive Scan run completes and produces structured
+   * findings. Parent wires this to `useFindings.syncScanFindings`.
+   */
+  onFindingsExtracted?: (findings: Finding[]) => void;
 }
 
 function cellToQuestionResult(cell: TabularCell): QuestionResult {
@@ -222,11 +228,21 @@ function useProactiveScanRun(dealId: string) {
     }
   }, [dealId, workflow]);
 
+  // Extract structured findings from the latest run's cells. Pure derived
+  // state — recomputes whenever the run changes. The brief's findings panel
+  // reads from here; the parent useFindings hook is fed via the
+  // onFindingsExtracted callback in the dashboard body.
+  const findings: Finding[] = useMemo(() => {
+    if (!run || !workflow) return [];
+    return extractFindingsFromRun(run.cells, workflow.columns);
+  }, [run, workflow]);
+
   return {
     workflow,
     run,
     scanWorkstream: workflowToScanShim(workflow),
     scanResults,
+    findings,
     refresh,
     refreshing,
     error,
@@ -329,23 +345,38 @@ export default function DealBriefDashboard({
   dealId,
   theme,
   onCit,
+  onFindingsExtracted,
 }: Props) {
   const c = ddTheme(theme);
-  // Findings are no longer auto-extracted from a workstream cache.
-  // The PR that re-wires findings from workflow-run output is a follow-up.
-  const findings: Finding[] = [];
+  // Findings are auto-extracted from the latest completed Proactive Scan run.
+  // useProactiveScanRun returns them; we expose them locally for the brief's
+  // own findings panel and re-emit via onFindingsExtracted so the parent's
+  // useFindings hook can persist them.
   const onSelectFinding = useCallback((_finding: Finding) => {
-    // No-op until findings are re-wired.
+    // Brief's finding rows aren't routable to a per-workstream view since the
+    // workstreams tab is gone. Future: open the doc viewer at the citation.
   }, []);
 
   const {
     workflow,
+    run,
     scanWorkstream,
     scanResults,
+    findings,
     refresh: kickOffRun,
     refreshing,
     error: runError,
   } = useProactiveScanRun(dealId);
+
+  // Push extracted findings up to the parent (which owns useFindings) so the
+  // deal-breaker pill in TopBar reflects current data. Only fires once per
+  // distinct findings list — onFindingsExtracted is responsible for de-duping.
+  useEffect(() => {
+    if (!onFindingsExtracted) return;
+    if (!run || run.status !== "complete") return;
+    onFindingsExtracted(findings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run?.id, run?.status, findings.length]);
 
   const scanTemplates = scanWorkstream?.templates || [];
   const completed = scanTemplates.filter((template) => scanResults[template.query]?.status === "complete").length;
