@@ -64,6 +64,25 @@ interface Props {
   onCit?: (citation: Citation, id: string) => void;
 }
 
+function cellToQuestionResult(cell: TabularCell): QuestionResult {
+  return {
+    answer: cell.answer || "",
+    citations: cell.citations || [],
+    status:
+      cell.status === "complete"
+        ? "complete"
+        : cell.status === "error"
+          ? "error"
+          : cell.status === "running"
+            ? "loading"
+            : "pending",
+    model: cell.model,
+    fallback: cell.fallback,
+    duration_ms: cell.duration_ms,
+    completed_at: cell.completed_at ? new Date(cell.completed_at).getTime() : undefined,
+  };
+}
+
 function cellsToScanResults(cells: TabularCell[], columns: WorkflowColumn[]): Record<string, QuestionResult> {
   const colById = new Map(columns.map((col) => [col.id, col]));
   const out: Record<string, QuestionResult> = {};
@@ -71,22 +90,7 @@ function cellsToScanResults(cells: TabularCell[], columns: WorkflowColumn[]): Re
     const col = colById.get(cell.column_id);
     if (!col) continue;
     // Brief lookups key by template.query == column.prompt verbatim.
-    out[col.prompt] = {
-      answer: cell.answer || "",
-      citations: cell.citations || [],
-      status:
-        cell.status === "complete"
-          ? "complete"
-          : cell.status === "error"
-            ? "error"
-            : cell.status === "running"
-              ? "loading"
-              : "pending",
-      model: cell.model,
-      fallback: cell.fallback,
-      duration_ms: cell.duration_ms,
-      completed_at: cell.completed_at ? new Date(cell.completed_at).getTime() : undefined,
-    };
+    out[col.prompt] = cellToQuestionResult(cell);
   }
   return out;
 }
@@ -130,16 +134,20 @@ function useProactiveScanRun(dealId: string) {
     };
   }, [dealId]);
 
-  // Fetch the latest completed-or-running run on dealId change.
+  // Fetch the latest run on dealId change. We take the most recent non-aborted
+  // run — pending/running/complete are all worth surfacing (the SSE
+  // subscription below transitions a pending run to populated as cells stream
+  // in). Only "cancelled" and "error" are skipped.
   useEffect(() => {
     let active = true;
     listRuns(dealId, PROACTIVE_SCAN_WORKFLOW_ID)
       .then((runs) => {
         if (!active) return;
+        const sorted = [...runs].sort((a, b) =>
+          (b.started_at || "").localeCompare(a.started_at || ""),
+        );
         const latest =
-          runs.find((r) => r.status === "running") ||
-          runs.find((r) => r.status === "complete") ||
-          null;
+          sorted.find((r) => r.status !== "cancelled" && r.status !== "error") ?? null;
         setRun(latest);
         if (latest && workflow) {
           setScanResults(cellsToScanResults(latest.cells, workflow.columns));
@@ -155,10 +163,15 @@ function useProactiveScanRun(dealId: string) {
     };
   }, [dealId, workflow]);
 
-  // Live-update from SSE while a run is in progress.
+  // SSE subscription keyed by runId (not the full run object). Using the id
+  // avoids reconnect churn: each "snapshot" event calls setRun(event.run)
+  // which creates a new reference, but the id is stable across status
+  // transitions, so the subscription stays open until the run actually
+  // changes (e.g. the user kicks off a new one).
+  const runId = run?.id ?? null;
   useEffect(() => {
-    if (!run || !workflow || run.status !== "running") return;
-    const unsubscribe = subscribeRun(run.id, (event: RunStreamEvent) => {
+    if (!runId || !workflow) return;
+    const unsubscribe = subscribeRun(runId, (event: RunStreamEvent) => {
       if (event.type === "snapshot") {
         setRun(event.run);
         setScanResults(cellsToScanResults(event.run.cells, workflow.columns));
@@ -168,24 +181,7 @@ function useProactiveScanRun(dealId: string) {
           if (!col) return prev;
           return {
             ...prev,
-            [col.prompt]: {
-              answer: event.cell.answer || "",
-              citations: event.cell.citations || [],
-              status:
-                event.cell.status === "complete"
-                  ? "complete"
-                  : event.cell.status === "error"
-                    ? "error"
-                    : event.cell.status === "running"
-                      ? "loading"
-                      : "pending",
-              model: event.cell.model,
-              fallback: event.cell.fallback,
-              duration_ms: event.cell.duration_ms,
-              completed_at: event.cell.completed_at
-                ? new Date(event.cell.completed_at).getTime()
-                : undefined,
-            },
+            [col.prompt]: cellToQuestionResult(event.cell),
           };
         });
       } else if (event.type === "run") {
@@ -193,7 +189,7 @@ function useProactiveScanRun(dealId: string) {
       }
     });
     return unsubscribe;
-  }, [run, workflow]);
+  }, [runId, workflow]);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
