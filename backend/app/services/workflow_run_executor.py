@@ -399,12 +399,22 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
         )
 
 
+_RETRIEVAL_PROMPT_CHAR_CAP = 280
+
+
 def _tabular_retrieval_query(
     column_label: str,
     column_prompt: str,
     row_question: str = "",
 ) -> str:
-    """Use both analyst label and prompt so retrieval matches the intended cell."""
+    """Build a retrieval query from analyst label + prompt.
+
+    The full column prompt is often long (multi-paragraph format directives,
+    field templates, Yahoo-Finance table specs, etc.) — embedding that whole
+    blob dilutes the semantic signal and can return zero chunks, leaving the
+    cell silently empty. We use the first sentence of the prompt (capped at
+    ~280 chars) so the retriever sees the intent without the prose tail.
+    """
     parts: list[str] = []
     row_question = (row_question or "").strip()
     column_label = (column_label or "").strip()
@@ -414,7 +424,12 @@ def _tabular_retrieval_query(
     if column_label:
         parts.append(f"Column label: {column_label}")
     if column_prompt and column_prompt.lower() != column_label.lower():
-        parts.append(f"Extraction prompt: {column_prompt}")
+        # First sentence keeps the intent; long format directives that follow
+        # add noise without adding semantic signal to vector search.
+        first_sentence = column_prompt.split(". ", 1)[0]
+        if len(first_sentence) > _RETRIEVAL_PROMPT_CHAR_CAP:
+            first_sentence = first_sentence[:_RETRIEVAL_PROMPT_CHAR_CAP].rstrip() + "…"
+        parts.append(f"Extraction prompt: {first_sentence}")
     return "\n".join(parts) or column_prompt or column_label
 
 
