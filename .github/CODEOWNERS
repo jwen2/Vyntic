@@ -1,0 +1,14 @@
+# Vyntic code ownership
+#
+# Every PR auto-requests John as a reviewer. This is the soft enforcement
+# layer that takes the place of GitHub branch protection (paywalled on
+# free private repos). The hard layer is the agent guardrails in:
+#   - hermes-stock-agent-poc/agents/vyntic-dev-team/AGENTS.md
+#   - hermes-stock-agent-poc/agents/vyntic-dev-team/RELEASE_PROCESS.md
+#   - .github/pull_request_template.md
+#
+# To upgrade to enforced branch protection, move the Vyntic repo to a
+# GitHub Pro account or make it public; then create a ruleset on `main`
+# requiring PRs, 1 approval, no force-push, no deletion.
+
+* @jwen2
