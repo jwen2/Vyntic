@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, register } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,11 +21,13 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      let data;
       if (isLogin) {
-        await login(email, password);
+        data = await login(email, password);
       } else {
-        await register(email, password, fullName);
+        data = await register(email, password, fullName);
       }
+      setUser(data.user);
       navigate("/");
     } catch (err: any) {
       console.error("Auth error:", err);
