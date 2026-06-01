@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.font-mono-dm {
+  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.25s ease-out;
+}
+
+@keyframes dd-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.dd-pulse { animation: dd-pulse 1.4s ease-in-out infinite; }
+
+@keyframes dd-slide-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.dd-slide-in { animation: dd-slide-in 0.2s ease-out; }
+
+@keyframes dd-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.dd-fade-in { animation: dd-fade-in 0.15s ease-out; }
+
+@keyframes dd-spin {
+  to { transform: rotate(360deg); }
+}
+.dd-spin { animation: dd-spin 0.8s linear infinite; transform-origin: center; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.3s ease-out both; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.slide-in { animation: slideIn 0.2s ease-out both; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Thin dark scrollbars on the DD workspace dark panels */
+.dd-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+.dd-scroll::-webkit-scrollbar-track { background: transparent; }
+.dd-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+.dd-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
