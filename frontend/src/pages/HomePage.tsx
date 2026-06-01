@@ -177,7 +177,7 @@ export default function HomePage() {
         documentTotal={documentTotal}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onAddDeal={user.is_admin ? () => setShowAddDeal(true) : undefined}
+        onAddDeal={user?.is_admin ? () => setShowAddDeal(true) : undefined}
         onLogout={handleLogout}
       />
 

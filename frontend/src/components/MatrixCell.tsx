@@ -259,7 +259,7 @@ export default function MatrixCell({
   onCitationClick,
   onInvestigate,
 }: Props) {
-  const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC !== "0";
+  const agenticEnabled = import.meta.env.VITE_AGENTIC !== "0";
   const [expanded, setExpanded] = useState(synthesis);
   const [chartType, setChartType] = useState<"bar" | "line" | "area" | null>(null);
   const tableState = useTableState();

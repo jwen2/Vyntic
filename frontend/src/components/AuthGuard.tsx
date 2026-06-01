@@ -18,7 +18,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     } else if (token && pathname === "/login") {
       navigate("/");
     }
-  }, [pathname, router]);
+  }, [pathname, navigate]);
 
   // Prevent flash of unauthenticated content
   if (!mounted) {
