@@ -210,7 +210,7 @@ export default function DealWorkspacePage() {
         <div style={{ textAlign: "center" }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Deal not found</h2>
           <p style={{ fontSize: 13, color: c.t2, marginBottom: 16 }}>No deal with ID &quot;{dealId}&quot; exists.</p>
-          <button onClick={() => navigate("/")} style={{ padding: "8px 14px", background: "#2563eb", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}>
+          <button onClick={() => navigate("/app")} style={{ padding: "8px 14px", background: "#2563eb", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}>
             Back to Dashboard
           </button>
         </div>
@@ -237,7 +237,7 @@ export default function DealWorkspacePage() {
         dealBreakers={dealBreakers}
         documentCount={documents.length}
         onOpenDocuments={() => setDocumentsModalOpen(true)}
-        onBack={() => navigate("/")}
+        onBack={() => navigate("/app")}
         onToggleTheme={toggleTheme}
         theme={theme}
       />

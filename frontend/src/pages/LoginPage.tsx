@@ -28,7 +28,7 @@ export default function LoginPage() {
         data = await register(email, password, fullName);
       }
       setUser(data.user);
-      navigate("/");
+      navigate("/app");
     } catch (err: any) {
       console.error("Auth error:", err);
       try {

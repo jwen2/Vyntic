@@ -1,13 +1,68 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --landing-bg: #f3f3ee;
+  --landing-surface: #ffffff;
+  --landing-surface-alt: #ecece4;
+  --landing-border: #d6d6cc;
+  --landing-text: #111111;
+  --landing-muted: #5e5e57;
+  --landing-inverse: #111111;
+  --landing-inverse-text: #ffffff;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  font-family: "IBM Plex Sans", "Aptos", "Segoe UI", sans-serif;
+  color: var(--landing-text);
+  background: var(--landing-bg);
 }
 
 .font-mono-dm {
   font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.font-mono-plex {
+  font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+}
+
+.landing-shell {
+  background:
+    radial-gradient(circle at top, rgba(17, 17, 17, 0.04), transparent 42%),
+    linear-gradient(180deg, #f8f8f4 0%, var(--landing-bg) 100%);
+  color: var(--landing-text);
+}
+
+.landing-rule {
+  border-top: 1px solid var(--landing-border);
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(to right, rgba(17, 17, 17, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(17, 17, 17, 0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center;
+}
+
+.landing-noise {
+  position: relative;
+}
+
+.landing-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0));
 }
 
 @keyframes slide-in-right {
