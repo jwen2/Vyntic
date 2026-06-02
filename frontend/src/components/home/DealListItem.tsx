@@ -1,12 +1,20 @@
-import { useState, useRef, DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress } from "@/lib/api";
 
-const STAGE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-  Screening: { bg: "#422006", fg: "#fdba74", border: "#7c2d12" },
-  "Due Diligence": { bg: "#1e3a8a", fg: "#93c5fd", border: "#1e40af" },
-  "IC Review": { bg: "#581c87", fg: "#e9d5ff", border: "#6b21a8" },
-  Closed: { bg: "#14532d", fg: "#86efac", border: "#166534" },
+const STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
+  Screening: { bg: "#f1f1ec", fg: "#5a5a54", border: "#d6d6cc" },
+  "Due Diligence": { bg: "#e6e6df", fg: "#3f3f3a", border: "#d0d0c6" },
+  "IC Review": { bg: "#dcdcd2", fg: "#252525", border: "#c9c9bf" },
+  Closed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
+};
+
+const DARK_STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
+  Screening: { bg: "#1a1a1a", fg: "rgba(255,255,255,0.72)", border: "#2d2d2d" },
+  "Due Diligence": { bg: "#202020", fg: "#f5f5f5", border: "#303030" },
+  "IC Review": { bg: "#262626", fg: "#ffffff", border: "#343434" },
+  Closed: { bg: "#f5f5f5", fg: "#111111", border: "#f5f5f5" },
 };
 
 const STAGES = ["Screening", "Due Diligence", "IC Review", "Closed"];
@@ -50,12 +58,49 @@ export default function DealListItem({
   readOnly,
 }: Props) {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [dragging, setDragging] = useState(false);
-  const [hov, setHov] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [showStageMenu, setShowStageMenu] = useState(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const surface = isDark ? "#151515" : "#ffffff";
+  const surfaceAlt = isDark ? "#101010" : "#f8f8f4";
+  const border = isDark ? "#262626" : "var(--landing-border)";
+  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
+  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+  const selectedBg = isDark ? "#202020" : "#111111";
+  const selectedText = isDark ? "#ffffff" : "#ffffff";
+  const selectedMuted = isDark ? "rgba(255,255,255,0.62)" : "rgba(255,255,255,0.68)";
+  const stageMap = isDark ? DARK_STAGE_STYLES : STAGE_STYLES;
+  const stage =
+    stageMap[deal.stage] || {
+      bg: surfaceAlt,
+      fg: text,
+      border,
+    };
+
+  const cardBackground = dragging
+    ? isDark
+      ? "#1c1c1c"
+      : "#efefe7"
+    : selected
+      ? selectedBg
+      : hovered
+        ? surfaceAlt
+        : surface;
+  const cardText = selected ? selectedText : text;
+  const cardMuted = selected ? selectedMuted : muted;
+  const cardBorder = dragging
+    ? isDark
+      ? "#3a3a3a"
+      : "#bdbdb3"
+    : selected
+      ? selectedBg
+      : border;
 
   const handleDragEnter = (e: DragEvent) => {
     e.preventDefault();
@@ -82,55 +127,34 @@ export default function DealListItem({
     setDragging(false);
     dragCounter.current = 0;
     const files = Array.from(e.dataTransfer.files).filter(
-      (f) =>
-        f.name.endsWith(".pdf") ||
-        f.name.endsWith(".xlsx") ||
-        f.name.endsWith(".xls")
+      (f) => f.name.endsWith(".pdf") || f.name.endsWith(".xlsx") || f.name.endsWith(".xls")
     );
     if (files.length > 0) onUploadFiles(deal.deal_id, files);
   };
 
-  const stage =
-    STAGE_COLORS[deal.stage] || {
-      bg: "#1e293b",
-      fg: "#94a3b8",
-      border: "#334155",
-    };
-
   return (
     <div
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onDragEnter={readOnly ? undefined : handleDragEnter}
       onDragLeave={readOnly ? undefined : handleDragLeave}
       onDragOver={readOnly ? undefined : handleDragOver}
       onDrop={readOnly ? undefined : handleDrop}
+      className="mb-3 rounded-[1.35rem] border p-4 transition-colors"
       style={{
-        padding: "10px 11px",
-        marginBottom: 4,
-        background: dragging
-          ? "rgba(37,99,235,.15)"
-          : selected
-          ? "#1e3a8a"
-          : hov
-          ? "#1e293b"
-          : "#0b1220",
-        border: `1px solid ${
-          dragging ? "#2563eb" : selected ? "#3b82f6" : hov ? "#334155" : "#1e293b"
-        }`,
-        borderRadius: 6,
-        transition: "all .12s",
+        background: cardBackground,
+        borderColor: cardBorder,
       }}
     >
-      {/* Header: name + delete */}
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <button
+          type="button"
           onClick={() => {
             if (onSelect) onSelect();
             else navigate(`/deal/${deal.deal_id}`);
           }}
           style={{
-            background: "none",
+            background: "transparent",
             border: "none",
             padding: 0,
             textAlign: "left",
@@ -138,112 +162,82 @@ export default function DealListItem({
             minWidth: 0,
             cursor: "pointer",
           }}
-          onMouseEnter={(e) => {
-            const title = e.currentTarget.firstChild as HTMLElement;
-            if (title) title.style.color = "#93c5fd";
-          }}
-          onMouseLeave={(e) => {
-            const title = e.currentTarget.firstChild as HTMLElement;
-            if (title) title.style.color = "#e2e8f0";
-          }}
         >
           <div
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
-              color: "#e2e8f0",
+              color: cardText,
               lineHeight: 1.3,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              transition: "color .12s",
             }}
             title={deal.name}
           >
             {deal.name}
           </div>
-          <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
-            {deal.deal_id} · {deal.document_count} doc
-            {deal.document_count !== 1 ? "s" : ""}
+          <div
+            className="font-mono-plex"
+            style={{
+              fontSize: 10,
+              color: cardMuted,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginTop: 4,
+            }}
+          >
+            {deal.deal_id} · {deal.document_count} doc{deal.document_count !== 1 ? "s" : ""}
           </div>
         </button>
-        {onInvestigate && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onInvestigate();
-            }}
-            title={`Open agent and workstreams for ${deal.name}`}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "#bfdbfe";
-              e.currentTarget.style.borderColor = "#3b82f6";
-              e.currentTarget.style.background = "#1e3a8a";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = selected ? "#bfdbfe" : "#60a5fa";
-              e.currentTarget.style.borderColor = selected ? "#3b82f6" : "#1e40af";
-              e.currentTarget.style.background = selected ? "#1e40af" : "transparent";
-            }}
-            style={{
-              flexShrink: 0,
-              marginTop: 1,
-              padding: "2px 6px",
-              background: selected ? "#1e40af" : "transparent",
-              color: selected ? "#bfdbfe" : "#60a5fa",
-              border: `1px solid ${selected ? "#3b82f6" : "#1e40af"}`,
-              borderRadius: 4,
-              fontSize: 9,
-              fontWeight: 700,
-              lineHeight: 1.4,
-              cursor: "pointer",
-            }}
-          >
-            Analyze
-          </button>
-        )}
-        {!readOnly && hov && (
-          <button
-            onClick={onDelete}
-            title="Delete deal"
-            style={{
-              background: "none",
-              border: "none",
-              color: "#475569",
-              cursor: "pointer",
-              fontSize: 12,
-              padding: "0 4px",
-              lineHeight: 1,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "#ef4444";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "#475569";
-            }}
-          >
-            ✕
-          </button>
-        )}
+
+        <div className="flex items-center gap-2">
+          {onInvestigate && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onInvestigate();
+              }}
+              className="rounded-full border px-3 py-2 text-[10px] font-medium uppercase tracking-[0.12em]"
+              style={{
+                borderColor: selected ? "rgba(255,255,255,0.2)" : border,
+                background: selected ? "rgba(255,255,255,0.08)" : surfaceAlt,
+                color: selected ? selectedText : cardText,
+              }}
+            >
+              Analyze
+            </button>
+          )}
+          {!readOnly && hovered && (
+            <button
+              type="button"
+              onClick={onDelete}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: cardMuted,
+                cursor: "pointer",
+                fontSize: 16,
+                lineHeight: 1,
+              }}
+              aria-label={`Delete ${deal.name}`}
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Stage + tags */}
-      <div
-        className="flex items-center gap-1 flex-wrap"
-        style={{ marginTop: 6 }}
-      >
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <div style={{ position: "relative" }}>
           {readOnly ? (
             <span
+              className="font-mono-plex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.12em]"
               style={{
-                fontSize: 9,
-                fontWeight: 700,
-                padding: "1px 6px",
-                borderRadius: 99,
                 background: stage.bg,
                 color: stage.fg,
-                border: `1px solid ${stage.border}`,
-                letterSpacing: "0.03em",
-                textTransform: "uppercase",
+                borderColor: stage.border,
               }}
             >
               {deal.stage}
@@ -251,81 +245,44 @@ export default function DealListItem({
           ) : (
             <>
               <button
+                type="button"
                 onClick={() => {
-                  setShowStageMenu(!showStageMenu);
+                  setShowStageMenu((value) => !value);
                   setShowTagMenu(false);
                 }}
+                className="font-mono-plex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.12em]"
                 style={{
-                  fontSize: 9,
-                  fontWeight: 700,
-                  padding: "1px 6px",
-                  borderRadius: 99,
                   background: stage.bg,
                   color: stage.fg,
-                  border: `1px solid ${stage.border}`,
-                  cursor: "pointer",
-                  letterSpacing: "0.03em",
-                  textTransform: "uppercase",
+                  borderColor: stage.border,
                 }}
               >
                 {deal.stage}
               </button>
               {showStageMenu && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    marginTop: 4,
-                    background: "#0f172a",
-                    border: "1px solid #334155",
-                    borderRadius: 6,
-                    boxShadow: "0 4px 12px rgba(0,0,0,.5)",
-                    zIndex: 30,
-                    padding: 4,
-                    minWidth: 140,
-                  }}
-                >
-                  {STAGES.map((s) => (
-                    <button
-                      key={s}
+                <Menu surface={surface} border={border} text={text}>
+                  {STAGES.map((stageName) => (
+                    <MenuItem
+                      key={stageName}
+                      label={stageName}
+                      active={stageName === deal.stage}
                       onClick={() => {
-                        onUpdateDeal(deal.deal_id, { stage: s });
+                        onUpdateDeal(deal.deal_id, { stage: stageName });
                         setShowStageMenu(false);
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#1e293b";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "5px 10px",
-                        fontSize: 11,
-                        background: "transparent",
-                        color: s === deal.stage ? "#60a5fa" : "#cbd5e1",
-                        fontWeight: s === deal.stage ? 600 : 400,
-                        border: "none",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {s}
-                    </button>
+                    />
                   ))}
-                </div>
+                </Menu>
               )}
             </>
           )}
         </div>
 
         {deal.tags.map((tag) => (
-          <span
+          <button
             key={tag}
-            title={readOnly ? undefined : `Click to remove "${tag}"`}
+            type="button"
+            title={readOnly ? undefined : `Remove ${tag}`}
             onClick={
               readOnly
                 ? undefined
@@ -334,157 +291,104 @@ export default function DealListItem({
                       tags: deal.tags.filter((t) => t !== tag),
                     })
             }
+            className="rounded-full border px-3 py-1 text-[11px]"
             style={{
-              fontSize: 9,
-              padding: "1px 5px",
-              borderRadius: 3,
-              background: "#1e293b",
-              color: "#94a3b8",
-              border: "1px solid #334155",
+              background: selected ? "rgba(255,255,255,0.08)" : surfaceAlt,
+              color: cardMuted,
+              borderColor: selected ? "rgba(255,255,255,0.14)" : border,
               cursor: readOnly ? "default" : "pointer",
             }}
           >
             {tag}
-          </span>
+          </button>
         ))}
 
         {!readOnly && (
           <div style={{ position: "relative" }}>
             <button
+              type="button"
               onClick={() => {
-                setShowTagMenu(!showTagMenu);
+                setShowTagMenu((value) => !value);
                 setShowStageMenu(false);
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#60a5fa";
-                e.currentTarget.style.borderColor = "#1e40af";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#475569";
-                e.currentTarget.style.borderColor = "#334155";
-              }}
+              className="font-mono-plex rounded-full border border-dashed px-3 py-1 text-[10px] uppercase tracking-[0.12em]"
               style={{
-                fontSize: 9,
-                padding: "1px 5px",
-                borderRadius: 3,
                 background: "transparent",
-                color: "#475569",
-                border: "1px dashed #334155",
-                cursor: "pointer",
+                color: cardMuted,
+                borderColor: selected ? "rgba(255,255,255,0.18)" : border,
               }}
             >
-              + tag
+              Add tag
             </button>
             {showTagMenu && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  left: 0,
-                  marginTop: 4,
-                  background: "#0f172a",
-                  border: "1px solid #334155",
-                  borderRadius: 6,
-                  boxShadow: "0 4px 12px rgba(0,0,0,.5)",
-                  zIndex: 30,
-                  padding: 4,
-                  width: 160,
-                  maxHeight: 200,
-                  overflowY: "auto",
-                }}
-              >
-                {SECTOR_TAGS.filter((t) => !deal.tags.includes(t)).map((tag) => (
-                  <button
+              <Menu surface={surface} border={border} text={text} width={180}>
+                {SECTOR_TAGS.filter((tag) => !deal.tags.includes(tag)).map((tag) => (
+                  <MenuItem
                     key={tag}
+                    label={tag}
                     onClick={() => {
                       onUpdateDeal(deal.deal_id, {
                         tags: [...deal.tags, tag],
                       });
                       setShowTagMenu(false);
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#1e293b";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                    }}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "4px 8px",
-                      fontSize: 11,
-                      background: "transparent",
-                      color: "#cbd5e1",
-                      border: "none",
-                      borderRadius: 4,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {tag}
-                  </button>
+                  />
                 ))}
-              </div>
+              </Menu>
             )}
           </div>
         )}
       </div>
 
-      {/* Drop zone hint */}
       {dragging && (
         <div
+          className="mt-4 rounded-2xl border border-dashed px-4 py-3 text-center text-sm"
           style={{
-            marginTop: 8,
-            padding: 10,
-            border: "1px dashed #2563eb",
-            borderRadius: 4,
-            background: "rgba(37,99,235,.1)",
-            textAlign: "center",
-            fontSize: 11,
-            color: "#93c5fd",
-            fontWeight: 600,
+            borderColor: selected ? "rgba(255,255,255,0.3)" : border,
+            color: cardMuted,
+            background: selected ? "rgba(255,255,255,0.06)" : surfaceAlt,
           }}
         >
-          Drop PDF / Excel here
+          Drop PDF or Excel files here
         </div>
       )}
 
-      {/* Upload progress */}
       {(uploading || uploadProgress) && (
-        <div style={{ marginTop: 8 }}>
-          <div
-            className="flex items-center justify-between gap-2"
-            style={{ marginBottom: 5, fontSize: 10, color: "#93c5fd" }}
-          >
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <span
+              className="font-mono-plex"
               title={uploadProgress?.detail || uploadProgress?.filename || ""}
               style={{
                 minWidth: 0,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
-                fontWeight: 700,
+                fontSize: 10,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: cardMuted,
               }}
             >
               {uploadProgress?.stage || "Indexing"}
             </span>
-            <span style={{ color: "#60a5fa", fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: cardText }}>
               {uploadProgress ? `${uploadProgress.percent}%` : ""}
             </span>
           </div>
           <div
-            aria-label="Upload and embedding progress"
+            aria-label="Upload progress"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={uploadProgress?.percent ?? 0}
             role="progressbar"
             style={{
-              height: 5,
+              height: 7,
               width: "100%",
               overflow: "hidden",
               borderRadius: 999,
-              background: "#1e293b",
-              border: "1px solid #334155",
+              background: selected ? "rgba(255,255,255,0.08)" : surfaceAlt,
+              border: `1px solid ${selected ? "rgba(255,255,255,0.1)" : border}`,
             }}
           >
             <div
@@ -494,10 +398,14 @@ export default function DealListItem({
                 borderRadius: 999,
                 background:
                   uploadProgress?.status === "error"
-                    ? "#ef4444"
+                    ? "#7a7a7a"
                     : uploadProgress?.status === "complete"
-                    ? "#22c55e"
-                    : "#3b82f6",
+                      ? isDark
+                        ? "#f5f5f5"
+                        : "#111111"
+                      : isDark
+                        ? "#bbbbbb"
+                        : "#444444",
                 transition: "width .25s ease",
               }}
             />
@@ -506,9 +414,9 @@ export default function DealListItem({
             <div
               title={uploadProgress.detail}
               style={{
-                marginTop: 4,
-                fontSize: 10,
-                color: uploadProgress.status === "error" ? "#fca5a5" : "#64748b",
+                marginTop: 6,
+                fontSize: 11,
+                color: cardMuted,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -520,32 +428,19 @@ export default function DealListItem({
         </div>
       )}
 
-      {/* Browse upload (admin) */}
       {!readOnly && !dragging && (
         <>
           <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "#60a5fa";
-              e.currentTarget.style.borderColor = "#1e40af";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "#475569";
-              e.currentTarget.style.borderColor = "#1e293b";
-            }}
+            className="mt-4 w-full rounded-2xl border border-dashed px-4 py-3 text-sm"
             style={{
-              width: "100%",
-              marginTop: 8,
-              padding: "5px",
-              fontSize: 10,
               background: "transparent",
-              color: "#475569",
-              border: "1px dashed #1e293b",
-              borderRadius: 4,
-              cursor: "pointer",
+              color: cardMuted,
+              borderColor: selected ? "rgba(255,255,255,0.18)" : border,
             }}
           >
-            Drop or click to upload
+            Drop files here or click to upload
           </button>
           <input
             ref={fileInputRef}
@@ -562,5 +457,71 @@ export default function DealListItem({
         </>
       )}
     </div>
+  );
+}
+
+function Menu({
+  children,
+  surface,
+  border,
+  text,
+  width = 150,
+}: {
+  children: React.ReactNode;
+  surface: string;
+  border: string;
+  text: string;
+  width?: number;
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "calc(100% + 6px)",
+        left: 0,
+        width,
+        padding: 6,
+        borderRadius: 18,
+        background: surface,
+        border: `1px solid ${border}`,
+        boxShadow: "0 18px 40px rgba(0,0,0,0.08)",
+        zIndex: 30,
+        color: text,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function MenuItem({
+  label,
+  onClick,
+  active = false,
+}: {
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "block",
+        width: "100%",
+        textAlign: "left",
+        padding: "8px 10px",
+        background: active ? "rgba(17,17,17,0.06)" : "transparent",
+        color: "inherit",
+        border: "none",
+        borderRadius: 12,
+        cursor: "pointer",
+        fontSize: 12,
+        fontWeight: active ? 600 : 400,
+      }}
+    >
+      {label}
+    </button>
   );
 }

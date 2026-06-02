@@ -10,6 +10,8 @@ interface LandingButtonProps {
   to?: string;
   className?: string;
   onClick?: () => void;
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean;
 }
 
 const VARIANT_CLASSES: Record<Variant, string> = {
@@ -31,8 +33,12 @@ export default function LandingButton({
   to,
   className = "",
   onClick,
+  type = "button",
+  disabled = false,
 }: LandingButtonProps) {
-  const classes = `${BASE_CLASSES} ${VARIANT_CLASSES[variant]} ${className}`.trim();
+  const classes = `${BASE_CLASSES} ${VARIANT_CLASSES[variant]} ${
+    disabled ? "cursor-not-allowed opacity-60" : ""
+  } ${className}`.trim();
 
   if (to) {
     return (
@@ -51,7 +57,7 @@ export default function LandingButton({
   }
 
   return (
-    <button type="button" onClick={onClick} className={classes}>
+    <button type={type} onClick={onClick} className={classes} disabled={disabled}>
       {children}
     </button>
   );

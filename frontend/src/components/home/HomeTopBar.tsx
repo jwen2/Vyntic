@@ -1,4 +1,3 @@
-import { ACCENT } from "@/components/dd/types";
 import type { User } from "@/lib/api";
 
 interface Props {
@@ -8,6 +7,7 @@ interface Props {
   theme: "light" | "dark";
   onToggleTheme: () => void;
   onAddDeal?: () => void;
+  onOpenDeals?: () => void;
   onLogout: () => void;
 }
 
@@ -18,87 +18,118 @@ export default function HomeTopBar({
   theme,
   onToggleTheme,
   onAddDeal,
+  onOpenDeals,
   onLogout,
 }: Props) {
+  const isDark = theme === "dark";
+  const surface = isDark ? "#111111" : "rgba(243,243,238,0.94)";
+  const border = isDark ? "#242424" : "var(--landing-border)";
+  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
+  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+  const chip = isDark ? "#1a1a1a" : "rgba(255,255,255,0.72)";
+  const chipBorder = isDark ? "#2d2d2d" : "var(--landing-border)";
+
   return (
     <div
-      className="flex items-center gap-3 px-5 flex-shrink-0"
+      className="flex flex-shrink-0 items-center gap-2 border-b px-3 py-3 sm:gap-3 sm:px-5"
       style={{
-        background: "#0f172a",
-        height: 52,
-        borderBottom: "1px solid #1e293b",
+        background: surface,
+        borderBottomColor: border,
+        backdropFilter: "blur(16px)",
       }}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-2 mr-1">
+      {onOpenDeals && (
+        <button
+          type="button"
+          onClick={onOpenDeals}
+          className="flex h-10 w-10 items-center justify-center rounded-full border lg:hidden"
+          style={{
+            borderColor: chipBorder,
+            background: chip,
+            color: text,
+          }}
+          aria-label="Open deals"
+        >
+          ≡
+        </button>
+      )}
+
+      <div className="flex items-center gap-3">
         <div
           style={{
-            width: 28,
-            height: 28,
-            background: ACCENT,
-            borderRadius: 6,
+            width: 34,
+            height: 34,
+            background: isDark ? "#f5f5f5" : "#111111",
+            borderRadius: 12,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontWeight: 700,
-            fontSize: 13,
-            color: "white",
+            fontSize: 14,
+            color: isDark ? "#111111" : "#ffffff",
           }}
         >
           V
         </div>
-        <span style={{ color: "white", fontWeight: 600, fontSize: 14 }}>
-          Vyntic
-        </span>
+        <div>
+          <div style={{ color: text, fontWeight: 600, fontSize: 14 }}>Vyntic</div>
+          <div
+            className="font-mono-plex"
+            style={{
+              color: muted,
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+            }}
+          >
+            App workspace
+          </div>
+        </div>
       </div>
 
-      {/* Breadcrumb */}
-      <span style={{ color: "#334155", fontSize: 13 }}>›</span>
-      <span style={{ color: "#94a3b8", fontSize: 13, fontWeight: 500 }}>
+      <span style={{ color: muted, fontSize: 13 }}>›</span>
+      <span style={{ color: muted, fontSize: 13, fontWeight: 500 }}>
         Deals
       </span>
 
       <div style={{ flex: 1 }} />
 
-      {/* Stats */}
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 10, color: "#475569" }}>Active deals</div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>
-          {dealCount}
-        </div>
-      </div>
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 10, color: "#475569" }}>Documents</div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>
-          {documentTotal}
-        </div>
+      <div className="hidden items-center gap-2 sm:flex">
+        <StatPill label="Deals" value={dealCount} muted={muted} text={text} chip={chip} chipBorder={chipBorder} />
+        <StatPill
+          label="Documents"
+          value={documentTotal}
+          muted={muted}
+          text={text}
+          chip={chip}
+          chipBorder={chipBorder}
+        />
       </div>
 
-      <div style={{ width: 1, height: 20, background: "#1e293b" }} />
-
-      {/* User chip */}
       {user && (
         <div
           className="flex items-center gap-1.5"
           style={{
-            padding: "4px 10px",
-            background: "#1e293b",
-            borderRadius: 6,
+            padding: "7px 12px",
+            background: chip,
+            borderRadius: 999,
+            border: `1px solid ${chipBorder}`,
           }}
         >
-          <span style={{ fontSize: 11, color: "#94a3b8" }}>
+          <span style={{ fontSize: 11, color: muted }}>
             {user.full_name || user.email}
           </span>
           {user.is_admin && (
             <span
+              className="font-mono-plex"
               style={{
                 fontSize: 9,
                 fontWeight: 700,
-                padding: "1px 5px",
-                borderRadius: 3,
-                background: "#581c87",
-                color: "#e9d5ff",
-                letterSpacing: "0.05em",
+                padding: "2px 6px",
+                borderRadius: 999,
+                background: isDark ? "#f5f5f5" : "#111111",
+                color: isDark ? "#111111" : "#ffffff",
+                letterSpacing: "0.12em",
               }}
             >
               ADMIN
@@ -110,6 +141,7 @@ export default function HomeTopBar({
       <IconButton
         title={theme === "dark" ? "Light mode" : "Dark mode"}
         onClick={onToggleTheme}
+        theme={theme}
       >
         {theme === "dark" ? (
           <svg
@@ -144,11 +176,12 @@ export default function HomeTopBar({
       {onAddDeal && (
         <button
           onClick={onAddDeal}
+          className="hidden sm:block"
           style={{
-            padding: "6px 14px",
-            background: ACCENT,
-            color: "white",
-            borderRadius: 6,
+            padding: "10px 16px",
+            background: isDark ? "#f5f5f5" : "#111111",
+            color: isDark ? "#111111" : "#ffffff",
+            borderRadius: 999,
             fontSize: 12,
             fontWeight: 600,
             border: "none",
@@ -156,29 +189,24 @@ export default function HomeTopBar({
             marginLeft: 4,
           }}
         >
-          + Add Deal
+          Add deal
         </button>
       )}
 
       <button
         onClick={onLogout}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = "#e2e8f0";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = "#64748b";
-        }}
+        className="font-mono-plex hidden text-[10px] uppercase tracking-[0.18em] sm:block"
         style={{
           padding: "6px 10px",
           background: "transparent",
-          color: "#64748b",
-          fontSize: 12,
+          color: muted,
+          fontSize: 10,
           fontWeight: 500,
           border: "none",
           cursor: "pointer",
         }}
       >
-        Logout
+        Sign out
       </button>
     </div>
   );
@@ -187,38 +215,73 @@ export default function HomeTopBar({
 function IconButton({
   title,
   onClick,
+  theme,
   children,
 }: {
   title: string;
   onClick: () => void;
+  theme: "light" | "dark";
   children: React.ReactNode;
 }) {
+  const isDark = theme === "dark";
   return (
     <button
       title={title}
       onClick={onClick}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "#1e293b";
-        e.currentTarget.style.color = "#e2e8f0";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = "#64748b";
-      }}
       style={{
-        width: 28,
-        height: 28,
+        width: 36,
+        height: 36,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "transparent",
-        color: "#64748b",
-        border: "none",
-        borderRadius: 5,
+        background: isDark ? "#1a1a1a" : "rgba(255,255,255,0.72)",
+        color: isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)",
+        border: `1px solid ${isDark ? "#2d2d2d" : "var(--landing-border)"}`,
+        borderRadius: 999,
         cursor: "pointer",
       }}
     >
       {children}
     </button>
+  );
+}
+
+function StatPill({
+  label,
+  value,
+  muted,
+  text,
+  chip,
+  chipBorder,
+}: {
+  label: string;
+  value: number;
+  muted: string;
+  text: string;
+  chip: string;
+  chipBorder: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "7px 12px",
+        background: chip,
+        borderRadius: 999,
+        border: `1px solid ${chipBorder}`,
+      }}
+    >
+      <div
+        className="font-mono-plex"
+        style={{
+          fontSize: 9,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: muted,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: text }}>{value}</div>
+    </div>
   );
 }

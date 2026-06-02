@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTheme } from "@/components/ThemeProvider";
 import { getAuthToken } from "@/lib/api";
 import CitationSnippet from "./dd/CitationSnippet";
 
@@ -17,6 +18,13 @@ export default function DocumentViewer({
   snippet,
   onClose,
 }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const surface = isDark ? "#151515" : "#ffffff";
+  const surfaceAlt = isDark ? "#101010" : "#f8f8f4";
+  const border = isDark ? "#262626" : "var(--landing-border)";
+  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
+  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
   const lower = filename.toLowerCase();
   const isPdf = lower.endsWith(".pdf");
   const isExcel = lower.endsWith(".xlsx") || lower.endsWith(".xls");
@@ -48,35 +56,62 @@ export default function DocumentViewer({
 
   return (
     <div className="fixed inset-0 z-[9999] flex">
-      {/* Overlay */}
       <div
-        className="flex-1 bg-black/30 dark:bg-black/60 transition-opacity"
+        className="flex-1 bg-black/35 transition-opacity"
         onClick={onClose}
       />
-      {/* Full-screen panel */}
-      <div className="w-[90vw] max-w-[1400px] bg-white dark:bg-gray-900 shadow-2xl flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
+      <div
+        className="animate-slide-in-right flex w-[94vw] max-w-[1400px] flex-col shadow-2xl sm:w-[90vw]"
+        style={{ background: surface }}
+      >
+        <div
+          className="flex shrink-0 items-center justify-between gap-4 border-b px-4 py-4 sm:px-5"
+          style={{ borderBottomColor: border }}
+        >
           <div className="min-w-0">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{filename}</h3>
-            <span className="text-sm text-gray-500 dark:text-gray-400">{locatorLabel} {page}</span>
+            <div
+              className="font-mono-plex"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: muted,
+                marginBottom: 6,
+              }}
+            >
+              Document viewer
+            </div>
+            <h3 className="truncate text-base font-semibold" style={{ color: text }}>
+              {filename}
+            </h3>
+            <span className="text-sm" style={{ color: muted }}>
+              {locatorLabel} {page}
+            </span>
           </div>
           <button
             onClick={onClose}
-            className="ml-4 p-1 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors text-xl leading-none"
+            className="ml-4 flex h-10 w-10 items-center justify-center rounded-full border text-xl leading-none"
+            style={{
+              borderColor: border,
+              color: muted,
+              background: surfaceAlt,
+            }}
             title="Close viewer"
           >
             &#10005;
           </button>
         </div>
 
-        {/* Citation snippet */}
-        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-900 text-sm shrink-0">
-          <span className="font-medium text-amber-800 dark:text-amber-300">Referenced text:</span>
+        <div
+          className="shrink-0 border-b px-4 py-4 text-sm sm:px-5"
+          style={{ background: surfaceAlt, borderBottomColor: border }}
+        >
+          <span className="font-medium" style={{ color: text }}>
+            Referenced text:
+          </span>
           <CitationSnippet sourceFile={filename} text={snippet} variant="viewer" />
         </div>
 
-        {/* Document content */}
         <div className="flex-1 min-h-0">
           {isPreviewable ? (
             <iframe
@@ -85,12 +120,12 @@ export default function DocumentViewer({
               title={`${filename}${isPreviewable ? ` - Page ${page}` : ""}`}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-500 dark:text-gray-400">
+            <div className="flex h-full flex-col items-center justify-center p-8 text-center" style={{ color: muted }}>
               <svg
-                className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600"
+                className="mb-4 h-16 w-16"
                 fill="none"
                 viewBox="0 0 24 24"
-                stroke="currentColor"
+                stroke={muted}
                 strokeWidth={1}
               >
                 <path
@@ -99,7 +134,7 @@ export default function DocumentViewer({
                   d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
                 />
               </svg>
-              <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <p className="mb-2 text-lg font-medium" style={{ color: text }}>
                 Inline preview not available
               </p>
               <p className="text-sm mb-4">
@@ -108,7 +143,11 @@ export default function DocumentViewer({
               <a
                 href={viewUrl}
                 download={filename}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                className="inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium"
+                style={{
+                  background: isDark ? "#f5f5f5" : "#111111",
+                  color: isDark ? "#111111" : "#ffffff",
+                }}
               >
                 <svg
                   className="w-4 h-4"

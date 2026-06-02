@@ -1,8 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { login, register } from "@/lib/api";
-import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
+import LandingButton from "@/components/landing/ui/LandingButton";
+import LandingContainer from "@/components/landing/ui/LandingContainer";
+import LandingEyebrow from "@/components/landing/ui/LandingEyebrow";
+import LandingHeading from "@/components/landing/ui/LandingHeading";
+import LandingInput from "@/components/landing/ui/LandingInput";
+import LandingPanel from "@/components/landing/ui/LandingPanel";
+import LandingText from "@/components/landing/ui/LandingText";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -13,7 +19,6 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { theme, toggleTheme } = useTheme();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,12 +26,9 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      let data;
-      if (isLogin) {
-        data = await login(email, password);
-      } else {
-        data = await register(email, password, fullName);
-      }
+      const data = isLogin
+        ? await login(email, password)
+        : await register(email, password, fullName);
       setUser(data.user);
       navigate("/app");
     } catch (err: any) {
@@ -43,74 +45,71 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-gray-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      {/* Dark mode toggle */}
-      <div className="absolute top-4 right-4">
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {theme === "dark" ? (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-            </svg>
-          )}
-        </button>
-      </div>
+    <div className="landing-shell min-h-screen bg-[var(--landing-bg)]">
+      <LandingContainer className="flex min-h-screen flex-col">
+        <div className="flex items-center justify-between py-4 sm:py-6">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--landing-inverse)] text-sm font-semibold text-white">
+              V
+            </div>
+            <div>
+              <div className="text-sm font-semibold tracking-[-0.03em] text-[var(--landing-text)]">
+                Vyntic
+              </div>
+              <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
+                Deal Intelligence
+              </div>
+            </div>
+          </Link>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm">
-            V
-          </div>
-          <span className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-gray-100">
-            Vyntic
-          </span>
+          <LandingButton to="/" variant="ghost">
+            Back
+          </LandingButton>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 dark:text-gray-100">
-          {isLogin ? "Sign in to your account" : "Create an account"}
-        </h2>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-gray-900 py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-slate-200 dark:border-gray-700">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {!isLogin && (
+        <div className="flex flex-1 items-center justify-center py-8 sm:py-12">
+          <LandingPanel className="w-full max-w-[460px]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--landing-inverse)] text-sm font-semibold text-white">
+                V
+              </div>
               <div>
-                <label
-                  htmlFor="fullName"
-                  className="block text-sm font-medium text-slate-700 dark:text-gray-300"
-                >
-                  Full Name
-                </label>
-                <div className="mt-1">
-                  <input
+                <LandingEyebrow>{isLogin ? "Sign In" : "Create Account"}</LandingEyebrow>
+                <div className="mt-1 text-sm font-medium text-[var(--landing-text)]">
+                  {isLogin ? "Continue to Vyntic" : "Create your Vyntic account"}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <LandingHeading size="card">
+                {isLogin ? "Sign in" : "Create account"}
+              </LandingHeading>
+              <LandingText className="mt-3">
+                {isLogin
+                  ? "Enter your credentials to access the workspace."
+                  : "Create an account to access the workspace."}
+              </LandingText>
+            </div>
+
+            <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+              {!isLogin && (
+                <Field label="Full name" htmlFor="fullName">
+                  <LandingInput
                     id="fullName"
                     name="fullName"
                     type="text"
+                    autoComplete="name"
                     required={!isLogin}
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Your full name"
                   />
-                </div>
-              </div>
-            )}
+                </Field>
+              )}
 
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-slate-700 dark:text-gray-300"
-              >
-                Email address
-              </label>
-              <div className="mt-1">
-                <input
+              <Field label="Email address" htmlFor="email">
+                <LandingInput
                   id="email"
                   name="email"
                   type="email"
@@ -118,79 +117,84 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="name@firm.com"
                 />
-              </div>
-            </div>
+              </Field>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-slate-700 dark:text-gray-300"
-              >
-                Password
-              </label>
-              <div className="mt-1">
-                <input
+              <Field label="Password" htmlFor="password">
+                <LandingInput
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete={isLogin ? "current-password" : "new-password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder={isLogin ? "Enter your password" : "Create a password"}
                 />
-              </div>
-            </div>
+              </Field>
 
-            {error && (
-              <div className="rounded-md bg-red-50 dark:bg-red-950/30 p-4">
-                <div className="flex">
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800 dark:text-red-400">{error}</h3>
-                  </div>
+              {error && (
+                <div className="rounded-[1.25rem] border border-black/10 bg-black/5 px-4 py-3 text-sm leading-6 text-[var(--landing-text)]">
+                  {error}
                 </div>
-              </div>
-            )}
+              )}
 
-            <div>
-              <button
+              <LandingButton
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                className="w-full"
               >
-                {isLoading ? "Please wait..." : isLogin ? "Sign in" : "Sign up"}
-              </button>
-            </div>
-          </form>
+                {isLoading
+                  ? "Please wait..."
+                  : isLogin
+                    ? "Continue"
+                    : "Create account"}
+              </LandingButton>
+            </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-300 dark:border-gray-700" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-900 text-slate-500 dark:text-gray-400">
-                  {isLogin ? "New to Vyntic?" : "Already have an account?"}
-                </span>
+            <div className="mt-8 border-t border-[var(--landing-border)] pt-5">
+              <div className="flex flex-col gap-2">
+                <div className="text-sm text-[var(--landing-muted)]">
+                  {isLogin ? "Don’t have an account?" : "Already have an account?"}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin((value) => !value);
+                    setError(null);
+                  }}
+                  className="w-fit text-sm font-medium text-[var(--landing-text)] underline decoration-black/15 underline-offset-4 transition-colors hover:decoration-black/40"
+                >
+                  {isLogin ? "Create account" : "Back to sign in"}
+                </button>
               </div>
             </div>
-
-            <div className="mt-6">
-              <button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setError(null);
-                }}
-                className="w-full flex justify-center py-2 px-4 border border-slate-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-slate-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-slate-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                {isLogin ? "Create an account" : "Sign in to existing account"}
-              </button>
-            </div>
-          </div>
+          </LandingPanel>
         </div>
-      </div>
+      </LandingContainer>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={htmlFor}
+        className="mb-2 block font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]"
+      >
+        {label}
+      </label>
+      {children}
     </div>
   );
 }

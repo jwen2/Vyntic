@@ -46,6 +46,7 @@ export default function HomePage() {
     page: number;
     snippet: string;
   } | null>(null);
+  const [mobileDealsOpen, setMobileDealsOpen] = useState(false);
   const [activeCitation, setActiveCitation] = useState<{
     citation: Citation;
     id: string;
@@ -158,16 +159,18 @@ export default function HomePage() {
   }
 
   const isDark = theme === "dark";
-  const pageBg = isDark ? "#020617" : "#f8fafc";
+  const pageBg = isDark ? "#0f0f0f" : "var(--landing-bg)";
+  const border = isDark ? "#262626" : "var(--landing-border)";
+  const surface = isDark ? "#151515" : "#ffffff";
+  const surfaceAlt = isDark ? "#111111" : "#f8f8f4";
+  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
+  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
 
   return (
     <div
+      className="flex h-screen flex-col overflow-hidden"
       style={{
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: "'DM Sans', sans-serif",
-        overflow: "hidden",
+        fontFamily: "'IBM Plex Sans', sans-serif",
         background: pageBg,
       }}
     >
@@ -178,18 +181,17 @@ export default function HomePage() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onAddDeal={user?.is_admin ? () => setShowAddDeal(true) : undefined}
+        onOpenDeals={() => setMobileDealsOpen(true)}
         onLogout={handleLogout}
       />
 
       {(dealsError || documentsError) && (
         <div
+          className="border-b px-4 py-3 text-sm font-medium sm:px-5"
           style={{
-            background: "#fff1f2",
-            borderBottom: "1px solid #fecdd3",
-            padding: "7px 20px",
-            fontSize: 13,
-            color: "#991b1b",
-            fontWeight: 500,
+            background: isDark ? "#1a1a1a" : "#efefe7",
+            borderBottomColor: border,
+            color: text,
             flexShrink: 0,
           }}
         >
@@ -197,88 +199,160 @@ export default function HomePage() {
         </div>
       )}
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <HomeSidebar
-          deals={deals}
-          filteredDeals={filteredDeals}
-          selectedDealId={selectedDealId}
-          search={dealSearch}
-          onSearch={setDealSearch}
-          onSelectDeal={(deal) => setSelectedDealId(deal.deal_id)}
-          onInvestigateDeal={
-            agenticEnabled
-              ? (deal) => navigate(`/deal/${deal.deal_id}`)
-              : undefined
-          }
-          onDeleteDeal={setConfirmDeleteDeal}
-          onUploadFiles={handleUploadFiles}
-          onUpdateDeal={editDeal}
-          uploading={dealsLoading}
-          uploadProgressByDeal={uploadProgressByDeal}
-          user={user}
-        />
+      <div className="flex flex-1 overflow-hidden">
+        <div className="hidden lg:block">
+          <HomeSidebar
+            deals={deals}
+            filteredDeals={filteredDeals}
+            selectedDealId={selectedDealId}
+            search={dealSearch}
+            onSearch={setDealSearch}
+            onSelectDeal={(deal) => setSelectedDealId(deal.deal_id)}
+            onInvestigateDeal={
+              agenticEnabled
+                ? (deal) => navigate(`/deal/${deal.deal_id}`)
+                : undefined
+            }
+            onDeleteDeal={setConfirmDeleteDeal}
+            onUploadFiles={handleUploadFiles}
+            onUpdateDeal={editDeal}
+            uploading={dealsLoading}
+            uploadProgressByDeal={uploadProgressByDeal}
+            user={user}
+          />
+        </div>
+
+        {mobileDealsOpen && (
+          <div className="fixed inset-0 z-40 flex lg:hidden">
+            <button
+              type="button"
+              className="flex-1 bg-black/30"
+              onClick={() => setMobileDealsOpen(false)}
+              aria-label="Close deals drawer"
+            />
+            <div className="h-full w-[min(86vw,340px)] shadow-2xl">
+              <HomeSidebar
+                deals={deals}
+                filteredDeals={filteredDeals}
+                selectedDealId={selectedDealId}
+                search={dealSearch}
+                onSearch={setDealSearch}
+                onSelectDeal={(deal) => setSelectedDealId(deal.deal_id)}
+                onInvestigateDeal={
+                  agenticEnabled
+                    ? (deal) => navigate(`/deal/${deal.deal_id}`)
+                    : undefined
+                }
+                onDeleteDeal={setConfirmDeleteDeal}
+                onUploadFiles={handleUploadFiles}
+                onUpdateDeal={editDeal}
+                uploading={dealsLoading}
+                uploadProgressByDeal={uploadProgressByDeal}
+                user={user}
+                onClose={() => setMobileDealsOpen(false)}
+              />
+            </div>
+          </div>
+        )}
 
         <div
           className="flex-1 overflow-y-auto"
           style={{
             background: pageBg,
-            padding: "14px 16px",
+            padding: "14px 12px 18px",
           }}
         >
           {selectedDeal ? (
             <div style={{ minHeight: "100%" }}>
               <div
-                className="flex items-center justify-between gap-3"
+                className="mb-4 rounded-[1.75rem] border p-4 sm:p-5"
                 style={{
-                  marginBottom: 12,
-                  padding: "10px 12px",
-                  background: isDark ? "#0f172a" : "#ffffff",
-                  border: `1px solid ${isDark ? "#1e293b" : "#e2e8f0"}`,
-                  borderRadius: 8,
+                  background: surface,
+                  borderColor: border,
                 }}
               >
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: isDark ? "#64748b" : "#64748b",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 2,
-                    }}
-                  >
-                    Document Matrix
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      className="font-mono-plex"
+                      style={{
+                        fontSize: 10,
+                        letterSpacing: "0.18em",
+                        textTransform: "uppercase",
+                        color: muted,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Document matrix
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 26,
+                        fontWeight: 600,
+                        color: text,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={selectedDeal.name}
+                    >
+                      {selectedDeal.name}
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 14, color: muted }}>
+                      {documentsLoading
+                        ? "Loading documents..."
+                        : `${documents.length} document${documents.length !== 1 ? "s" : ""} loaded for review.`}
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 700,
-                      color: isDark ? "#f8fafc" : "#0f172a",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={selectedDeal.name}
-                  >
-                    {selectedDeal.name}
-                  </div>
-                  <div style={{ fontSize: 12, color: isDark ? "#94a3b8" : "#64748b" }}>
-                    {documentsLoading
-                      ? "Loading documents..."
-                      : `${documents.length} document${documents.length !== 1 ? "s" : ""}`}
-                  </div>
-                </div>
 
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: isDark ? "#64748b" : "#94a3b8",
-                    textAlign: "right",
-                    flexShrink: 0,
-                  }}
-                >
-                  Select a deal on the left to swap matrices.
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div
+                      className="rounded-full border px-3 py-2"
+                      style={{
+                        borderColor: border,
+                        background: surfaceAlt,
+                      }}
+                    >
+                      <div
+                        className="font-mono-plex"
+                        style={{
+                          fontSize: 9,
+                          letterSpacing: "0.12em",
+                          textTransform: "uppercase",
+                          color: muted,
+                        }}
+                      >
+                        Selected deal
+                      </div>
+                      <div style={{ marginTop: 3, fontSize: 13, fontWeight: 600, color: text }}>
+                        {selectedDeal.deal_id}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="rounded-full border px-4 py-3 text-sm lg:hidden"
+                      style={{
+                        borderColor: border,
+                        background: surfaceAlt,
+                        color: text,
+                      }}
+                      onClick={() => setMobileDealsOpen(true)}
+                    >
+                      Switch deal
+                    </button>
+
+                    <div
+                      className="hidden rounded-full border px-4 py-3 text-sm lg:block"
+                      style={{
+                        borderColor: border,
+                        background: surfaceAlt,
+                        color: muted,
+                      }}
+                    >
+                      Select a deal on the left to swap matrices.
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -289,7 +363,7 @@ export default function HomePage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: isDark ? "#64748b" : "#94a3b8",
+                    color: muted,
                   }}
                 >
                   <div
@@ -297,7 +371,7 @@ export default function HomePage() {
                     style={{
                       width: 26,
                       height: 26,
-                      border: "3px solid #2563eb",
+                      border: `3px solid ${border}`,
                       borderTopColor: "transparent",
                       borderRadius: "50%",
                     }}
@@ -326,11 +400,32 @@ export default function HomePage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: isDark ? "#64748b" : "#94a3b8",
+                color: muted,
                 fontSize: 14,
               }}
             >
-              Select or add a deal to start reviewing its documents.
+              <div
+                className="rounded-[1.75rem] border px-6 py-8 text-center"
+                style={{
+                  borderColor: border,
+                  background: surface,
+                }}
+              >
+                <div
+                  className="font-mono-plex"
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: muted,
+                  }}
+                >
+                  No deal selected
+                </div>
+                <div style={{ marginTop: 12, fontSize: 20, fontWeight: 600, color: text }}>
+                  Select or add a deal to start reviewing documents.
+                </div>
+              </div>
             </div>
           )}
         </div>
