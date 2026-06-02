@@ -11,7 +11,7 @@ const FOOTER_LINKS = [
 export default function LandingFooter() {
   return (
     <footer className="border-t border-[var(--landing-border)] bg-[var(--landing-bg)]">
-      <LandingContainer className="flex flex-col gap-8 py-10 lg:flex-row lg:items-end lg:justify-between">
+      <LandingContainer className="flex flex-col gap-8 py-8 sm:py-10 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-md">
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--landing-inverse)] text-sm font-semibold text-white">
@@ -28,7 +28,7 @@ export default function LandingFooter() {
         </div>
 
         <div className="flex flex-col gap-5 lg:items-end">
-          <div className="flex flex-wrap gap-5">
+          <div className="flex flex-wrap gap-x-5 gap-y-3">
             {FOOTER_LINKS.map((link) => (
               <a
                 key={link.label}

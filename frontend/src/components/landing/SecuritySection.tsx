@@ -42,7 +42,7 @@ export default function SecuritySection() {
         </LandingText>
       </div>
 
-      <div className="mt-12 grid gap-5 md:grid-cols-2">
+      <div className="mt-10 grid gap-4 sm:mt-12 sm:gap-5 md:grid-cols-2">
         {CONTROLS.map((item) => (
           <LandingPanel key={item.title} className="flex h-full flex-col gap-4">
             <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">

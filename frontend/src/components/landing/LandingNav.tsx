@@ -19,12 +19,12 @@ export default function LandingNav() {
         <LandingContainer className="flex min-h-10 items-center justify-center py-2">
           <a
             href="#product"
-            className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center"
+            className="flex max-w-3xl flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center"
           >
             <span className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white/55">
               New
             </span>
-            <span className="text-sm text-white/88">
+            <span className="text-xs text-white/88 sm:text-sm">
               Vyntic agents execute deal work with Gemini-powered reasoning.
             </span>
             <span className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white">
@@ -34,9 +34,9 @@ export default function LandingNav() {
         </LandingContainer>
       </div>
 
-      <LandingContainer className="flex h-16 items-center justify-between">
+      <LandingContainer className="flex h-14 items-center justify-between sm:h-16">
         <Link to="/" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--landing-inverse)] text-sm font-semibold text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--landing-inverse)] text-sm font-semibold text-white sm:h-9 sm:w-9">
             V
           </div>
           <div>
@@ -70,7 +70,7 @@ export default function LandingNav() {
 
         <button
           type="button"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--landing-border)] bg-white text-[var(--landing-text)] lg:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--landing-border)] bg-white text-[var(--landing-text)] lg:hidden"
           onClick={() => setMobileOpen((open) => !open)}
           aria-label="Toggle navigation"
         >
@@ -80,12 +80,12 @@ export default function LandingNav() {
 
       {mobileOpen && (
         <div className="border-t border-[var(--landing-border)] bg-[var(--landing-bg)] lg:hidden">
-          <LandingContainer className="flex flex-col gap-4 py-5">
+          <LandingContainer className="flex flex-col gap-4 py-4">
             {NAV_ITEMS.map((item) => (
               <a
                 key={item.label}
                 href={item.href}
-                className="font-mono-plex text-xs uppercase tracking-[0.18em] text-[var(--landing-muted)]"
+                className="font-mono-plex py-1 text-xs uppercase tracking-[0.18em] text-[var(--landing-muted)]"
                 onClick={() => setMobileOpen(false)}
               >
                 {item.label}

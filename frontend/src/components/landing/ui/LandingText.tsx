@@ -22,7 +22,9 @@ export default function LandingText({
   className = "",
 }: LandingTextProps) {
   return (
-    <Tag className={`text-base leading-7 sm:text-lg ${TONE_CLASSES[tone]} ${className}`.trim()}>
+    <Tag
+      className={`text-[15px] leading-7 sm:text-lg ${TONE_CLASSES[tone]} ${className}`.trim()}
+    >
       {children}
     </Tag>
   );

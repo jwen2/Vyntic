@@ -30,7 +30,7 @@ const USE_CASES = [
 export default function UseCases() {
   return (
     <LandingSection id="use-cases">
-      <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+      <div className="grid gap-8 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <div className="max-w-xl">
           <LandingEyebrow>Use Cases</LandingEyebrow>
           <LandingHeading className="mt-6">
@@ -42,7 +42,7 @@ export default function UseCases() {
           </LandingText>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
           {USE_CASES.map((item, index) => (
             <LandingPanel key={item.title} className="flex h-full flex-col gap-5">
               <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">

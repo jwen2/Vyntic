@@ -43,11 +43,11 @@ export default function ProductShowcase() {
         </LandingText>
       </div>
 
-      <div className="mt-12 space-y-6">
+      <div className="mt-10 space-y-5 sm:mt-12 sm:space-y-6">
         {SHOWCASES.map((item, index) => (
           <div
             key={item.label}
-            className={`grid gap-5 lg:grid-cols-[0.88fr_1.12fr] lg:items-center ${
+            className={`grid gap-4 sm:gap-5 lg:grid-cols-[0.88fr_1.12fr] lg:items-center ${
               index % 2 === 1 ? "lg:grid-cols-[1.12fr_0.88fr]" : ""
             }`}
           >
@@ -61,7 +61,7 @@ export default function ProductShowcase() {
               </LandingHeading>
               <LandingText className="mt-4">{item.body}</LandingText>
               <div className="mt-8">
-                <LandingButton href="#contact" variant="secondary">
+                <LandingButton href="#contact" variant="secondary" className="w-full sm:w-auto">
                   Request a walkthrough
                 </LandingButton>
               </div>
@@ -82,7 +82,7 @@ function MatrixMock() {
   ];
 
   return (
-    <LandingPanel className="h-full p-4">
+    <LandingPanel className="h-full p-3 sm:p-4">
       <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
         Shared question set
       </div>
@@ -111,9 +111,9 @@ function MatrixMock() {
 
 function CitationMock() {
   return (
-    <LandingPanel className="h-full p-4">
+    <LandingPanel className="h-full p-3 sm:p-4">
       <div className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr]">
-        <div className="rounded-[1.5rem] border border-[var(--landing-border)] bg-[var(--landing-surface-alt)] p-4">
+        <div className="rounded-[1.25rem] border border-[var(--landing-border)] bg-[var(--landing-surface-alt)] p-3 sm:rounded-[1.5rem] sm:p-4">
           <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
             Answer
           </div>
@@ -126,8 +126,8 @@ function CitationMock() {
           </div>
         </div>
 
-        <div className="rounded-[1.5rem] border border-[var(--landing-border)] bg-white p-4">
-          <div className="flex items-center justify-between gap-3">
+        <div className="rounded-[1.25rem] border border-[var(--landing-border)] bg-white p-3 sm:rounded-[1.5rem] sm:p-4">
+          <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center sm:gap-3">
             <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
               Source context
             </div>
@@ -135,7 +135,7 @@ function CitationMock() {
               CIM · Page 27
             </div>
           </div>
-          <div className="mt-4 rounded-[1.25rem] border border-[var(--landing-border)] bg-[var(--landing-surface-alt)] p-4 text-sm leading-6 text-[var(--landing-muted)]">
+          <div className="mt-4 rounded-[1.25rem] border border-[var(--landing-border)] bg-[var(--landing-surface-alt)] p-3 text-sm leading-6 text-[var(--landing-muted)] sm:p-4">
             The company’s top two accounts represented 38% of FY25 revenue. The
             next phase of growth assumes broader enterprise adoption within the
             existing customer base.
@@ -148,12 +148,12 @@ function CitationMock() {
 
 function SummaryMock() {
   return (
-    <LandingPanel variant="inverse" className="h-full p-4">
+    <LandingPanel variant="inverse" className="h-full p-3 sm:p-4">
       <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white/55">
         Memo-ready synthesis
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+        <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-3 sm:rounded-[1.5rem] sm:p-4">
           <div className="text-sm font-medium text-white">Current read</div>
           <ul className="mt-4 space-y-3 text-sm leading-6 text-white/75">
             <li>North Peak leads on growth but requires concentration diligence.</li>
@@ -161,7 +161,7 @@ function SummaryMock() {
             <li>Summit Works is more cyclical than the current mandate favors.</li>
           </ul>
         </div>
-        <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+        <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-3 sm:rounded-[1.5rem] sm:p-4">
           <div className="text-sm font-medium text-white">Open items</div>
           <div className="mt-4 space-y-2 font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white/55">
             <div className="rounded-full border border-white/10 px-3 py-2">

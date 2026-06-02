@@ -25,7 +25,10 @@ export default function LandingSection({
   tone = "default",
 }: LandingSectionProps) {
   return (
-    <section id={id} className={`${TONE_CLASSES[tone]} py-20 lg:py-28 ${className}`.trim()}>
+    <section
+      id={id}
+      className={`${TONE_CLASSES[tone]} py-14 sm:py-16 lg:py-28 ${className}`.trim()}
+    >
       <LandingContainer className={containerClassName}>{children}</LandingContainer>
     </section>
   );

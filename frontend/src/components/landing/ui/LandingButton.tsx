@@ -22,7 +22,7 @@ const VARIANT_CLASSES: Record<Variant, string> = {
 };
 
 const BASE_CLASSES =
-  "inline-flex items-center justify-center rounded-full border px-5 py-3 text-sm font-medium transition-colors";
+  "inline-flex min-h-11 items-center justify-center rounded-full border px-5 py-3 text-center text-sm font-medium transition-colors";
 
 export default function LandingButton({
   children,

@@ -13,27 +13,29 @@ const PROOF_POINTS = [
 
 export default function HeroSection() {
   return (
-    <LandingSection className="overflow-hidden pb-16 pt-16 lg:pb-20 lg:pt-24">
-      <div className="grid gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+    <LandingSection className="overflow-hidden pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pb-20 lg:pt-24">
+      <div className="grid gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-14">
         <div className="max-w-3xl">
           <LandingEyebrow>Vyntic Platform</LandingEyebrow>
           <LandingHeading as="h1" size="hero" className="mt-6 max-w-4xl">
             Deal work, compressed into hours.
           </LandingHeading>
-          <LandingText className="mt-6 max-w-2xl text-lg">
+          <LandingText className="mt-5 max-w-2xl text-base sm:text-lg">
             Vyntic helps private equity teams ingest CIMs and diligence
             materials, compare opportunities side by side, and produce cited
             outputs for investment committee review.
           </LandingText>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <LandingButton href="#contact">Request a demo</LandingButton>
-            <LandingButton href="#product" variant="secondary">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <LandingButton href="#contact" className="w-full sm:w-auto">
+              Request a demo
+            </LandingButton>
+            <LandingButton href="#product" variant="secondary" className="w-full sm:w-auto">
               View platform
             </LandingButton>
           </div>
 
-          <div className="mt-10 grid gap-3 sm:grid-cols-3">
+          <div className="mt-8 grid gap-3 sm:grid-cols-3">
             {PROOF_POINTS.map((item) => (
               <div
                 key={item}
@@ -51,8 +53,8 @@ export default function HeroSection() {
         </div>
 
         <LandingPanel className="landing-grid landing-noise overflow-hidden p-0">
-          <div className="border-b border-[var(--landing-border)] bg-white px-6 py-4">
-            <div className="flex items-center justify-between gap-4">
+          <div className="border-b border-[var(--landing-border)] bg-white px-4 py-4 sm:px-6">
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
               <div>
                 <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
                   Comparison Workspace
@@ -67,8 +69,8 @@ export default function HeroSection() {
             </div>
           </div>
 
-          <div className="space-y-5 px-6 py-6">
-            <div className="rounded-[1.5rem] border border-[var(--landing-border)] bg-white p-4">
+          <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-6">
+            <div className="rounded-[1.25rem] border border-[var(--landing-border)] bg-white p-3 sm:rounded-[1.5rem] sm:p-4">
               <div className="overflow-x-auto">
                 <div className="grid min-w-[640px] grid-cols-[1.3fr_repeat(3,1fr)] gap-px overflow-hidden rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-border)] text-xs">
                   {[
@@ -101,11 +103,11 @@ export default function HeroSection() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-[0.95fr_1.05fr]">
-              <div className="rounded-[1.5rem] border border-[var(--landing-border)] bg-white p-4">
+              <div className="rounded-[1.25rem] border border-[var(--landing-border)] bg-white p-3 sm:rounded-[1.5rem] sm:p-4">
                 <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
                   Source Trace
                 </div>
-                <div className="mt-3 rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-surface-alt)] p-4 text-sm text-[var(--landing-text)]">
+                <div className="mt-3 rounded-[1.25rem] border border-[var(--landing-border)] bg-[var(--landing-surface-alt)] p-3 text-sm text-[var(--landing-text)] sm:rounded-2xl sm:p-4">
                   <div className="font-medium">Customer concentration</div>
                   <div className="mt-2 leading-6 text-[var(--landing-muted)]">
                     “Top two accounts represented 38% of FY25 revenue...”
@@ -116,7 +118,7 @@ export default function HeroSection() {
                 </div>
               </div>
 
-              <div className="rounded-[1.5rem] border border-[var(--landing-border)] bg-[var(--landing-inverse)] p-4 text-white">
+              <div className="rounded-[1.25rem] border border-[var(--landing-border)] bg-[var(--landing-inverse)] p-3 text-white sm:rounded-[1.5rem] sm:p-4">
                 <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white/55">
                   IC Summary
                 </div>

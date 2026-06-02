@@ -22,7 +22,9 @@ export default function LandingPanel({
   className = "",
 }: LandingPanelProps) {
   return (
-    <div className={`rounded-[2rem] border p-6 ${VARIANT_CLASSES[variant]} ${className}`.trim()}>
+    <div
+      className={`rounded-[1.5rem] border p-4 sm:rounded-[2rem] sm:p-6 ${VARIANT_CLASSES[variant]} ${className}`.trim()}
+    >
       {children}
     </div>
   );

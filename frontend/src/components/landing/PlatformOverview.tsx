@@ -46,7 +46,7 @@ export default function PlatformOverview() {
         </LandingText>
       </div>
 
-      <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-10 grid gap-4 sm:mt-12 sm:gap-5 md:grid-cols-2 xl:grid-cols-4">
         {PILLARS.map((pillar) => (
           <LandingPanel key={pillar.title} className="flex h-full flex-col gap-6">
             <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
