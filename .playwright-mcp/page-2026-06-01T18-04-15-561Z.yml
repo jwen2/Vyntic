@@ -1,0 +1,87 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: V
+      - generic [ref=e7]: Vyntic
+    - generic [ref=e8]: ›
+    - generic [ref=e9]: Deals
+    - generic [ref=e10]:
+      - generic [ref=e11]: Active deals
+      - generic [ref=e12]: "4"
+    - generic [ref=e13]:
+      - generic [ref=e14]: Documents
+      - generic [ref=e15]: "11"
+    - generic [ref=e17]:
+      - generic [ref=e18]: Admin
+      - generic [ref=e19]: ADMIN
+    - button "Dark mode" [ref=e20] [cursor=pointer]:
+      - img [ref=e21]
+    - button "+ Add Deal" [ref=e23] [cursor=pointer]
+    - button "Logout" [ref=e24] [cursor=pointer]
+  - generic [ref=e25]:
+    - generic [ref=e26]:
+      - generic [ref=e28]:
+        - text: Active Deals
+        - generic [ref=e29]: "4"
+      - generic [ref=e31]:
+        - img [ref=e32]
+        - textbox "Search deals..." [ref=e34]
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - button "Acme Cloud Solutions acme_saas · 6 docs" [ref=e38] [cursor=pointer]:
+              - generic "Acme Cloud Solutions" [ref=e39]
+              - generic [ref=e40]: acme_saas · 6 docs
+            - button "Analyze" [ref=e41] [cursor=pointer]
+          - generic [ref=e42]:
+            - button "Due Diligence" [ref=e44] [cursor=pointer]
+            - generic "Click to remove \"Technology\"" [ref=e45] [cursor=pointer]: Technology
+            - button "+ tag" [ref=e47] [cursor=pointer]
+          - button "Drop or click to upload" [ref=e48] [cursor=pointer]
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - button "Pinnacle Healthcare Services pinnacle_health · 2 docs" [ref=e51] [cursor=pointer]:
+              - generic "Pinnacle Healthcare Services" [ref=e52]
+              - generic [ref=e53]: pinnacle_health · 2 docs
+            - button "Analyze" [ref=e54] [cursor=pointer]
+          - generic [ref=e55]:
+            - button "Screening" [ref=e57] [cursor=pointer]
+            - generic "Click to remove \"Healthcare\"" [ref=e58] [cursor=pointer]: Healthcare
+            - button "+ tag" [ref=e60] [cursor=pointer]
+          - button "Drop or click to upload" [ref=e61] [cursor=pointer]
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - button "Summit Precision Manufacturing summit_industrial · 2 docs" [ref=e64] [cursor=pointer]:
+              - generic "Summit Precision Manufacturing" [ref=e65]
+              - generic [ref=e66]: summit_industrial · 2 docs
+            - button "Analyze" [ref=e67] [cursor=pointer]
+          - generic [ref=e68]:
+            - button "IC Review" [ref=e70] [cursor=pointer]
+            - generic "Click to remove \"Industrials\"" [ref=e71] [cursor=pointer]: Industrials
+            - button "+ tag" [ref=e73] [cursor=pointer]
+          - button "Drop or click to upload" [ref=e74] [cursor=pointer]
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - button "Activision Blizzard activision_blizzard · 1 doc" [ref=e77] [cursor=pointer]:
+              - generic "Activision Blizzard" [ref=e78]
+              - generic [ref=e79]: activision_blizzard · 1 doc
+            - button "Analyze" [ref=e80] [cursor=pointer]
+          - generic [ref=e81]:
+            - button "Due Diligence" [ref=e83] [cursor=pointer]
+            - generic "Click to remove \"Technology\"" [ref=e84] [cursor=pointer]: Technology
+            - generic "Click to remove \"Consumer\"" [ref=e85] [cursor=pointer]: Consumer
+            - button "+ tag" [ref=e87] [cursor=pointer]
+          - button "Drop or click to upload" [ref=e88] [cursor=pointer]
+      - generic [ref=e89]:
+        - generic [ref=e90]: How it works
+        - list [ref=e91]:
+          - listitem [ref=e92]: · Each deal is isolated in its own vector namespace
+          - listitem [ref=e93]: · Queries fan out to worker agents per deal
+          - listitem [ref=e94]: · A synthesis agent compares results
+          - listitem [ref=e95]: · Zero context leak between deals
+    - generic [ref=e98]:
+      - generic [ref=e99]:
+        - generic [ref=e100]: Document Matrix
+        - generic "Acme Cloud Solutions" [ref=e101]
+        - generic [ref=e102]: Loading documents...
+      - generic [ref=e103]: Select a deal on the left to swap matrices.

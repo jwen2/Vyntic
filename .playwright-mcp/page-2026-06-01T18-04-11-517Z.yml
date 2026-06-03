@@ -1,0 +1,186 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: V
+      - generic [ref=e7]: Vyntic
+    - generic [ref=e8]: ›
+    - generic [ref=e9]: Deals
+    - generic [ref=e10]:
+      - generic [ref=e11]: Active deals
+      - generic [ref=e12]: "4"
+    - generic [ref=e13]:
+      - generic [ref=e14]: Documents
+      - generic [ref=e15]: "11"
+    - generic [ref=e17]:
+      - generic [ref=e18]: Admin
+      - generic [ref=e19]: ADMIN
+    - button "Dark mode" [ref=e20] [cursor=pointer]:
+      - img [ref=e21]
+    - button "+ Add Deal" [ref=e23] [cursor=pointer]
+    - button "Logout" [ref=e24] [cursor=pointer]
+  - generic [ref=e25]:
+    - generic [ref=e26]:
+      - generic [ref=e28]:
+        - text: Active Deals
+        - generic [ref=e29]: "4"
+      - generic [ref=e31]:
+        - img [ref=e32]
+        - textbox "Search deals..." [ref=e34]
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - button "Acme Cloud Solutions acme_saas · 6 docs" [ref=e38] [cursor=pointer]:
+              - generic "Acme Cloud Solutions" [ref=e39]
+              - generic [ref=e40]: acme_saas · 6 docs
+            - button "Analyze" [ref=e41] [cursor=pointer]
+          - generic [ref=e42]:
+            - button "Due Diligence" [ref=e44] [cursor=pointer]
+            - generic "Click to remove \"Technology\"" [ref=e45] [cursor=pointer]: Technology
+            - button "+ tag" [ref=e47] [cursor=pointer]
+          - button "Drop or click to upload" [ref=e48] [cursor=pointer]
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - button "Pinnacle Healthcare Services pinnacle_health · 2 docs" [ref=e51] [cursor=pointer]:
+              - generic "Pinnacle Healthcare Services" [ref=e52]
+              - generic [ref=e53]: pinnacle_health · 2 docs
+            - button "Analyze" [ref=e54] [cursor=pointer]
+          - generic [ref=e55]:
+            - button "Screening" [ref=e57] [cursor=pointer]
+            - generic "Click to remove \"Healthcare\"" [ref=e58] [cursor=pointer]: Healthcare
+            - button "+ tag" [ref=e60] [cursor=pointer]
+          - button "Drop or click to upload" [ref=e61] [cursor=pointer]
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - button "Summit Precision Manufacturing summit_industrial · 2 docs" [ref=e64] [cursor=pointer]:
+              - generic "Summit Precision Manufacturing" [ref=e65]
+              - generic [ref=e66]: summit_industrial · 2 docs
+            - button "Analyze" [ref=e67] [cursor=pointer]
+          - generic [ref=e68]:
+            - button "IC Review" [ref=e70] [cursor=pointer]
+            - generic "Click to remove \"Industrials\"" [ref=e71] [cursor=pointer]: Industrials
+            - button "+ tag" [ref=e73] [cursor=pointer]
+          - button "Drop or click to upload" [ref=e74] [cursor=pointer]
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - button "Activision Blizzard activision_blizzard · 1 doc" [ref=e77] [cursor=pointer]:
+              - generic "Activision Blizzard" [ref=e78]
+              - generic [ref=e79]: activision_blizzard · 1 doc
+            - button "Analyze" [ref=e80] [cursor=pointer]
+          - generic [ref=e81]:
+            - button "Due Diligence" [ref=e83] [cursor=pointer]
+            - generic "Click to remove \"Technology\"" [ref=e84] [cursor=pointer]: Technology
+            - generic "Click to remove \"Consumer\"" [ref=e85] [cursor=pointer]: Consumer
+            - button "+ tag" [ref=e87] [cursor=pointer]
+          - button "Drop or click to upload" [ref=e88] [cursor=pointer]
+      - generic [ref=e89]:
+        - generic [ref=e90]: How it works
+        - list [ref=e91]:
+          - listitem [ref=e92]: · Each deal is isolated in its own vector namespace
+          - listitem [ref=e93]: · Queries fan out to worker agents per deal
+          - listitem [ref=e94]: · A synthesis agent compares results
+          - listitem [ref=e95]: · Zero context leak between deals
+    - generic [ref=e97]:
+      - generic [ref=e98]:
+        - generic [ref=e99]:
+          - generic [ref=e100]: Document Matrix
+          - generic "Acme Cloud Solutions" [ref=e101]
+          - generic [ref=e102]: 6 documents
+        - generic [ref=e103]: Select a deal on the left to swap matrices.
+      - generic [ref=e104]:
+        - generic [ref=e105]:
+          - generic [ref=e106]: 6 documents · 0 queries
+          - button "Search and filter grid" [ref=e108] [cursor=pointer]:
+            - img [ref=e109]
+        - table [ref=e112]:
+          - rowgroup [ref=e116]:
+            - row "Document Drag to resize +" [ref=e117]:
+              - columnheader "Document Drag to resize" [ref=e118] [cursor=pointer]:
+                - generic [ref=e119]:
+                  - generic [ref=e120]: Document
+                  - img [ref=e121]
+                - generic "Drag to resize" [ref=e123]
+              - columnheader "+" [ref=e124]:
+                - generic [ref=e125]:
+                  - textbox "Ask a question..." [ref=e126]
+                  - button "+" [disabled] [ref=e127]
+                  - button "Question templates" [ref=e129] [cursor=pointer]:
+                    - img [ref=e130]
+          - rowgroup [ref=e132]:
+            - row "XLS acme_saas_financials.xlsx 2 pg | 2 chunks Delete acme_saas_financials.xlsx" [ref=e133]:
+              - cell "XLS acme_saas_financials.xlsx 2 pg | 2 chunks Delete acme_saas_financials.xlsx" [ref=e134]:
+                - generic [ref=e135]:
+                  - generic [ref=e136]: XLS
+                  - generic [ref=e137]:
+                    - button "acme_saas_financials.xlsx" [ref=e138] [cursor=pointer]
+                    - generic [ref=e139]:
+                      - generic [ref=e140]: 2 pg
+                      - generic [ref=e141]: "|"
+                      - generic [ref=e142]: 2 chunks
+                  - button "Delete acme_saas_financials.xlsx" [ref=e143] [cursor=pointer]:
+                    - img [ref=e144]
+              - cell [ref=e147]
+            - row "PDF acme_saas_cim.pdf 3 pg | 5 chunks Delete acme_saas_cim.pdf" [ref=e148]:
+              - cell "PDF acme_saas_cim.pdf 3 pg | 5 chunks Delete acme_saas_cim.pdf" [ref=e149]:
+                - generic [ref=e150]:
+                  - generic [ref=e151]: PDF
+                  - generic [ref=e152]:
+                    - button "acme_saas_cim.pdf" [ref=e153] [cursor=pointer]
+                    - generic [ref=e154]:
+                      - generic [ref=e155]: 3 pg
+                      - generic [ref=e156]: "|"
+                      - generic [ref=e157]: 5 chunks
+                  - button "Delete acme_saas_cim.pdf" [ref=e158] [cursor=pointer]:
+                    - img [ref=e159]
+              - cell [ref=e162]
+            - row "PDF acme_saas_financial_dd.pdf 1 pg | 2 chunks Delete acme_saas_financial_dd.pdf" [ref=e163]:
+              - cell "PDF acme_saas_financial_dd.pdf 1 pg | 2 chunks Delete acme_saas_financial_dd.pdf" [ref=e164]:
+                - generic [ref=e165]:
+                  - generic [ref=e166]: PDF
+                  - generic [ref=e167]:
+                    - button "acme_saas_financial_dd.pdf" [ref=e168] [cursor=pointer]
+                    - generic [ref=e169]:
+                      - generic [ref=e170]: 1 pg
+                      - generic [ref=e171]: "|"
+                      - generic [ref=e172]: 2 chunks
+                  - button "Delete acme_saas_financial_dd.pdf" [ref=e173] [cursor=pointer]:
+                    - img [ref=e174]
+              - cell [ref=e177]
+            - row "PDF acme_saas_legal_dd.pdf 1 pg | 2 chunks Delete acme_saas_legal_dd.pdf" [ref=e178]:
+              - cell "PDF acme_saas_legal_dd.pdf 1 pg | 2 chunks Delete acme_saas_legal_dd.pdf" [ref=e179]:
+                - generic [ref=e180]:
+                  - generic [ref=e181]: PDF
+                  - generic [ref=e182]:
+                    - button "acme_saas_legal_dd.pdf" [ref=e183] [cursor=pointer]
+                    - generic [ref=e184]:
+                      - generic [ref=e185]: 1 pg
+                      - generic [ref=e186]: "|"
+                      - generic [ref=e187]: 2 chunks
+                  - button "Delete acme_saas_legal_dd.pdf" [ref=e188] [cursor=pointer]:
+                    - img [ref=e189]
+              - cell [ref=e192]
+            - row "PDF acme_saas_operational_dd.pdf 1 pg | 2 chunks Delete acme_saas_operational_dd.pdf" [ref=e193]:
+              - cell "PDF acme_saas_operational_dd.pdf 1 pg | 2 chunks Delete acme_saas_operational_dd.pdf" [ref=e194]:
+                - generic [ref=e195]:
+                  - generic [ref=e196]: PDF
+                  - generic [ref=e197]:
+                    - button "acme_saas_operational_dd.pdf" [ref=e198] [cursor=pointer]
+                    - generic [ref=e199]:
+                      - generic [ref=e200]: 1 pg
+                      - generic [ref=e201]: "|"
+                      - generic [ref=e202]: 2 chunks
+                  - button "Delete acme_saas_operational_dd.pdf" [ref=e203] [cursor=pointer]:
+                    - img [ref=e204]
+              - cell [ref=e207]
+            - row "PDF acme_saas_hr_dd.pdf 1 pg | 2 chunks Delete acme_saas_hr_dd.pdf" [ref=e208]:
+              - cell "PDF acme_saas_hr_dd.pdf 1 pg | 2 chunks Delete acme_saas_hr_dd.pdf" [ref=e209]:
+                - generic [ref=e210]:
+                  - generic [ref=e211]: PDF
+                  - generic [ref=e212]:
+                    - button "acme_saas_hr_dd.pdf" [ref=e213] [cursor=pointer]
+                    - generic [ref=e214]:
+                      - generic [ref=e215]: 1 pg
+                      - generic [ref=e216]: "|"
+                      - generic [ref=e217]: 2 chunks
+                  - button "Delete acme_saas_hr_dd.pdf" [ref=e218] [cursor=pointer]:
+                    - img [ref=e219]
+              - cell [ref=e222]

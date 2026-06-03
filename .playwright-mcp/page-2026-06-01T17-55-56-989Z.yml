@@ -1,0 +1,387 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]:
+      - link "V Vyntic" [ref=e5] [cursor=pointer]:
+        - /url: "#"
+        - generic [ref=e7]: V
+        - generic [ref=e8]: Vyntic
+      - generic [ref=e9]:
+        - link "Product" [ref=e11] [cursor=pointer]:
+          - /url: "#product"
+          - text: Product
+          - img [ref=e12]
+        - link "Solutions" [ref=e15] [cursor=pointer]:
+          - /url: "#solutions"
+          - text: Solutions
+          - img [ref=e16]
+        - link "Customers" [ref=e19] [cursor=pointer]:
+          - /url: "#customers"
+        - link "Resources" [ref=e21] [cursor=pointer]:
+          - /url: "#resources"
+          - text: Resources
+          - img [ref=e22]
+        - link "Pricing" [ref=e25] [cursor=pointer]:
+          - /url: "#pricing"
+      - generic [ref=e26]:
+        - link "Sign in" [ref=e27] [cursor=pointer]:
+          - /url: /login
+        - link "See a demo" [ref=e28] [cursor=pointer]:
+          - /url: "#hero"
+  - main [ref=e29]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e35]: Now powered by Gemini 3 Flash
+        - heading "AI-Powered Deal Intelligence. Decisions in Minutes." [level=1] [ref=e36]
+        - paragraph [ref=e37]: Upload your CIMs, financials, and data rooms. Vyntic's AI analyzes every deal side-by-side so your IC gets answers faster.
+        - generic [ref=e38]:
+          - textbox "What's your email?" [ref=e39]
+          - button "Get started for free" [ref=e40] [cursor=pointer]
+        - paragraph [ref=e41]: No credit card required. Free for up to 3 deals.
+      - generic [ref=e43]:
+        - generic [ref=e50]: app.vyntic.com
+        - generic [ref=e60]:
+          - generic [ref=e61]: Deal
+          - generic [ref=e62]: Revenue Growth
+          - generic [ref=e63]: EBITDA Margin
+          - generic [ref=e64]: Key Risks
+          - generic [ref=e65]:
+            - generic [ref=e66]: Acme Cloud
+            - generic [ref=e67]: SaaS ERP
+          - generic [ref=e68]: +32% YoY driven by enterprise...
+          - generic [ref=e69]: 28.5% with expansion to...
+          - generic [ref=e70]: Customer concentration risk...
+          - generic [ref=e71]:
+            - generic [ref=e72]: Pinnacle Health
+            - generic [ref=e73]: Healthcare
+          - generic [ref=e74]: +12% organic growth from...
+          - generic [ref=e75]: 35.2% above industry avg...
+          - generic [ref=e76]: Regulatory changes in...
+          - generic [ref=e77]:
+            - generic [ref=e78]: Summit Mfg
+            - generic [ref=e79]: Industrials
+          - generic [ref=e80]: +5% with defense contract...
+          - generic [ref=e81]: 18.1% compressed by raw...
+          - generic [ref=e82]: Supply chain dependency...
+          - generic [ref=e83]:
+            - generic [ref=e84]: Synthesis
+            - generic [ref=e85]: Acme Cloud shows strongest growth trajectory at 32% YoY. Pinnacle offers highest margins at 35.2%. Summit carries most operational risk due to supply chain...
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - generic [ref=e88]: 10x
+          - generic [ref=e89]: Faster deal screening
+        - generic [ref=e90]:
+          - generic [ref=e91]: 500+
+          - generic [ref=e92]: Documents analyzed
+        - generic [ref=e93]:
+          - generic [ref=e94]: 99%
+          - generic [ref=e95]: Citation accuracy
+        - generic [ref=e96]:
+          - generic [ref=e97]: <2min
+          - generic [ref=e98]: Average query time
+    - generic [ref=e100]:
+      - paragraph [ref=e101]: Trusted by leading private equity firms
+      - generic [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e105]: MC
+          - generic [ref=e106]: Meridian Capital
+        - generic [ref=e107]:
+          - generic [ref=e109]: AP
+          - generic [ref=e110]: Apex Partners
+        - generic [ref=e111]:
+          - generic [ref=e113]: CE
+          - generic [ref=e114]: Crestview Equity
+        - generic [ref=e115]:
+          - generic [ref=e117]: IC
+          - generic [ref=e118]: Ironwood Capital
+        - generic [ref=e119]:
+          - generic [ref=e121]: RP
+          - generic [ref=e122]: Ridgeline Partners
+        - generic [ref=e123]:
+          - generic [ref=e125]: SG
+          - generic [ref=e126]: Sentinel Growth
+        - generic [ref=e127]:
+          - generic [ref=e129]: VP
+          - generic [ref=e130]: Vanguard PE
+        - generic [ref=e131]:
+          - generic [ref=e133]: NA
+          - generic [ref=e134]: Northstar Advisory
+    - generic [ref=e136]:
+      - generic [ref=e137]:
+        - paragraph [ref=e138]: Product
+        - heading "Everything you need for deal analysis" [level=2] [ref=e139]
+        - paragraph [ref=e140]: From document upload to IC-ready insights, Vyntic handles the entire analysis workflow.
+      - generic [ref=e141]:
+        - generic [ref=e142]:
+          - img [ref=e144]
+          - heading "Multi-Deal Comparison Matrix" [level=3] [ref=e146]
+          - paragraph [ref=e147]: Ask one question, get answers across every deal. Side-by-side matrix with source citations so you can compare financials, risks, and thesis points instantly.
+          - link "Learn more" [ref=e148] [cursor=pointer]:
+            - /url: "#"
+            - text: Learn more
+            - img [ref=e149]
+        - generic [ref=e151]:
+          - img [ref=e153]
+          - heading "AI-Powered Document Analysis" [level=3] [ref=e155]
+          - paragraph [ref=e156]: Upload CIMs, financials, Excel models, and data room files. Vyntic parses tables, charts, and text with full fidelity using advanced document intelligence.
+          - link "Learn more" [ref=e157] [cursor=pointer]:
+            - /url: "#"
+            - text: Learn more
+            - img [ref=e158]
+        - generic [ref=e160]:
+          - img [ref=e162]
+          - heading "Source Verification" [level=3] [ref=e164]
+          - paragraph [ref=e165]: Every answer links back to the exact page and paragraph. Click a citation to open the source document in a side-by-side viewer for IC verification.
+          - link "Learn more" [ref=e166] [cursor=pointer]:
+            - /url: "#"
+            - text: Learn more
+            - img [ref=e167]
+        - generic [ref=e169]:
+          - img [ref=e171]
+          - heading "Synthesis & Red Flags" [level=3] [ref=e173]
+          - paragraph [ref=e174]: Auto-generated comparison summaries highlight key differences and risks across deals. Actionable insights framed for investment committee review.
+          - link "Learn more" [ref=e175] [cursor=pointer]:
+            - /url: "#"
+            - text: Learn more
+            - img [ref=e176]
+    - generic [ref=e179]:
+      - generic [ref=e180]:
+        - paragraph [ref=e181]: How it works
+        - heading "From data room to IC memo in three steps" [level=2] [ref=e182]
+        - paragraph [ref=e183]: No setup required. Upload, ask, and get answers immediately.
+      - generic [ref=e184]:
+        - generic [ref=e186]:
+          - generic [ref=e187]:
+            - img [ref=e188]
+            - generic [ref=e191]: "01"
+          - heading "Upload your data room" [level=3] [ref=e192]
+          - paragraph [ref=e193]: Drag and drop CIMs, financial models, Excel files, and any other deal documents. Vyntic parses everything — tables, charts, text — with full fidelity.
+          - generic [ref=e194]: PDF, XLSX, DOCX supported
+        - generic [ref=e195]:
+          - generic [ref=e196]:
+            - img [ref=e197]
+            - generic [ref=e200]: "02"
+          - heading "Ask your questions" [level=3] [ref=e201]
+          - paragraph [ref=e202]: Use pre-built PE question templates across financials, risk, commercial, and deal thesis — or write your own custom queries.
+          - generic [ref=e203]: 40+ built-in templates
+        - generic [ref=e204]:
+          - generic [ref=e205]:
+            - img [ref=e206]
+            - generic [ref=e209]: "03"
+          - heading "Compare and decide" [level=3] [ref=e210]
+          - paragraph [ref=e211]: Get an AI-generated comparison matrix with cited answers, synthesis summaries, and red flag detection — ready for your investment committee.
+          - generic [ref=e212]: Results in under 2 minutes
+    - generic [ref=e214]:
+      - generic [ref=e215]:
+        - paragraph [ref=e216]: Customers
+        - heading "Trusted by deal teams everywhere" [level=2] [ref=e217]
+        - paragraph [ref=e218]: See how PE firms are using Vyntic to accelerate their deal process.
+      - generic [ref=e219]:
+        - generic [ref=e220]:
+          - img [ref=e221]
+          - paragraph [ref=e223]: Vyntic cut our deal screening time from three days to a few hours. We run every new CIM through it before our Monday pipeline meeting.
+          - generic [ref=e224]:
+            - generic [ref=e225]: SC
+            - generic [ref=e226]:
+              - generic [ref=e227]: Sarah Chen
+              - generic [ref=e228]: Vice President, Meridian Capital Partners
+        - generic [ref=e229]:
+          - img [ref=e230]
+          - paragraph [ref=e232]: The citation feature is what sold us. Every answer maps back to the exact page in the CIM. Our IC trusts the output because they can verify it instantly.
+          - generic [ref=e233]:
+            - generic [ref=e234]: MT
+            - generic [ref=e235]:
+              - generic [ref=e236]: Michael Torres
+              - generic [ref=e237]: Principal, Apex Growth Equity
+        - generic [ref=e238]:
+          - img [ref=e239]
+          - paragraph [ref=e241]: We used to spend weeks building comparison decks manually. Now we upload docs, pick our questions, and have an IC-ready matrix in minutes.
+          - generic [ref=e242]:
+            - generic [ref=e243]: JP
+            - generic [ref=e244]:
+              - generic [ref=e245]: Jessica Park
+              - generic [ref=e246]: Associate Director, Crestview Partners
+    - generic [ref=e248]:
+      - generic [ref=e249]:
+        - paragraph [ref=e250]: Pricing
+        - heading "Simple, transparent pricing" [level=2] [ref=e251]
+        - paragraph [ref=e252]: Start free. Upgrade when your pipeline demands it.
+      - generic [ref=e253]:
+        - generic [ref=e254]:
+          - generic [ref=e255]:
+            - heading "Starter" [level=3] [ref=e256]
+            - generic [ref=e258]: Free
+            - paragraph [ref=e259]: For analysts exploring AI-powered deal analysis.
+          - list [ref=e260]:
+            - listitem [ref=e261]:
+              - img [ref=e262]
+              - text: Up to 3 active deals
+            - listitem [ref=e264]:
+              - img [ref=e265]
+              - text: 10 queries per day
+            - listitem [ref=e267]:
+              - img [ref=e268]
+              - text: PDF & Excel upload
+            - listitem [ref=e270]:
+              - img [ref=e271]
+              - text: Source citations
+            - listitem [ref=e273]:
+              - img [ref=e274]
+              - text: CSV export
+          - button "Get started for free" [ref=e276] [cursor=pointer]
+        - generic [ref=e277]:
+          - generic [ref=e278]: Most Popular
+          - generic [ref=e279]:
+            - heading "Pro" [level=3] [ref=e280]
+            - generic [ref=e281]:
+              - generic [ref=e282]: $99
+              - generic [ref=e283]: /month
+            - paragraph [ref=e284]: For deal teams running active pipelines.
+          - list [ref=e285]:
+            - listitem [ref=e286]:
+              - img [ref=e287]
+              - text: Unlimited deals
+            - listitem [ref=e289]:
+              - img [ref=e290]
+              - text: Unlimited queries
+            - listitem [ref=e292]:
+              - img [ref=e293]
+              - text: Priority AI processing
+            - listitem [ref=e295]:
+              - img [ref=e296]
+              - text: Conversation memory
+            - listitem [ref=e298]:
+              - img [ref=e299]
+              - text: Synthesis summaries
+            - listitem [ref=e301]:
+              - img [ref=e302]
+              - text: Question templates
+            - listitem [ref=e304]:
+              - img [ref=e305]
+              - text: Document viewer
+            - listitem [ref=e307]:
+              - img [ref=e308]
+              - text: Email support
+          - button "Start free trial" [ref=e310] [cursor=pointer]
+        - generic [ref=e311]:
+          - generic [ref=e312]:
+            - heading "Enterprise" [level=3] [ref=e313]
+            - generic [ref=e315]: Custom
+            - paragraph [ref=e316]: For firms with compliance, SSO, and scale requirements.
+          - list [ref=e317]:
+            - listitem [ref=e318]:
+              - img [ref=e319]
+              - text: Everything in Pro
+            - listitem [ref=e321]:
+              - img [ref=e322]
+              - text: SSO / SAML authentication
+            - listitem [ref=e324]:
+              - img [ref=e325]
+              - text: Audit trail & compliance logs
+            - listitem [ref=e327]:
+              - img [ref=e328]
+              - text: Custom question sets
+            - listitem [ref=e330]:
+              - img [ref=e331]
+              - text: Dedicated support
+            - listitem [ref=e333]:
+              - img [ref=e334]
+              - text: On-premise deployment option
+            - listitem [ref=e336]:
+              - img [ref=e337]
+              - text: API access
+            - listitem [ref=e339]:
+              - img [ref=e340]
+              - text: SLA guarantee
+          - button "Contact sales" [ref=e342] [cursor=pointer]
+    - generic [ref=e344]:
+      - heading "Ready to transform your deal analysis?" [level=2] [ref=e345]
+      - paragraph [ref=e346]: Join the PE firms using Vyntic to screen deals faster, prepare for IC meetings in minutes, and never miss a red flag again.
+      - generic [ref=e347]:
+        - textbox "What's your email?" [ref=e348]
+        - button "Get started for free" [ref=e349] [cursor=pointer]
+      - paragraph [ref=e350]: Free forever for up to 3 deals. No credit card required.
+  - contentinfo [ref=e351]:
+    - generic [ref=e352]:
+      - generic [ref=e353]:
+        - generic [ref=e354]:
+          - link "V Vyntic" [ref=e355] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e357]: V
+            - generic [ref=e358]: Vyntic
+          - paragraph [ref=e359]: AI-powered deal intelligence for private equity. Screen faster, analyze deeper, decide with confidence.
+          - generic [ref=e360]:
+            - link [ref=e361] [cursor=pointer]:
+              - /url: "#"
+              - img [ref=e362]
+            - link [ref=e364] [cursor=pointer]:
+              - /url: "#"
+              - img [ref=e365]
+            - link [ref=e367] [cursor=pointer]:
+              - /url: "#"
+              - img [ref=e368]
+        - generic [ref=e370]:
+          - heading "Product" [level=4] [ref=e371]
+          - list [ref=e372]:
+            - listitem [ref=e373]:
+              - link "Features" [ref=e374] [cursor=pointer]:
+                - /url: "#product"
+            - listitem [ref=e375]:
+              - link "Pricing" [ref=e376] [cursor=pointer]:
+                - /url: "#pricing"
+            - listitem [ref=e377]:
+              - link "Changelog" [ref=e378] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e379]:
+              - link "API Docs" [ref=e380] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e381]:
+              - link "Status" [ref=e382] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e383]:
+          - heading "Company" [level=4] [ref=e384]
+          - list [ref=e385]:
+            - listitem [ref=e386]:
+              - link "About" [ref=e387] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e388]:
+              - link "Blog" [ref=e389] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e390]:
+              - link "Careers" [ref=e391] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e392]:
+              - link "Contact" [ref=e393] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e394]:
+          - heading "Resources" [level=4] [ref=e395]
+          - list [ref=e396]:
+            - listitem [ref=e397]:
+              - link "Documentation" [ref=e398] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e399]:
+              - link "Help Center" [ref=e400] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e401]:
+              - link "Community" [ref=e402] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e403]:
+              - link "Templates" [ref=e404] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e405]:
+          - heading "Legal" [level=4] [ref=e406]
+          - list [ref=e407]:
+            - listitem [ref=e408]:
+              - link "Privacy Policy" [ref=e409] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e410]:
+              - link "Terms of Service" [ref=e411] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e412]:
+              - link "Security" [ref=e413] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e414]:
+              - link "SOC 2" [ref=e415] [cursor=pointer]:
+                - /url: "#"
+      - generic [ref=e416]:
+        - paragraph [ref=e417]: © 2026 Vyntic, Inc. All rights reserved.
+        - paragraph [ref=e418]: Built for PE analysts, by PE analysts.

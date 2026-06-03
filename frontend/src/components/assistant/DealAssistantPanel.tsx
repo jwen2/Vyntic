@@ -338,7 +338,7 @@ export default function DealAssistantPanel({
       <div style={{
         flexShrink: 0,
         padding: "0 24px 18px",
-        background: `linear-gradient(to top, ${c.bg} 78%, ${isDark ? "rgba(15,23,42,0)" : "rgba(255,255,255,0)"})`,
+        background: `linear-gradient(to top, ${c.bg} 78%, ${isDark ? "rgba(15,15,15,0)" : "rgba(243,243,238,0)"})`,
       }}>
         <div style={{ maxWidth: 820, margin: "0 auto" }}>
           {documents.length > 0 && (
@@ -358,7 +358,7 @@ export default function DealAssistantPanel({
                       padding: "4px 8px",
                       borderRadius: 99,
                       border: `1px solid ${selected ? `${ACCENT}88` : c.border}`,
-                      background: selected ? (isDark ? "#1e3a8a55" : "#eff6ff") : c.surface,
+                      background: selected ? (isDark ? "#1f1f1f" : "#f0f0e8") : c.surface,
                       color: selected ? ACCENT : c.t2,
                       fontSize: 11,
                       fontWeight: 600,
@@ -575,7 +575,7 @@ function InitialAssistantState({
               style={{
                 textAlign: "left",
                 padding: "12px 13px",
-                borderRadius: 8,
+                borderRadius: 16,
                 border: `1px solid ${c.border}`,
                 background: c.surface,
                 color: c.t1,
@@ -632,7 +632,7 @@ function ChatBubble({
             </div>
           )}
           <div style={{
-            background: isDark ? "#1e293b" : "#f1f5f9",
+            background: c.surfaceAlt,
             color: c.t1,
             border: `1px solid ${c.border}`,
             borderRadius: 12,

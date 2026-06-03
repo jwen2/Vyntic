@@ -1,0 +1,20 @@
+- generic [ref=e65]:
+  - button "Switch to dark mode" [ref=e67] [cursor=pointer]:
+    - img [ref=e68]
+  - generic [ref=e70]:
+    - generic [ref=e71]:
+      - generic [ref=e72]: V
+      - generic [ref=e73]: Vyntic
+    - heading "Sign in to your account" [level=2] [ref=e74]
+  - generic [ref=e76]:
+    - generic [ref=e77]:
+      - generic [ref=e78]:
+        - generic [ref=e79]: Email address
+        - textbox "Email address" [ref=e81]
+      - generic [ref=e82]:
+        - generic [ref=e83]: Password
+        - textbox "Password" [ref=e85]
+      - button "Sign in" [ref=e87] [cursor=pointer]
+    - generic [ref=e88]:
+      - generic [ref=e93]: New to Vyntic?
+      - button "Create an account" [ref=e95] [cursor=pointer]

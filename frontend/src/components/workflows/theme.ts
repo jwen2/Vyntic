@@ -5,8 +5,8 @@
  */
 import type { WorkflowType } from "@/lib/workflows";
 
-export const VIOLET = "#8b5cf6";
-export const ACCENT = "#2563eb";
+export const VIOLET = "#5f5f57";
+export const ACCENT = "#111111";
 export const AMBER = "#f59e0b";
 export const GREEN = "#22c55e";
 export const RED = "#ef4444";

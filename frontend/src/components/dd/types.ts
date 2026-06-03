@@ -67,38 +67,38 @@ export const SEV_COLOR: Record<
   },
   noteworthy: {
     label: "Noteworthy",
-    color: "#1d4ed8",
-    bg: "#eff6ff",
-    border: "#bfdbfe",
-    dot: "#3b82f6",
-    textDark: "#93c5fd",
+    color: "#404040",
+    bg: "#f5f5f5",
+    border: "#d4d4d4",
+    dot: "#737373",
+    textDark: "#d4d4d4",
   },
 };
 
-export const ACCENT = "#2563eb";
+export const ACCENT = "#111111";
 
 export const DD_DARK = {
-  bg: "#0f172a",
-  surface: "#1e293b",
-  surfaceAlt: "#0b1120",
-  border: "#334155",
-  borderLight: "#1e293b",
-  t1: "#f1f5f9",
-  t2: "#94a3b8",
-  t3: "#475569",
-  t4: "#334155",
+  bg: "#0f0f0f",
+  surface: "#171717",
+  surfaceAlt: "#111111",
+  border: "#2a2a2a",
+  borderLight: "#202020",
+  t1: "#f5f5f5",
+  t2: "rgba(255,255,255,0.68)",
+  t3: "rgba(255,255,255,0.45)",
+  t4: "#303030",
 };
 
 export const DD_LIGHT = {
-  bg: "#f8fafc",
-  surface: "#ffffff",
-  surfaceAlt: "#f1f5f9",
-  border: "#e2e8f0",
-  borderLight: "#f1f5f9",
-  t1: "#0f172a",
-  t2: "#64748b",
-  t3: "#94a3b8",
-  t4: "#cbd5e1",
+  bg: "var(--landing-bg)",
+  surface: "var(--landing-surface)",
+  surfaceAlt: "var(--landing-surface-alt)",
+  border: "var(--landing-border)",
+  borderLight: "#e5e5dc",
+  t1: "var(--landing-text)",
+  t2: "var(--landing-muted)",
+  t3: "#8a8a80",
+  t4: "#c8c8bd",
 };
 
 export function ddTheme(theme: "light" | "dark") {

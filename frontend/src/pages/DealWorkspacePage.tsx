@@ -20,7 +20,7 @@ import WorkflowsView from "@/components/workflows/WorkflowsView";
 import DealBriefDashboard from "@/components/dd/DealBriefDashboard";
 import DocumentsModal from "@/components/dd/DocumentsModal";
 import { useFindings } from "@/components/dd/useFindings";
-import { ddTheme } from "@/components/dd/types";
+import { ACCENT, ddTheme } from "@/components/dd/types";
 
 const TAB_PREFIX = "vyntic_ws_tab_";
 
@@ -69,6 +69,7 @@ export default function DealWorkspacePage() {
   const [assistantNewChatSignal, setAssistantNewChatSignal] = useState(0);
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
   const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   // useFindings persists scan-extracted findings to localStorage and drives
   // the deal-breaker pill in TopBar. New findings flow in from the Brief tab
   // via syncScanFindings whenever a Proactive Scan workflow run completes.
@@ -162,11 +163,13 @@ export default function DealWorkspacePage() {
   useEffect(() => {
     setAssistantHistoryLoaded(false);
     setSelectedAssistantEntryId(null);
+    setMobileSidebarOpen(false);
   }, [dealId]);
 
   const handleMode = useCallback((nextMode: DealWorkspaceMode) => {
     setMode(nextMode);
     setActiveCit(null);
+    setMobileSidebarOpen(false);
   }, []);
 
   const handleNewAssistantChat = useCallback(() => {
@@ -199,7 +202,7 @@ export default function DealWorkspacePage() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: c.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="dd-spin" style={{ width: 32, height: 32, border: `4px solid ${c.border}`, borderTopColor: "#2563eb", borderRadius: "50%" }} />
+        <div className="dd-spin" style={{ width: 32, height: 32, border: `4px solid ${c.border}`, borderTopColor: ACCENT, borderRadius: "50%" }} />
       </div>
     );
   }
@@ -210,7 +213,7 @@ export default function DealWorkspacePage() {
         <div style={{ textAlign: "center" }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Deal not found</h2>
           <p style={{ fontSize: 13, color: c.t2, marginBottom: 16 }}>No deal with ID &quot;{dealId}&quot; exists.</p>
-          <button onClick={() => navigate("/app")} style={{ padding: "8px 14px", background: "#2563eb", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}>
+          <button onClick={() => navigate("/app")} style={{ padding: "8px 14px", background: ACCENT, color: "white", border: "none", borderRadius: 999, cursor: "pointer" }}>
             Back to Dashboard
           </button>
         </div>
@@ -220,12 +223,9 @@ export default function DealWorkspacePage() {
 
   return (
     <div
+      className="flex h-screen flex-col overflow-hidden"
       style={{
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: "'DM Sans', sans-serif",
-        overflow: "hidden",
+        fontFamily: "'IBM Plex Sans', sans-serif",
         background: c.bg,
         color: c.t1,
       }}
@@ -238,23 +238,51 @@ export default function DealWorkspacePage() {
         documentCount={documents.length}
         onOpenDocuments={() => setDocumentsModalOpen(true)}
         onBack={() => navigate("/app")}
+        onOpenSidebar={() => setMobileSidebarOpen(true)}
         onToggleTheme={toggleTheme}
         theme={theme}
       />
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {mode === "agent" && (
-          <LeftSidebar
-            assistantHistory={assistantHistory}
-            assistantHistoryLoaded={assistantHistoryLoaded}
-            activeAssistantEntryId={selectedAssistantEntryId}
-            theme={theme}
-            onNewAssistantChat={handleNewAssistantChat}
-            onSelectAssistantHistory={handleSelectAssistantHistory}
-          />
+          <div className="hidden lg:block">
+            <LeftSidebar
+              assistantHistory={assistantHistory}
+              assistantHistoryLoaded={assistantHistoryLoaded}
+              activeAssistantEntryId={selectedAssistantEntryId}
+              theme={theme}
+              onNewAssistantChat={handleNewAssistantChat}
+              onSelectAssistantHistory={handleSelectAssistantHistory}
+            />
+          </div>
         )}
 
-        <main style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, background: c.bg }}>
+        {mode === "agent" && mobileSidebarOpen && (
+          <div className="fixed inset-0 z-40 flex lg:hidden">
+            <button
+              type="button"
+              className="flex-1 bg-black/35"
+              onClick={() => setMobileSidebarOpen(false)}
+              aria-label="Close chat history"
+            />
+            <div className="h-full w-[min(88vw,340px)] shadow-2xl">
+              <LeftSidebar
+                assistantHistory={assistantHistory}
+                assistantHistoryLoaded={assistantHistoryLoaded}
+                activeAssistantEntryId={selectedAssistantEntryId}
+                theme={theme}
+                onNewAssistantChat={handleNewAssistantChat}
+                onSelectAssistantHistory={(entry) => {
+                  handleSelectAssistantHistory(entry);
+                  setMobileSidebarOpen(false);
+                }}
+                onClose={() => setMobileSidebarOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        <main className="flex min-w-0 flex-1 overflow-hidden" style={{ background: c.bg }}>
           {mode === "workflows" ? (
             <WorkflowsView dealId={dealId} theme={theme} />
           ) : mode === "brief" ? (

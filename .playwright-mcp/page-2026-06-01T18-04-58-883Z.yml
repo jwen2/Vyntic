@@ -1,0 +1,88 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - button "V Vyntic" [ref=e5] [cursor=pointer]:
+      - generic [ref=e6]: V
+      - generic [ref=e7]: Vyntic
+    - generic [ref=e8]: ›
+    - generic [ref=e9]: Acme Cloud Solutions
+    - generic [ref=e10]: Due Diligence
+    - generic [ref=e11]:
+      - button "Agent" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+        - text: Agent
+      - button "Workflows" [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+        - text: Workflows
+      - button "Brief" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+        - text: Brief
+    - button "6" [ref=e23] [cursor=pointer]:
+      - img [ref=e24]
+      - generic [ref=e27]: "6"
+    - button "Dark mode" [ref=e28] [cursor=pointer]:
+      - img [ref=e29]
+  - generic [ref=e31]:
+    - complementary [ref=e32]:
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - generic [ref=e36]: V
+            - generic [ref=e37]: Agent
+          - button "New chat" [ref=e38] [cursor=pointer]:
+            - img [ref=e39]
+        - button "New chat" [ref=e40] [cursor=pointer]:
+          - img [ref=e41]
+          - text: New chat
+        - generic [ref=e43]:
+          - button "Agent History" [ref=e44] [cursor=pointer]:
+            - generic [ref=e45]: Agent History
+            - img [ref=e46]
+          - generic [ref=e48]: "0"
+        - generic [ref=e50]: No chats yet.
+    - main [ref=e51]:
+      - generic [ref=e53]:
+        - generic [ref=e57]:
+          - generic [ref=e60]: Agent ready · Acme Cloud Solutions
+          - generic [ref=e61]: V
+          - heading "Ask Vyntic about Acme Cloud Solutions" [level=1] [ref=e62]
+          - paragraph [ref=e63]: Chat across 6 documents with cited answers.
+          - button "🔍 Run Proactive Scan Sweep all 9 pages to find hidden risks, buried clauses, and data room gaps" [ref=e64] [cursor=pointer]:
+            - generic [ref=e65]: 🔍
+            - generic [ref=e66]:
+              - generic [ref=e67]: Run Proactive Scan
+              - generic [ref=e68]: Sweep all 9 pages to find hidden risks, buried clauses, and data room gaps
+            - img [ref=e69]
+          - generic [ref=e71]: Suggested investigations
+          - generic [ref=e72]:
+            - button "Find all red flags and deal-breakers across every document in this deal room. Focus on anything that could affect valuation or close probability." [ref=e73] [cursor=pointer]
+            - button "Cross-validate all revenue and EBITDA figures across the CIM, QoE report, and financial statements. Flag any discrepancies and explain their implications." [ref=e74] [cursor=pointer]
+            - button "Perform a deep scan of the Legal DD document. Identify all litigation exposure, IP risks, regulatory concerns, and undisclosed liabilities." [ref=e75] [cursor=pointer]
+            - button "Identify concentration risks across customers, suppliers, and key employees. Quantify exposure and highlight renewal, retention, or continuity risks." [ref=e76] [cursor=pointer]
+            - button "Find cross-document inconsistencies across the CIM, QoE, financials, legal documents, and operations materials. Highlight metric mismatches, contradictory claims, and missing evidence." [ref=e77] [cursor=pointer]
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - button "acme_saas_financials" [ref=e81] [cursor=pointer]:
+              - img [ref=e82]
+              - text: acme_saas_financials
+            - button "acme_saas_cim" [ref=e85] [cursor=pointer]:
+              - img [ref=e86]
+              - text: acme_saas_cim
+            - button "acme_saas_financial_dd" [ref=e89] [cursor=pointer]:
+              - img [ref=e90]
+              - text: acme_saas_financial_dd
+            - button "acme_saas_legal_dd" [ref=e93] [cursor=pointer]:
+              - img [ref=e94]
+              - text: acme_saas_legal_dd
+            - button "acme_saas_operational_dd" [ref=e97] [cursor=pointer]:
+              - img [ref=e98]
+              - text: acme_saas_operational_dd
+            - button "acme_saas_hr_dd" [ref=e101] [cursor=pointer]:
+              - img [ref=e102]
+              - text: acme_saas_hr_dd
+          - generic [ref=e105]:
+            - textbox "Ask about the deal room..." [active] [ref=e106]
+            - generic [ref=e107]:
+              - generic [ref=e108]: Enter to send · Shift+Enter for a new line
+              - button "Send" [disabled] [ref=e109]:
+                - img [ref=e110]
+          - generic [ref=e112]: AI can make mistakes. Verify cited source documents.

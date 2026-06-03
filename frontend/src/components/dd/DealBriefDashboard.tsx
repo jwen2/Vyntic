@@ -602,6 +602,8 @@ export default function DealBriefDashboard({
   const gapCount = findings.filter(isGapFinding).length;
   const inconsistencyCount = findings.filter(isInconsistencyFinding).length;
   const sourceCount = countSources([snapshotResult, transactionResult, financialResult, thesisResult, nextActionsResult]);
+  const dealBreakerCount = findings.filter((finding) => finding.sev === "deal-breaker").length;
+  const materialCount = findings.filter((finding) => finding.sev === "material").length;
 
   const handleCit = (sourceIdx: number | undefined, citations: (Citation | null)[], idPrefix: string) => {
     if (!onCit || !sourceIdx) return;
@@ -610,93 +612,159 @@ export default function DealBriefDashboard({
   };
 
   return (
-    <section
-      style={{
-        background: c.surface,
-        border: `1px solid ${c.border}`,
-        borderRadius: 8,
-        marginBottom: 20,
-        overflow: "hidden",
-      }}
-    >
-      <div
-        className="flex items-center"
-        style={{
-          gap: 12,
-          padding: "16px 18px",
-          borderBottom: `1px solid ${c.border}`,
-          background: theme === "dark" ? "#111827" : "#ffffff",
-        }}
-      >
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="flex items-center" style={{ gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: c.t1 }}>Deal Brief</span>
-            <StatusPill completed={completed} total={total} loading={isLoading || rerunning} theme={theme} />
-            {lastScanAt && <FreshnessPill at={lastScanAt} theme={theme} />}
-            {diff && diff.changes.length > 0 && (
-              <DiffPill
-                count={diff.changes.length}
-                theme={theme}
-                onClick={() => setDiffOpen((v) => !v)}
-                active={diffOpen}
-              />
-            )}
-          </div>
-          <div style={{ fontSize: 12, color: c.t2 }}>
-            Snapshot, proposed transaction, financial highlights, findings, and next diligence actions
-          </div>
-        </div>
-        <div className="flex items-center" style={{ gap: 8, flexShrink: 0 }}>
-          {sourceCount > 0 && <SourcePill count={sourceCount} theme={theme} />}
-          {scanStarted && (
-            <button
-              onClick={handleRerun}
-              disabled={rerunning || refreshing}
-              title="Re-run the deal brief"
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: rerunning ? c.t3 : c.t1,
-                background: theme === "dark" ? "#0f172a" : "#f8fafc",
-                border: `1px solid ${c.border}`,
-                borderRadius: 6,
-                padding: "6px 10px",
-                cursor: rerunning ? "default" : "pointer",
-              }}
-            >
-              {rerunning ? "Re-running…" : "↻ Re-run"}
-            </button>
-          )}
-          <button
-            onClick={onOpenProactiveScan}
+    <div style={{ padding: "20px 16px 28px" }}>
+      <section style={{ maxWidth: 1320, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div
+          style={{
+            background: c.surface,
+            border: `1px solid ${c.border}`,
+            borderRadius: 28,
+            padding: "20px",
+            boxShadow: theme === "dark" ? "0 18px 40px rgba(0,0,0,0.24)" : "0 18px 40px rgba(17,17,17,0.05)",
+          }}
+        >
+          <div
+            className="font-mono-plex"
             style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: "white",
-              background: ACCENT,
-              border: "none",
-              borderRadius: 6,
-              padding: "7px 11px",
-              cursor: "pointer",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: c.t3,
             }}
           >
-            {scanStarted ? "Re-run Brief" : "Run Deal Brief"}
-          </button>
+            Automated brief
+          </div>
+
+          <div className="mt-3 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div style={{ maxWidth: 760 }}>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 style={{ margin: 0, fontSize: 30, lineHeight: 1.05, fontWeight: 600, color: c.t1 }}>
+                  Deal Brief
+                </h2>
+                <StatusPill completed={completed} total={total} loading={isLoading || rerunning} theme={theme} />
+                {lastScanAt && <FreshnessPill at={lastScanAt} theme={theme} />}
+                {diff && diff.changes.length > 0 && (
+                  <DiffPill
+                    count={diff.changes.length}
+                    theme={theme}
+                    onClick={() => setDiffOpen((value) => !value)}
+                    active={diffOpen}
+                  />
+                )}
+              </div>
+              <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.7, color: c.t2 }}>
+                Snapshot the target, proposed transaction, financial context, key risks, and analyst follow-ups in one review surface.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+              {sourceCount > 0 && <SourcePill count={sourceCount} theme={theme} />}
+              {scanStarted && (
+                <button
+                  onClick={handleRerun}
+                  disabled={rerunning || refreshing}
+                  title="Re-run the deal brief"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: rerunning ? c.t3 : c.t1,
+                    background: c.surfaceAlt,
+                    border: `1px solid ${c.border}`,
+                    borderRadius: 999,
+                    padding: "10px 14px",
+                    cursor: rerunning ? "default" : "pointer",
+                  }}
+                >
+                  {rerunning ? "Re-running…" : "Refresh scan"}
+                </button>
+              )}
+              <button
+                onClick={onOpenProactiveScan}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "white",
+                  background: ACCENT,
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "10px 16px",
+                  cursor: "pointer",
+                }}
+              >
+                {scanStarted ? "Run again" : "Run deal brief"}
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 10,
+              marginTop: 18,
+            }}
+          >
+            <BriefStatCard
+              label="Coverage"
+              value={total > 0 ? `${completed}/${total}` : "0/0"}
+              detail={total > 0 ? "Brief sections populated" : "No scan schema detected"}
+              theme={theme}
+            />
+            <BriefStatCard
+              label="Sources"
+              value={sourceCount}
+              detail="Cited inputs referenced"
+              theme={theme}
+            />
+            <BriefStatCard
+              label="Deal-breakers"
+              value={dealBreakerCount}
+              detail="Highest-severity findings"
+              theme={theme}
+              tone="alert"
+            />
+            <BriefStatCard
+              label="Material"
+              value={materialCount}
+              detail="Items needing diligence"
+              theme={theme}
+            />
+            <BriefStatCard
+              label="Mismatches"
+              value={inconsistencyCount}
+              detail="Cross-document inconsistencies"
+              theme={theme}
+            />
+          </div>
         </div>
-      </div>
 
-      {diff && diffOpen && diff.changes.length > 0 && (
-        <DiffPanel diff={diff} theme={theme} onDismiss={dismissDiff} onClose={() => setDiffOpen(false)} />
-      )}
+        {runError && (
+          <div
+            style={{
+              padding: "12px 14px",
+              borderRadius: 18,
+              border: "1px solid #f0c2bd",
+              background: theme === "dark" ? "#2a1212" : "#fff4f3",
+              color: theme === "dark" ? "#f0b3ad" : "#9a2e23",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {runError}
+          </div>
+        )}
 
-      <div style={{ padding: 18 }}>
+        {diff && diffOpen && diff.changes.length > 0 && (
+          <DiffPanel diff={diff} theme={theme} onDismiss={dismissDiff} onClose={() => setDiffOpen(false)} />
+        )}
+
         {!scanStarted ? (
           <EmptyBrief theme={theme} onOpenProactiveScan={onOpenProactiveScan} />
         ) : (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
               <BriefPanel
-                title="What Is The Deal?"
+                title="What is the deal?"
                 panelKey="snapshot"
                 fields={snapshotFields}
                 citations={snapshotResult?.citations || []}
@@ -706,7 +774,7 @@ export default function DealBriefDashboard({
                 onOverride={setOverride}
               />
               <BriefPanel
-                title="What Is Being Proposed?"
+                title="What is being proposed?"
                 panelKey="transaction"
                 fields={transactionFields}
                 citations={transactionResult?.citations || []}
@@ -715,13 +783,14 @@ export default function DealBriefDashboard({
                 onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, transactionResult?.citations || [], "transaction") : undefined}
                 onOverride={setOverride}
               />
-              <FinancialPanel
-                metrics={metrics}
-                tables={financialTables}
-                fallback={financialResult?.answer}
-                theme={theme}
-              />
             </div>
+
+            <FinancialPanel
+              metrics={metrics}
+              tables={financialTables}
+              fallback={financialResult?.answer}
+              theme={theme}
+            />
 
             <ThesisPanel
               sections={thesisSections}
@@ -732,7 +801,7 @@ export default function DealBriefDashboard({
               loading={thesisResult?.status === "loading"}
             />
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, marginTop: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14 }}>
               <FindingsPanel
                 findings={topFindings}
                 gapCount={gapCount}
@@ -749,8 +818,50 @@ export default function DealBriefDashboard({
             </div>
           </>
         )}
+      </section>
+    </div>
+  );
+}
+
+function BriefStatCard({
+  label,
+  value,
+  detail,
+  theme,
+  tone = "default",
+}: {
+  label: string;
+  value: string | number;
+  detail: string;
+  theme: "light" | "dark";
+  tone?: "default" | "alert";
+}) {
+  const c = ddTheme(theme);
+  const isAlert = tone === "alert";
+
+  return (
+    <div
+      style={{
+        padding: "12px 14px",
+        borderRadius: 20,
+        border: `1px solid ${isAlert ? (theme === "dark" ? "#4b1919" : "#f0c2bd") : c.border}`,
+        background: isAlert ? (theme === "dark" ? "#2a1212" : "#fff4f3") : c.surfaceAlt,
+      }}
+    >
+      <div
+        className="font-mono-plex"
+        style={{
+          fontSize: 9,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: isAlert ? (theme === "dark" ? "#f0b3ad" : "#9a2e23") : c.t3,
+        }}
+      >
+        {label}
       </div>
-    </section>
+      <div style={{ marginTop: 6, fontSize: 24, lineHeight: 1, fontWeight: 600, color: c.t1 }}>{value}</div>
+      <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5, color: c.t2 }}>{detail}</div>
+    </div>
   );
 }
 
@@ -758,36 +869,50 @@ function EmptyBrief({ theme, onOpenProactiveScan }: { theme: "light" | "dark"; o
   const c = ddTheme(theme);
   return (
     <div
-      className="flex items-center"
       style={{
-        gap: 16,
-        padding: "16px 18px",
+        padding: "24px",
         border: `1px dashed ${c.border}`,
-        borderRadius: 8,
-        background: theme === "dark" ? "#0f172a" : "#f8fafc",
+        borderRadius: 28,
+        background: c.surface,
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: c.t1, marginBottom: 4 }}>No Deal Brief yet</div>
-        <div style={{ fontSize: 12, color: c.t2 }}>
-          Run the deal brief to extract the target profile, transaction terms, financial highlights, and diligence actions from the VDR.
-        </div>
-      </div>
-      <button
-        onClick={onOpenProactiveScan}
+      <div
+        className="font-mono-plex"
         style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: ACCENT,
-          background: theme === "dark" ? "#172554" : "#eff6ff",
-          border: `1px solid ${theme === "dark" ? "#1d4ed8" : "#bfdbfe"}`,
-          borderRadius: 6,
-          padding: "7px 11px",
-          cursor: "pointer",
+          fontSize: 10,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: c.t3,
         }}
       >
-        Run Deal Brief
-      </button>
+        Ready to scan
+      </div>
+
+      <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div style={{ maxWidth: 700 }}>
+          <div style={{ fontSize: 28, lineHeight: 1.05, fontWeight: 600, color: c.t1 }}>No deal brief yet</div>
+          <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7, color: c.t2 }}>
+            Run the proactive scan to extract target profile, transaction terms, financial highlights, key risks, and analyst next steps from the current VDR.
+          </div>
+        </div>
+
+        <button
+          onClick={onOpenProactiveScan}
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "white",
+            background: ACCENT,
+            border: "none",
+            borderRadius: 999,
+            padding: "11px 16px",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Run deal brief
+        </button>
+      </div>
     </div>
   );
 }
@@ -815,10 +940,30 @@ function BriefPanel({
   const fallbackItems = fields.length === 0 ? extractBullets(fallback).slice(0, 4) : [];
 
   return (
-    <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#0f172a" : "#f8fafc", minHeight: 168 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: c.t1, marginBottom: 10 }}>{title}</div>
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 24,
+        border: `1px solid ${c.border}`,
+        background: c.surface,
+        minHeight: 220,
+      }}
+    >
+      <div
+        className="font-mono-plex"
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: c.t3,
+          marginBottom: 12,
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+        }}
+      >
+        {title}
+      </div>
       {fields.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {fields.slice(0, 7).map((field) => (
             <EditableField
               key={`${panelKey}-${field.label}`}
@@ -878,7 +1023,13 @@ function EditableField({
 
   return (
     <div
-      style={{ minWidth: 0 }}
+      style={{
+        minWidth: 0,
+        padding: "10px 12px",
+        borderRadius: 16,
+        border: `1px solid ${c.border}`,
+        background: c.surfaceAlt,
+      }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
@@ -917,13 +1068,13 @@ function EditableField({
           }}
           style={{
             width: "100%",
-            marginTop: 2,
-            padding: "4px 6px",
+            marginTop: 4,
+            padding: "8px 10px",
             fontSize: 12,
             color: c.t1,
-            background: theme === "dark" ? "#020617" : "#ffffff",
+            background: c.surface,
             border: `1px solid ${ACCENT}`,
-            borderRadius: 4,
+            borderRadius: 12,
             outline: "none",
             fontFamily: "inherit",
           }}
@@ -932,12 +1083,12 @@ function EditableField({
         <div
           onClick={editable ? () => setEditing(true) : undefined}
           style={{
+            marginTop: 4,
             fontSize: 12,
-            color: field.override ? c.t1 : c.t1,
-            lineHeight: 1.35,
+            color: c.t1,
+            lineHeight: 1.5,
             overflowWrap: "anywhere",
             cursor: editable ? "text" : "default",
-            fontStyle: field.override ? "normal" : undefined,
           }}
         >
           {field.value}
@@ -960,8 +1111,8 @@ function OverrideBadge({ theme }: { theme: "light" | "dark" }) {
         color: theme === "dark" ? "#fcd34d" : "#b45309",
         background: theme === "dark" ? "#78350f55" : "#fef3c7",
         border: `1px solid ${theme === "dark" ? "#92400e" : "#fde68a"}`,
-        borderRadius: 3,
-        padding: "0 4px",
+        borderRadius: 999,
+        padding: "2px 6px",
         letterSpacing: "0.04em",
         textTransform: "uppercase",
       }}
@@ -1008,9 +1159,27 @@ function FinancialPanel({
   }, [annualTable, fallbackItems.length, metrics.length, quarterlyTable, userView]);
 
   return (
-    <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#0f172a" : "#f8fafc", minHeight: 168 }}>
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 24,
+        border: `1px solid ${c.border}`,
+        background: c.surface,
+      }}
+    >
       <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: c.t1 }}>Key Financial Data</div>
+        <div
+          className="font-mono-plex"
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: c.t3,
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+          }}
+        >
+          Key financial data
+        </div>
         <div style={{ flex: 1 }} />
         <SegmentedTabs
           options={[
@@ -1053,7 +1222,7 @@ function SegmentedTabs({
 }) {
   const c = ddTheme(theme);
   return (
-    <div className="flex items-center" style={{ gap: 2, padding: 2, borderRadius: 6, background: theme === "dark" ? "#111827" : "#ffffff", border: `1px solid ${c.borderLight}` }}>
+    <div className="flex items-center" style={{ gap: 2, padding: 3, borderRadius: 999, background: c.surfaceAlt, border: `1px solid ${c.border}` }}>
       {options.map((option) => {
         const active = option.id === value;
         return (
@@ -1063,8 +1232,8 @@ function SegmentedTabs({
             disabled={option.disabled}
             style={{
               border: "none",
-              borderRadius: 4,
-              padding: "3px 7px",
+              borderRadius: 999,
+              padding: "6px 10px",
               fontSize: 10,
               fontWeight: 700,
               color: option.disabled ? c.t4 : active ? "white" : c.t2,
@@ -1084,8 +1253,8 @@ function FinancialChart({ series, theme }: { series: ChartSeries[]; theme: "ligh
   const c = ddTheme(theme);
   const max = Math.max(...series.flatMap((item) => item.values.map((point) => Math.abs(point.value))), 1);
   return (
-    <div style={{ padding: 10, borderRadius: 6, background: theme === "dark" ? "#111827" : "#ffffff", border: `1px solid ${c.borderLight}` }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, marginBottom: 8, textTransform: "uppercase" }}>Trend Chart</div>
+    <div style={{ padding: 12, borderRadius: 18, background: c.surfaceAlt, border: `1px solid ${c.border}` }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Trend chart</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {series.slice(0, 3).map((item) => (
           <div key={item.label} style={{ display: "grid", gridTemplateColumns: "86px minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
@@ -1108,8 +1277,8 @@ function FinancialChart({ series, theme }: { series: ChartSeries[]; theme: "ligh
 function FinancialTableView({ table, theme }: { table: FinancialTable; theme: "light" | "dark" }) {
   const c = ddTheme(theme);
   return (
-    <div style={{ borderRadius: 6, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#111827" : "#ffffff", overflow: "hidden" }}>
-      <div style={{ padding: "7px 9px", borderBottom: `1px solid ${c.borderLight}`, fontSize: 11, fontWeight: 700, color: c.t1 }}>
+    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surfaceAlt, overflow: "hidden" }}>
+      <div style={{ padding: "9px 12px", borderBottom: `1px solid ${c.border}`, fontSize: 11, fontWeight: 700, color: c.t1 }}>
         {table.title}
       </div>
       <div style={{ overflowX: "auto" }}>
@@ -1125,7 +1294,7 @@ function FinancialTableView({ table, theme }: { table: FinancialTable; theme: "l
                     fontSize: 10,
                     fontWeight: 700,
                     color: c.t3,
-                    borderBottom: `1px solid ${c.borderLight}`,
+                    borderBottom: `1px solid ${c.border}`,
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -1146,7 +1315,7 @@ function FinancialTableView({ table, theme }: { table: FinancialTable; theme: "l
                       textAlign: cIdx === 0 ? "left" : "right",
                       fontSize: 11,
                       color: cIdx === 0 ? c.t1 : c.t2,
-                      borderBottom: rIdx === table.rows.length - 1 ? "none" : `1px solid ${c.borderLight}`,
+                      borderBottom: rIdx === table.rows.length - 1 ? "none" : `1px solid ${c.border}`,
                       whiteSpace: "nowrap",
                       fontVariantNumeric: "tabular-nums",
                     }}
@@ -1166,21 +1335,21 @@ function FinancialTableView({ table, theme }: { table: FinancialTable; theme: "l
 function MetricsTable({ metrics, theme }: { metrics: Metric[]; theme: "light" | "dark" }) {
   const c = ddTheme(theme);
   return (
-    <div style={{ borderRadius: 6, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#111827" : "#ffffff", overflow: "hidden" }}>
+    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surfaceAlt, overflow: "hidden" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
             {["Metric", "Value", "Context"].map((header, idx) => (
-              <th key={header} style={{ padding: "7px 8px", textAlign: idx === 1 ? "right" : "left", fontSize: 10, fontWeight: 700, color: c.t3, borderBottom: `1px solid ${c.borderLight}` }}>{header}</th>
+              <th key={header} style={{ padding: "9px 10px", textAlign: idx === 1 ? "right" : "left", fontSize: 10, fontWeight: 700, color: c.t3, borderBottom: `1px solid ${c.border}` }}>{header}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {metrics.slice(0, 8).map((metric, idx) => (
             <tr key={`${metric.label}-${idx}`}>
-              <td style={{ padding: "7px 8px", fontSize: 11, fontWeight: 700, color: c.t1, borderBottom: `1px solid ${c.borderLight}` }}>{metric.label}</td>
-              <td className="font-mono-dm" style={{ padding: "7px 8px", fontSize: 11, color: c.t1, textAlign: "right", borderBottom: `1px solid ${c.borderLight}`, whiteSpace: "nowrap" }}>{metric.value}</td>
-              <td style={{ padding: "7px 8px", fontSize: 10, color: c.t2, borderBottom: `1px solid ${c.borderLight}` }}>{metric.context}</td>
+              <td style={{ padding: "9px 10px", fontSize: 11, fontWeight: 700, color: c.t1, borderBottom: `1px solid ${c.border}` }}>{metric.label}</td>
+              <td className="font-mono-dm" style={{ padding: "9px 10px", fontSize: 11, color: c.t1, textAlign: "right", borderBottom: `1px solid ${c.border}`, whiteSpace: "nowrap" }}>{metric.value}</td>
+              <td style={{ padding: "9px 10px", fontSize: 10, color: c.t2, borderBottom: `1px solid ${c.border}` }}>{metric.context}</td>
             </tr>
           ))}
         </tbody>
@@ -1192,15 +1361,15 @@ function MetricsTable({ metrics, theme }: { metrics: Metric[]; theme: "light" | 
 function SimpleFinancialTable({ items, theme }: { items: string[]; theme: "light" | "dark" }) {
   const c = ddTheme(theme);
   return (
-    <div style={{ borderRadius: 6, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#111827" : "#ffffff", overflow: "hidden" }}>
+    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surfaceAlt, overflow: "hidden" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
           {items.map((item, idx) => {
             const [label, ...rest] = item.split(":");
             return (
               <tr key={`${item}-${idx}`}>
-                <td style={{ padding: "8px 9px", fontSize: 11, fontWeight: 700, color: c.t1, width: "34%", borderBottom: `1px solid ${c.borderLight}` }}>{rest.length ? label : `Item ${idx + 1}`}</td>
-                <td style={{ padding: "8px 9px", fontSize: 11, color: c.t2, borderBottom: `1px solid ${c.borderLight}` }}>{rest.length ? rest.join(":").trim() : item}</td>
+                <td style={{ padding: "9px 10px", fontSize: 11, fontWeight: 700, color: c.t1, width: "34%", borderBottom: `1px solid ${c.border}` }}>{rest.length ? label : `Item ${idx + 1}`}</td>
+                <td style={{ padding: "9px 10px", fontSize: 11, color: c.t2, borderBottom: `1px solid ${c.border}` }}>{rest.length ? rest.join(":").trim() : item}</td>
               </tr>
             );
           })}
@@ -1226,9 +1395,27 @@ function FindingsPanel({
   const c = ddTheme(theme);
 
   return (
-    <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 24,
+        border: `1px solid ${c.border}`,
+        background: c.surface,
+      }}
+    >
       <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: c.t1 }}>What Matters Most</div>
+        <div
+          className="font-mono-plex"
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: c.t3,
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+          }}
+        >
+          What matters most
+        </div>
         <div style={{ flex: 1 }} />
         <CountBadge label="Gaps" count={gapCount} theme={theme} />
         <CountBadge label="Mismatches" count={inconsistencyCount} theme={theme} />
@@ -1240,10 +1427,10 @@ function FindingsPanel({
               key={finding.id}
               onClick={() => onSelectFinding(finding)}
               style={{
-                padding: 10,
-                borderRadius: 6,
-                background: theme === "dark" ? "#111827" : "#ffffff",
-                border: `1px solid ${c.borderLight}`,
+                padding: 12,
+                borderRadius: 18,
+                background: c.surfaceAlt,
+                border: `1px solid ${c.border}`,
                 minWidth: 0,
                 textAlign: "left",
                 cursor: "pointer",
@@ -1291,11 +1478,29 @@ function ThesisPanel({
   const fallbackBullets: ThesisBullet[] = hasAny ? [] : extractBulletsWithSources(fallback).slice(0, 6);
 
   return (
-    <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 24,
+        border: `1px solid ${c.border}`,
+        background: c.surface,
+      }}
+    >
       <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: c.t1 }}>Investment Thesis</div>
+        <div
+          className="font-mono-plex"
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: c.t3,
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+          }}
+        >
+          Investment thesis
+        </div>
         {loading && (
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6" }}>Synthesizing…</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: c.t2 }}>Synthesizing…</span>
         )}
       </div>
       {hasAny ? (
@@ -1331,14 +1536,14 @@ function ThesisColumn({
   const c = ddTheme(theme);
   if (bullets.length === 0) {
     return (
-      <div style={{ padding: 10, borderRadius: 6, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#111827" : "#ffffff", minHeight: 92 }}>
+      <div style={{ padding: 12, borderRadius: 18, border: `1px solid ${c.border}`, background: c.surfaceAlt, minHeight: 110 }}>
         <ThesisColumnHeader label={label} accent={accent} theme={theme} />
         <div style={{ fontSize: 11, color: c.t3, fontStyle: "italic" }}>Not synthesized</div>
       </div>
     );
   }
   return (
-    <div style={{ padding: 10, borderRadius: 6, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#111827" : "#ffffff" }}>
+    <div style={{ padding: 12, borderRadius: 18, border: `1px solid ${c.border}`, background: c.surfaceAlt }}>
       <ThesisColumnHeader label={label} accent={accent} theme={theme} />
       <ul style={{ display: "flex", flexDirection: "column", gap: 7, margin: 0, padding: 0, listStyle: "none" }}>
         {bullets.slice(0, 5).map((bullet, idx) => (
@@ -1382,13 +1587,13 @@ function SourceChip({ citation, index, onClick }: { citation?: Citation | null; 
       title={citation ? `${citation.source_file} — Page ${citation.page}` : `Source ${index}`}
       style={{
         marginLeft: 4,
-        padding: "0 4px",
+        padding: "2px 6px",
         fontSize: 9,
         fontWeight: 700,
-        color: "#1d4ed8",
-        background: "#dbeafe",
+        color: "white",
+        background: ACCENT,
         border: "none",
-        borderRadius: 3,
+        borderRadius: 999,
         cursor: interactive ? "pointer" : "default",
         verticalAlign: "baseline",
         lineHeight: 1.25,
@@ -1402,13 +1607,32 @@ function SourceChip({ citation, index, onClick }: { citation?: Citation | null; 
 function ActionsPanel({ actions, citations, theme, onCit }: { actions: ThesisBullet[]; citations: (Citation | null)[]; theme: "light" | "dark"; onCit?: (sourceIdx: number) => void }) {
   const c = ddTheme(theme);
   return (
-    <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${c.borderLight}`, background: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: c.t1, marginBottom: 10 }}>Analyst Next Actions</div>
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 24,
+        border: `1px solid ${c.border}`,
+        background: c.surface,
+      }}
+    >
+      <div
+        className="font-mono-plex"
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: c.t3,
+          marginBottom: 10,
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+        }}
+      >
+        Analyst next actions
+      </div>
       {actions.length > 0 ? (
         <ol style={{ display: "flex", flexDirection: "column", gap: 8, margin: 0, padding: 0, listStyle: "none" }}>
           {actions.slice(0, 5).map((action, idx) => (
             <li key={`${action.text}-${idx}`} className="flex" style={{ gap: 8, alignItems: "flex-start" }}>
-              <span className="font-mono-dm" style={{ width: 18, height: 18, borderRadius: "50%", background: theme === "dark" ? "#1e293b" : "#e2e8f0", color: c.t2, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span className="font-mono-dm" style={{ width: 22, height: 22, borderRadius: "50%", background: c.surfaceAlt, border: `1px solid ${c.border}`, color: c.t2, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 {idx + 1}
               </span>
               <span style={{ fontSize: 12, color: c.t1, lineHeight: 1.4, minWidth: 0, flex: 1 }}>
@@ -1441,9 +1665,9 @@ function FreshnessPill({ at, theme }: { at: number; theme: "light" | "dark" }) {
         fontSize: 10,
         fontWeight: 600,
         color: c.t2,
-        padding: "2px 7px",
+        padding: "5px 9px",
         borderRadius: 99,
-        background: theme === "dark" ? "#0f172a" : "#f8fafc",
+        background: c.surfaceAlt,
         border: `1px solid ${c.border}`,
       }}
     >
@@ -1453,7 +1677,7 @@ function FreshnessPill({ at, theme }: { at: number; theme: "light" | "dark" }) {
 }
 
 function DiffPill({ count, theme, onClick, active }: { count: number; theme: "light" | "dark"; onClick: () => void; active: boolean }) {
-  const accent = active ? "#1d4ed8" : "#2563eb";
+  const accent = active ? "#2a2a2a" : "#111111";
   return (
     <button
       type="button"
@@ -1489,9 +1713,10 @@ function DiffPanel({
   return (
     <div
       style={{
-        background: theme === "dark" ? "#0b1220" : "#eff6ff",
-        borderBottom: `1px solid ${c.border}`,
-        padding: "12px 18px",
+        background: c.surface,
+        border: `1px solid ${c.border}`,
+        borderRadius: 24,
+        padding: "16px",
       }}
     >
       <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
@@ -1527,10 +1752,10 @@ function DiffRow({ change, theme }: { change: FieldDiff; theme: "light" | "dark"
   return (
     <div
       style={{
-        padding: "8px 10px",
-        borderRadius: 6,
-        background: theme === "dark" ? "#0f172a" : "#ffffff",
-        border: `1px solid ${c.borderLight}`,
+        padding: "10px 12px",
+        borderRadius: 18,
+        background: c.surfaceAlt,
+        border: `1px solid ${c.border}`,
         minWidth: 0,
       }}
     >
@@ -1613,7 +1838,7 @@ function isNotFound(value: string): boolean {
 
 function StatusPill({ completed, total, loading, theme }: { completed: number; total: number; loading: boolean; theme: "light" | "dark" }) {
   const done = total > 0 && completed === total;
-  const color = loading ? "#3b82f6" : done ? "#16a34a" : "#f59e0b";
+  const color = loading ? "#111111" : done ? "#16a34a" : "#f59e0b";
   const label = loading ? "Scanning" : done ? "Complete" : completed > 0 ? `${completed}/${total} complete` : "Not run";
   return (
     <span
@@ -1624,7 +1849,7 @@ function StatusPill({ completed, total, loading, theme }: { completed: number; t
         fontSize: 10,
         fontWeight: 700,
         color,
-        padding: "2px 7px",
+        padding: "5px 9px",
         borderRadius: 99,
         background: theme === "dark" ? `${color}22` : `${color}14`,
         border: `1px solid ${color}44`,
@@ -1639,7 +1864,7 @@ function StatusPill({ completed, total, loading, theme }: { completed: number; t
 function SourcePill({ count, theme }: { count: number; theme: "light" | "dark" }) {
   const c = ddTheme(theme);
   return (
-    <span style={{ fontSize: 11, color: c.t2, padding: "5px 8px", borderRadius: 99, background: theme === "dark" ? "#0f172a" : "#f8fafc", border: `1px solid ${c.border}` }}>
+    <span style={{ fontSize: 11, color: c.t2, padding: "6px 10px", borderRadius: 99, background: c.surfaceAlt, border: `1px solid ${c.border}` }}>
       {count} source{count === 1 ? "" : "s"}
     </span>
   );
@@ -1648,7 +1873,7 @@ function SourcePill({ count, theme }: { count: number; theme: "light" | "dark" }
 function CountBadge({ label, count, theme }: { label: string; count: number; theme: "light" | "dark" }) {
   const c = ddTheme(theme);
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, color: c.t2, padding: "2px 6px", borderRadius: 99, border: `1px solid ${c.border}`, background: theme === "dark" ? "#111827" : "#ffffff" }}>
+    <span style={{ fontSize: 10, fontWeight: 700, color: c.t2, padding: "5px 8px", borderRadius: 99, border: `1px solid ${c.border}`, background: c.surfaceAlt }}>
       {count} {label}
     </span>
   );
