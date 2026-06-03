@@ -1,4 +1,4 @@
-"use client";
+import { useTheme } from "@/components/ThemeProvider";
 import type { Citation } from "@/lib/api";
 import CitationSnippet, { SPREADSHEET_FILE_RE } from "./CitationSnippet";
 
@@ -9,60 +9,65 @@ interface Props {
 }
 
 export default function CitationPanel({ citation, onClose, onOpenDocument }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const surface = isDark ? "#151515" : "#ffffff";
+  const surfaceAlt = isDark ? "#101010" : "#f8f8f4";
+  const border = isDark ? "#262626" : "var(--landing-border)";
+  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
+  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+
   const isSpreadsheet = SPREADSHEET_FILE_RE.test(citation.source_file);
   const locatorLabel = isSpreadsheet ? "Sheet" : "Page";
   const docType = citation.source_file.includes("CIM")
     ? "CIM (Primary)"
     : citation.source_file.includes("QoE")
-    ? "QoE Report (Primary)"
-    : citation.source_file.includes("Legal")
-    ? "Legal DD"
-    : isSpreadsheet
-    ? "Financial Model"
-    : citation.source_file.includes("Operational") || citation.source_file.includes("Ops")
-    ? "Operational DD"
-    : "Source document";
+      ? "QoE Report (Primary)"
+      : citation.source_file.includes("Legal")
+        ? "Legal DD"
+        : isSpreadsheet
+          ? "Financial Model"
+          : citation.source_file.includes("Operational") || citation.source_file.includes("Ops")
+            ? "Operational DD"
+            : "Source document";
 
   return (
     <div
       className="dd-slide-in flex flex-col"
       style={{
-        width: 336,
+        width: 344,
         flexShrink: 0,
-        background: "white",
+        background: surface,
         overflowY: "auto",
-        borderLeft: "1px solid #e2e8f0",
+        borderLeft: `1px solid ${border}`,
       }}
     >
-      {/* Header */}
       <div
-        className="flex items-start gap-2.5 flex-shrink-0"
+        className="flex items-start gap-3 border-b px-4 py-4"
         style={{
-          padding: "13px 16px",
-          borderBottom: "1px solid #e2e8f0",
-          background: "#fafafa",
+          borderBottomColor: border,
+          background: surfaceAlt,
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
+            className="font-mono-plex"
             style={{
               fontSize: 10,
-              fontWeight: 700,
-              color: "#94a3b8",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
-              letterSpacing: "0.07em",
-              marginBottom: 3,
+              color: muted,
+              marginBottom: 6,
             }}
           >
-            Source Evidence
+            Source evidence
           </div>
           <div
             title={citation.source_file}
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
-              color: "#1e293b",
-              marginBottom: 1,
+              color: text,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -70,168 +75,116 @@ export default function CitationPanel({ citation, onClose, onOpenDocument }: Pro
           >
             {citation.source_file}
           </div>
-          <div style={{ fontSize: 12, color: "#64748b" }}>{locatorLabel} {citation.page}</div>
+          <div style={{ fontSize: 13, color: muted, marginTop: 3 }}>
+            {locatorLabel} {citation.page}
+          </div>
         </div>
         <button
           onClick={onClose}
           aria-label="Close"
+          className="flex h-10 w-10 items-center justify-center rounded-full border text-lg"
           style={{
-            color: "#94a3b8",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: 20,
-            lineHeight: 1,
-            padding: 2,
-            flexShrink: 0,
+            borderColor: border,
+            color: muted,
+            background: surface,
           }}
         >
           ×
         </button>
       </div>
 
-      {/* Snippet preview */}
-      <div
-        style={{
-          margin: 14,
-          borderRadius: 8,
-          background: "#f8fafc",
-          border: "1px solid #e2e8f0",
-          overflow: "hidden",
-        }}
-      >
+      <div className="m-4 rounded-[1.5rem] border" style={{ borderColor: border, background: surfaceAlt }}>
         <div
-          className="flex items-center gap-1.5"
-          style={{
-            padding: "7px 12px",
-            background: "#f1f5f9",
-            borderBottom: "1px solid #e2e8f0",
-          }}
+          className="flex items-center gap-2 border-b px-4 py-3"
+          style={{ borderBottomColor: border }}
         >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
-          <span style={{ fontSize: 10, color: "#64748b" }}>{locatorLabel} {citation.page}</span>
+          <span className="font-mono-plex" style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: muted }}>
+            {locatorLabel} {citation.page}
+          </span>
         </div>
-        <div style={{ padding: 14 }}>
-          {[80, 65, 90, 72].map((w, i) => (
-            <div
-              key={`pre-${i}`}
-              style={{
-                height: 7,
-                background: "#e2e8f0",
-                borderRadius: 2,
-                marginBottom: 5,
-                width: `${w}%`,
-              }}
-            />
-          ))}
-
+        <div className="p-4">
           <div
+            className="rounded-[1.25rem] border px-4 py-4"
             style={{
-              background: "#fefce8",
-              border: "1.5px solid #fde047",
-              borderRadius: 5,
-              padding: "8px 10px",
-              margin: "14px 0 8px",
-              position: "relative",
+              background: surface,
+              borderColor: border,
             }}
           >
             <div
+              className="font-mono-plex"
               style={{
-                position: "absolute",
-                top: -8,
-                left: 8,
-                fontSize: 9,
-                fontWeight: 700,
-                color: "#a16207",
-                background: "#fef9c3",
-                padding: "1px 5px",
-                borderRadius: 3,
-                border: "1px solid #fde047",
+                fontSize: 10,
+                letterSpacing: "0.12em",
                 textTransform: "uppercase",
-                letterSpacing: "0.05em",
+                color: muted,
+                marginBottom: 10,
               }}
             >
               Cited passage
             </div>
             <CitationSnippet sourceFile={citation.source_file} text={citation.text_snippet} />
           </div>
-
-          {[60, 75].map((w, i) => (
-            <div
-              key={`post-${i}`}
-              style={{
-                height: 7,
-                background: "#e2e8f0",
-                borderRadius: 2,
-                marginBottom: 5,
-                width: `${w}%`,
-              }}
-            />
-          ))}
         </div>
       </div>
 
-      {/* Metadata */}
-      <div style={{ padding: "0 14px 14px" }}>
+      <div className="px-4 pb-4">
         <div
+          className="font-mono-plex"
           style={{
             fontSize: 10,
-            fontWeight: 700,
-            color: "#94a3b8",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
-            letterSpacing: "0.07em",
-            marginBottom: 8,
+            color: muted,
+            marginBottom: 10,
           }}
         >
           Details
         </div>
-        {([
-          ["Document", citation.source_file],
-          [locatorLabel, String(citation.page)],
-          ["Source type", docType],
-        ] as const).map(([l, v]) => (
-          <div
-            key={l}
-            className="flex justify-between items-center"
-            style={{ padding: "5px 0", borderBottom: "1px solid #f1f5f9" }}
-          >
-            <span style={{ fontSize: 12, color: "#64748b" }}>{l}</span>
-            <span
-              title={v}
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                color: "#334155",
-                maxWidth: 180,
-                textAlign: "right",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
+        <div className="rounded-[1.5rem] border px-4 py-3" style={{ borderColor: border, background: surfaceAlt }}>
+          {([
+            ["Document", citation.source_file],
+            [locatorLabel, String(citation.page)],
+            ["Source type", docType],
+          ] as const).map(([label, value]) => (
+            <div
+              key={label}
+              className="flex items-center justify-between gap-3 border-b py-3 last:border-b-0"
+              style={{ borderBottomColor: border }}
             >
-              {v}
-            </span>
-          </div>
-        ))}
+              <span style={{ fontSize: 12, color: muted }}>{label}</span>
+              <span
+                title={value}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: text,
+                  maxWidth: 180,
+                  textAlign: "right",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
         <button
           onClick={() => onOpenDocument(citation)}
+          className="mt-4 w-full rounded-full px-4 py-3 text-sm font-medium"
           style={{
-            width: "100%",
-            marginTop: 12,
-            padding: "9px 0",
-            background: "#0f172a",
-            color: "white",
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
+            background: isDark ? "#f5f5f5" : "#111111",
+            color: isDark ? "#111111" : "#ffffff",
             border: "none",
             cursor: "pointer",
           }}
         >
-          Open in Document Viewer
+          Open in document viewer
         </button>
       </div>
     </div>

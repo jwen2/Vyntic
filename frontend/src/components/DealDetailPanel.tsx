@@ -1,4 +1,3 @@
-"use client";
 import { useState, useEffect } from "react";
 import { Deal, DocumentMetadata, listDocuments, deleteDocument } from "@/lib/api";
 import ConfirmDialog from "./ConfirmDialog";

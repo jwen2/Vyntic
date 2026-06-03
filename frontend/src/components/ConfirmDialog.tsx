@@ -1,4 +1,9 @@
-"use client";
+import { useTheme } from "@/components/ThemeProvider";
+import LandingButton from "@/components/landing/ui/LandingButton";
+import LandingEyebrow from "@/components/landing/ui/LandingEyebrow";
+import LandingHeading from "@/components/landing/ui/LandingHeading";
+import LandingPanel from "@/components/landing/ui/LandingPanel";
+import LandingText from "@/components/landing/ui/LandingText";
 
 interface Props {
   title: string;
@@ -17,26 +22,37 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
   return (
-    <div className="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-gray-200 dark:border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{title}</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{message}</p>
-        <div className="flex gap-3 justify-end">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-          >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+      <LandingPanel
+        className="w-full max-w-md"
+        variant={isDark ? "inverse" : "default"}
+      >
+        <LandingEyebrow className={isDark ? "text-white/55" : ""}>
+          Confirm action
+        </LandingEyebrow>
+        <LandingHeading className={`mt-4 ${isDark ? "text-white" : ""}`}>
+          {title}
+        </LandingHeading>
+        <LandingText className="mt-4" tone={isDark ? "inverseMuted" : "muted"}>
+          {message}
+        </LandingText>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <LandingButton type="button" variant="ghost" onClick={onCancel} className="w-full sm:w-auto">
             {cancelLabel}
-          </button>
-          <button
+          </LandingButton>
+          <LandingButton
+            type="button"
             onClick={onConfirm}
-            className="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+            className={isDark ? "w-full bg-white text-black hover:bg-white/90 sm:w-auto" : "w-full sm:w-auto"}
           >
             {confirmLabel}
-          </button>
+          </LandingButton>
         </div>
-      </div>
+      </LandingPanel>
     </div>
   );
 }

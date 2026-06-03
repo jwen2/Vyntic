@@ -1,4 +1,3 @@
-"use client";
 import { useCallback, useEffect, useState } from "react";
 import type { Finding, FindingStatus } from "./types";
 

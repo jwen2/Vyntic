@@ -1,4 +1,3 @@
-"use client";
 import { useState, useRef, useEffect, useCallback, useMemo, forwardRef } from "react";
 import { createPortal } from "react-dom";
 import { CellData, Citation, SYNTHESIS_DEAL_ID } from "@/lib/api";

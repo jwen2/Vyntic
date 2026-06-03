@@ -1,4 +1,3 @@
-"use client";
 
 import { ddTheme } from "@/components/dd/types";
 import type { Workflow } from "@/lib/workflows";

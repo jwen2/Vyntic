@@ -1,6 +1,5 @@
-"use client";
 import { useState, useRef, DragEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { Deal } from "@/lib/api";
 import DealDetailPanel from "./DealDetailPanel";
 
@@ -45,8 +44,8 @@ export default function DealCard({
   uploading,
   readOnly = false,
 }: Props) {
-  const agenticEnabled = process.env.NEXT_PUBLIC_AGENTIC !== "0";
-  const router = useRouter();
+  const agenticEnabled = import.meta.env.VITE_AGENTIC !== "0";
+  const navigate = useNavigate();
   const [dragging, setDragging] = useState(false);
   const [showStageMenu, setShowStageMenu] = useState(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
@@ -120,7 +119,7 @@ export default function DealCard({
         <div className="flex items-start justify-between group">
           <div
             className="cursor-pointer flex-1 min-w-0"
-            onClick={() => router.push(`/deal/${deal.deal_id}`)}
+            onClick={() => navigate(`/deal/${deal.deal_id}`)}
           >
             <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
               {deal.name}
@@ -260,7 +259,7 @@ export default function DealCard({
 
         {/* DD Workspace button */}
         <button
-          onClick={() => router.push(`/deal/${deal.deal_id}`)}
+          onClick={() => navigate(`/deal/${deal.deal_id}`)}
           className="mt-2 w-full text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 py-1.5 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-md transition-colors"
         >
           Open DD Workspace

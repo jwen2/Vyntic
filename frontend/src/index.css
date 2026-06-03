@@ -1,0 +1,125 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --landing-bg: #f3f3ee;
+  --landing-surface: #ffffff;
+  --landing-surface-alt: #ecece4;
+  --landing-border: #d6d6cc;
+  --landing-text: #111111;
+  --landing-muted: #5e5e57;
+  --landing-inverse: #111111;
+  --landing-inverse-text: #ffffff;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Aptos", "Segoe UI", sans-serif;
+  color: var(--landing-text);
+  background: var(--landing-bg);
+}
+
+.font-mono-dm {
+  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.font-mono-plex {
+  font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+}
+
+.landing-shell {
+  background:
+    radial-gradient(circle at top, rgba(17, 17, 17, 0.04), transparent 42%),
+    linear-gradient(180deg, #f8f8f4 0%, var(--landing-bg) 100%);
+  color: var(--landing-text);
+}
+
+.landing-rule {
+  border-top: 1px solid var(--landing-border);
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(to right, rgba(17, 17, 17, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(17, 17, 17, 0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center;
+}
+
+.landing-noise {
+  position: relative;
+}
+
+.landing-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0));
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.25s ease-out;
+}
+
+@keyframes dd-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.dd-pulse { animation: dd-pulse 1.4s ease-in-out infinite; }
+
+@keyframes dd-slide-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.dd-slide-in { animation: dd-slide-in 0.2s ease-out; }
+
+@keyframes dd-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.dd-fade-in { animation: dd-fade-in 0.15s ease-out; }
+
+@keyframes dd-spin {
+  to { transform: rotate(360deg); }
+}
+.dd-spin { animation: dd-spin 0.8s linear infinite; transform-origin: center; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.3s ease-out both; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.slide-in { animation: slideIn 0.2s ease-out both; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Thin dark scrollbars on the DD workspace dark panels */
+.dd-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+.dd-scroll::-webkit-scrollbar-track { background: transparent; }
+.dd-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+.dd-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }

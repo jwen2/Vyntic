@@ -1,4 +1,3 @@
-"use client";
 import { useState, useRef } from "react";
 import { Deal } from "@/lib/api";
 

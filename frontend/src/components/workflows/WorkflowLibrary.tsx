@@ -1,4 +1,3 @@
-"use client";
 
 import { useMemo, useState } from "react";
 import { ddTheme } from "@/components/dd/types";

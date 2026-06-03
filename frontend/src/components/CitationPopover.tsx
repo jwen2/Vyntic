@@ -1,4 +1,3 @@
-"use client";
 import { useState, useRef, useEffect } from "react";
 import { Citation } from "@/lib/api";
 import CitationSnippet from "./dd/CitationSnippet";

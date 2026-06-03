@@ -1,4 +1,3 @@
-"use client";
 import { useState } from "react";
 import type { Finding, FindingStatus } from "./types";
 import { SEV_COLOR } from "./types";

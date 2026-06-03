@@ -2,20 +2,15 @@ const API_BASE = "/api";
 const TOKEN_KEY = "vyntic_auth_token";
 
 export function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);
 }
 
 export function setAuthToken(token: string) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(TOKEN_KEY, token);
-  }
+  localStorage.setItem(TOKEN_KEY, token);
 }
 
 export function clearAuthToken() {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem(TOKEN_KEY);
-  }
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 async function fetchWrapper(url: string, options: RequestInit = {}): Promise<Response> {
@@ -30,7 +25,7 @@ async function fetchWrapper(url: string, options: RequestInit = {}): Promise<Res
 
   if (response.status === 401) {
     clearAuthToken();
-    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    if (window.location.pathname !== "/login") {
       window.location.href = "/login";
     }
   }
@@ -164,7 +159,7 @@ function xhrUpload<T>(
     xhr.onload = () => {
       if (xhr.status === 401) {
         clearAuthToken();
-        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        if (window.location.pathname !== "/login") {
           window.location.href = "/login";
         }
         reject(new Error("Not authenticated"));
