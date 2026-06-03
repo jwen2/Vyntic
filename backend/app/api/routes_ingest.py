@@ -203,6 +203,8 @@ async def _ingest_saved_path(
                 detail=str(e),
             )
             raise HTTPException(status_code=500, detail=f"Vector storage failed: {str(e)}")
+    else:
+        doc_metadata.chunk_count = 0
 
     deal_store.add_document(deal_id, doc_metadata)
     _set_progress(

@@ -26,12 +26,19 @@ def test_ingest_skips_embed_when_full_context_mode_true(monkeypatch, tmp_path):
         )
         return meta, []
 
+    chunk_called = []
+
+    def fake_chunk(sections, deal_id, doc_id):
+        chunk_called.append(True)
+        return []
+
     embed_called = []
 
     async def fake_upsert(deal_id, chunks, progress_callback=None):
         embed_called.append(True)
 
     monkeypatch.setattr(routes_ingest, "parse_document_path", fake_parse)
+    monkeypatch.setattr(routes_ingest, "chunk_sections", fake_chunk)
     monkeypatch.setattr(routes_ingest, "upsert_chunks", fake_upsert)
 
     meta = asyncio.run(
@@ -40,6 +47,7 @@ def test_ingest_skips_embed_when_full_context_mode_true(monkeypatch, tmp_path):
         )
     )
 
+    assert not chunk_called, "chunk_sections must NOT be called in full_context_mode"
     assert not embed_called, "upsert_chunks must NOT be called in full_context_mode"
     assert meta.chunk_count == 0
 
