@@ -15,6 +15,7 @@ import {
   WorkflowUpdatePayload,
 } from "@/lib/workflows";
 import { ddTheme } from "@/components/dd/types";
+import { ACCENT } from "./theme";
 import WorkflowLibrary from "./WorkflowLibrary";
 import AssistantEditor from "./AssistantEditor";
 import TabularEditor from "./TabularEditor";
@@ -194,7 +195,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
             width: 24,
             height: 24,
             border: `3px solid ${c.border}`,
-            borderTopColor: "#2563eb",
+            borderTopColor: ACCENT,
             borderRadius: "50%",
           }}
         />
@@ -222,7 +223,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           onClick={refresh}
           style={{
             padding: "6px 12px",
-            background: "#2563eb",
+            background: ACCENT,
             color: "white",
             border: "none",
             borderRadius: 6,
@@ -567,7 +568,7 @@ function statusColor(status: WorkflowRun["status"]): string {
   if (status === "complete") return "#22c55e";
   if (status === "error" || status === "cancelled") return "#ef4444";
   if (status === "checkpoint") return "#f59e0b";
-  return "#2563eb";
+  return ACCENT;
 }
 
 function formatRunDate(iso: string | null): string {

@@ -16,6 +16,7 @@ interface Props {
   theme: "light" | "dark";
   onNewAssistantChat: () => void;
   onSelectAssistantHistory: (entry: ConversationEntry) => void;
+  onClose?: () => void;
 }
 
 export default function LeftSidebar({
@@ -25,6 +26,7 @@ export default function LeftSidebar({
   theme,
   onNewAssistantChat,
   onSelectAssistantHistory,
+  onClose,
 }: Props) {
   const c = ddTheme(theme);
   const isDark = theme === "dark";
@@ -32,88 +34,102 @@ export default function LeftSidebar({
 
   return (
     <aside
-      className="dd-scroll"
+      className="dd-scroll flex h-full min-h-0 flex-col overflow-hidden"
       style={{
-        width: 272,
+        width: 320,
         flexShrink: 0,
-        background: c.surfaceAlt,
+        background: c.surface,
         borderRight: `1px solid ${c.border}`,
-        overflowY: "auto",
-        padding: 14,
       }}
     >
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-          <div className="flex items-center" style={{ gap: 8 }}>
-            <div style={{
-              width: 24,
-              height: 24,
-              borderRadius: 7,
-              background: ACCENT,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 11,
-              fontWeight: 800,
-            }}>
-              V
+      <div className="border-b px-4 py-4" style={{ borderBottomColor: c.border }}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div
+              className="font-mono-plex"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: c.t3,
+              }}
+            >
+              Agent workspace
             </div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>Agent</span>
+            <div style={{ marginTop: 6, fontSize: 22, fontWeight: 600, color: c.t1 }}>Chats</div>
+            <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.6, color: c.t2 }}>
+              Resume prior investigations or start a new thread for this deal.
+            </div>
           </div>
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-9 w-9 items-center justify-center rounded-full border lg:hidden"
+              style={{
+                borderColor: c.border,
+                color: c.t1,
+                background: c.surfaceAlt,
+              }}
+              aria-label="Close chat history"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
           <button
             type="button"
-            title="New chat"
-            aria-label="New chat"
             onClick={onNewAssistantChat}
+            className="flex items-center justify-center"
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: 7,
-              border: `1px solid ${c.border}`,
-              background: c.surface,
-              color: c.t2,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
+              flex: 1,
+              gap: 8,
+              padding: "11px 14px",
+              borderRadius: 999,
+              border: "none",
+              background: ACCENT,
+              color: "white",
+              fontSize: 13,
+              fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-              <path d="M12 5v14" />
-              <path d="M5 12h14" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+              <path d="M12 8v6" />
+              <path d="M9 11h6" />
             </svg>
+            New chat
           </button>
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: 999,
+              border: `1px solid ${c.border}`,
+              background: c.surfaceAlt,
+            }}
+          >
+            <div
+              className="font-mono-plex"
+              style={{
+                fontSize: 9,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: c.t3,
+              }}
+            >
+              Saved
+            </div>
+            <div style={{ marginTop: 2, fontSize: 14, fontWeight: 600, color: c.t1 }}>{assistantHistory.length}</div>
+          </div>
         </div>
+      </div>
 
-        <button
-          type="button"
-          onClick={onNewAssistantChat}
-          className="flex items-center"
-          style={{
-            width: "100%",
-            gap: 8,
-            padding: "9px 10px",
-            marginBottom: 16,
-            borderRadius: 8,
-            border: `1px solid ${c.border}`,
-            background: c.surface,
-            color: c.t1,
-            fontSize: 13,
-            fontWeight: 650,
-            cursor: "pointer",
-            textAlign: "left",
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-            <path d="M12 8v6" />
-            <path d="M9 11h6" />
-          </svg>
-          New chat
-        </button>
-
-        <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+      <div className="flex min-h-0 flex-1 flex-col px-4 py-4">
+        <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
           <button
             type="button"
             onClick={() => setHistoryCollapsed((v) => !v)}
@@ -123,11 +139,11 @@ export default function LeftSidebar({
               border: "none",
               background: "transparent",
               padding: 0,
-              color: c.t3,
+              color: c.t2,
               cursor: "pointer",
             }}
           >
-            <SectionLabel color={c.t3} marginBottom={0}>Agent History</SectionLabel>
+            <SectionLabel color={c.t3} marginBottom={0}>Agent history</SectionLabel>
             <svg
               width="12"
               height="12"
@@ -140,7 +156,7 @@ export default function LeftSidebar({
               <path d="M6 9l6 6 6-6" />
             </svg>
           </button>
-          <span style={{ fontSize: 10, fontWeight: 650, color: c.t3, padding: "1px 6px", background: c.surface, borderRadius: 99 }}>
+          <span style={{ fontSize: 10, fontWeight: 650, color: c.t3, padding: "3px 8px", background: c.surfaceAlt, borderRadius: 999 }}>
             {assistantHistory.length}
           </span>
         </div>
@@ -148,23 +164,33 @@ export default function LeftSidebar({
         {!historyCollapsed && (
           <div className="dd-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
             {!assistantHistoryLoaded ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "2px 0" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "2px 0" }}>
                 {[52, 75, 63, 46].map((width, index) => (
                   <div key={index} style={{
-                    height: 34,
-                    borderRadius: 7,
-                    background: isDark ? "#1e293b" : "#e2e8f0",
+                    height: 58,
+                    borderRadius: 16,
+                    background: isDark ? "#1e1e1e" : "#e4e4da",
                     opacity: 0.65,
-                    width: `${width}%`,
+                    width: `${Math.max(width, 88)}%`,
                   }} />
                 ))}
               </div>
             ) : assistantHistory.length === 0 ? (
-              <div style={{ padding: "8px", fontSize: 12, color: c.t3, lineHeight: 1.45 }}>
-                No chats yet.
+              <div
+                style={{
+                  padding: "20px 16px",
+                  fontSize: 13,
+                  color: c.t2,
+                  lineHeight: 1.6,
+                  background: c.surfaceAlt,
+                  border: `1px solid ${c.border}`,
+                  borderRadius: 20,
+                }}
+              >
+                No chats yet. Start a thread to ask questions across the deal room.
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {assistantHistory.map((entry) => (
                   <AssistantHistoryRow
                     key={entry.id}
@@ -178,6 +204,28 @@ export default function LeftSidebar({
             )}
           </div>
         )}
+
+        <div
+          className="mt-4 border-t pt-4"
+          style={{
+            borderTopColor: c.border,
+          }}
+        >
+          <div
+            className="font-mono-plex"
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: c.t3,
+            }}
+          >
+            Review mode
+          </div>
+          <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.65, color: c.t2 }}>
+            Every answer stays tied to source citations so the deal team can verify before sharing.
+          </div>
+        </div>
       </div>
     </aside>
   );
@@ -196,7 +244,7 @@ function AssistantHistoryRow({
 }) {
   const c = ddTheme(theme);
   const isDark = theme === "dark";
-  const bg = active ? (isDark ? "#1e293b" : "#ffffff") : "transparent";
+  const bg = active ? (isDark ? "#1d1d1d" : "#ffffff") : "transparent";
   const title = entry.question.replace(/^Focus on these document\(s\):[\s\S]+?\n\n/, "").trim() || "Untitled chat";
   return (
     <button
@@ -204,7 +252,7 @@ function AssistantHistoryRow({
       title={title}
       onClick={() => onSelect(entry)}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = isDark ? c.surface : "#ffffff";
+        e.currentTarget.style.background = isDark ? "#1d1d1d" : "#ffffff";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = bg;
@@ -212,25 +260,44 @@ function AssistantHistoryRow({
       style={{
         width: "100%",
         display: "block",
-        padding: "8px 9px",
+        padding: "12px 12px",
         background: bg,
-        border: `1px solid ${active ? `${ACCENT}55` : "transparent"}`,
-        borderRadius: 7,
+        border: `1px solid ${active ? `${ACCENT}33` : c.border}`,
+        borderRadius: 18,
         cursor: "pointer",
         textAlign: "left",
         transition: "background .1s, border-color .1s",
+        boxShadow: active ? (isDark ? "0 12px 24px rgba(0,0,0,0.18)" : "0 12px 24px rgba(17,17,17,0.06)") : "none",
       }}
     >
-      <span style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={active ? ACCENT : c.t3} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-        </svg>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {title}
+      <span style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 10,
+            background: active ? ACCENT : c.surfaceAlt,
+            color: active ? "white" : c.t2,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+          </svg>
+        </span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {title}
+          </span>
+          <span style={{ display: "block", marginTop: 3, fontSize: 10, color: c.t3 }}>
+            {formatSessionDate(entry.created_at)}
+          </span>
         </span>
       </span>
       <span style={{ display: "flex", alignItems: "center", gap: 7, color: c.t3, fontSize: 10 }}>
-        <span>{formatSessionDate(entry.created_at)}</span>
         <span>{entry.citations.filter(Boolean).length} source{entry.citations.filter(Boolean).length === 1 ? "" : "s"}</span>
       </span>
     </button>
