@@ -11,7 +11,6 @@ from app.config import settings
 
 engine = create_engine(
     settings.database_url,
-    connect_args={"check_same_thread": False},  # SQLite-specific; remove for Postgres
     echo=False,
 )
 
