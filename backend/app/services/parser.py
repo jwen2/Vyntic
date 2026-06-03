@@ -2,6 +2,7 @@
 Document parser: converts PDFs and Excel files into structured Markdown sections.
 Uses docling for PDFs (high-quality table + text extraction) and openpyxl for Excel.
 """
+import logging
 import os
 import uuid
 import gc
@@ -13,6 +14,8 @@ import traceback
 import threading
 from pathlib import Path
 from collections.abc import Callable
+
+_log = logging.getLogger(__name__)
 
 from app.config import settings
 from app.models.document import ParsedSection, DocumentMetadata
@@ -308,10 +311,6 @@ def _parse_with_cascade(
 
     parse_tier value: 1=Docling, 2=PyMuPDF, 3=AzureDI.
     """
-    import logging as _logging
-
-    _log = _logging.getLogger(__name__)
-
     # Tier 1: Docling
     try:
         pages = _convert_pdf_isolated_with_progress(file_path, progress_callback)
@@ -329,7 +328,15 @@ def _parse_with_cascade(
     # Tier 2: PyMuPDF
     try:
         pages = _pymupdf_parse_pdf(file_path)
-        return pages, 2
+        pymupdf_chars = sum(len(t) for p in pages for t in p.get("text", []))
+        if pymupdf_chars >= _FULL_TEXT_MIN_CHARS:
+            return pages, 2
+        _log.warning(
+            "PyMuPDF produced only %d chars for %s — falling back to Azure DI",
+            pymupdf_chars,
+            file_path.name,
+        )
+        pymupdf_exc = ValueError(f"PyMuPDF output too short ({pymupdf_chars} chars) for {file_path.name}")
     except Exception as e:
         _log.warning("PyMuPDF failed for %s: %s — falling back to Azure DI", file_path.name, e)
         pymupdf_exc = e
@@ -364,10 +371,10 @@ def _azure_di_parse_pdf(file_path: Path) -> list[dict]:
     endpoint = os.environ["AZURE_DI_ENDPOINT"]
     key = os.environ["AZURE_DI_KEY"]
 
-    client = DocumentAnalysisClient(endpoint, AzureKeyCredential(key))
-    with open(str(file_path), "rb") as f:
-        poller = client.begin_analyze_document("prebuilt-layout", document=f)
-    result = poller.result()
+    with DocumentAnalysisClient(endpoint, AzureKeyCredential(key)) as client:
+        with open(str(file_path), "rb") as f:
+            poller = client.begin_analyze_document("prebuilt-layout", document=f)
+        result = poller.result()
 
     pages: dict[int, dict] = {}
 
@@ -379,7 +386,10 @@ def _azure_di_parse_pdf(file_path: Path) -> list[dict]:
                 pages[pn]["text"].append(line.content.strip())
 
     for table in (result.tables or []):
-        pn = table.bounding_regions[0].page_number if table.bounding_regions else 1
+        if not table.bounding_regions:
+            _log.warning("Azure DI table has no bounding_regions — skipping")
+            continue
+        pn = table.bounding_regions[0].page_number
         if pn not in pages:
             pages[pn] = {"page_number": pn, "text": [], "tables": [], "has_table": False}
         num_cols = table.column_count

@@ -59,9 +59,11 @@ def test_cascade_falls_back_to_pymupdf_when_docling_produces_short_text(monkeypa
 
     pymupdf_called = []
 
+    pymupdf_text = "Full content from PyMuPDF. " * 10  # > 100 chars
+
     def fake_pymupdf(path):
         pymupdf_called.append(True)
-        return [{"page_number": 1, "text": ["Full content from PyMuPDF."], "tables": [], "has_table": False}]
+        return [{"page_number": 1, "text": [pymupdf_text], "tables": [], "has_table": False}]
 
     monkeypatch.setattr(parser, "_convert_pdf_isolated_with_progress", fake_docling)
     monkeypatch.setattr(parser, "_pymupdf_parse_pdf", fake_pymupdf)
@@ -71,7 +73,7 @@ def test_cascade_falls_back_to_pymupdf_when_docling_produces_short_text(monkeypa
 
     assert pymupdf_called, "PyMuPDF should have been called as fallback"
     assert tier == 2
-    assert pages[0]["text"] == ["Full content from PyMuPDF."]
+    assert pages[0]["text"] == [pymupdf_text]
 
 
 def test_cascade_uses_docling_when_it_succeeds(monkeypatch, tmp_path):
@@ -167,3 +169,55 @@ def test_parse_pdf_path_sets_full_text_md_on_metadata(monkeypatch, tmp_path):
     assert "## Page 1" in metadata.full_text_md
     assert "Revenue was $10m." in metadata.full_text_md
     assert metadata.parse_tier == 1
+
+
+def test_cascade_falls_to_azure_when_pymupdf_produces_short_text(monkeypatch, tmp_path):
+    from app.services import parser
+
+    pdf_path = tmp_path / "scanned.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4")
+
+    def fake_docling(path, progress_callback=None):
+        return [{"page_number": 1, "text": ["x"], "tables": [], "has_table": False}]
+
+    def fake_pymupdf(path):
+        return []  # no text extracted — scanned PDF
+
+    monkeypatch.setattr(parser, "_convert_pdf_isolated_with_progress", fake_docling)
+    monkeypatch.setattr(parser, "_pymupdf_parse_pdf", fake_pymupdf)
+    monkeypatch.delenv("AZURE_DI_ENDPOINT", raising=False)
+    monkeypatch.delenv("AZURE_DI_KEY", raising=False)
+
+    with pytest.raises(ValueError, match="Azure DI credentials"):
+        parser._parse_with_cascade(pdf_path)
+
+
+def test_cascade_uses_azure_di_when_docling_and_pymupdf_fail(monkeypatch, tmp_path):
+    from app.services import parser
+
+    pdf_path = tmp_path / "test.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4")
+
+    def fake_docling(path, progress_callback=None):
+        raise RuntimeError("Docling crashed")
+
+    def fake_pymupdf(path):
+        raise RuntimeError("PyMuPDF crashed")
+
+    azure_called = []
+
+    def fake_azure(path):
+        azure_called.append(True)
+        return [{"page_number": 1, "text": ["Azure DI content."], "tables": [], "has_table": False}]
+
+    monkeypatch.setattr(parser, "_convert_pdf_isolated_with_progress", fake_docling)
+    monkeypatch.setattr(parser, "_pymupdf_parse_pdf", fake_pymupdf)
+    monkeypatch.setattr(parser, "_azure_di_parse_pdf", fake_azure)
+    monkeypatch.setenv("AZURE_DI_ENDPOINT", "https://fake.endpoint")
+    monkeypatch.setenv("AZURE_DI_KEY", "fake-key")
+
+    pages, tier = parser._parse_with_cascade(pdf_path)
+
+    assert azure_called, "Azure DI should have been called as tier 3 fallback"
+    assert tier == 3
+    assert pages[0]["text"] == ["Azure DI content."]
