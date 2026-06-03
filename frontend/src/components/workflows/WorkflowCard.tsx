@@ -1,7 +1,6 @@
-
 import { ddTheme } from "@/components/dd/types";
 import type { Workflow } from "@/lib/workflows";
-import { tint, workflowTypeColor, workflowTypeIcon, workflowTypeLabel } from "./theme";
+import { ACCENT, VIOLET, formatRelativeShort, tint, workflowTypeColor } from "./theme";
 
 type Theme = "light" | "dark";
 
@@ -10,7 +9,6 @@ interface WorkflowCardProps {
   theme: Theme;
   onClone?: () => void;
   onEdit?: () => void;
-  /** Open the doc-selector to start a run. Tabular workflows only in Phase 2. */
   onRun?: () => void;
   onHistory?: () => void;
   onDelete?: () => void;
@@ -25,151 +23,224 @@ export default function WorkflowCard({
   onHistory,
   onDelete,
 }: WorkflowCardProps) {
-  // Run is live when an onRun handler is wired up.
-  const runDisabled = !onRun;
   const c = ddTheme(theme);
+  const isDark = theme === "dark";
   const typeColor = workflowTypeColor(workflow.type);
-  const typeLabel = workflowTypeLabel(
-    workflow.type,
-    workflow.stages.length,
-    workflow.columns.length
-  );
+  const primaryAction = workflow.is_builtin
+    ? { label: "Clone to edit", onClick: onClone }
+    : { label: "Open editor", onClick: onEdit };
+  const runLabel = workflow.type === "assistant" ? "Run memo" : "Run extraction";
+
+  const meta = [
+    {
+      label: workflow.type === "assistant" ? "Stages" : "Columns",
+      value: String(workflow.type === "assistant" ? workflow.stages.length : workflow.columns.length),
+    },
+    {
+      label: "Scope",
+      value: workflow.row_source === "multi_doc_synthesis" ? "Multi-doc" : "One-doc",
+    },
+    {
+      label: "Updated",
+      value: formatRelativeShort(workflow.updated_at),
+    },
+  ];
 
   return (
-    <div
+    <article
       style={{
         background: c.surface,
         border: `1px solid ${c.border}`,
-        borderRadius: 10,
-        padding: 16,
+        borderRadius: 24,
+        padding: 18,
         display: "flex",
         flexDirection: "column",
-        gap: 10,
-        position: "relative",
+        gap: 14,
+        minHeight: 272,
+        boxShadow: isDark ? "0 16px 30px rgba(0,0,0,0.18)" : "0 16px 30px rgba(17,17,17,0.04)",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3" style={{ minWidth: 0 }}>
           <div
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: tint(typeColor, 20),
+              width: 40,
+              height: 40,
+              borderRadius: 14,
+              background: workflow.type === "assistant" ? ACCENT : VIOLET,
+              color: "white",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 14,
+              fontSize: 13,
+              fontWeight: 700,
+              flexShrink: 0,
             }}
           >
-            {workflowTypeIcon(workflow.type)}
+            {workflow.type === "assistant" ? "AI" : "TB"}
           </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: c.t1 }}>{workflow.name}</div>
-            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-              <span
-                style={{
-                  fontSize: 9,
-                  fontWeight: 600,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  padding: "2px 7px",
-                  borderRadius: 4,
-                  color: typeColor,
-                  background: tint(typeColor, 15),
-                }}
-              >
-                {typeLabel}
-              </span>
-              {workflow.is_builtin && (
-                <span
-                  style={{
-                    fontSize: 9,
-                    fontWeight: 600,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    padding: "2px 7px",
-                    borderRadius: 4,
-                    color: c.t3,
-                    background: c.surfaceAlt,
-                    border: `1px solid ${c.border}`,
-                  }}
-                >
-                  Built-in
-                </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="flex flex-wrap items-center gap-2">
+              <div style={{ fontSize: 15, fontWeight: 600, color: c.t1 }}>{workflow.name}</div>
+              <WorkflowBadge
+                label={workflow.is_builtin ? "Built-in" : "Custom"}
+                color={workflow.is_builtin ? c.t3 : typeColor}
+                background={workflow.is_builtin ? c.surfaceAlt : tint(typeColor, 14)}
+                border={workflow.is_builtin ? c.border : tint(typeColor, 28)}
+              />
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <WorkflowBadge
+                label={workflow.type === "assistant" ? "Assistant workflow" : "Tabular workflow"}
+                color={workflow.is_builtin ? c.t2 : typeColor}
+                background={workflow.is_builtin ? c.surfaceAlt : tint(typeColor, 10)}
+                border={workflow.is_builtin ? c.border : tint(typeColor, 22)}
+              />
+              {workflow.variables.length > 0 && (
+                <WorkflowBadge
+                  label={`${workflow.variables.length} variable${workflow.variables.length === 1 ? "" : "s"}`}
+                  color={c.t2}
+                  background={c.surfaceAlt}
+                  border={c.border}
+                />
               )}
             </div>
           </div>
         </div>
       </div>
 
-      {workflow.description && (
-        <p style={{ fontSize: 12, color: c.t2, lineHeight: 1.5, margin: 0 }}>
-          {workflow.description}
-        </p>
-      )}
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: c.t2, minHeight: 66 }}>
+        {workflow.description || "No description yet."}
+      </p>
 
-      <div style={{ display: "flex", gap: 6, marginTop: "auto", flexWrap: "wrap" }}>
-        <CardButton
-          label="Run"
-          primary
-          disabled={runDisabled}
-          onClick={onRun}
-          theme={theme}
-        />
-        {workflow.is_builtin ? (
-          <CardButton label="Clone to edit" onClick={onClone} theme={theme} />
-        ) : (
-          <CardButton label="Edit" onClick={onEdit} theme={theme} />
-        )}
-        {onHistory && <CardButton label="History" onClick={onHistory} theme={theme} />}
-        {onDelete && !workflow.is_builtin && (
-          <CardButton label="Delete" onClick={onDelete} theme={theme} danger />
-        )}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 8,
+        }}
+      >
+        {meta.map((item) => (
+          <div
+            key={item.label}
+            style={{
+              padding: "10px 10px",
+              borderRadius: 16,
+              background: c.surfaceAlt,
+              border: `1px solid ${c.border}`,
+              minWidth: 0,
+            }}
+          >
+            <div
+              className="font-mono-plex"
+              style={{
+                fontSize: 9,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: c.t3,
+              }}
+            >
+              {item.label}
+            </div>
+            <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: c.t1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {item.value}
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto" }}>
+        <button
+          type="button"
+          onClick={onRun}
+          disabled={!onRun}
+          style={{
+            width: "100%",
+            padding: "12px 14px",
+            background: onRun ? ACCENT : c.surfaceAlt,
+            color: onRun ? "white" : c.t3,
+            border: "none",
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: onRun ? "pointer" : "not-allowed",
+          }}
+        >
+          {runLabel}
+        </button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {primaryAction.onClick && (
+            <CardButton label={primaryAction.label} onClick={primaryAction.onClick} theme={theme} />
+          )}
+          {onHistory && <CardButton label="History" onClick={onHistory} theme={theme} />}
+          {onDelete && !workflow.is_builtin && (
+            <CardButton label="Delete" onClick={onDelete} theme={theme} danger />
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
 
-interface CardButtonProps {
+function WorkflowBadge({
+  label,
+  color,
+  background,
+  border,
+}: {
   label: string;
-  onClick?: () => void;
-  primary?: boolean;
-  danger?: boolean;
-  disabled?: boolean;
-  theme: Theme;
+  color: string;
+  background: string;
+  border: string;
+}) {
+  return (
+    <span
+      className="font-mono-plex"
+      style={{
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        padding: "4px 8px",
+        borderRadius: 999,
+        color,
+        background,
+        border: `1px solid ${border}`,
+      }}
+    >
+      {label}
+    </span>
+  );
 }
 
-function CardButton({ label, onClick, primary, danger, disabled, theme }: CardButtonProps) {
+function CardButton({
+  label,
+  onClick,
+  theme,
+  danger,
+}: {
+  label: string;
+  onClick?: () => void;
+  theme: Theme;
+  danger?: boolean;
+}) {
   const c = ddTheme(theme);
-  const bg = disabled
-    ? c.surfaceAlt
-    : primary
-      ? "#2563eb"
-      : danger
-        ? "transparent"
-        : c.surfaceAlt;
-  const fg = disabled
-    ? c.t3
-    : primary
-      ? "white"
-      : danger
-        ? "#ef4444"
-        : c.t1;
-  const border = primary ? "transparent" : `1px solid ${c.border}`;
+  const fg = danger ? "#c2410c" : c.t1;
+
   return (
     <button
+      type="button"
       onClick={onClick}
-      disabled={disabled}
       style={{
-        padding: "5px 12px",
-        background: bg,
+        padding: "9px 12px",
+        background: c.surfaceAlt,
         color: fg,
-        border,
-        borderRadius: 7,
-        fontSize: 11,
+        border: `1px solid ${danger ? "#f5c7b3" : c.border}`,
+        borderRadius: 999,
+        fontSize: 12,
         fontWeight: 600,
-        cursor: disabled ? "not-allowed" : "pointer",
+        cursor: "pointer",
       }}
     >
       {label}
