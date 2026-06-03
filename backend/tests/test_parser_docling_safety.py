@@ -24,7 +24,7 @@ def test_parse_pdf_path_uses_isolated_docling_worker(monkeypatch, tmp_path):
         return [
             {
                 "page_number": 2,
-                "text": ["Executive summary"],
+                "text": ["Executive summary " * 10],  # >= 100 chars so Docling succeeds
                 "tables": ["| Metric | Value |\n| --- | --- |\n| ARR | 10 |"],
                 "has_table": True,
             }
@@ -41,6 +41,8 @@ def test_parse_pdf_path_uses_isolated_docling_worker(monkeypatch, tmp_path):
     assert calls == [pdf_path]
     assert metadata.filename == "sample.pdf"
     assert metadata.page_count == 1
+    assert metadata.parse_tier == 1
+    assert metadata.full_text_md is not None
     assert sections[0].metadata["page_number"] == 2
     assert sections[0].metadata["section_type"] == "text"
     assert "Executive summary" in sections[0].content
