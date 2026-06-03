@@ -7,6 +7,8 @@ class DocumentMetadata(BaseModel):
     filename: str
     page_count: int = 0
     chunk_count: int = 0
+    full_text_md: str | None = None
+    parse_tier: int = 1
 
 
 class ParsedSection(BaseModel):

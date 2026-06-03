@@ -94,6 +94,8 @@ def add_document(deal_id: str, doc: DocumentMetadata):
             row.doc_id = doc.doc_id
             row.page_count = doc.page_count
             row.chunk_count = doc.chunk_count
+            row.full_text_md = doc.full_text_md
+            row.parse_tier = doc.parse_tier
         else:
             row = DocumentRow(
                 doc_id=doc.doc_id,
@@ -101,6 +103,8 @@ def add_document(deal_id: str, doc: DocumentMetadata):
                 filename=doc.filename,
                 page_count=doc.page_count,
                 chunk_count=doc.chunk_count,
+                full_text_md=doc.full_text_md,
+                parse_tier=doc.parse_tier,
             )
             db.add(row)
 

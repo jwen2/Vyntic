@@ -50,6 +50,7 @@ class DocumentRow(Base):
     page_count = Column(Integer, default=0)
     chunk_count = Column(Integer, default=0)
     full_text_md = Column(Text, nullable=True)
+    parse_tier = Column(Integer, default=1)
 
     deal = relationship("DealRow", back_populates="documents")
 
@@ -263,20 +264,20 @@ def init_db():
 
 
 def _ensure_document_cache_columns():
-    """Add cache columns for existing SQLite databases.
+    """Add columns for databases predating the full-context migration.
 
-    SQLAlchemy's create_all creates missing tables but does not alter existing
-    ones. Vyntic does not have migrations yet, so keep this one additive schema
-    compatibility shim close to init_db().
+    SQLAlchemy create_all creates missing tables but does not ALTER existing ones.
+    This shim applies additive migrations for columns added post-initial-deploy.
     """
     inspector = inspect(engine)
     if "documents" not in inspector.get_table_names():
         return
     existing = {column["name"] for column in inspector.get_columns("documents")}
-    if "full_text_md" in existing:
-        return
     with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE documents ADD COLUMN full_text_md TEXT"))
+        if "full_text_md" not in existing:
+            conn.execute(text("ALTER TABLE documents ADD COLUMN full_text_md TEXT"))
+        if "parse_tier" not in existing:
+            conn.execute(text("ALTER TABLE documents ADD COLUMN parse_tier INTEGER DEFAULT 1"))
 
 
 def get_db() -> Session:
