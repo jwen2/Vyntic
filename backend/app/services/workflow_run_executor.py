@@ -23,7 +23,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.agents.llm import LLMConfigurationError, ensure_llm_configured, get_last_meta, stream_with_fallback
 from app.agents.prompts import SINGLE_DEAL_SYSTEM
 from app.services import workflow_run_store, workflow_store
-from app.services.vector_store import get_document_chunks, query_document
+from app.services.context_provider import get_doc_page_chunks, load_doc_context
 from app.services.workflow_format import format_prompt_suffix, parse_answer
 from app.utils.citations import build_context_string, extract_citations
 
@@ -300,11 +300,10 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
             retrieved = []
             for doc_id in run.document_ids if run else []:
                 try:
-                    chunks = await query_document(
+                    chunks = await load_doc_context(
                         deal_id,
                         doc_id,
                         retrieval_query,
-                        top_k=_TABULAR_DOC_TOP_K,
                     )
                 except Exception:
                     logger.exception("query_document failed: doc=%s", doc_id)
@@ -317,11 +316,10 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
             )[:_TABULAR_SYNTHESIS_MAX_CHUNKS]
         else:
             doc_id = cell.row_key  # one_doc_per_row: row_key == doc_id
-            retrieved = await query_document(
+            retrieved = await load_doc_context(
                 deal_id,
                 doc_id,
                 retrieval_query,
-                top_k=_TABULAR_DOC_TOP_K,
             )
         if not retrieved:
             answer = ""
@@ -355,11 +353,11 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
                 full_doc_chunks = []
                 for doc_id in run.document_ids if run else []:
                     try:
-                        full_doc_chunks.extend(get_document_chunks(deal_id, doc_id))
+                        full_doc_chunks.extend(get_doc_page_chunks(deal_id, doc_id))
                     except Exception:
                         logger.exception("get_document_chunks failed: doc=%s", doc_id)
             else:
-                full_doc_chunks = get_document_chunks(deal_id, cell.row_key)
+                full_doc_chunks = get_doc_page_chunks(deal_id, cell.row_key)
             cleaned_answer, citations = extract_citations(
                 full_answer,
                 retrieved,
@@ -717,11 +715,10 @@ async def execute_assistant_stage(
         all_chunks: list = []
         for doc_id in document_ids:
             try:
-                chunks = await query_document(
+                chunks = await load_doc_context(
                     deal_id,
                     doc_id,
                     stage.prompt_md or stage.label,
-                    top_k=_ASSISTANT_DOC_TOP_K,
                 )
             except Exception:
                 logger.exception("query_document failed: doc=%s", doc_id)
@@ -753,7 +750,7 @@ async def execute_assistant_stage(
         page_context_chunks: list = []
         for doc_id in document_ids:
             try:
-                page_context_chunks.extend(get_document_chunks(deal_id, doc_id))
+                page_context_chunks.extend(get_doc_page_chunks(deal_id, doc_id))
             except Exception:
                 logger.exception("get_document_chunks failed: doc=%s", doc_id)
         cleaned_answer, citations = extract_citations(
