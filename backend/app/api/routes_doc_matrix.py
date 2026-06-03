@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.services import deal_store
-from app.services.vector_store import query_document, get_document_chunks
+from app.services.context_provider import load_doc_context, get_doc_page_chunks
 from app.database import UserRow
 from app.auth import get_current_user, require_deal_access
 from app.utils.citations import build_context_string, extract_citations
@@ -34,7 +34,7 @@ async def _stream_doc_answer(deal_id: str, doc_id: str, query: str):
     Retrieval is isolated to the specified doc_id via query_document().
     """
     try:
-        retrieved = await query_document(deal_id, doc_id, query)
+        retrieved = await load_doc_context(deal_id, doc_id, query)
 
         if not retrieved:
             yield {
@@ -68,7 +68,7 @@ async def _stream_doc_answer(deal_id: str, doc_id: str, query: str):
         # enriched with same-page context — Docling sometimes captures table
         # headers in one chunk and the row values as text in another, and
         # top-k retrieval may not include both. (See citations._select_snippet.)
-        full_doc_chunks = get_document_chunks(deal_id, doc_id)
+        full_doc_chunks = get_doc_page_chunks(deal_id, doc_id)
         cleaned_answer, citations = extract_citations(
             full_answer,
             retrieved,
