@@ -314,7 +314,7 @@ def _parse_with_cascade(
     # Tier 1: Docling
     try:
         pages = _convert_pdf_isolated_with_progress(file_path, progress_callback)
-        total_chars = sum(len(t) for p in pages for t in p.get("text", []))
+        total_chars = sum(len(t) for p in pages for t in p.get("text", []) + p.get("tables", []))
         if total_chars >= _FULL_TEXT_MIN_CHARS:
             return pages, 1
         _log.warning(
@@ -328,7 +328,7 @@ def _parse_with_cascade(
     # Tier 2: PyMuPDF
     try:
         pages = _pymupdf_parse_pdf(file_path)
-        pymupdf_chars = sum(len(t) for p in pages for t in p.get("text", []))
+        pymupdf_chars = sum(len(t) for p in pages for t in p.get("text", []) + p.get("tables", []))
         if pymupdf_chars >= _FULL_TEXT_MIN_CHARS:
             return pages, 2
         _log.warning(

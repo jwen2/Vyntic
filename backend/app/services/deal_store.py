@@ -4,6 +4,7 @@ Replaces the previous in-memory dict implementation so that
 deals and documents survive container restarts.
 """
 import json
+from sqlalchemy.orm import load_only
 from app.models.deal import Deal, DealCreate, DealUpdate
 from app.models.document import DocumentMetadata
 from app.database import SessionLocal, DealRow, DocumentRow
@@ -133,7 +134,16 @@ def document_exists(deal_id: str, filename: str) -> bool:
 def list_documents(deal_id: str) -> list[DocumentMetadata]:
     db = SessionLocal()
     try:
-        rows = db.query(DocumentRow).filter(DocumentRow.deal_id == deal_id).all()
+        rows = db.query(DocumentRow).options(
+            load_only(
+                DocumentRow.doc_id,
+                DocumentRow.deal_id,
+                DocumentRow.filename,
+                DocumentRow.page_count,
+                DocumentRow.chunk_count,
+                DocumentRow.parse_tier,
+            )
+        ).filter(DocumentRow.deal_id == deal_id).all()
         return [
             DocumentMetadata(
                 doc_id=r.doc_id,
