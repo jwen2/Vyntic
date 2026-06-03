@@ -161,47 +161,48 @@ async def _ingest_saved_path(
         )
         raise HTTPException(status_code=500, detail=f"Parsing failed: {str(e)}")
 
-    _set_progress(
-        upload_id,
-        status="processing",
-        stage="Chunking document",
-        percent=start_percent + span * 0.76,
-        filename=filename,
-    )
-    chunks = chunk_sections(sections, deal_id, doc_metadata.doc_id)
-    doc_metadata.chunk_count = len(chunks)
-
-    try:
+    if not settings.full_context_mode:
         _set_progress(
             upload_id,
             status="processing",
-            stage="Embedding chunks",
-            percent=start_percent + span * 0.82,
+            stage="Chunking document",
+            percent=start_percent + span * 0.76,
             filename=filename,
-            detail=f"Preparing {len(chunks)} chunks",
         )
-        await upsert_chunks(
-            deal_id,
-            chunks,
-            progress_callback=_progress_mapper(
+        chunks = chunk_sections(sections, deal_id, doc_metadata.doc_id)
+        doc_metadata.chunk_count = len(chunks)
+
+        try:
+            _set_progress(
                 upload_id,
                 status="processing",
                 stage="Embedding chunks",
-                start_percent=start_percent + span * 0.82,
-                end_percent=start_percent + span * 0.98,
+                percent=start_percent + span * 0.82,
                 filename=filename,
-            ),
-        )
-    except Exception as e:
-        _set_progress(
-            upload_id,
-            status="error",
-            stage="Embedding failed",
-            percent=start_percent + span * 0.82,
-            filename=filename,
-            detail=str(e),
-        )
-        raise HTTPException(status_code=500, detail=f"Vector storage failed: {str(e)}")
+                detail=f"Preparing {len(chunks)} chunks",
+            )
+            await upsert_chunks(
+                deal_id,
+                chunks,
+                progress_callback=_progress_mapper(
+                    upload_id,
+                    status="processing",
+                    stage="Embedding chunks",
+                    start_percent=start_percent + span * 0.82,
+                    end_percent=start_percent + span * 0.98,
+                    filename=filename,
+                ),
+            )
+        except Exception as e:
+            _set_progress(
+                upload_id,
+                status="error",
+                stage="Embedding failed",
+                percent=start_percent + span * 0.82,
+                filename=filename,
+                detail=str(e),
+            )
+            raise HTTPException(status_code=500, detail=f"Vector storage failed: {str(e)}")
 
     deal_store.add_document(deal_id, doc_metadata)
     _set_progress(
