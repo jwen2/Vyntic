@@ -59,6 +59,7 @@ class Settings(BaseSettings):
 
     # Feature flags
     seed_sample_data: bool = True
+    full_context_mode: bool = True
 
     class Config:
         env_file = ".env"

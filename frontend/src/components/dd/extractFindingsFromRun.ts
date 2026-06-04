@@ -12,8 +12,8 @@
  *     `[MATERIAL]`, `[NOTEWORTHY]`). If absent, we infer severity from
  *     keywords ("deal-breaker", "critical", "material risk", etc.). Fallback
  *     is `noteworthy`.
- *   - Title = first sentence, capped at 140 chars. Detail = full text, capped
- *     at 420 chars. Citation = the cell's first non-null citation that
+ *   - Title = first sentence. Detail = full text. Citation = the cell's first
+ *     non-null citation that
  *     matches a `[Source N]` marker in the item text.
  *   - Findings have stable ids based on (severity + first-80-chars) so
  *     re-runs preserve user edits (status/note) for findings that survive
@@ -126,9 +126,8 @@ function itemToFinding(
   if (!display) return null;
 
   const firstSentence = display.split(/(?<=[.!?])\s+/)[0] ?? display;
-  const title =
-    firstSentence.length > 140 ? firstSentence.slice(0, 137) + "…" : firstSentence;
-  const detail = display.length > 420 ? display.slice(0, 417) + "…" : display;
+  const title = firstSentence.trim();
+  const detail = display;
 
   // Citation lookup: find a [Source N] marker in the item, map to the cell's
   // citations array.

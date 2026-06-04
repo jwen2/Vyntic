@@ -2,6 +2,7 @@
 Document parser: converts PDFs and Excel files into structured Markdown sections.
 Uses docling for PDFs (high-quality table + text extraction) and openpyxl for Excel.
 """
+import logging
 import os
 import uuid
 import gc
@@ -13,6 +14,8 @@ import traceback
 import threading
 from pathlib import Path
 from collections.abc import Callable
+
+_log = logging.getLogger(__name__)
 
 from app.config import settings
 from app.models.document import ParsedSection, DocumentMetadata
@@ -246,6 +249,166 @@ def _dedupe_pages(pages: list[dict]) -> list[dict]:
     return [deduped[page_num] for page_num in sorted(deduped)]
 
 
+def _pages_to_full_text_md(pages: list[dict]) -> str:
+    """Convert raw pages dict list to the '## Page N' markdown format stored in full_text_md."""
+    parts = []
+    for page in pages:
+        content_parts = []
+        for text in page.get("text", []):
+            if text and text.strip():
+                content_parts.append(text.strip())
+        for table in page.get("tables", []):
+            if table and table.strip():
+                content_parts.append(table.strip())
+        if not content_parts:
+            continue
+        parts.append(f"## Page {page['page_number']}")
+        parts.extend(content_parts)
+    return "\n\n".join(parts)
+
+
+def _pymupdf_parse_pdf(file_path: Path) -> list[dict]:
+    """Parse PDF using PyMuPDF. Native text extraction only — no OCR.
+
+    Returns pages in the same format as Docling (list of page dicts).
+    Fast (~1s / 100 pages). Used as Tier 2 fallback.
+    """
+    import pymupdf
+
+    pages = []
+    doc = pymupdf.open(str(file_path))
+    try:
+        for page_index in range(len(doc)):
+            page = doc[page_index]
+            page_number = page_index + 1
+            text = page.get_text("text")
+            if text and text.strip():
+                pages.append({
+                    "page_number": page_number,
+                    "text": [text.strip()],
+                    "tables": [],
+                    "has_table": False,
+                })
+    finally:
+        doc.close()
+
+    return pages
+
+
+_FULL_TEXT_MIN_CHARS = 100
+
+
+def _parse_with_cascade(
+    file_path: Path,
+    progress_callback: Callable[[float, str], None] | None = None,
+) -> tuple[list[dict], int]:
+    """Run the 3-tier parsing cascade. Returns (pages, parse_tier).
+
+    Tier 1: Docling (default) — succeeds if no exception AND total chars >= 100.
+    Tier 2: PyMuPDF — fast native text extraction, no OCR.
+    Tier 3: Azure Document Intelligence — credential-gated; only attempted if
+            AZURE_DI_ENDPOINT and AZURE_DI_KEY are set.
+
+    parse_tier value: 1=Docling, 2=PyMuPDF, 3=AzureDI.
+    """
+    # Tier 1: Docling
+    try:
+        pages = _convert_pdf_isolated_with_progress(file_path, progress_callback)
+        total_chars = sum(len(t) for p in pages for t in p.get("text", []) + p.get("tables", []))
+        if total_chars >= _FULL_TEXT_MIN_CHARS:
+            return pages, 1
+        _log.warning(
+            "Docling produced only %d chars for %s — falling back to PyMuPDF",
+            total_chars,
+            file_path.name,
+        )
+    except Exception as e:
+        _log.warning("Docling failed for %s: %s — falling back to PyMuPDF", file_path.name, e)
+
+    # Tier 2: PyMuPDF
+    try:
+        pages = _pymupdf_parse_pdf(file_path)
+        pymupdf_chars = sum(len(t) for p in pages for t in p.get("text", []) + p.get("tables", []))
+        if pymupdf_chars >= _FULL_TEXT_MIN_CHARS:
+            return pages, 2
+        _log.warning(
+            "PyMuPDF produced only %d chars for %s — falling back to Azure DI",
+            pymupdf_chars,
+            file_path.name,
+        )
+        pymupdf_exc = ValueError(f"PyMuPDF output too short ({pymupdf_chars} chars) for {file_path.name}")
+    except Exception as e:
+        _log.warning("PyMuPDF failed for %s: %s — falling back to Azure DI", file_path.name, e)
+        pymupdf_exc = e
+
+    # Tier 3: Azure Document Intelligence (credential-gated)
+    import os
+    if not (os.environ.get("AZURE_DI_ENDPOINT") and os.environ.get("AZURE_DI_KEY")):
+        raise ValueError(
+            f"PDF parsing failed for {file_path.name}: Docling and PyMuPDF both failed, "
+            "and Azure DI credentials (AZURE_DI_ENDPOINT, AZURE_DI_KEY) are not configured."
+        ) from pymupdf_exc
+
+    try:
+        pages = _azure_di_parse_pdf(file_path)
+        return pages, 3
+    except Exception as e:
+        raise ValueError(
+            f"All three parsing tiers failed for {file_path.name}. Last error: {e}"
+        ) from e
+
+
+def _azure_di_parse_pdf(file_path: Path) -> list[dict]:
+    """Parse PDF using Azure Document Intelligence prebuilt-layout model.
+
+    Requires AZURE_DI_ENDPOINT and AZURE_DI_KEY env vars.
+    Returns pages in the same format as Docling and PyMuPDF tiers.
+    """
+    import os
+    from azure.ai.formrecognizer import DocumentAnalysisClient
+    from azure.core.credentials import AzureKeyCredential
+
+    endpoint = os.environ["AZURE_DI_ENDPOINT"]
+    key = os.environ["AZURE_DI_KEY"]
+
+    with DocumentAnalysisClient(endpoint, AzureKeyCredential(key)) as client:
+        with open(str(file_path), "rb") as f:
+            poller = client.begin_analyze_document("prebuilt-layout", document=f)
+        result = poller.result()
+
+    pages: dict[int, dict] = {}
+
+    for page in result.pages:
+        pn = page.page_number
+        pages[pn] = {"page_number": pn, "text": [], "tables": [], "has_table": False}
+        for line in (page.lines or []):
+            if line.content and line.content.strip():
+                pages[pn]["text"].append(line.content.strip())
+
+    for table in (result.tables or []):
+        if not table.bounding_regions:
+            _log.warning("Azure DI table has no bounding_regions — skipping")
+            continue
+        pn = table.bounding_regions[0].page_number
+        if pn not in pages:
+            pages[pn] = {"page_number": pn, "text": [], "tables": [], "has_table": False}
+        num_cols = table.column_count
+        num_rows = table.row_count
+        cells = [[""] * num_cols for _ in range(num_rows)]
+        for cell in table.cells:
+            if 0 <= cell.row_index < num_rows and 0 <= cell.column_index < num_cols:
+                cells[cell.row_index][cell.column_index] = cell.content or ""
+        if cells:
+            md_rows = ["| " + " | ".join(cells[0]) + " |"]
+            md_rows.append("| " + " | ".join(["---"] * num_cols) + " |")
+            for row in cells[1:]:
+                md_rows.append("| " + " | ".join(row) + " |")
+            pages[pn]["tables"].append("\n".join(md_rows))
+            pages[pn]["has_table"] = True
+
+    return [pages[n] for n in sorted(pages.keys())]
+
+
 def _convert_pdf_isolated(file_path: Path) -> list[dict]:
     page_count = _count_pdf_pages(file_path)
     batch_size = max(1, settings.docling_page_batch_size)
@@ -355,30 +518,28 @@ async def parse_pdf_path(
     deal_id: str,
     progress_callback: Callable[[float, str], None] | None = None,
 ) -> tuple[DocumentMetadata, list[ParsedSection]]:
-    """Parse a PDF file using Docling with memory-conscious defaults."""
+    """Parse a PDF file using the 3-tier cascade (Docling → PyMuPDF → Azure DI).
+
+    Sets full_text_md and parse_tier on the returned DocumentMetadata.
+    """
     doc_id = f"{deal_id}_{uuid.uuid4().hex[:8]}"
-    if settings.docling_subprocess_enabled:
-        pages = await asyncio.to_thread(
-            _convert_pdf_isolated_with_lock,
-            file_path,
-            progress_callback,
-        )
-    else:
-        pages = await asyncio.to_thread(_docling_convert_pdf_with_lock, str(file_path))
-        if progress_callback:
-            progress_callback(1.0, "Parsed document")
+
+    pages, parse_tier = await asyncio.to_thread(
+        _parse_with_cascade, file_path, progress_callback
+    )
 
     sections = _build_pdf_sections(doc_id, filename, deal_id, pages)
+    full_text_md = _pages_to_full_text_md(pages)
     detected_page_count = _count_pdf_pages(file_path)
-    parsed_page_count = max(
-        (int(page["page_number"]) for page in pages),
-        default=0,
-    )
+    parsed_page_count = max((int(p["page_number"]) for p in pages), default=0)
+
     metadata = DocumentMetadata(
         doc_id=doc_id,
         deal_id=deal_id,
         filename=filename,
         page_count=detected_page_count or parsed_page_count,
+        full_text_md=full_text_md or None,
+        parse_tier=parse_tier,
     )
 
     return metadata, sections

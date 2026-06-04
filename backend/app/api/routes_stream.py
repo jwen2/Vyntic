@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from app.config import settings
 from app.models.matrix import MatrixRequest
 from app.services import deal_store
-from app.services.vector_store import query_deal
+from app.services.context_provider import load_deal_context
 from app.database import UserRow
 from app.auth import get_current_user, require_deal_access
 from app.utils.citations import build_context_string, extract_citations
@@ -34,7 +34,7 @@ async def _stream_deal_answer(deal_id: str, question: str):
       - {"type":"error","deal_id":..., "query":..., "error":...}
     """
     try:
-        retrieved = await query_deal(deal_id, question)
+        retrieved = await load_deal_context(deal_id, question)
 
         if not retrieved:
             yield {

@@ -34,8 +34,7 @@ function DocRow({
           {doc.filename}
         </div>
         <div className="text-[10px] text-gray-400">
-          {doc.page_count > 0 && `${doc.page_count} pages · `}
-          {doc.chunk_count} chunks
+          {doc.page_count > 0 && `${doc.page_count} pages`}
         </div>
       </div>
       <button

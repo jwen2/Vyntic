@@ -5,7 +5,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.config import settings
 from app.models.query import QueryResponse
-from app.services.vector_store import query_deal, query_document
+from app.services.context_provider import load_deal_context, load_doc_context
 from app.utils.citations import build_context_string, extract_citations
 from app.agents.prompts import SINGLE_DEAL_SYSTEM
 from app.agents.llm import invoke_with_fallback
@@ -20,7 +20,7 @@ async def answer_deal_question(deal_id: str, question: str) -> QueryResponse:
     4. Extract and validate citations
     """
     # Step 1: Retrieve
-    retrieved = await query_deal(deal_id, question)
+    retrieved = await load_deal_context(deal_id, question)
 
     if not retrieved:
         return QueryResponse(
@@ -60,7 +60,7 @@ async def answer_document_question(deal_id: str, doc_id: str, question: str) -> 
     4. Extract and validate citations
     """
     # Step 1: Retrieve (isolated to single document)
-    retrieved = await query_document(deal_id, doc_id, question)
+    retrieved = await load_doc_context(deal_id, doc_id, question)
 
     if not retrieved:
         return QueryResponse(

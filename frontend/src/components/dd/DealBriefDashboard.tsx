@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { Citation } from "@/lib/api";
 import { listDocuments } from "@/lib/api";
 import {
@@ -350,6 +350,15 @@ interface ChartSeries {
   values: ChartPoint[];
 }
 
+function lineClamp(lineCount: number): CSSProperties {
+  return {
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: lineCount,
+    overflow: "hidden",
+  };
+}
+
 const DEAL_SNAPSHOT_LABEL = "Deal snapshot";
 const PROPOSED_TRANSACTION_LABEL = "Proposed transaction";
 const FINANCIAL_HIGHLIGHTS_LABEL = "Key financial highlights";
@@ -611,6 +620,14 @@ export default function DealBriefDashboard({
     if (citation) onCit(citation, `${idPrefix}-src-${sourceIdx}`);
   };
 
+  const handleFindingSource = useCallback(
+    (finding: Finding) => {
+      if (!onCit || !finding.sourceCitation) return;
+      onCit(finding.sourceCitation, `${finding.id}-src`);
+    },
+    [onCit],
+  );
+
   return (
     <div style={{ padding: "20px 16px 28px" }}>
       <section style={{ maxWidth: 1320, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -808,6 +825,7 @@ export default function DealBriefDashboard({
                 inconsistencyCount={inconsistencyCount}
                 theme={theme}
                 onSelectFinding={onSelectFinding}
+                onOpenSource={handleFindingSource}
               />
               <ActionsPanel
                 actions={nextActions}
@@ -1385,14 +1403,25 @@ function FindingsPanel({
   inconsistencyCount,
   theme,
   onSelectFinding,
+  onOpenSource,
 }: {
   findings: Finding[];
   gapCount: number;
   inconsistencyCount: number;
   theme: "light" | "dark";
   onSelectFinding: (finding: Finding) => void;
+  onOpenSource?: (finding: Finding) => void;
 }) {
   const c = ddTheme(theme);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+
+  const toggleFinding = useCallback(
+    (finding: Finding) => {
+      setExpandedIds((prev) => ({ ...prev, [finding.id]: !prev[finding.id] }));
+      onSelectFinding(finding);
+    },
+    [onSelectFinding],
+  );
 
   return (
     <div
@@ -1422,28 +1451,88 @@ function FindingsPanel({
       </div>
       {findings.length > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
-          {findings.map((finding) => (
-            <button
-              key={finding.id}
-              onClick={() => onSelectFinding(finding)}
-              style={{
-                padding: 12,
-                borderRadius: 18,
-                background: c.surfaceAlt,
-                border: `1px solid ${c.border}`,
-                minWidth: 0,
-                textAlign: "left",
-                cursor: "pointer",
-              }}
-            >
-              <div className="flex items-center" style={{ gap: 6, marginBottom: 6 }}>
-                <SeverityDot severity={finding.sev} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: SEV_COLOR[finding.sev].color }}>{SEV_COLOR[finding.sev].label}</span>
-                <span style={{ fontSize: 10, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{finding.src}</span>
+          {findings.map((finding) => {
+            const expanded = Boolean(expandedIds[finding.id]);
+            const hasSeparateDetail = finding.detail.trim() !== finding.title.trim();
+            const canExpand = hasSeparateDetail || finding.title.length > 110;
+
+            return (
+              <div
+                key={finding.id}
+                style={{
+                  padding: 12,
+                  borderRadius: 18,
+                  background: c.surfaceAlt,
+                  border: `1px solid ${c.border}`,
+                  minWidth: 0,
+                }}
+              >
+                <div className="flex items-center" style={{ gap: 6, marginBottom: 6 }}>
+                  <SeverityDot severity={finding.sev} />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: SEV_COLOR[finding.sev].color }}>{SEV_COLOR[finding.sev].label}</span>
+                  <span style={{ fontSize: 10, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                    {finding.src}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 650,
+                    color: c.t1,
+                    lineHeight: 1.45,
+                    ...(expanded ? {} : lineClamp(4)),
+                  }}
+                >
+                  {finding.title}
+                </div>
+                {expanded && hasSeparateDetail && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: c.t2, lineHeight: 1.55 }}>
+                    {finding.detail}
+                  </div>
+                )}
+                {(canExpand || finding.sourceCitation) && (
+                  <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 10 }}>
+                    {canExpand && (
+                      <button
+                        type="button"
+                        onClick={() => toggleFinding(finding)}
+                        style={{
+                          padding: 0,
+                          border: "none",
+                          background: "transparent",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: c.t2,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {expanded ? "Show less" : "Show more"}
+                      </button>
+                    )}
+                    {finding.sourceCitation && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenSource?.(finding)}
+                        style={{
+                          padding: 0,
+                          border: "none",
+                          background: "transparent",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: c.t2,
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                          textUnderlineOffset: 2,
+                        }}
+                      >
+                        Open source
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              <div style={{ fontSize: 12, fontWeight: 650, color: c.t1, lineHeight: 1.35 }}>{finding.title}</div>
-            </button>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <Placeholder text="Scan findings will appear here" theme={theme} />
@@ -1606,6 +1695,7 @@ function SourceChip({ citation, index, onClick }: { citation?: Citation | null; 
 
 function ActionsPanel({ actions, citations, theme, onCit }: { actions: ThesisBullet[]; citations: (Citation | null)[]; theme: "light" | "dark"; onCit?: (sourceIdx: number) => void }) {
   const c = ddTheme(theme);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   return (
     <div
       style={{
@@ -1630,19 +1720,55 @@ function ActionsPanel({ actions, citations, theme, onCit }: { actions: ThesisBul
       </div>
       {actions.length > 0 ? (
         <ol style={{ display: "flex", flexDirection: "column", gap: 8, margin: 0, padding: 0, listStyle: "none" }}>
-          {actions.slice(0, 5).map((action, idx) => (
-            <li key={`${action.text}-${idx}`} className="flex" style={{ gap: 8, alignItems: "flex-start" }}>
-              <span className="font-mono-dm" style={{ width: 22, height: 22, borderRadius: "50%", background: c.surfaceAlt, border: `1px solid ${c.border}`, color: c.t2, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {idx + 1}
-              </span>
-              <span style={{ fontSize: 12, color: c.t1, lineHeight: 1.4, minWidth: 0, flex: 1 }}>
-                {action.text}
-                {action.sourceIdx !== undefined && (
-                  <SourceChip citation={citations[action.sourceIdx - 1]} index={action.sourceIdx} onClick={onCit ? () => onCit(action.sourceIdx!) : undefined} />
-                )}
-              </span>
-            </li>
-          ))}
+          {actions.slice(0, 5).map((action, idx) => {
+            const actionId = `${idx}-${action.sourceIdx ?? "na"}-${action.text.slice(0, 32)}`;
+            const expanded = Boolean(expandedIds[actionId]);
+            const canExpand = action.text.length > 120;
+
+            return (
+              <li key={`${action.text}-${idx}`} className="flex" style={{ gap: 8, alignItems: "flex-start" }}>
+                <span className="font-mono-dm" style={{ width: 22, height: 22, borderRadius: "50%", background: c.surfaceAlt, border: `1px solid ${c.border}`, color: c.t2, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {idx + 1}
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: c.t1,
+                      lineHeight: 1.5,
+                      ...(expanded ? {} : lineClamp(3)),
+                    }}
+                  >
+                    {action.text}
+                  </div>
+                  {(action.sourceIdx !== undefined || canExpand) && (
+                    <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 6 }}>
+                      {action.sourceIdx !== undefined && (
+                        <SourceChip citation={citations[action.sourceIdx - 1]} index={action.sourceIdx} onClick={onCit ? () => onCit(action.sourceIdx!) : undefined} />
+                      )}
+                      {canExpand && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedIds((prev) => ({ ...prev, [actionId]: !prev[actionId] }))}
+                          style={{
+                            padding: 0,
+                            border: "none",
+                            background: "transparent",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: c.t2,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {expanded ? "Show less" : "Show more"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ol>
       ) : (
         <Placeholder text="Next actions will be generated from the scan" theme={theme} />
@@ -2180,8 +2306,7 @@ function extractBulletsWithSources(answer: string | undefined): ThesisBullet[] {
     const sourceIdx = extractFirstSourceIdx(raw);
     const text = raw.replace(/\[Source\s+\d+\]/gi, "").replace(/\s+/g, " ").trim();
     if (!text || /^not\s+found$/i.test(text)) continue;
-    const truncated = text.length > 180 ? text.slice(0, 177) + "..." : text;
-    bullets.push({ text: truncated, sourceIdx });
+    bullets.push({ text, sourceIdx });
   }
   return bullets;
 }
