@@ -250,7 +250,6 @@ export default function DocMatrixPanel({
         const docHaystack = [
           doc.filename,
           `${doc.page_count} pages`,
-          `${doc.chunk_count} chunks`,
         ].join(" ").toLowerCase();
         if (docHaystack.includes(search)) return true;
 
@@ -1017,8 +1016,6 @@ export default function DocMatrixPanel({
                       </button>
                       <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
                         <span>{doc.page_count} pg</span>
-                        <span className="text-gray-300 dark:text-gray-600">|</span>
-                        <span>{doc.chunk_count} chunks</span>
                       </div>
                     </div>
                     {onDeleteDocument && (
@@ -1121,7 +1118,7 @@ export default function DocMatrixPanel({
           title="Delete Document"
           message={
             deleteDocError ||
-            `Remove "${confirmDeleteDoc.filename}" and all of its indexed chunks? This cannot be undone.`
+            `Remove "${confirmDeleteDoc.filename}"? This cannot be undone.`
           }
           confirmLabel={deletingDocId === confirmDeleteDoc.doc_id ? "Deleting..." : "Delete"}
           onConfirm={handleDeleteDocument}
