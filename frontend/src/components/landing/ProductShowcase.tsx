@@ -2,6 +2,7 @@ import LandingButton from "./ui/LandingButton";
 import LandingEyebrow from "./ui/LandingEyebrow";
 import LandingHeading from "./ui/LandingHeading";
 import LandingPanel from "./ui/LandingPanel";
+import LandingScrollReveal from "./ui/LandingScrollReveal";
 import LandingSection from "./ui/LandingSection";
 import LandingText from "./ui/LandingText";
 
@@ -32,7 +33,7 @@ const SHOWCASES = [
 export default function ProductShowcase() {
   return (
     <LandingSection id="product" tone="muted">
-      <div className="max-w-3xl">
+      <LandingScrollReveal className="max-w-3xl">
         <LandingEyebrow>Product</LandingEyebrow>
         <LandingHeading className="mt-6">
           The product surfaces are built around the actual review loop.
@@ -41,7 +42,7 @@ export default function ProductShowcase() {
           Compare, inspect, and summarize in one flow rather than moving across
           disconnected tools.
         </LandingText>
-      </div>
+      </LandingScrollReveal>
 
       <div className="mt-10 space-y-5 sm:mt-12 sm:space-y-6">
         {SHOWCASES.map((item, index) => (
@@ -51,21 +52,31 @@ export default function ProductShowcase() {
               index % 2 === 1 ? "lg:grid-cols-[1.12fr_0.88fr]" : ""
             }`}
           >
-            <div className={index % 2 === 1 ? "lg:order-2" : ""}>
+            <LandingScrollReveal
+              className={index % 2 === 1 ? "lg:order-2" : ""}
+              direction={index % 2 === 1 ? "left" : "right"}
+              variant="soft"
+              delay={index * 40}
+            >
               {item.visual}
-            </div>
-            <LandingPanel className={index % 2 === 1 ? "lg:order-1" : ""}>
-              <LandingEyebrow>{item.label}</LandingEyebrow>
-              <LandingHeading size="card" className="mt-5">
-                {item.title}
-              </LandingHeading>
-              <LandingText className="mt-4">{item.body}</LandingText>
-              <div className="mt-8">
-                <LandingButton href="#contact" variant="secondary" className="w-full sm:w-auto">
-                  Request a walkthrough
-                </LandingButton>
-              </div>
-            </LandingPanel>
+            </LandingScrollReveal>
+            <LandingScrollReveal
+              className={index % 2 === 1 ? "lg:order-1" : ""}
+              delay={120 + index * 40}
+            >
+              <LandingPanel>
+                <LandingEyebrow>{item.label}</LandingEyebrow>
+                <LandingHeading size="card" className="mt-5">
+                  {item.title}
+                </LandingHeading>
+                <LandingText className="mt-4">{item.body}</LandingText>
+                <div className="mt-8">
+                  <LandingButton href="#contact" variant="secondary" className="w-full sm:w-auto">
+                    Request a walkthrough
+                  </LandingButton>
+                </div>
+              </LandingPanel>
+            </LandingScrollReveal>
           </div>
         ))}
       </div>

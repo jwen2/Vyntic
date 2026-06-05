@@ -1,6 +1,7 @@
 import LandingEyebrow from "./ui/LandingEyebrow";
 import LandingHeading from "./ui/LandingHeading";
 import LandingPanel from "./ui/LandingPanel";
+import LandingScrollReveal from "./ui/LandingScrollReveal";
 import LandingSection from "./ui/LandingSection";
 import LandingText from "./ui/LandingText";
 
@@ -31,7 +32,7 @@ export default function UseCases() {
   return (
     <LandingSection id="use-cases">
       <div className="grid gap-8 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-        <div className="max-w-xl">
+        <LandingScrollReveal className="max-w-xl">
           <LandingEyebrow>Use Cases</LandingEyebrow>
           <LandingHeading className="mt-6">
             Built for the main points where deal teams lose time.
@@ -40,23 +41,30 @@ export default function UseCases() {
             The product is most useful when teams need to move quickly without
             letting the reasoning detach from the underlying material.
           </LandingText>
-        </div>
+        </LandingScrollReveal>
 
         <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
           {USE_CASES.map((item, index) => (
-            <LandingPanel key={item.title} className="flex h-full flex-col gap-5">
-              <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-                0{index + 1}
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold tracking-[-0.03em] text-[var(--landing-text)]">
-                  {item.title}
-                </h3>
-                <p className="mt-3 text-sm leading-6 text-[var(--landing-muted)]">
-                  {item.body}
-                </p>
-              </div>
-            </LandingPanel>
+            <LandingScrollReveal
+              key={item.title}
+              className="landing-reveal-card"
+              variant="card"
+              delay={index * 90}
+            >
+              <LandingPanel className="landing-reveal-card-inner flex h-full flex-col gap-5">
+                <div className="landing-reveal-index font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
+                  0{index + 1}
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold tracking-[-0.03em] text-[var(--landing-text)]">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-[var(--landing-muted)]">
+                    {item.body}
+                  </p>
+                </div>
+              </LandingPanel>
+            </LandingScrollReveal>
           ))}
         </div>
       </div>
