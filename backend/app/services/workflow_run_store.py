@@ -283,7 +283,7 @@ def cancel_queued_cells(run_id: str) -> int:
         affected = (
             db.query(TabularCellRow)
             .filter(TabularCellRow.run_id == run_id, TabularCellRow.status == "queued")
-            .update({"status": "error", "error_message": "Cancelled before execution"})
+            .update({"status": "error", "error_message": "Cancelled"})
         )
         db.commit()
         return int(affected)
@@ -316,16 +316,21 @@ def get_cell(cell_id: str) -> TabularCell | None:
 
 
 def mark_cell_running(cell_id: str) -> TabularCell | None:
+    """Atomically claim a queued cell. Returns None if the cell is not
+    claimable (already running / terminal / cancelled) — callers must skip
+    the cell rather than execute it."""
     db = SessionLocal()
     try:
-        row = db.query(TabularCellRow).filter(TabularCellRow.id == cell_id).first()
-        if not row:
-            return None
-        row.status = "running"
-        row.started_at = datetime.utcnow()
+        claimed = (
+            db.query(TabularCellRow)
+            .filter(TabularCellRow.id == cell_id, TabularCellRow.status == "queued")
+            .update({"status": "running", "started_at": datetime.utcnow()})
+        )
         db.commit()
-        db.refresh(row)
-        return _row_to_cell(row)
+        if not claimed:
+            return None
+        row = db.query(TabularCellRow).filter(TabularCellRow.id == cell_id).first()
+        return _row_to_cell(row) if row else None
     finally:
         db.close()
 
@@ -627,20 +632,27 @@ def list_terminal_stages(run_id: str) -> list[AssistantStageOutput]:
 
 
 def mark_stage_running(stage_output_id: str) -> AssistantStageOutput | None:
+    """Atomically claim a queued stage. Returns None if the stage is not
+    claimable — callers must skip execution."""
     db = SessionLocal()
     try:
+        claimed = (
+            db.query(AssistantStageOutputRow)
+            .filter(
+                AssistantStageOutputRow.id == stage_output_id,
+                AssistantStageOutputRow.status == "queued",
+            )
+            .update({"status": "running", "started_at": datetime.utcnow()})
+        )
+        db.commit()
+        if not claimed:
+            return None
         row = (
             db.query(AssistantStageOutputRow)
             .filter(AssistantStageOutputRow.id == stage_output_id)
             .first()
         )
-        if not row:
-            return None
-        row.status = "running"
-        row.started_at = datetime.utcnow()
-        db.commit()
-        db.refresh(row)
-        return _row_to_stage_output(row)
+        return _row_to_stage_output(row) if row else None
     finally:
         db.close()
 
@@ -747,7 +759,7 @@ def cancel_queued_stages(run_id: str) -> int:
                 AssistantStageOutputRow.run_id == run_id,
                 AssistantStageOutputRow.status == "queued",
             )
-            .update({"status": "error", "error_message": "Cancelled before execution"})
+            .update({"status": "error", "error_message": "Cancelled"})
         )
         db.commit()
         return int(affected)
