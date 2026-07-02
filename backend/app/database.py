@@ -14,6 +14,17 @@ engine = create_engine(
     echo=False,
 )
 
+if engine.dialect.name == "sqlite":
+    # SQLite ships with foreign-key enforcement OFF per connection; without
+    # this pragma every ondelete="CASCADE" in the schema is silently inert.
+    # WAL lets concurrent readers proceed during executor writes.
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragmas(dbapi_connection, _record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.close()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
