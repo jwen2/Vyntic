@@ -18,7 +18,7 @@ from app.auth import get_current_user, require_deal_access
 from app.database import UserRow
 from app.models.query import QueryRequest, QueryResponse
 from app.services import deal_store
-from app.services.vector_store import query_deal
+from app.services.context_provider import load_deal_context
 from app.utils.citations import build_context_string, extract_citations
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -48,7 +48,7 @@ async def query_deal_route(deal_id: str, request: QueryRequest, current_user: Us
 async def _stream_answer(deal_id: str, question: str):
     """SSE event generator for a single question against a deal."""
     try:
-        retrieved = await query_deal(deal_id, question)
+        retrieved = await load_deal_context(deal_id, question)
 
         if not retrieved:
             yield {
