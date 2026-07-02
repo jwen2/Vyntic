@@ -86,6 +86,22 @@ run_event_bus = RunEventBus()
 # ── Executor entry points ──
 
 
+async def _finalize_run_status(run_id: str, worst: str | None) -> None:
+    """Set the terminal run status, but never resurrect a cancelled run.
+
+    Cancel marks the run `cancelled` while in-flight cells drain; without
+    this guard the last finishing cell would overwrite it with `complete`.
+    """
+    run = workflow_run_store.get_run(run_id)
+    if run is not None and run.status == "cancelled":
+        return
+    final_status = worst or "complete"
+    workflow_run_store.set_run_status(run_id, final_status)
+    await run_event_bus.publish(
+        run_id, {"type": "run", "run_id": run_id, "status": final_status}
+    )
+
+
 def kick_off_run(run_id: str, deal_id: str) -> None:
     """Schedule `execute_run` on the running event loop. Safe to call from
     inside a request handler — returns immediately."""
@@ -118,11 +134,7 @@ def kick_off_cell_retry(cell_id: str, run_id: str, deal_id: str) -> None:
         # If everything settled, finalize run status.
         all_done, worst = workflow_run_store.all_cells_terminal(run_id)
         if all_done:
-            final_status = worst or "complete"
-            workflow_run_store.set_run_status(run_id, final_status)
-            await run_event_bus.publish(
-                run_id, {"type": "run", "run_id": run_id, "status": final_status}
-            )
+            await _finalize_run_status(run_id, worst)
 
     task = asyncio.create_task(_runner())
     _RUN_TASKS.add(task)
@@ -159,15 +171,14 @@ def kick_off_column_retry(cell_ids: list[str], run_id: str, deal_id: str) -> Non
         await asyncio.gather(*(run_one(cid) for cid in cell_ids))
         all_done, worst = workflow_run_store.all_cells_terminal(run_id)
         if all_done:
-            final_status = worst or "complete"
-            workflow_run_store.set_run_status(run_id, final_status)
-            await run_event_bus.publish(
-                run_id, {"type": "run", "run_id": run_id, "status": final_status}
-            )
+            await _finalize_run_status(run_id, worst)
 
     task = asyncio.create_task(_runner())
     _RUN_TASKS.add(task)
     task.add_done_callback(_RUN_TASKS.discard)
+
+
+_ACTIVE_ASSISTANT_RUNS: set[str] = set()
 
 
 def kick_off_assistant_run(run_id: str, deal_id: str) -> None:
@@ -175,7 +186,17 @@ def kick_off_assistant_run(run_id: str, deal_id: str) -> None:
     that's still running is a no-op (the running task picks up the same
     queued stages); calling it on a paused run resumes from the next
     queued stage."""
-    task = asyncio.create_task(execute_assistant_run(run_id, deal_id))
+    if run_id in _ACTIVE_ASSISTANT_RUNS:
+        return  # loop already active; it will pick up newly-queued stages
+    _ACTIVE_ASSISTANT_RUNS.add(run_id)
+
+    async def _runner() -> None:
+        try:
+            await execute_assistant_run(run_id, deal_id)
+        finally:
+            _ACTIVE_ASSISTANT_RUNS.discard(run_id)
+
+    task = asyncio.create_task(_runner())
     _RUN_TASKS.add(task)
     task.add_done_callback(_RUN_TASKS.discard)
 
@@ -183,6 +204,9 @@ def kick_off_assistant_run(run_id: str, deal_id: str) -> None:
 async def execute_run(run_id: str, deal_id: str) -> None:
     """Execute every queued cell in the run with bounded concurrency, then
     finalize the run status. Errors in a single cell don't kill the run."""
+    current = workflow_run_store.get_run(run_id)
+    if current is None or current.status == "cancelled":
+        return
     workflow_run_store.set_run_status(run_id, "running")
     await run_event_bus.publish(run_id, {"type": "run", "run_id": run_id, "status": "running"})
 
@@ -198,8 +222,8 @@ async def execute_run(run_id: str, deal_id: str) -> None:
 
     if not extraction_cells and not derived_cells:
         # Empty run — finalize immediately.
-        workflow_run_store.set_run_status(run_id, "complete")
-        await run_event_bus.publish(run_id, {"type": "run", "run_id": run_id, "status": "complete"})
+        _, worst = workflow_run_store.all_cells_terminal(run_id)
+        await _finalize_run_status(run_id, worst)
         return
 
     semaphore = asyncio.Semaphore(_CELL_SEMAPHORE_SIZE)
@@ -228,11 +252,7 @@ async def execute_run(run_id: str, deal_id: str) -> None:
             )
 
     _, worst = workflow_run_store.all_cells_terminal(run_id)
-    final_status = worst or "complete"
-    workflow_run_store.set_run_status(run_id, final_status)
-    await run_event_bus.publish(
-        run_id, {"type": "run", "run_id": run_id, "status": final_status}
-    )
+    await _finalize_run_status(run_id, worst)
 
 
 async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
@@ -259,10 +279,11 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
         return
 
     running = workflow_run_store.mark_cell_running(cell_id)
-    if running is not None:
-        await run_event_bus.publish(
-            run_id, {"type": "cell", "cell": running.model_dump(mode="json")}
-        )
+    if running is None:
+        return  # cancelled or already claimed — never execute
+    await run_event_bus.publish(
+        run_id, {"type": "cell", "cell": running.model_dump(mode="json")}
+    )
 
     try:
         ensure_llm_configured()
@@ -475,10 +496,11 @@ async def execute_formula_cell(cell_id: str, run_id: str):
         return workflow_run_store.error_cell(cell_id, "Column not found")
 
     running = workflow_run_store.mark_cell_running(cell_id)
-    if running is not None:
-        await run_event_bus.publish(
-            run_id, {"type": "cell", "cell": running.model_dump(mode="json")}
-        )
+    if running is None:
+        return None  # cancelled or already claimed — never execute
+    await run_event_bus.publish(
+        run_id, {"type": "cell", "cell": running.model_dump(mode="json")}
+    )
 
     try:
         run = workflow_run_store.get_run(run_id)
@@ -666,7 +688,7 @@ async def execute_assistant_run(run_id: str, deal_id: str) -> None:
     terminal state. Re-entrant: callable again after `approve_stage` to
     resume."""
     run = workflow_run_store.get_run(run_id)
-    if run is None:
+    if run is None or run.status == "cancelled":
         return
     document_ids = list(run.document_ids)
 
@@ -695,11 +717,7 @@ async def execute_assistant_run(run_id: str, deal_id: str) -> None:
             break
 
     _, worst = workflow_run_store.all_stages_terminal(run_id)
-    final_status = worst or "complete"
-    workflow_run_store.set_run_status(run_id, final_status)
-    await run_event_bus.publish(
-        run_id, {"type": "run", "run_id": run_id, "status": final_status}
-    )
+    await _finalize_run_status(run_id, worst)
 
 
 async def execute_assistant_stage(
@@ -713,10 +731,11 @@ async def execute_assistant_stage(
         return
 
     running = workflow_run_store.mark_stage_running(stage_output_id)
-    if running is not None:
-        await run_event_bus.publish(
-            run_id, {"type": "stage", "stage": running.model_dump(mode="json")}
-        )
+    if running is None:
+        return  # cancelled or already claimed — never execute
+    await run_event_bus.publish(
+        run_id, {"type": "stage", "stage": running.model_dump(mode="json")}
+    )
 
     prior = [
         s for s in workflow_run_store.list_terminal_stages(run_id)
