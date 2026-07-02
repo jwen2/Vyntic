@@ -31,7 +31,6 @@ from app.utils.citations import build_context_string, extract_citations
 logger = logging.getLogger(__name__)
 
 _CELL_SEMAPHORE_SIZE = 4
-_TABULAR_DOC_TOP_K = 12
 _TABULAR_SYNTHESIS_MAX_CHUNKS = 32
 # ~800K tokens at ~4 chars/token. Keep in sync with
 # context_provider._FC_TOKEN_WARN_THRESHOLD.
@@ -546,6 +545,11 @@ def _eval_formula(formula: str, values: dict[str, Any]) -> str:
         expr = expr[1:].strip()
     if not expr:
         return ""
+    # `**` passes the arithmetic char whitelist but lets `9**9**9` compute an
+    # astronomically large int synchronously on the event loop; oversized
+    # expressions get the same treatment.
+    if "**" in expr or len(expr) > 200:
+        return ""
     if expr.upper().startswith("IF(") and expr.endswith(")"):
         parts = _split_args(expr[3:-1])
         if len(parts) >= 3:
@@ -635,6 +639,10 @@ def _eval_arithmetic(expr: str, values: dict[str, Any]) -> float | None:
             continue
         replaced = re.sub(rf"\[{re.escape(key)}\]", str(num), replaced, flags=re.IGNORECASE)
     if re.search(r"[A-Za-z\[\]]", replaced) or not re.fullmatch(r"[\d\s+\-*/().]+", replaced):
+        return None
+    # `**` passes the char whitelist but lets `9**9**9` compute an
+    # astronomically large int synchronously on the event loop.
+    if "**" in replaced or len(replaced) > 200:
         return None
     try:
         return float(eval(replaced, {"__builtins__": {}}, {}))
