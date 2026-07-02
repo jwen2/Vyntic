@@ -22,6 +22,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.llm import LLMConfigurationError, ensure_llm_configured, get_last_meta, stream_with_fallback
 from app.agents.prompts import SINGLE_DEAL_SYSTEM
+from app.config import settings
 from app.services import workflow_run_store, workflow_store
 from app.services.context_provider import get_doc_page_chunks, load_doc_context
 from app.services.workflow_format import format_prompt_suffix, parse_answer
@@ -32,6 +33,9 @@ logger = logging.getLogger(__name__)
 _CELL_SEMAPHORE_SIZE = 4
 _TABULAR_DOC_TOP_K = 12
 _TABULAR_SYNTHESIS_MAX_CHUNKS = 32
+# ~800K tokens at ~4 chars/token. Keep in sync with
+# context_provider._FC_TOKEN_WARN_THRESHOLD.
+_SYNTHESIS_CHAR_BUDGET = 3_200_000
 _RUN_TASKS: set[asyncio.Task] = set()  # keep strong refs so background tasks aren't GC'd
 
 _TABULAR_OUTPUT_DIRECTIVE = (
@@ -309,11 +313,7 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
                     logger.exception("query_document failed: doc=%s", doc_id)
                     chunks = []
                 retrieved.extend(chunks)
-            retrieved = sorted(
-                retrieved,
-                key=lambda chunk: chunk.get("score", 0),
-                reverse=True,
-            )[:_TABULAR_SYNTHESIS_MAX_CHUNKS]
+            retrieved = _select_synthesis_chunks(retrieved)
         else:
             doc_id = cell.row_key  # one_doc_per_row: row_key == doc_id
             retrieved = await load_doc_context(
@@ -395,6 +395,36 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
         await run_event_bus.publish(
             run_id, {"type": "cell", "cell": updated.model_dump(mode="json")}
         )
+
+
+def _select_synthesis_chunks(retrieved: list[dict]) -> list[dict]:
+    """Pick the context set for a multi_doc_synthesis cell.
+
+    RAG mode: top-K by relevance score (scores are meaningful).
+    Full-context mode: scores are uniformly 1.0, so sorting is meaningless —
+    keep document/page order and truncate at a page boundary once the char
+    budget is exhausted, logging what was dropped.
+    """
+    if not settings.full_context_mode:
+        return sorted(
+            retrieved,
+            key=lambda chunk: chunk.get("score", 0),
+            reverse=True,
+        )[:_TABULAR_SYNTHESIS_MAX_CHUNKS]
+    out: list[dict] = []
+    total = 0
+    for chunk in retrieved:
+        total += len(chunk.get("content", ""))
+        if out and total > _SYNTHESIS_CHAR_BUDGET:
+            logger.warning(
+                "Synthesis context truncated at %d of %d chunks (~%dK chars)",
+                len(out),
+                len(retrieved),
+                total // 1000,
+            )
+            break
+        out.append(chunk)
+    return out
 
 
 _RETRIEVAL_PROMPT_CHAR_CAP = 280
