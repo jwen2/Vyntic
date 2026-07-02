@@ -244,6 +244,37 @@ def set_run_status(run_id: str, status: RunStatus) -> None:
         db.close()
 
 
+def reconcile_interrupted_runs() -> int:
+    """Mark runs stranded by a restart as errored. Returns count reconciled.
+
+    In-process executor tasks die with the process; anything left in
+    pending/running was interrupted. Checkpoint runs are legitimately paused
+    and resume via the approve endpoint, so they are skipped.
+    """
+    db = SessionLocal()
+    try:
+        stranded = (
+            db.query(WorkflowRunRow)
+            .filter(WorkflowRunRow.status.in_(("pending", "running")))
+            .all()
+        )
+        for run in stranded:
+            db.query(TabularCellRow).filter(
+                TabularCellRow.run_id == run.id,
+                TabularCellRow.status.in_(("queued", "running")),
+            ).update({"status": "error", "error_message": "Interrupted by server restart"})
+            db.query(AssistantStageOutputRow).filter(
+                AssistantStageOutputRow.run_id == run.id,
+                AssistantStageOutputRow.status.in_(("queued", "running")),
+            ).update({"status": "error", "error_message": "Interrupted by server restart"})
+            run.status = "error"
+            run.completed_at = datetime.utcnow()
+        db.commit()
+        return len(stranded)
+    finally:
+        db.close()
+
+
 def cancel_queued_cells(run_id: str) -> int:
     """Mark all queued cells for this run as cancelled. In-flight cells are
     untouched. Returns count of cells affected."""

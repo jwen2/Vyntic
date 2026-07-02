@@ -62,6 +62,13 @@ async def startup():
     from app.database import init_db
     init_db()
 
+    # Mark runs stranded by the previous process as errored — executor tasks
+    # are in-process and do not survive restarts.
+    from app.services.workflow_run_store import reconcile_interrupted_runs
+    reconciled = reconcile_interrupted_runs()
+    if reconciled:
+        logger.info(f"Reconciled {reconciled} run(s) interrupted by restart")
+
     # Create default admin user if it doesn't exist
     from app.config import settings
     from app.auth import get_user_by_email, create_user, grant_deal_access
