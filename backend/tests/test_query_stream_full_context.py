@@ -48,8 +48,10 @@ async def test_stream_answer_streams_tokens_from_context(monkeypatch):
         for token in ["Revenue was ", "$10M [Source 1]"]:
             yield FakeChunk(token)
 
+    from app.services import extraction_engine
+
     monkeypatch.setattr(routes_query, "load_deal_context", fake_load_deal_context)
-    monkeypatch.setattr(routes_query, "stream_with_fallback", fake_stream)
+    monkeypatch.setattr(extraction_engine, "stream_with_fallback", fake_stream)
 
     events = [e async for e in routes_query._stream_answer("deal-1", "revenue?")]
 
