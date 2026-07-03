@@ -187,6 +187,11 @@ Create a `.env` file in the project root:
 
 ```bash
 GEMINI_API_KEY=your_api_key_here
+
+# Dev only: allows booting on the default JWT secret + admin password.
+# Without this (or real JWT_SECRET_KEY / DEFAULT_ADMIN_PASSWORD values)
+# the backend refuses to start. Never set in production.
+ALLOW_INSECURE_DEFAULTS=true
 ```
 
 Optional Docling controls for lower-memory local startup:
@@ -323,6 +328,7 @@ Both suites run in CI on every PR (`.github/workflows/ci.yml`).
 | Problem | Solution |
 |---|---|
 | Backend won't start | Docker memory ≥ 8 GB |
+| Backend exits with "Refusing to start with default secrets" | Set `ALLOW_INSECURE_DEFAULTS=true` in `.env` (dev only), or real `JWT_SECRET_KEY` / `DEFAULT_ADMIN_PASSWORD` values (production) |
 | `invalid argument` from Gemini | Check `GEMINI_API_KEY` in `.env` |
 | Rate-limit errors | Auto-falls back to `gemini-3-flash-preview`; wait and retry |
 | Empty query results | Confirm documents uploaded (deal doc count > 0) |
