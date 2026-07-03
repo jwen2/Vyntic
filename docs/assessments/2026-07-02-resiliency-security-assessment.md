@@ -129,6 +129,16 @@ Deletes now cascade correctly (FK fix) but are permanent — no soft-delete, ret
 
 ## Remediation roadmap (defensible sequencing)
 
+**Implementation plans** (in `docs/superpowers/plans/`) group these findings into workstreams:
+
+| Plan | Covers | Depends on |
+|---|---|---|
+| `2026-07-02-tier0-security-hotfixes.md` | S1, S3, R1-guard, S9-CORS | — |
+| `2026-07-02-auth-access-control-audit.md` | S1-cross, S4, S5, S6, S9-XSS | Plan 1 |
+| `2026-07-02-durable-ingestion-parsing.md` | R4, R5 | — |
+| `2026-07-02-postgres-multitenancy.md` | R2, S2, R6, S7, S8 | (tenancy decision) |
+| `2026-07-02-horizontal-scaling-context-cascade.md` | R3, R1-full | Plan 4 |
+
 ### Tier 0 — Before *any* external/LP exposure (small, non-negotiable)
 - **S1** — authenticate conversation routes.
 - **S3** — secrets fail-closed by default.
