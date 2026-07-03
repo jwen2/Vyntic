@@ -12,12 +12,12 @@ This plan scales the current Gemini-powered PoC (local Docker, ChromaDB, local f
 |-------|-----------|------------|
 | LLM | Gemini 3 Flash via Google AI Studio | Free-tier rate limits, single API key |
 | Embeddings | gemini-embedding-001 via Google AI Studio | Sequential, single-key quota |
-| Vector DB | ChromaDB (local PersistentClient) | No replication, no auth, disk-bound |
+| Vector DB | ChromaDB (local PersistentClient, optional RAG mode) | No replication, no auth, disk-bound |
 | File Storage | Local disk (`/app/data/uploads/`) | Single-node, no CDN, no access control |
-| Metadata DB | SQLite (`vyntic.db`) | Single-writer, no concurrent access |
+| Metadata DB | SQLite (`vyntic.db`, WAL) | Single-writer, no concurrent access |
 | PDF Parsing | Docling (local) | CPU-bound, fine for PoC scale |
 | API Server | FastAPI single-instance (Docker) | No horizontal scaling |
-| Frontend | Next.js (Docker) | No CDN, single-instance |
+| Frontend | Vite + React (Docker, `vite preview`) | No CDN, single-instance |
 
 ---
 
