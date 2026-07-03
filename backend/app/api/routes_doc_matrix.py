@@ -12,13 +12,9 @@ from pydantic import BaseModel
 
 from app.services import deal_store
 from app.services.context_provider import load_doc_context, get_doc_page_chunks
+from app.services.extraction_engine import stream_extraction
 from app.database import UserRow
 from app.auth import get_current_user, require_deal_access
-from app.utils.citations import build_context_string, extract_citations
-from app.agents.prompts import SINGLE_DEAL_SYSTEM
-
-from langchain_core.messages import SystemMessage, HumanMessage
-from app.agents.llm import stream_with_fallback, get_last_meta
 
 router = APIRouter(prefix="/deals/{deal_id}/doc-matrix", tags=["doc-matrix"])
 
@@ -45,46 +41,34 @@ async def _stream_doc_answer(deal_id: str, doc_id: str, query: str):
             }
             return
 
-        context_str = build_context_string(retrieved)
-        system_prompt = SINGLE_DEAL_SYSTEM.format(context=context_str)
-
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=query),
-        ]
-
-        full_answer = ""
-        async for chunk in stream_with_fallback(messages):
-            token = chunk.content
-            if token:
-                full_answer += token
-                yield {
-                    "doc_id": doc_id,
-                    "token": token,
-                    "done": False,
-                }
-
         # Pull every chunk for the cited document so citation snippets can be
         # enriched with same-page context — Docling sometimes captures table
         # headers in one chunk and the row values as text in another, and
         # top-k retrieval may not include both. (See citations._select_snippet.)
         full_doc_chunks = get_doc_page_chunks(deal_id, doc_id)
-        cleaned_answer, citations = extract_citations(
-            full_answer,
+
+        async for kind, payload in stream_extraction(
             retrieved,
+            query,
             deal_id=deal_id,
             page_context_chunks=full_doc_chunks,
-        )
-        meta = get_last_meta()
-        yield {
-            "doc_id": doc_id,
-            "answer": cleaned_answer,
-            "citations": [c.model_dump() if c else None for c in citations],
-            "done": True,
-            "model": meta.model_used if meta else "unknown",
-            "fallback": meta.fallback if meta else False,
-            "duration_ms": meta.duration_ms if meta else 0,
-        }
+        ):
+            if kind == "token":
+                yield {
+                    "doc_id": doc_id,
+                    "token": payload,
+                    "done": False,
+                }
+            else:
+                yield {
+                    "doc_id": doc_id,
+                    "answer": payload.answer,
+                    "citations": [c.model_dump() if c else None for c in payload.citations],
+                    "done": True,
+                    "model": payload.model or "unknown",
+                    "fallback": payload.fallback,
+                    "duration_ms": payload.duration_ms,
+                }
 
     except Exception as e:
         yield {
