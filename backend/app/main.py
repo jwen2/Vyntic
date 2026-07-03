@@ -56,6 +56,10 @@ app.include_router(workflow_runs_router)
 
 @app.on_event("startup")
 async def startup():
+    # Refuse production boot with shipped default secrets.
+    from app.config import assert_production_secrets, settings as app_settings
+    assert_production_secrets(app_settings)
+
     # Initialize database tables
     from app.database import init_db
     init_db()
