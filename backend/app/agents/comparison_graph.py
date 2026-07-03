@@ -1,42 +1,23 @@
 """
-Multi-deal comparison using LangGraph.
-Architecture: Manager -> Fan-out Workers (one per deal) -> Synthesis Agent.
-Enforces zero context leak by ensuring each worker only queries its own collection.
+Multi-deal comparison: parallel per-deal QA fan-out, then one synthesis call.
+
+Isolation guarantee unchanged: each answer_deal_question call loads only its
+own deal's context; the synthesizer sees structured per-deal answers, never
+raw chunks from other deals.
+
+(Previously a two-node LangGraph; the graph added a dependency without adding
+behavior — the fan-out was already a plain asyncio.gather inside one node.)
 """
 import asyncio
-import operator
-from typing import Annotated, TypedDict
-
-from langchain_core.messages import SystemMessage, HumanMessage
-from langgraph.graph import StateGraph, END
 
 from app.config import settings
 from app.models.query import QueryResponse, Citation
 from app.models.matrix import CellData
 from app.agents.single_deal_qa import answer_deal_question
-from app.agents.prompts import COMPARISON_SYSTEM
-from app.agents.llm import invoke_with_fallback
 
 
-class ComparisonState(TypedDict):
-    """State flowing through the comparison graph."""
-    query: str
-    deal_ids: list[str]
-    # Accumulated results from workers: dict of deal_id -> QueryResponse dict
-    deal_answers: Annotated[dict, operator.or_]
-    synthesis: str
-
-
-async def _worker_node(state: ComparisonState) -> dict:
-    """
-    Fan-out worker: queries a single deal's collection.
-    Each worker invocation handles ALL deals using asyncio for parallel execution.
-    ISOLATION: Each call to answer_deal_question queries only one collection.
-    """
-    query = state["query"]
-    deal_ids = state["deal_ids"]
-
-    # Run all deal queries in parallel with concurrency limit
+async def _gather_deal_answers(deal_ids: list[str], query: str) -> dict[str, dict]:
+    """Query every deal in parallel (bounded), one isolated call per deal."""
     semaphore = asyncio.Semaphore(settings.max_concurrent_llm_calls)
 
     async def query_with_limit(deal_id: str) -> tuple[str, QueryResponse]:
@@ -44,86 +25,26 @@ async def _worker_node(state: ComparisonState) -> dict:
             result = await answer_deal_question(deal_id, query)
             return deal_id, result
 
-    tasks = [query_with_limit(did) for did in deal_ids]
-    results = await asyncio.gather(*tasks)
-
-    deal_answers = {}
-    for deal_id, response in results:
-        deal_answers[deal_id] = response.model_dump()
-
-    return {"deal_answers": deal_answers}
-
-
-async def _synthesis_node(state: ComparisonState) -> dict:
-    """
-    Synthesize a comparative analysis from all deal answers.
-    Receives structured results, never raw document chunks from other deals.
-    """
-    query = state["query"]
-    deal_answers = state["deal_answers"]
-
-    # Format deal analyses for the comparison prompt
-    analyses_parts = []
-    for deal_id, answer_data in deal_answers.items():
-        answer_text = answer_data.get("answer", "No data available")
-        citations = answer_data.get("citations", [])
-        cite_str = ", ".join(
-            f"{c.get('source_file', 'unknown')} p.{c.get('page', '?')}"
-            for c in citations
-        )
-        analyses_parts.append(
-            f"**{deal_id}**: {answer_text}\n  Sources: {cite_str}"
-        )
-
-    deal_analyses_str = "\n\n".join(analyses_parts)
-    system_prompt = COMPARISON_SYSTEM.format(deal_analyses=deal_analyses_str)
-
-    synthesis = await invoke_with_fallback([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=f"Compare the following across all deals: {query}"),
-    ])
-
-    return {"synthesis": synthesis}
-
-
-def build_comparison_graph() -> StateGraph:
-    """Construct the LangGraph comparison workflow."""
-    graph = StateGraph(ComparisonState)
-
-    graph.add_node("worker", _worker_node)
-    graph.add_node("synthesizer", _synthesis_node)
-
-    graph.set_entry_point("worker")
-    graph.add_edge("worker", "synthesizer")
-    graph.add_edge("synthesizer", END)
-
-    return graph.compile()
+    results = await asyncio.gather(*(query_with_limit(did) for did in deal_ids))
+    return {deal_id: response.model_dump() for deal_id, response in results}
 
 
 async def compare_deals(deal_ids: list[str], query: str) -> dict[str, CellData]:
     """
-    Run the comparison graph for a single query across multiple deals.
+    Run the comparison for a single query across multiple deals.
     Returns: dict mapping deal_id -> CellData.
+
+    The old graph also ran a synthesis LLM call here and discarded the
+    result (only cells are returned); the streaming endpoint does its own
+    synthesis. That call is intentionally gone.
     """
-    graph = build_comparison_graph()
+    deal_answers = await _gather_deal_answers(deal_ids, query)
 
-    initial_state = {
-        "query": query,
-        "deal_ids": deal_ids,
-        "deal_answers": {},
-        "synthesis": "",
-    }
-
-    result = await graph.ainvoke(initial_state)
-
-    # Build CellData for each deal
-    cells = {}
-    deal_answers = result.get("deal_answers", {})
-
+    cells: dict[str, CellData] = {}
     for deal_id in deal_ids:
         answer_data = deal_answers.get(deal_id, {})
         citations = [
-            Citation(**c) for c in answer_data.get("citations", [])
+            Citation(**c) for c in answer_data.get("citations", []) if c is not None
         ]
         cells[deal_id] = CellData(
             answer=answer_data.get("answer", "No data available"),
