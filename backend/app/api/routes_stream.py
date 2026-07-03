@@ -12,10 +12,10 @@ from app.config import settings
 from app.models.matrix import MatrixRequest
 from app.services import deal_store
 from app.services.context_provider import load_deal_context
+from app.services.extraction_engine import stream_extraction
 from app.database import UserRow
 from app.auth import get_current_user, require_deal_access
-from app.utils.citations import build_context_string, extract_citations
-from app.agents.prompts import SINGLE_DEAL_SYSTEM, COMPARISON_SYSTEM
+from app.agents.prompts import COMPARISON_SYSTEM
 
 from langchain_core.messages import SystemMessage, HumanMessage
 from app.agents.llm import stream_with_fallback, get_last_meta
@@ -46,38 +46,25 @@ async def _stream_deal_answer(deal_id: str, question: str):
             }
             return
 
-        context_str = build_context_string(retrieved)
-        system_prompt = SINGLE_DEAL_SYSTEM.format(context=context_str)
-
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=question),
-        ]
-
-        full_answer = ""
-        async for chunk in stream_with_fallback(messages):
-            token = chunk.content
-            if token:
-                full_answer += token
+        async for kind, payload in stream_extraction(retrieved, question, deal_id=deal_id):
+            if kind == "token":
                 yield {
                     "type": "token",
                     "deal_id": deal_id,
                     "query": question,
-                    "token": token,
+                    "token": payload,
                 }
-
-        cleaned_answer, citations = extract_citations(full_answer, retrieved, deal_id=deal_id)
-        meta = get_last_meta()
-        yield {
-            "type": "done",
-            "deal_id": deal_id,
-            "query": question,
-            "answer": cleaned_answer,
-            "citations": [c.model_dump() if c else None for c in citations],
-            "model": meta.model_used if meta else "unknown",
-            "fallback": meta.fallback if meta else False,
-            "duration_ms": meta.duration_ms if meta else 0,
-        }
+            else:
+                yield {
+                    "type": "done",
+                    "deal_id": deal_id,
+                    "query": question,
+                    "answer": payload.answer,
+                    "citations": [c.model_dump() if c else None for c in payload.citations],
+                    "model": payload.model or "unknown",
+                    "fallback": payload.fallback,
+                    "duration_ms": payload.duration_ms,
+                }
 
     except Exception as e:
         yield {
