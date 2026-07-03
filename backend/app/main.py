@@ -15,7 +15,6 @@ from app.api.routes_stream import router as stream_router
 from app.api.routes_doc_matrix import router as doc_matrix_router
 from app.api.routes_auth import router as auth_router
 from app.api.routes_conversation import router as conversation_router
-from app.api.routes_internal import router as internal_router
 from app.api.routes_workflows import router as workflows_router
 from app.api.routes_workflow_runs import router as workflow_runs_router
 
@@ -51,7 +50,6 @@ app.include_router(matrix_router)
 app.include_router(stream_router)
 app.include_router(doc_matrix_router)
 app.include_router(conversation_router)
-app.include_router(internal_router)
 app.include_router(workflows_router)
 app.include_router(workflow_runs_router)
 

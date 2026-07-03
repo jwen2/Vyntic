@@ -23,8 +23,6 @@ node_modules/
 data/*
 !data/.gitkeep
 backend/data/*
-ai-service/data/*
-!ai-service/data/.gitkeep
 
 # OS
 .DS_Store

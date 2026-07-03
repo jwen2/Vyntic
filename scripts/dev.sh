@@ -18,11 +18,6 @@ trap cleanup EXIT
 ) &
 
 (
-  cd "$ROOT_DIR/ai-service"
-  npm run dev
-) &
-
-(
   cd "$ROOT_DIR/frontend"
   npm run dev
 ) &

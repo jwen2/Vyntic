@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "CHANGE-ME-in-production-use-a-real-secret"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
-    internal_api_token: str = "CHANGE-ME-in-production-use-a-random-internal-token"
     default_admin_email: str = "admin@vyntic.com"
     default_admin_password: str = "admin"
 
