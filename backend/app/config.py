@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "CHANGE-ME-in-production-use-a-real-secret"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
-    internal_api_token: str = "CHANGE-ME-in-production-use-a-random-internal-token"
     default_admin_email: str = "admin@vyntic.com"
     default_admin_password: str = "admin"
 
@@ -61,8 +60,28 @@ class Settings(BaseSettings):
     seed_sample_data: bool = True
     full_context_mode: bool = True
 
+    # Deployment environment: "development" | "production"
+    environment: str = "development"
+
     class Config:
         env_file = ".env"
 
 
 settings = Settings()
+
+
+def assert_production_secrets(s: Settings) -> None:
+    """Refuse to run production with shipped default credentials/secrets."""
+    if s.environment != "production":
+        return
+    offenders = []
+    if s.jwt_secret_key.startswith("CHANGE-ME"):
+        offenders.append("JWT_SECRET_KEY")
+    if s.default_admin_password == "admin":
+        offenders.append("DEFAULT_ADMIN_PASSWORD")
+    if offenders:
+        raise RuntimeError(
+            "Refusing to start in production with default secrets: "
+            + ", ".join(offenders)
+            + ". Set real values in the environment."
+        )

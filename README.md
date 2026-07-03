@@ -14,7 +14,7 @@ AI-native diligence workspace for private equity. Three focused surfaces:
 
 PE analysts spend hundreds of hours during due diligence manually reading CIMs, quality-of-earnings reports, and financial models. The bottleneck isn't access to data; it's the time it takes to extract, compare, and synthesize insights across deal rooms that can run thousands of pages.
 
-Vyntic compresses that work without ever pulling answers from the model's priors. Every claim ties back to the exact page and snippet it came from. Per-deal vector isolation guarantees zero cross-deal context bleed.
+Vyntic compresses that work without ever pulling answers from the model's priors. Every claim ties back to the exact page and snippet it came from. Context is always loaded per deal — zero cross-deal context bleed.
 
 ---
 
@@ -98,7 +98,7 @@ Compact **📄 N** button in the TopBar of every deal page. Opens a modal listin
 
 ```
 +-----------------------------------------------------------------+
-|                       Frontend (Next.js 14)                     |
+|              Frontend (Vite + React 18 + react-router)          |
 |                                                                 |
 |  /              — Dashboard: deal list + per-deal Doc Matrix    |
 |  /deal/[id]     — Workspace: Agent / Workflows / Brief tabs     |
@@ -106,46 +106,51 @@ Compact **📄 N** button in the TopBar of every deal page. Opens a modal listin
 |  /login         — JWT login                                     |
 |                                                                 |
 +--------------------------------+--------------------------------+
-                                 | JWT + SSE
+                                 | JWT + SSE (/api proxy)
 +--------------------------------v--------------------------------+
 |                     Backend (FastAPI, Python 3.12)              |
 |                                                                 |
 |  Routes: auth · deals · ingest · query · matrix · stream        |
 |          doc_matrix · workflows · workflow_runs · conversation  |
-|          internal                                               |
 |                                                                 |
 |  Services:                                                      |
-|   parser (Docling subprocess) → chunker → embedder → vector_store
+|   parser (Docling subprocess) → full_text_md (primary context)  |
+|   extraction_engine — the one primitive: context → prompt →     |
+|     stream w/ fallback → typed answer + citations; used by      |
+|     chat, tabular cells, assistant stages, doc matrix, compare  |
+|   context_provider — full-context (default) or RAG strategy     |
 |   workflow_store · workflow_run_store · workflow_run_executor   |
 |   workflow_seed (built-in templates + reconciliation)           |
 |   workflow_format (typed-cell directives + parsers)             |
 |   workflow_exports (.xlsx / .docx)                              |
 |   deal_store · conversation_store                               |
 |                                                                 |
-|  ChromaDB — collection-per-deal, doc_id metadata filter for     |
-|             per-document retrieval                              |
+|  SQLite — users, deals, deal access, documents (incl.           |
+|           full_text_md), workflows, workflow_runs,              |
+|           tabular_cells, conversation history                   |
 |                                                                 |
-|  SQLite — users, deals, deal access, documents, workflows,      |
-|           workflow_runs, tabular_cells, conversation history    |
+|  ChromaDB — optional RAG path (full_context_mode=false):        |
+|             collection-per-deal, doc_id metadata filter         |
 |                                                                 |
 |  Google Gemini AI Studio                                        |
 |   gemini-3.1-flash-lite          (primary, GA)                  |
 |   gemini-3-flash-preview         (fallback)                     |
-|   gemini-embedding-001           (3072-dim)                     |
+|   gemini-embedding-001           (3072-dim, RAG mode only)      |
 +-----------------------------------------------------------------+
 ```
 
 ## Key design decisions
 
-- **Per-deal vector isolation** — each deal gets its own ChromaDB collection. Per-document retrieval uses a `doc_id` metadata filter to guarantee zero context bleed.
-- **JWT auth + RBAC** — `admin` and `analyst` roles, per-deal access control via `DealAccessRow`. Admin-only actions (create deals, delete deals, upload docs, edit stage) gated in both UI and API.
-- **Typed cells** — every workflow column declares a shape; the executor appends a JSON/format directive to the LLM prompt and parses the structured response into `answer_formatted`. Renderers consume the typed shape directly. The new `markdown` shape skips the JSON directive for columns whose prompts need rich markdown (tables, multi-section narrative).
+- **Full-context by default** — documents are parsed once into `full_text_md` and the whole document (or corpus, up to a token budget) is sent as context. Simpler and cheaper to maintain than the RAG pipeline, which stays available behind `context_provider` (`FULL_CONTEXT_MODE=false`) as a per-request strategy for the future.
+- **One extraction engine** — every surface (chat, tabular cells, assistant stages, doc matrix, multi-deal compare) answers through `extraction_engine.run_extraction`: context → prompt → stream with fallback → citations. Grounding/citation fixes apply everywhere at once.
+- **Per-deal isolation** — context is always loaded per deal (and per document via `doc_id`); in RAG mode each deal additionally gets its own ChromaDB collection. Zero cross-deal context bleed either way.
+- **JWT auth + RBAC** — `admin` and `analyst` roles, per-deal access control via `DealAccessRow`. Admin-only actions (create deals, delete deals, upload docs, edit stage) enforced in the API (`require_admin`) and reflected in the UI.
+- **Typed cells** — every workflow column declares a shape; the executor appends a JSON/format directive to the LLM prompt and parses the structured response into `answer_formatted`. Renderers consume the typed shape directly. The `markdown` shape skips the JSON directive for columns whose prompts need rich markdown (tables, multi-section narrative).
 - **Built-in reconciliation** — `seed_builtin_workflows` runs on every startup and patches existing built-in workflow rows in place when source code drifts. Column IDs preserved → existing run history keeps working.
-- **Bounded retrieval-query length** — `_tabular_retrieval_query` caps the prompt portion at ~280 chars. Long format directives dilute the vector-search signal and silently empty cells; the LLM still sees the full prompt.
-- **Docling in subprocess** — PDF parsing runs in a spawned process with conservative CPU/thread/timeout defaults so macOS startup ingestion never crashes the API process.
-- **Two-tier model fallback** — automatic switch from `gemini-3.1-flash-lite` → `gemini-3-flash-preview` on rate-limit, with the serving model badged on every cell.
+- **Run lifecycle is DB-truth** — cells/stages are claimed atomically (`queued → running`), cancel stops all queued work and the run stays `cancelled`, and a startup reconciler marks runs stranded by a restart as errored (checkpoint-paused runs survive restarts and resume via approve).
+- **Docling in subprocess** — PDF parsing runs in a spawned process with conservative CPU/thread/timeout defaults so local startup ingestion never crashes the API process.
+- **Two-tier model fallback** — automatic switch from `gemini-3.1-flash-lite` → `gemini-3-flash-preview` when the primary fails before its first token, with the serving model badged on every cell. Mid-stream failures error the cell cleanly (retry from the UI) rather than restarting the answer.
 - **Streaming everywhere** — SSE for chat answers, tabular cell completion, assistant stage outputs, run status transitions.
-- **`.next` anon volume** — frontend-dev container isolates its build cache from the host bind mount; macOS FS sync lag no longer corrupts vendor chunks during heavy rebuilds.
 
 ---
 
@@ -154,17 +159,16 @@ Compact **📄 N** button in the TopBar of every deal page. Opens a modal listin
 | Component | Technology |
 |---|---|
 | **LLM (primary)** | Gemini 3.1 Flash Lite (GA) via Google AI Studio |
-| **LLM (fallback)** | Gemini 3 Flash (preview) — automatic on rate-limit |
-| **Embeddings** | `gemini-embedding-001`, 3072-dim |
-| **Orchestration** | LangGraph (manager/worker state graph for multi-deal compare) |
-| **Relational DB** | SQLite via SQLAlchemy |
-| **Vector DB** | ChromaDB (embedded, collection-per-deal) |
+| **LLM (fallback)** | Gemini 3 Flash (preview) — automatic on pre-token failure |
+| **Embeddings** | `gemini-embedding-001`, 3072-dim (RAG mode only) |
+| **Relational DB** | SQLite via SQLAlchemy (WAL, FK enforcement on) |
+| **Vector DB** | ChromaDB (embedded, collection-per-deal; optional RAG mode) |
 | **PDF parsing** | Docling (subprocess, configurable CPU/threads/timeout) |
 | **Excel parsing** | openpyxl |
 | **DOCX generation** | python-docx |
 | **Backend** | FastAPI (Python 3.12) |
-| **Auth** | JWT (python-jose, passlib/bcrypt) |
-| **Frontend** | Next.js 14, React 18, TailwindCSS, DM Sans / DM Mono |
+| **Auth** | JWT (python-jose, bcrypt) |
+| **Frontend** | Vite 5, React 18, react-router, TailwindCSS, DM Sans / DM Mono |
 | **Streaming** | Server-Sent Events (SSE) |
 
 ---
@@ -204,8 +208,8 @@ docker compose up --build -d
 Three containers come up:
 
 - `backend` — FastAPI on **port 8000**
-- `frontend` — production `next build && next start` on **port 3100**
-- `frontend-dev` — `next dev` with hot reload on **port 3200**
+- `frontend` — production `vite build` served by `vite preview` on **port 3100**
+- `frontend-dev` — `vite` dev server with hot reload on **port 3200**
 
 ### 3. Verify
 
@@ -225,11 +229,10 @@ Sample deals seed automatically with documents and are bound to the admin accoun
 
 ### Restarting after frontend changes
 
-Port 3100 runs a production build, so changes require a rebuild:
+Port 3100 serves a production build baked into the image, so changes require a rebuild:
 
 ```bash
-docker compose restart frontend         # re-runs start-prod.sh
-docker compose up -d --build frontend   # full image rebuild
+docker compose up -d --build frontend   # rebuild image (runs vite build)
 ```
 
 Port 3200 hot-reloads — use it during active development.
@@ -260,10 +263,14 @@ pytest -v
 
 ### Frontend
 
+There is no frontend test framework yet; the type gate is the build:
+
 ```bash
 cd frontend
-npm test
+npm run build   # runs tsc, then vite build
 ```
+
+Both suites run in CI on every PR (`.github/workflows/ci.yml`).
 
 ---
 
@@ -320,9 +327,9 @@ npm test
 | Rate-limit errors | Auto-falls back to `gemini-3-flash-preview`; wait and retry |
 | Empty query results | Confirm documents uploaded (deal doc count > 0) |
 | Port 8000/3100/3200 in use | `lsof -i :PORT -t \| xargs kill` |
-| Frontend serves stale JS on 3100 | `docker compose restart frontend` (re-runs production build) or `docker compose up -d --build frontend` |
-| `Cannot find module './vendor-chunks/...'` on 3200 | The dev `.next` is in an anon volume; reset with `docker compose down frontend-dev && docker compose up -d frontend-dev` |
-| ChromaDB dimension mismatch | Ensure `EMBEDDING_DIM=3072` matches `gemini-embedding-001` output |
+| Frontend serves stale JS on 3100 | `docker compose up -d --build frontend` (the build is baked into the image) |
+| ChromaDB dimension mismatch (RAG mode) | Ensure `EMBEDDING_DIM=3072` matches `gemini-embedding-001` output |
 | Docling crashes on macOS | Keep `DOCLING_SUBPROCESS_ENABLED=true`, `DOCLING_DEVICE=cpu` |
 | PDF preview shows "Not authenticated" | Hard-refresh; iframe uses `?token=` query — confirm token isn't expired |
 | Built-in workflow has stale prompt/format | Restart backend; `_reconcile_builtin_columns` patches existing rows in place |
+| Run shows "Interrupted by server restart" | The backend restarted mid-run; retry the affected cells (or the whole run) from the run UI |

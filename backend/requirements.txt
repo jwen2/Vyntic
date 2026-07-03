@@ -8,7 +8,6 @@ pydantic-settings>=2.7.0,<3.0
 langchain-google-genai>=2.0.0
 google-generativeai>=0.8.0
 langchain-core>=0.3.0,<1.0
-langgraph>=0.2.60,<1.0
 
 # Vector DB (local)
 chromadb>=0.5.0,<1.0

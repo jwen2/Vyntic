@@ -4,6 +4,7 @@ Shared LLM helper with automatic fallback from primary to backup model.
 import logging
 import os
 import time
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import BaseMessage
@@ -21,8 +22,10 @@ class LLMCallMeta:
     duration_ms: int = 0
 
 
-# Stores the metadata for the most recent stream call per-task
-_last_meta: LLMCallMeta | None = None
+# Metadata for the most recent stream call, isolated per asyncio task via
+# ContextVar — concurrent streams (cells, doc matrix, chat) must not stomp
+# each other's model/fallback/duration attribution.
+_last_meta: ContextVar[LLMCallMeta | None] = ContextVar("llm_last_meta", default=None)
 
 
 class LLMConfigurationError(RuntimeError):
@@ -30,7 +33,7 @@ class LLMConfigurationError(RuntimeError):
 
 
 def get_last_meta() -> LLMCallMeta | None:
-    return _last_meta
+    return _last_meta.get()
 
 
 def ensure_llm_configured() -> None:
@@ -48,7 +51,6 @@ def get_llm(model: str | None = None) -> ChatGoogleGenerativeAI:
         model=model or settings.gemini_model,
         google_api_key=settings.gemini_api_key,
         max_output_tokens=settings.max_tokens,
-        convert_system_message_to_human=True,
     )
 
 
@@ -70,32 +72,37 @@ async def invoke_with_fallback(messages: list[BaseMessage]) -> str:
 
 
 async def stream_with_fallback(messages: list[BaseMessage]):
-    """Stream from the primary model; fall back to backup on error.
+    """Stream from the primary model; fall back to backup on pre-token error.
+
+    Fallback only happens if the primary failed BEFORE yielding any token —
+    falling back mid-stream would restart the answer while consumers keep
+    appending, duplicating content. Mid-stream failures raise; callers'
+    existing error/retry paths handle them.
 
     After iteration completes, call get_last_meta() to get model/timing info.
     """
-    global _last_meta
     meta = LLMCallMeta()
     t0 = time.monotonic()
+    yielded_any = False
 
     try:
         meta.model_used = settings.gemini_model
         llm = get_llm(settings.gemini_model)
         async for chunk in llm.astream(messages):
+            yielded_any = True
             yield chunk
     except LLMConfigurationError:
         raise
     except Exception as e:
-        if settings.gemini_fallback_model:
-            logger.warning(f"Primary model failed ({e}), falling back to {settings.gemini_fallback_model}")
-            meta.model_used = settings.gemini_fallback_model
-            meta.fallback = True
-            meta.error = str(e)
-            llm = get_llm(settings.gemini_fallback_model)
-            async for chunk in llm.astream(messages):
-                yield chunk
-        else:
+        if yielded_any or not settings.gemini_fallback_model:
             raise
+        logger.warning(f"Primary model failed ({e}), falling back to {settings.gemini_fallback_model}")
+        meta.model_used = settings.gemini_fallback_model
+        meta.fallback = True
+        meta.error = str(e)
+        llm = get_llm(settings.gemini_fallback_model)
+        async for chunk in llm.astream(messages):
+            yield chunk
     finally:
         meta.duration_ms = int((time.monotonic() - t0) * 1000)
-        _last_meta = meta
+        _last_meta.set(meta)

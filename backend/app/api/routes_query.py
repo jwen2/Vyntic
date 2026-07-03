@@ -11,17 +11,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.agents.llm import get_last_meta, stream_with_fallback
-from app.agents.prompts import SINGLE_DEAL_SYSTEM
 from app.agents.single_deal_qa import answer_deal_question
 from app.auth import get_current_user, require_deal_access
 from app.database import UserRow
 from app.models.query import QueryRequest, QueryResponse
 from app.services import deal_store
-from app.services.vector_store import query_deal
-from app.utils.citations import build_context_string, extract_citations
-
-from langchain_core.messages import HumanMessage, SystemMessage
+from app.services.context_provider import load_deal_context
+from app.services.extraction_engine import stream_extraction
 
 
 router = APIRouter(prefix="/deals/{deal_id}/query", tags=["query"])
@@ -48,7 +44,7 @@ async def query_deal_route(deal_id: str, request: QueryRequest, current_user: Us
 async def _stream_answer(deal_id: str, question: str):
     """SSE event generator for a single question against a deal."""
     try:
-        retrieved = await query_deal(deal_id, question)
+        retrieved = await load_deal_context(deal_id, question)
 
         if not retrieved:
             yield {
@@ -60,38 +56,25 @@ async def _stream_answer(deal_id: str, question: str):
             }
             return
 
-        context_str = build_context_string(retrieved)
-        system_prompt = SINGLE_DEAL_SYSTEM.format(context=context_str)
-
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=question),
-        ]
-
-        full_answer = ""
-        async for chunk in stream_with_fallback(messages):
-            token = chunk.content
-            if token:
-                full_answer += token
+        async for kind, payload in stream_extraction(retrieved, question, deal_id=deal_id):
+            if kind == "token":
                 yield {
                     "type": "token",
                     "deal_id": deal_id,
                     "question": question,
-                    "token": token,
+                    "token": payload,
                 }
-
-        cleaned_answer, citations = extract_citations(full_answer, retrieved, deal_id=deal_id)
-        meta = get_last_meta()
-        yield {
-            "type": "done",
-            "deal_id": deal_id,
-            "question": question,
-            "answer": cleaned_answer,
-            "citations": [c.model_dump() if c else None for c in citations],
-            "model": meta.model_used if meta else "unknown",
-            "fallback": meta.fallback if meta else False,
-            "duration_ms": meta.duration_ms if meta else 0,
-        }
+            else:
+                yield {
+                    "type": "done",
+                    "deal_id": deal_id,
+                    "question": question,
+                    "answer": payload.answer,
+                    "citations": [c.model_dump() if c else None for c in payload.citations],
+                    "model": payload.model or "unknown",
+                    "fallback": payload.fallback,
+                    "duration_ms": payload.duration_ms,
+                }
 
     except Exception as e:
         yield {

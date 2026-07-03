@@ -15,7 +15,6 @@ from app.api.routes_stream import router as stream_router
 from app.api.routes_doc_matrix import router as doc_matrix_router
 from app.api.routes_auth import router as auth_router
 from app.api.routes_conversation import router as conversation_router
-from app.api.routes_internal import router as internal_router
 from app.api.routes_workflows import router as workflows_router
 from app.api.routes_workflow_runs import router as workflow_runs_router
 
@@ -51,16 +50,26 @@ app.include_router(matrix_router)
 app.include_router(stream_router)
 app.include_router(doc_matrix_router)
 app.include_router(conversation_router)
-app.include_router(internal_router)
 app.include_router(workflows_router)
 app.include_router(workflow_runs_router)
 
 
 @app.on_event("startup")
 async def startup():
+    # Refuse production boot with shipped default secrets.
+    from app.config import assert_production_secrets, settings as app_settings
+    assert_production_secrets(app_settings)
+
     # Initialize database tables
     from app.database import init_db
     init_db()
+
+    # Mark runs stranded by the previous process as errored — executor tasks
+    # are in-process and do not survive restarts.
+    from app.services.workflow_run_store import reconcile_interrupted_runs
+    reconciled = reconcile_interrupted_runs()
+    if reconciled:
+        logger.info(f"Reconciled {reconciled} run(s) interrupted by restart")
 
     # Create default admin user if it doesn't exist
     from app.config import settings
