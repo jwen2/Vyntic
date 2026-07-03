@@ -129,7 +129,7 @@ Deletes now cascade correctly (FK fix) but are permanent — no soft-delete, ret
 
 ## Remediation roadmap (defensible sequencing)
 
-**Implementation plans** (in `docs/superpowers/plans/`) group these findings into workstreams:
+**Implementation plans** (in `docs/todo/`) group these findings into workstreams:
 
 | Plan | Covers | Depends on |
 |---|---|---|
