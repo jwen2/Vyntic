@@ -128,6 +128,17 @@ async def get_current_user_or_query_token(
     )
 
 
+def require_admin(user: UserRow) -> None:
+    """Raise 403 unless the user is an admin. Guards the mutations the README
+    documents as admin-only: create/delete deals, upload/delete documents,
+    edit stage."""
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+
+
 def verify_deal_access(user: UserRow, deal_id: str) -> bool:
     """Check that user has access to the specified deal. Admins bypass."""
     if user.is_admin:

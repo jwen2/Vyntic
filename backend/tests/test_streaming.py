@@ -1,11 +1,25 @@
 """
-Tests for Phase 1, Feature 1: Streaming SSE responses.
+Tests for streaming SSE responses.
 Tests the /matrix/compare/stream endpoint and SSE event format.
+
+Patch targets follow the current architecture: retrieval via
+routes_stream.load_deal_context (context provider), LLM streaming via the
+extraction engine's stream_with_fallback.
 """
 import json
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
+
+
+def _fake_llm_stream(tokens):
+    async def stream(messages):
+        for token in tokens:
+            msg = MagicMock()
+            msg.content = token
+            yield msg
+
+    return stream
 
 
 class TestStreamingEndpoint:
@@ -29,8 +43,8 @@ class TestStreamingEndpoint:
 
     def test_stream_returns_event_stream_content_type(self, client, sample_deal):
         """Streaming response has text/event-stream content type."""
-        with patch("app.api.routes_stream.query_deal", new_callable=AsyncMock) as mock_query:
-            mock_query.return_value = []  # No docs → quick "no docs" response
+        with patch("app.api.routes_stream.load_deal_context", new_callable=AsyncMock) as mock_ctx:
+            mock_ctx.return_value = []  # No docs → quick "no docs" response
 
             resp = client.post("/matrix/compare/stream", json={
                 "deal_ids": [sample_deal.deal_id],
@@ -41,8 +55,8 @@ class TestStreamingEndpoint:
 
     def test_stream_emits_done_event_for_no_docs(self, client, sample_deal):
         """When no docs exist, stream emits a done event with appropriate message."""
-        with patch("app.api.routes_stream.query_deal", new_callable=AsyncMock) as mock_query:
-            mock_query.return_value = []
+        with patch("app.api.routes_stream.load_deal_context", new_callable=AsyncMock) as mock_ctx:
+            mock_ctx.return_value = []
 
             resp = client.post("/matrix/compare/stream", json={
                 "deal_ids": [sample_deal.deal_id],
@@ -61,23 +75,14 @@ class TestStreamingEndpoint:
         """When docs exist, stream emits token events followed by a done event."""
         mock_chunks = [
             {"content": "Test content", "source_file": "test.pdf", "page": 1,
-             "section_type": "text", "similarity_score": 0.9}
+             "doc_id": "doc-1", "section_type": "text", "score": 0.9}
         ]
 
-        # Mock the LLM to stream tokens
-        async def fake_astream(*args, **kwargs):
-            for token in ["Revenue ", "is ", "$10M"]:
-                msg = MagicMock()
-                msg.content = token
-                yield msg
+        with patch("app.api.routes_stream.load_deal_context", new_callable=AsyncMock) as mock_ctx, \
+             patch("app.services.extraction_engine.stream_with_fallback",
+                   new=_fake_llm_stream(["Revenue ", "is ", "$10M"])):
 
-        with patch("app.api.routes_stream.query_deal", new_callable=AsyncMock) as mock_query, \
-             patch("app.api.routes_stream.ChatOllama") as mock_llm_class:
-
-            mock_query.return_value = mock_chunks
-            mock_llm = MagicMock()
-            mock_llm.astream = fake_astream
-            mock_llm_class.return_value = mock_llm
+            mock_ctx.return_value = mock_chunks
 
             resp = client.post("/matrix/compare/stream", json={
                 "deal_ids": [sample_deal.deal_id],
@@ -97,8 +102,8 @@ class TestStreamingEndpoint:
 
     def test_stream_handles_multiple_deals(self, client, three_deals):
         """Stream handles multiple deals in a single request."""
-        with patch("app.api.routes_stream.query_deal", new_callable=AsyncMock) as mock_query:
-            mock_query.return_value = []
+        with patch("app.api.routes_stream.load_deal_context", new_callable=AsyncMock) as mock_ctx:
+            mock_ctx.return_value = []
 
             deal_ids = [d.deal_id for d in three_deals]
             resp = client.post("/matrix/compare/stream", json={
@@ -107,14 +112,17 @@ class TestStreamingEndpoint:
             })
 
             events = _parse_sse_events(resp.text)
-            done_events = [e for e in events if e["type"] == "done"]
+            done_events = [
+                e for e in events
+                if e["type"] == "done" and e["deal_id"] != "__synthesis__"
+            ]
             done_deal_ids = {e["deal_id"] for e in done_events}
             assert done_deal_ids == set(deal_ids)
 
     def test_stream_error_event_on_exception(self, client, sample_deal):
-        """Stream emits error event when LLM raises exception."""
-        with patch("app.api.routes_stream.query_deal", new_callable=AsyncMock) as mock_query:
-            mock_query.side_effect = RuntimeError("LLM connection failed")
+        """Stream emits error event when retrieval raises an exception."""
+        with patch("app.api.routes_stream.load_deal_context", new_callable=AsyncMock) as mock_ctx:
+            mock_ctx.side_effect = RuntimeError("LLM connection failed")
 
             resp = client.post("/matrix/compare/stream", json={
                 "deal_ids": [sample_deal.deal_id],

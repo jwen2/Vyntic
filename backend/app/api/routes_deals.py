@@ -11,13 +11,20 @@ from app.models.deal import Deal, DealCreate, DealUpdate, DEAL_STAGES, SECTOR_TA
 from app.models.document import DocumentMetadata
 from app.services import deal_store
 from app.database import UserRow
-from app.auth import get_current_user, get_current_user_or_query_token, require_deal_access, grant_deal_access
+from app.auth import (
+    get_current_user,
+    get_current_user_or_query_token,
+    grant_deal_access,
+    require_admin,
+    require_deal_access,
+)
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
 
 @router.post("", response_model=Deal)
 def create_deal(data: DealCreate, current_user: UserRow = Depends(get_current_user)):
+    require_admin(current_user)
     try:
         deal = deal_store.create_deal(data)
         # Auto-grant access to the creator
@@ -56,6 +63,10 @@ def get_deal(deal_id: str, current_user: UserRow = Depends(get_current_user)):
 @router.patch("/{deal_id}", response_model=Deal)
 def update_deal(deal_id: str, data: DealUpdate, current_user: UserRow = Depends(get_current_user)):
     require_deal_access(current_user, deal_id)
+    if data.stage is not None:
+        # Stage moves are admin-only per the access model; analysts may still
+        # edit name/description/tags on deals they can access.
+        require_admin(current_user)
     deal = deal_store.update_deal(deal_id, data)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -73,7 +84,7 @@ def list_deal_documents(deal_id: str, current_user: UserRow = Depends(get_curren
 
 @router.delete("/{deal_id}")
 async def delete_deal(deal_id: str, current_user: UserRow = Depends(get_current_user)):
-    require_deal_access(current_user, deal_id)
+    require_admin(current_user)
     from app.services.vector_store import delete_deal_vectors
 
     if not deal_store.delete_deal(deal_id):

@@ -164,16 +164,21 @@ class TestMultiFileUpload:
         """Batch upload increments deal document_count for each file."""
         from app.models.document import DocumentMetadata
 
-        mock_parse.return_value = (
-            DocumentMetadata(
-                doc_id="doc_1",
-                deal_id=sample_deal.deal_id,
-                filename="test.pdf",
-                page_count=1,
-                chunk_count=0,
-            ),
-            [],
-        )
+        # Distinct doc_ids per parsed file — real ingestion generates a fresh
+        # uuid per upload; a shared id collides on the documents primary key.
+        mock_parse.side_effect = [
+            (
+                DocumentMetadata(
+                    doc_id=f"doc_{i}",
+                    deal_id=sample_deal.deal_id,
+                    filename=name,
+                    page_count=1,
+                    chunk_count=0,
+                ),
+                [],
+            )
+            for i, name in enumerate(["a.pdf", "b.pdf"], start=1)
+        ]
         mock_upsert.return_value = None
 
         files = [

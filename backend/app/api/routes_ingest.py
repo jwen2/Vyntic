@@ -13,7 +13,7 @@ from app.services.chunker import chunk_sections
 from app.services.vector_store import upsert_chunks, delete_doc_vectors
 from app.services import deal_store
 from app.database import UserRow
-from app.auth import get_current_user, require_deal_access
+from app.auth import get_current_user, require_admin, require_deal_access
 
 router = APIRouter(prefix="/deals/{deal_id}/documents", tags=["ingestion"])
 
@@ -341,7 +341,7 @@ async def ingest_document(
     current_user: UserRow = Depends(get_current_user),
 ):
     """Upload and ingest a single document into a deal's namespace."""
-    require_deal_access(current_user, deal_id)
+    require_admin(current_user)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -379,7 +379,7 @@ async def get_ingest_progress(
 @router.delete("/{doc_id}")
 async def delete_document(deal_id: str, doc_id: str, current_user: UserRow = Depends(get_current_user)):
     """Delete a document and its vectors from a deal."""
-    require_deal_access(current_user, deal_id)
+    require_admin(current_user)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -415,7 +415,7 @@ async def ingest_batch(
     current_user: UserRow = Depends(get_current_user),
 ):
     """Upload and ingest multiple documents at once into a deal's namespace."""
-    require_deal_access(current_user, deal_id)
+    require_admin(current_user)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")

@@ -1,11 +1,12 @@
 """
 Shared test fixtures for Vyntic backend tests.
-Uses an in-memory SQLite database for isolation between tests.
+Uses a scratch SQLite database, reset between tests.
 """
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.auth import create_access_token, create_user, grant_deal_access
 from app.database import Base, engine, SessionLocal
 from app.services import deal_store
 from app.models.deal import DealCreate
@@ -21,10 +22,47 @@ def clear_store():
     Base.metadata.create_all(bind=engine)
 
 
+def _client_for(user) -> TestClient:
+    token = create_access_token({"sub": str(user.id)})
+    c = TestClient(app)
+    c.headers.update({"Authorization": f"Bearer {token}"})
+    return c
+
+
 @pytest.fixture
-def client():
-    """FastAPI test client."""
-    return TestClient(app)
+def admin_user(clear_store):
+    return create_user(
+        email="admin@test.com", password="pw", full_name="Admin", is_admin=True
+    )
+
+
+@pytest.fixture
+def analyst_user(clear_store):
+    return create_user(
+        email="analyst@test.com", password="pw", full_name="Analyst", is_admin=False
+    )
+
+
+@pytest.fixture
+def client(admin_user):
+    """FastAPI test client authenticated as an admin."""
+    return _client_for(admin_user)
+
+
+@pytest.fixture
+def analyst_client(analyst_user):
+    """FastAPI test client authenticated as a non-admin analyst."""
+    return _client_for(analyst_user)
+
+
+@pytest.fixture
+def grant_analyst_access(analyst_user):
+    """Grant the analyst fixture access to a deal id."""
+
+    def _grant(deal_id: str):
+        grant_deal_access(analyst_user.id, deal_id, role="analyst")
+
+    return _grant
 
 
 @pytest.fixture
