@@ -7,6 +7,8 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
+
 from app.api.routes_deals import router as deals_router
 from app.api.routes_ingest import router as ingest_router
 from app.api.routes_query import router as query_router
@@ -30,12 +32,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3100",
-        "http://localhost:3200",
-        "http://localhost:3300",
-        "http://localhost:3400",
+        origin.strip()
+        for origin in settings.cors_origins.split(",")
+        if origin.strip()
     ],
     allow_credentials=True,
     allow_methods=["*"],

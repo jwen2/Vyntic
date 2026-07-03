@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # Deployment environment: "development" | "production"
     environment: str = "development"
 
+    # Comma-separated list of allowed browser origins for CORS.
+    cors_origins: str = "http://localhost:3100,http://localhost:3200"
+
     # Explicit dev-only opt-in to run with the shipped default secrets.
     # Production must never set this.
     allow_insecure_defaults: bool = False
