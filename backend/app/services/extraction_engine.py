@@ -9,6 +9,7 @@ matrix, and multi-deal compare simultaneously.
 this engine — it synthesizes over already-extracted answers with its own
 COMPARISON_SYSTEM prompt, a different primitive.)
 """
+import asyncio
 from dataclasses import dataclass, field
 from typing import Awaitable, Callable
 
@@ -37,11 +38,14 @@ async def run_extraction(
     deal_id: str | None = None,
     page_context_chunks: list[dict] | None = None,
     require_citations: bool = False,
+    empty_context_placeholder: str | None = None,
     on_token: Callable[[str], Awaitable[None]] | None = None,
 ) -> ExtractionResult:
     """Answer `user_message` grounded in `chunks`.
 
-    - Empty `chunks` short-circuits without an LLM call (`empty_context=True`).
+    - Empty `chunks` short-circuits without an LLM call (`empty_context=True`)
+      unless `empty_context_placeholder` is provided — assistant stages
+      legitimately run on prior-stage outputs alone.
     - `page_context_chunks` optionally enriches citation snippets with
       same-page context (header-only Docling tables); it never affects
       [Source N] index mapping.
@@ -49,10 +53,11 @@ async def run_extraction(
       valid citation (tabular grounding rule).
     - `on_token` receives each streamed token for SSE forwarding.
     """
-    if not chunks:
+    if not chunks and empty_context_placeholder is None:
         return ExtractionResult(empty_context=True)
 
-    system_prompt = SINGLE_DEAL_SYSTEM.format(context=build_context_string(chunks))
+    context_str = build_context_string(chunks) if chunks else empty_context_placeholder
+    system_prompt = SINGLE_DEAL_SYSTEM.format(context=context_str)
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_message)]
 
     parts: list[str] = []
@@ -81,3 +86,33 @@ async def run_extraction(
         fallback=meta.fallback if meta else False,
         duration_ms=meta.duration_ms if meta else 0,
     )
+
+
+async def stream_extraction(chunks: list[dict], user_message: str, **kwargs):
+    """Async-iterator facade over run_extraction for SSE endpoints.
+
+    Yields ("token", str) for each streamed token, then ("result",
+    ExtractionResult) exactly once. Exceptions from the underlying call
+    propagate to the consumer.
+    """
+    queue: asyncio.Queue = asyncio.Queue()
+    _done = object()
+
+    async def _on_token(token: str) -> None:
+        await queue.put(token)
+
+    async def _runner() -> ExtractionResult:
+        try:
+            return await run_extraction(
+                chunks, user_message, on_token=_on_token, **kwargs
+            )
+        finally:
+            await queue.put(_done)
+
+    task = asyncio.create_task(_runner())
+    while True:
+        item = await queue.get()
+        if item is _done:
+            break
+        yield ("token", item)
+    yield ("result", await task)

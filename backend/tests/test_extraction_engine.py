@@ -5,8 +5,10 @@ runs through run_extraction; these tests pin its contract.
 """
 from types import SimpleNamespace
 
+import pytest
+
 from app.services import extraction_engine
-from app.services.extraction_engine import run_extraction
+from app.services.extraction_engine import run_extraction, stream_extraction
 
 CHUNK = {
     "content": "Revenue was $10M in FY2023.",
@@ -101,3 +103,30 @@ async def test_uncited_answer_survives_without_require_citations(monkeypatch):
     result = await run_extraction([CHUNK], "Summarize.")
 
     assert result.answer == "General narrative answer."
+
+
+async def test_stream_extraction_yields_tokens_then_result(monkeypatch):
+    monkeypatch.setattr(
+        extraction_engine,
+        "stream_with_fallback",
+        _fake_stream(["$10M ", "[Source 1]"]),
+    )
+
+    events = [e async for e in stream_extraction([CHUNK], "Revenue?", deal_id="deal-1")]
+
+    assert [k for k, _ in events] == ["token", "token", "result"]
+    assert events[0][1] == "$10M "
+    result = events[-1][1]
+    assert result.citations[0] is not None
+
+
+async def test_stream_extraction_propagates_errors(monkeypatch):
+    async def boom(messages):
+        raise RuntimeError("llm down")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(extraction_engine, "stream_with_fallback", boom)
+
+    with pytest.raises(RuntimeError, match="llm down"):
+        async for _ in stream_extraction([CHUNK], "Revenue?"):
+            pass
