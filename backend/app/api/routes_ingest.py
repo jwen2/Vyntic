@@ -1,7 +1,6 @@
 """Document ingestion routes — supports single and multi-file upload."""
 import asyncio
 import os
-import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
@@ -12,52 +11,42 @@ from app.services.parser import parse_document_path
 from app.services.chunker import chunk_sections
 from app.services.vector_store import upsert_chunks, delete_doc_vectors
 from app.services import deal_store
+from app.services import ingest_store
 from app.database import UserRow
 from app.auth import get_current_user, require_admin, require_deal_access
 
 router = APIRouter(prefix="/deals/{deal_id}/documents", tags=["ingestion"])
 
-_ingest_progress: dict[str, dict] = {}
-_PROGRESS_TTL_SECONDS = 600
-
-
-def _cleanup_progress() -> None:
-    cutoff = time.time() - _PROGRESS_TTL_SECONDS
-    stale = [
-        upload_id
-        for upload_id, progress in _ingest_progress.items()
-        if progress.get("updated_at", 0) < cutoff
-    ]
-    for upload_id in stale:
-        _ingest_progress.pop(upload_id, None)
-
 
 def _set_progress(
     upload_id: str | None,
     *,
+    deal_id: str,
     status: str,
     stage: str,
     percent: float,
     filename: str | None = None,
     detail: str = "",
+    file_path: str | None = None,
+    doc_id: str | None = None,
 ) -> None:
-    if not upload_id:
-        return
-    _cleanup_progress()
-    _ingest_progress[upload_id] = {
-        "upload_id": upload_id,
-        "status": status,
-        "stage": stage,
-        "percent": max(0, min(100, round(percent))),
-        "filename": filename,
-        "detail": detail,
-        "updated_at": time.time(),
-    }
+    ingest_store.set_progress(
+        upload_id,
+        deal_id=deal_id,
+        status=status,
+        stage=stage,
+        percent=percent,
+        filename=filename,
+        detail=detail,
+        file_path=file_path,
+        doc_id=doc_id,
+    )
 
 
 def _progress_mapper(
     upload_id: str | None,
     *,
+    deal_id: str,
     status: str,
     stage: str,
     start_percent: float,
@@ -68,6 +57,7 @@ def _progress_mapper(
         percent = start_percent + (end_percent - start_percent) * fraction
         _set_progress(
             upload_id,
+            deal_id=deal_id,
             status=status,
             stage=stage,
             percent=percent,
@@ -122,10 +112,12 @@ async def _ingest_saved_path(
     try:
         _set_progress(
             upload_id,
-            status="processing",
+            deal_id=deal_id,
+            status="parsing",
             stage="Parsing document",
             percent=start_percent + span * 0.15,
             filename=filename,
+            file_path=str(file_path),
         )
         doc_metadata, sections = await parse_document_path(
             file_path,
@@ -133,7 +125,8 @@ async def _ingest_saved_path(
             deal_id,
             progress_callback=_progress_mapper(
                 upload_id,
-                status="processing",
+                deal_id=deal_id,
+                status="parsing",
                 stage="Parsing document",
                 start_percent=start_percent + span * 0.15,
                 end_percent=start_percent + span * 0.72,
@@ -143,6 +136,7 @@ async def _ingest_saved_path(
     except ValueError as e:
         _set_progress(
             upload_id,
+            deal_id=deal_id,
             status="error",
             stage="Parsing failed",
             percent=start_percent + span * 0.15,
@@ -153,6 +147,7 @@ async def _ingest_saved_path(
     except Exception as e:
         _set_progress(
             upload_id,
+            deal_id=deal_id,
             status="error",
             stage="Parsing failed",
             percent=start_percent + span * 0.15,
@@ -164,7 +159,8 @@ async def _ingest_saved_path(
     if not settings.full_context_mode:
         _set_progress(
             upload_id,
-            status="processing",
+            deal_id=deal_id,
+            status="embedding",
             stage="Chunking document",
             percent=start_percent + span * 0.76,
             filename=filename,
@@ -175,7 +171,8 @@ async def _ingest_saved_path(
         try:
             _set_progress(
                 upload_id,
-                status="processing",
+                deal_id=deal_id,
+                status="embedding",
                 stage="Embedding chunks",
                 percent=start_percent + span * 0.82,
                 filename=filename,
@@ -186,7 +183,8 @@ async def _ingest_saved_path(
                 chunks,
                 progress_callback=_progress_mapper(
                     upload_id,
-                    status="processing",
+                    deal_id=deal_id,
+                    status="embedding",
                     stage="Embedding chunks",
                     start_percent=start_percent + span * 0.82,
                     end_percent=start_percent + span * 0.98,
@@ -196,6 +194,7 @@ async def _ingest_saved_path(
         except Exception as e:
             _set_progress(
                 upload_id,
+                deal_id=deal_id,
                 status="error",
                 stage="Embedding failed",
                 percent=start_percent + span * 0.82,
@@ -209,10 +208,12 @@ async def _ingest_saved_path(
     deal_store.add_document(deal_id, doc_metadata)
     _set_progress(
         upload_id,
-        status="processing",
+        deal_id=deal_id,
+        status="embedding",
         stage="Finalizing",
         percent=end_percent,
         filename=filename,
+        doc_id=doc_metadata.doc_id,
     )
 
     return doc_metadata
@@ -238,6 +239,7 @@ def _schedule_background_ingest(
             )
             _set_progress(
                 upload_id,
+                deal_id=deal_id,
                 status="complete",
                 stage="Complete",
                 percent=end_percent,
@@ -247,6 +249,7 @@ def _schedule_background_ingest(
         except HTTPException as e:
             _set_progress(
                 upload_id,
+                deal_id=deal_id,
                 status="error",
                 stage="Ingestion failed",
                 percent=end_percent,
@@ -256,6 +259,7 @@ def _schedule_background_ingest(
         except Exception as e:
             _set_progress(
                 upload_id,
+                deal_id=deal_id,
                 status="error",
                 stage="Ingestion failed",
                 percent=end_percent,
@@ -281,7 +285,8 @@ async def _ingest_one(
     filename = file.filename
     _set_progress(
         upload_id,
-        status="processing",
+        deal_id=deal_id,
+        status="queued",
         stage="Saving upload",
         percent=start_percent + span * 0.12,
         filename=filename,
@@ -293,13 +298,15 @@ async def _ingest_one(
     if _should_ingest_in_background(dest_path):
         _set_progress(
             upload_id,
-            status="processing",
+            deal_id=deal_id,
+            status="queued",
             stage="Queued for parsing",
             percent=start_percent + span * 0.15,
             filename=filename,
             detail=(
                 f"{page_count} pages detected. Parsing will continue in the background."
             ),
+            file_path=str(dest_path),
         )
         _schedule_background_ingest(
             deal_id,
@@ -350,16 +357,26 @@ async def ingest_document(
         if not backgrounded:
             _set_progress(
                 upload_id,
+                deal_id=deal_id,
                 status="complete",
                 stage="Complete",
                 percent=100,
                 filename=file.filename,
                 detail=f"Embedded {meta.chunk_count} chunks",
+                doc_id=meta.doc_id,
             )
         return meta
     except Exception:
-        if upload_id and upload_id not in _ingest_progress:
-            _set_progress(upload_id, status="error", stage="Upload failed", percent=0)
+        if upload_id:
+            job = ingest_store.get_job(upload_id)
+            if job is None or job["status"] not in ("complete", "error"):
+                _set_progress(
+                    upload_id,
+                    deal_id=deal_id,
+                    status="error",
+                    stage="Upload failed",
+                    percent=0,
+                )
         raise
 
 
@@ -370,10 +387,10 @@ async def get_ingest_progress(
     current_user: UserRow = Depends(get_current_user),
 ):
     require_deal_access(current_user, deal_id)
-    progress = _ingest_progress.get(upload_id)
+    progress = ingest_store.get_job(upload_id)
     if not progress:
         raise HTTPException(status_code=404, detail="Progress not found")
-    return {k: v for k, v in progress.items() if k != "updated_at"}
+    return progress
 
 
 @router.delete("/{doc_id}")
@@ -449,6 +466,7 @@ async def ingest_batch(
     if errors and not results:
         _set_progress(
             upload_id,
+            deal_id=deal_id,
             status="error",
             stage="Upload failed",
             percent=100,
@@ -459,7 +477,8 @@ async def ingest_batch(
     if backgrounded_count:
         _set_progress(
             upload_id,
-            status="processing",
+            deal_id=deal_id,
+            status="parsing",
             stage="Background ingestion running",
             percent=95,
             detail=f"{backgrounded_count} large file(s) are still parsing.",
@@ -467,6 +486,7 @@ async def ingest_batch(
     else:
         _set_progress(
             upload_id,
+            deal_id=deal_id,
             status="complete",
             stage="Complete",
             percent=100,

@@ -65,6 +65,22 @@ class DocumentRow(Base):
     deal = relationship("DealRow", back_populates="documents")
 
 
+class IngestJobRow(Base):
+    __tablename__ = "ingest_jobs"
+
+    id = Column(String, primary_key=True, index=True)  # upload_id from the client
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    filename = Column(String, nullable=True)  # batch uploads carry a summary label
+    file_path = Column(String, nullable=True)
+    status = Column(String, default="queued", index=True)  # queued|parsing|embedding|complete|error
+    stage = Column(String, default="")
+    percent = Column(Integer, default=0)
+    detail = Column(Text, default="")
+    doc_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ── Authentication models ──
 
 class UserRow(Base):

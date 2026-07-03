@@ -70,6 +70,12 @@ async def startup():
     if reconciled:
         logger.info(f"Reconciled {reconciled} run(s) interrupted by restart")
 
+    # Same for ingest jobs: in-flight parsing/embedding dies with the process.
+    from app.services.ingest_store import reconcile_interrupted_ingests
+    stranded_ingests = reconcile_interrupted_ingests()
+    if stranded_ingests:
+        logger.info(f"Reconciled {stranded_ingests} ingest job(s) interrupted by restart")
+
     # Create default admin user if it doesn't exist
     from app.config import settings
     from app.auth import get_user_by_email, create_user, grant_deal_access
