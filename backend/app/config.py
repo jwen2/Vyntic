@@ -33,8 +33,13 @@ class Settings(BaseSettings):
     docling_page_batch_size: int = 10
     docling_queue_max_size: int = 2
     docling_worker_grace_seconds: int = 30
-    docling_max_concurrent_jobs: int = 1
+    docling_max_concurrent_jobs: int = 2
     ingest_background_min_pages: int = 25
+
+    # Ingest worker pool + backpressure
+    ingest_workers: int = 2
+    max_upload_mb: int = 100
+    ingest_max_inflight_per_deal: int = 100
 
     # ChromaDB
     chroma_persist_dir: str = "./data/chroma"

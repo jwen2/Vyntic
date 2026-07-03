@@ -71,10 +71,15 @@ async def startup():
         logger.info(f"Reconciled {reconciled} run(s) interrupted by restart")
 
     # Same for ingest jobs: in-flight parsing/embedding dies with the process.
+    # Queued jobs with saved files survive and are picked up by the pool below.
     from app.services.ingest_store import reconcile_interrupted_ingests
     stranded_ingests = reconcile_interrupted_ingests()
     if stranded_ingests:
         logger.info(f"Reconciled {stranded_ingests} ingest job(s) interrupted by restart")
+
+    # Bounded ingest worker pool (claims queued ingest jobs from the DB).
+    from app.services import ingest_worker
+    ingest_worker.ensure_started()
 
     # Create default admin user if it doesn't exist
     from app.config import settings

@@ -70,6 +70,13 @@ class IngestJobRow(Base):
 
     id = Column(String, primary_key=True, index=True)  # upload_id from the client
     deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    # Batch uploads: one aggregate row per client upload_id (the row the
+    # frontend polls) plus one claimable child row per file pointing at it.
+    parent_id = Column(String, nullable=True, index=True)
+    # Aggregate rows only: how many children the batch will have. Written
+    # before the children are enqueued so a fast worker can't see a
+    # partially-enqueued batch as finished.
+    child_total = Column(Integer, nullable=True)
     filename = Column(String, nullable=True)  # batch uploads carry a summary label
     file_path = Column(String, nullable=True)
     status = Column(String, default="queued", index=True)  # queued|parsing|embedding|complete|error
