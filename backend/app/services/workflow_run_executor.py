@@ -18,15 +18,12 @@ import re
 from collections import defaultdict
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
-
-from app.agents.llm import LLMConfigurationError, ensure_llm_configured, get_last_meta, stream_with_fallback
-from app.agents.prompts import SINGLE_DEAL_SYSTEM
+from app.agents.llm import LLMConfigurationError, ensure_llm_configured
 from app.config import settings
 from app.services import workflow_run_store, workflow_store
 from app.services.context_provider import get_doc_page_chunks, load_doc_context
+from app.services.extraction_engine import run_extraction
 from app.services.workflow_format import format_prompt_suffix, parse_answer
-from app.utils.citations import build_context_string, extract_citations
 
 logger = logging.getLogger(__name__)
 
@@ -355,20 +352,6 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
                 duration_ms=0,
             )
         else:
-            context_str = build_context_string(retrieved)
-            system_prompt = SINGLE_DEAL_SYSTEM.format(context=context_str)
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_message),
-            ]
-
-            full_answer_parts: list[str] = []
-            async for chunk in stream_with_fallback(messages):
-                token = getattr(chunk, "content", "") or ""
-                if token:
-                    full_answer_parts.append(token)
-            full_answer = "".join(full_answer_parts)
-
             if is_synthesis:
                 full_doc_chunks = []
                 for doc_id in run.document_ids if run else []:
@@ -378,33 +361,27 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
                         logger.exception("get_document_chunks failed: doc=%s", doc_id)
             else:
                 full_doc_chunks = get_doc_page_chunks(deal_id, cell.row_key)
-            cleaned_answer, citations = extract_citations(
-                full_answer,
+
+            result = await run_extraction(
                 retrieved,
+                user_message,
                 deal_id=deal_id,
                 page_context_chunks=full_doc_chunks or None,
+                require_citations=True,
             )
-            cleaned_answer = cleaned_answer.strip()
-            if cleaned_answer and not _has_valid_citation(citations):
-                logger.info(
-                    "Blanking uncited workflow cell answer: cell=%s column=%s",
-                    cell_id,
-                    column["label"],
-                )
-                cleaned_answer = ""
-                citations = []
-                formatted = None
-            else:
-                formatted = parse_answer(cleaned_answer, column["format"], column["tags"])
-            meta = get_last_meta()
+            formatted = (
+                parse_answer(result.answer, column["format"], column["tags"])
+                if result.answer
+                else None
+            )
             workflow_run_store.complete_cell(
                 cell_id,
-                answer=cleaned_answer,
+                answer=result.answer,
                 answer_formatted=formatted,
-                citations=citations,
-                model=meta.model_used if meta else "",
-                fallback=meta.fallback if meta else False,
-                duration_ms=meta.duration_ms if meta else 0,
+                citations=result.citations,
+                model=result.model,
+                fallback=result.fallback,
+                duration_ms=result.duration_ms,
             )
     except Exception as exc:
         logger.exception("LLM cell extraction failed: cell=%s", cell_id)
@@ -479,10 +456,6 @@ def _tabular_retrieval_query(
             first_sentence = first_sentence[:_RETRIEVAL_PROMPT_CHAR_CAP].rstrip() + "…"
         parts.append(f"Extraction prompt: {first_sentence}")
     return "\n".join(parts) or column_prompt or column_label
-
-
-def _has_valid_citation(citations: list) -> bool:
-    return any(citation is not None for citation in citations)
 
 
 async def execute_formula_cell(cell_id: str, run_id: str):
@@ -783,24 +756,6 @@ async def execute_assistant_stage(
             if chunks:
                 all_chunks.extend(chunks)
 
-        if all_chunks:
-            context_str = build_context_string(all_chunks)
-        else:
-            context_str = "(no document context retrieved)"
-
-        system_prompt = SINGLE_DEAL_SYSTEM.format(context=context_str)
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_message),
-        ]
-
-        full_answer_parts: list[str] = []
-        async for chunk in stream_with_fallback(messages):
-            token = getattr(chunk, "content", "") or ""
-            if token:
-                full_answer_parts.append(token)
-        full_answer = "".join(full_answer_parts)
-
         # For citations we use the union of retrieved chunks for source-number
         # mapping, plus full same-page context from selected docs to enrich
         # snippets without changing the mapping.
@@ -810,20 +765,22 @@ async def execute_assistant_stage(
                 page_context_chunks.extend(get_doc_page_chunks(deal_id, doc_id))
             except Exception:
                 logger.exception("get_document_chunks failed: doc=%s", doc_id)
-        cleaned_answer, citations = extract_citations(
-            full_answer,
+
+        result = await run_extraction(
             all_chunks,
+            user_message,
             deal_id=deal_id,
             page_context_chunks=page_context_chunks or None,
+            # Later stages legitimately run on prior approved outputs alone.
+            empty_context_placeholder="(no document context retrieved)",
         )
-        meta = get_last_meta()
         workflow_run_store.complete_stage(
             stage_output_id,
-            output_md=cleaned_answer,
-            citations=citations,
-            model=meta.model_used if meta else "",
-            fallback=meta.fallback if meta else False,
-            duration_ms=meta.duration_ms if meta else 0,
+            output_md=result.answer,
+            citations=result.citations,
+            model=result.model,
+            fallback=result.fallback,
+            duration_ms=result.duration_ms,
             needs_checkpoint=stage.checkpoint,
         )
     except Exception as exc:

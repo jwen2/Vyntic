@@ -87,11 +87,10 @@ class TestCancelledWorkIsNeverExecuted:
         workflow_run_store.cancel_queued_cells("skip1")
 
         async def _must_not_be_called(*args, **kwargs):
-            raise AssertionError("LLM called for a cancelled cell")
-            yield  # pragma: no cover — makes this an async generator
+            raise AssertionError("Extraction ran for a cancelled cell")
 
         monkeypatch.setattr(
-            workflow_run_executor, "stream_with_fallback", _must_not_be_called
+            workflow_run_executor, "run_extraction", _must_not_be_called
         )
 
         await workflow_run_executor.execute_cell(cell_id, "skip1", "cx_deal")
