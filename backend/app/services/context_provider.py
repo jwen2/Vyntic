@@ -16,6 +16,11 @@ from app.database import SessionLocal, DocumentRow
 logger = logging.getLogger(__name__)
 
 _FC_TOKEN_WARN_THRESHOLD = 800_000  # ~800K tokens; Gemini Flash limit is 1M
+_FC_HARD_CHAR_BUDGET = 3_200_000  # ~800K tokens at ~4 chars/token
+
+# Set by load_deal_context on every call: True when the last corpus was
+# truncated to fit the budget. Stopgap until Plan 5's context cascade.
+last_context_truncated = False
 
 
 def _full_text_to_chunks(full_text_md: str, filename: str, doc_id: str) -> list[dict]:
@@ -107,6 +112,33 @@ async def load_deal_context(deal_id: str, question: str) -> list[dict]:
             doc_chunks = _pages_to_chunks_from_null()
         chunks.extend(doc_chunks)
         total_chars += sum(len(c["content"]) for c in doc_chunks)
+
+    global last_context_truncated
+    last_context_truncated = False
+    if total_chars > _FC_HARD_CHAR_BUDGET:
+        # Truncate at a chunk boundary in document/page order — never send
+        # an over-limit corpus to Gemini (mirrors _select_synthesis_chunks).
+        kept: list[dict] = []
+        kept_chars = 0
+        for chunk in chunks:
+            if kept and kept_chars + len(chunk["content"]) > _FC_HARD_CHAR_BUDGET:
+                break
+            kept.append(chunk)
+            kept_chars += len(chunk["content"])
+        dropped = chunks[len(kept):]
+        dropped_docs = sorted({c["source_file"] for c in dropped})
+        last_context_truncated = True
+        logger.warning(
+            "Deal %s context truncated at %d of %d chunks (~%dK of ~%dK chars); "
+            "dropped content from: %s",
+            deal_id,
+            len(kept),
+            len(chunks),
+            kept_chars // 1000,
+            total_chars // 1000,
+            ", ".join(dropped_docs),
+        )
+        return kept
 
     estimated_tokens = total_chars / 4
     if estimated_tokens > _FC_TOKEN_WARN_THRESHOLD:
