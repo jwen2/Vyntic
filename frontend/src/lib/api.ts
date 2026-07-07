@@ -41,6 +41,89 @@ export interface Deal {
   document_count: number;
   stage: string;
   tags: string[];
+  entity_type: "deal" | "fund";
+  manager_id: string | null;
+  manager_name: string | null;
+  vintage: number | null;
+  strategy: string;
+}
+
+export const DEAL_STAGES = ["Screening", "Due Diligence", "IC Review", "Closed"];
+export const FUND_STAGES = [
+  "Screening",
+  "Diligence",
+  "IC",
+  "Committed",
+  "Monitoring",
+  "Re-up review",
+];
+
+export function stagesForEntity(entityType: string): string[] {
+  return entityType === "fund" ? FUND_STAGES : DEAL_STAGES;
+}
+
+export const DOC_CATEGORIES = [
+  "ddq",
+  "ppm",
+  "lpa",
+  "side_letter",
+  "track_record",
+  "pitchbook",
+  "quarterly_report",
+  "capital_account",
+  "capital_call",
+  "distribution_notice",
+  "financial_statements",
+  "form_adv",
+  "valuation_policy",
+  "other",
+];
+
+export const DOC_CATEGORY_LABELS: Record<string, string> = {
+  ddq: "DDQ",
+  ppm: "PPM",
+  lpa: "LPA",
+  side_letter: "Side letter",
+  track_record: "Track record",
+  pitchbook: "Pitchbook",
+  quarterly_report: "Quarterly report",
+  capital_account: "Capital account",
+  capital_call: "Capital call",
+  distribution_notice: "Distribution notice",
+  financial_statements: "Financial statements",
+  form_adv: "Form ADV",
+  valuation_policy: "Valuation policy",
+  other: "Other",
+};
+
+// ── Managers (GP firms) ──
+
+export interface Manager {
+  manager_id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  fund_count: number;
+}
+
+export async function listManagers(): Promise<Manager[]> {
+  const res = await fetchWrapper(`${API_BASE}/managers`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function createManager(
+  manager_id: string,
+  name: string,
+  description: string = ""
+): Promise<Manager> {
+  const res = await fetchWrapper(`${API_BASE}/managers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ manager_id, name, description }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 export interface Citation {
@@ -100,15 +183,22 @@ export async function saveConversation(
   return res.json();
 }
 
-export async function createDeal(
-  deal_id: string,
-  name: string,
-  description: string = ""
-): Promise<Deal> {
+export interface CreateDealPayload {
+  deal_id: string;
+  name: string;
+  description?: string;
+  stage?: string;
+  entity_type?: "deal" | "fund";
+  manager_id?: string | null;
+  vintage?: number | null;
+  strategy?: string;
+}
+
+export async function createDeal(payload: CreateDealPayload): Promise<Deal> {
   const res = await fetchWrapper(`${API_BASE}/deals`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deal_id, name, description }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -222,7 +312,15 @@ export async function uploadDocumentsBatch(
 
 export async function updateDeal(
   deal_id: string,
-  data: { name?: string; description?: string; stage?: string; tags?: string[] }
+  data: {
+    name?: string;
+    description?: string;
+    stage?: string;
+    tags?: string[];
+    manager_id?: string;
+    vintage?: number;
+    strategy?: string;
+  }
 ): Promise<Deal> {
   const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}`, {
     method: "PATCH",
@@ -239,6 +337,26 @@ export interface DocumentMetadata {
   filename: string;
   page_count: number;
   chunk_count: number;
+  doc_category: string;
+  period: string | null;
+  scope: "entity" | "manager";
+}
+
+export async function updateDocumentMetadata(
+  deal_id: string,
+  doc_id: string,
+  data: { doc_category?: string; period?: string; scope?: "entity" | "manager" }
+): Promise<DocumentMetadata> {
+  const res = await fetchWrapper(
+    `${API_BASE}/deals/${deal_id}/documents/${doc_id}/metadata`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 export async function getUploadProgress(

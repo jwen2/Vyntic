@@ -9,6 +9,9 @@ class DocumentMetadata(BaseModel):
     chunk_count: int = 0
     full_text_md: str | None = None
     parse_tier: int = 1
+    doc_category: str = "other"
+    period: str | None = None
+    scope: str = "entity"  # "entity" | "manager" (shared across the manager's funds)
 
 
 class ParsedSection(BaseModel):

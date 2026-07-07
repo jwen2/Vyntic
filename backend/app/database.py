@@ -4,7 +4,7 @@ Uses SQLite for local/PoC — swap connection string to PostgreSQL for productio
 """
 import json
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer, Text, Boolean, DateTime, ForeignKey, event, inspect, text
+from sqlalchemy import create_engine, Column, String, Integer, Float, Text, Boolean, DateTime, ForeignKey, event, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, Session
 
 from app.config import settings
@@ -30,7 +30,35 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+class ManagerRow(Base):
+    """A GP firm (fund manager). Funds — DealRow with entity_type="fund" —
+    reference it via manager_id. Manager-scoped documents (DDQs, Form ADV,
+    reference notes) are uploaded to a fund but shared across all funds of
+    the same manager via DocumentRow.scope="manager"."""
+    __tablename__ = "managers"
+
+    manager_id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, default="")
+    tags_json = Column(Text, default="[]")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    funds = relationship("DealRow", back_populates="manager")
+
+    @property
+    def tags(self) -> list[str]:
+        return json.loads(self.tags_json) if self.tags_json else []
+
+    @tags.setter
+    def tags(self, value: list[str]):
+        self.tags_json = json.dumps(value)
+
+
 class DealRow(Base):
+    """The workspace entity. Historically a buyout deal; with the LP object
+    model it also represents a fund (entity_type="fund") that belongs to a
+    manager. deal_id stays the universal key for documents, workflows, runs,
+    access rows, and vector collections."""
     __tablename__ = "deals"
 
     deal_id = Column(String, primary_key=True, index=True)
@@ -39,8 +67,33 @@ class DealRow(Base):
     document_count = Column(Integer, default=0)
     stage = Column(String, default="Screening")
     tags_json = Column(Text, default="[]")  # JSON-encoded list; use Postgres ARRAY later
+    entity_type = Column(String, default="deal", index=True)  # "deal" | "fund"
+    manager_id = Column(String, ForeignKey("managers.manager_id", ondelete="SET NULL"), nullable=True, index=True)
+    vintage = Column(Integer, nullable=True)  # fund vintage year
+    strategy = Column(String, default="")  # e.g. "Buyout", "Growth", "Secondaries"
 
     documents = relationship("DocumentRow", back_populates="deal", cascade="all, delete-orphan")
+    manager = relationship("ManagerRow", back_populates="funds")
+    position = relationship("PositionRow", back_populates="deal", uselist=False, cascade="all, delete-orphan")
+
+
+class PositionRow(Base):
+    """The LP's own commitment in a fund. One row per fund (single-LP tenant).
+    Sparse by design — fields fill in as diligence converts to a commitment
+    and, later, as monitoring extracts update them."""
+    __tablename__ = "positions"
+
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), primary_key=True)
+    commitment_amount = Column(Float, nullable=True)
+    currency = Column(String, default="USD")
+    called_amount = Column(Float, nullable=True)
+    distributed_amount = Column(Float, nullable=True)
+    nav = Column(Float, nullable=True)
+    as_of = Column(String, nullable=True)  # e.g. "2026-Q1"
+    status = Column(String, default="active")  # "active" | "exited" | "pending"
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    deal = relationship("DealRow", back_populates="position")
 
     @property
     def tags(self) -> list[str]:
@@ -61,6 +114,12 @@ class DocumentRow(Base):
     chunk_count = Column(Integer, default=0)
     full_text_md = Column(Text, nullable=True)
     parse_tier = Column(Integer, default=1)
+    # LP document classification. doc_category powers template pre-selection
+    # and the future monitoring inbox; period ("2026-Q1") tags recurring docs;
+    # scope="manager" shares the doc across sibling funds of the same manager.
+    doc_category = Column(String, default="other", index=True)
+    period = Column(String, nullable=True)
+    scope = Column(String, default="entity", index=True)  # "entity" | "manager"
 
     deal = relationship("DealRow", back_populates="documents")
 
@@ -270,24 +329,41 @@ class AssistantStageOutputRow(Base):
 def init_db():
     """Create all tables if they don't exist."""
     Base.metadata.create_all(bind=engine)
-    _ensure_document_cache_columns()
+    _ensure_schema_migrations()
 
 
-def _ensure_document_cache_columns():
-    """Add columns for databases predating the full-context migration.
+def _ensure_schema_migrations():
+    """Apply additive column migrations for databases predating a schema change.
 
     SQLAlchemy create_all creates missing tables but does not ALTER existing ones.
-    This shim applies additive migrations for columns added post-initial-deploy.
+    Each entry maps a table to the columns (and their ADD COLUMN DDL) added
+    post-initial-deploy. Idempotent: only missing columns are added.
     """
+    additive_columns: dict[str, list[tuple[str, str]]] = {
+        "documents": [
+            ("full_text_md", "TEXT"),
+            ("parse_tier", "INTEGER DEFAULT 1"),
+            ("doc_category", "TEXT DEFAULT 'other'"),
+            ("period", "TEXT"),
+            ("scope", "TEXT DEFAULT 'entity'"),
+        ],
+        "deals": [
+            ("entity_type", "TEXT DEFAULT 'deal'"),
+            ("manager_id", "TEXT"),
+            ("vintage", "INTEGER"),
+            ("strategy", "TEXT DEFAULT ''"),
+        ],
+    }
     inspector = inspect(engine)
-    if "documents" not in inspector.get_table_names():
-        return
-    existing = {column["name"] for column in inspector.get_columns("documents")}
+    table_names = set(inspector.get_table_names())
     with engine.begin() as conn:
-        if "full_text_md" not in existing:
-            conn.execute(text("ALTER TABLE documents ADD COLUMN full_text_md TEXT"))
-        if "parse_tier" not in existing:
-            conn.execute(text("ALTER TABLE documents ADD COLUMN parse_tier INTEGER DEFAULT 1"))
+        for table, columns in additive_columns.items():
+            if table not in table_names:
+                continue
+            existing = {column["name"] for column in inspector.get_columns(table)}
+            for column_name, ddl_type in columns:
+                if column_name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {ddl_type}"))
 
 
 def get_db() -> Session:
