@@ -1,11 +1,16 @@
 """
 Authentication routes: register, login, user profile, and deal access management.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
+
+from fastapi.security import HTTPAuthorizationCredentials
 
 from app.auth import (
     create_access_token,
+    decode_access_token,
+    revoke_token,
+    security,
     verify_password,
     get_current_user,
     get_user_by_email,
@@ -13,6 +18,8 @@ from app.auth import (
     grant_deal_access,
 )
 from app.database import SessionLocal, UserRow, DealAccessRow
+from app.rate_limit import limiter, LOGIN_LIMIT, REGISTER_LIMIT
+from app.services import audit_store
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -50,10 +57,15 @@ class GrantAccessRequest(BaseModel):
 
 # ── Endpoints ──
 
+# NOTE: slowapi requires the starlette Request parameter to be named exactly
+# `request`, so these two handlers take their JSON body as `payload`.
+
 @router.post("/register", response_model=TokenResponse)
-def register(request: RegisterRequest):
-    """Register a new user account."""
-    existing = get_user_by_email(request.email)
+@limiter.limit(REGISTER_LIMIT)
+def register(payload: RegisterRequest, request: Request):
+    """Register a new user account. Public during beta (decision 2026-07-07);
+    rate-limited per IP against junk-account flooding."""
+    existing = get_user_by_email(payload.email)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -61,9 +73,13 @@ def register(request: RegisterRequest):
         )
 
     user = create_user(
-        email=request.email,
-        password=request.password,
-        full_name=request.full_name,
+        email=payload.email,
+        password=payload.password,
+        full_name=payload.full_name,
+    )
+    audit_store.record(
+        user, "auth.register", resource_type="user",
+        resource_id=str(user.id), request=request,
     )
 
     token = create_access_token({"sub": str(user.id)})
@@ -74,20 +90,39 @@ def register(request: RegisterRequest):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest):
-    """Authenticate and return a JWT."""
-    user = get_user_by_email(request.email)
-    if not user or not verify_password(request.password, user.hashed_password):
+@limiter.limit(LOGIN_LIMIT)
+def login(payload: LoginRequest, request: Request):
+    """Authenticate and return a JWT. Rate-limited per IP against
+    credential stuffing."""
+    user = get_user_by_email(payload.email)
+    if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
 
+    audit_store.record(user, "auth.login", request=request)
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(
         access_token=token,
         user={"id": user.id, "email": user.email, "full_name": user.full_name, "is_admin": user.is_admin},
     )
+
+
+@router.post("/logout")
+def logout(
+    http_request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    current_user: UserRow = Depends(get_current_user),
+):
+    """Revoke the current token (S5). It is 401 everywhere afterward, even
+    though its expiry has not passed."""
+    # get_current_user already validated the credentials; decode again just
+    # to extract jti/exp for the blocklist row.
+    payload = decode_access_token(credentials.credentials)
+    revoke_token(payload)
+    audit_store.record(current_user, "auth.logout", request=http_request)
+    return {"status": "logged_out"}
 
 
 @router.get("/me", response_model=UserResponse)
@@ -105,6 +140,7 @@ def get_me(current_user: UserRow = Depends(get_current_user)):
 def grant_access(
     deal_id: str,
     request: GrantAccessRequest,
+    http_request: Request,
     current_user: UserRow = Depends(get_current_user),
 ):
     """Grant a user access to a deal. Admin only."""
@@ -116,6 +152,11 @@ def grant_access(
         raise HTTPException(status_code=404, detail=f"User '{request.email}' not found")
 
     grant_deal_access(target_user.id, deal_id, request.role)
+    audit_store.record(
+        current_user, "access.grant", resource_type="user",
+        resource_id=str(target_user.id), deal_id=deal_id,
+        request=http_request, email=request.email, role=request.role,
+    )
     return {"status": "granted", "email": request.email, "deal_id": deal_id, "role": request.role}
 
 

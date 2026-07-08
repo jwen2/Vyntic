@@ -20,11 +20,17 @@ import io
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from app.auth import get_current_user, get_current_user_or_query_token, require_deal_access
+from app.auth import (
+    create_scoped_token,
+    get_current_user,
+    require_deal_access,
+    run_stream_query_auth,
+)
 from app.database import UserRow
+from app.services import audit_store
 from app.models.workflow_run import (
     AssistantStageOutput,
     StageApprovePayload,
@@ -49,6 +55,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["workflow-runs"])
 
+# Mounted WITHOUT the app-wide get_current_user dependency (main.py): the run
+# stream authenticates via ?token= because EventSource cannot set an
+# Authorization header. Every route here must carry
+# get_current_user_or_query_token explicitly; the default-deny walker test
+# (tests/test_default_deny.py) enforces that nothing on it is open.
+stream_router = APIRouter(tags=["workflow-runs"])
+
 
 @router.post(
     "/deals/{deal_id}/workflows/{workflow_id}/runs",
@@ -58,6 +71,7 @@ async def create_run(
     deal_id: str,
     workflow_id: str,
     payload: WorkflowRunCreate,
+    http_request: Request,
     current_user: UserRow = Depends(get_current_user),
 ):
     require_deal_access(current_user, deal_id)
@@ -94,6 +108,11 @@ async def create_run(
             started_by=current_user.id,
         )
         kick_off_run(run.id, deal_id)
+        audit_store.record(
+            current_user, "run.start", resource_type="run",
+            resource_id=run.id, deal_id=deal_id, request=http_request,
+            workflow_id=workflow_id,
+        )
         return run
 
     # Assistant
@@ -108,6 +127,11 @@ async def create_run(
     if run is None:
         raise HTTPException(status_code=400, detail="Failed to create assistant run")
     kick_off_assistant_run(run.id, deal_id)
+    audit_store.record(
+        current_user, "run.start", resource_type="run",
+        resource_id=run.id, deal_id=deal_id, request=http_request,
+        workflow_id=workflow_id,
+    )
     return run
 
 
@@ -134,7 +158,11 @@ def get_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
 
 
 @router.get("/runs/{run_id}/export.xlsx")
-def export_tabular_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
+def export_tabular_run(
+    run_id: str,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
     run = workflow_run_store.get_run(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -142,6 +170,11 @@ def export_tabular_run(run_id: str, current_user: UserRow = Depends(get_current_
     workflow = workflow_store.get_workflow(run.workflow_id)
     if not workflow or workflow.type != "tabular":
         raise HTTPException(status_code=400, detail="Run is not a tabular workflow")
+    audit_store.record(
+        current_user, "run.export", resource_type="run",
+        resource_id=run_id, deal_id=run.deal_id, request=http_request,
+        format="xlsx",
+    )
     content = build_tabular_xlsx(run, workflow)
     filename = safe_export_filename(workflow.name, run.run_number, "xlsx")
     return StreamingResponse(
@@ -152,7 +185,11 @@ def export_tabular_run(run_id: str, current_user: UserRow = Depends(get_current_
 
 
 @router.get("/runs/{run_id}/export.docx")
-def export_assistant_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
+def export_assistant_run(
+    run_id: str,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
     run = workflow_run_store.get_run(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -160,6 +197,11 @@ def export_assistant_run(run_id: str, current_user: UserRow = Depends(get_curren
     workflow = workflow_store.get_workflow(run.workflow_id)
     if not workflow or workflow.type != "assistant":
         raise HTTPException(status_code=400, detail="Run is not an assistant workflow")
+    audit_store.record(
+        current_user, "run.export", resource_type="run",
+        resource_id=run_id, deal_id=run.deal_id, request=http_request,
+        format="docx",
+    )
     content = build_assistant_docx(run, workflow)
     filename = safe_export_filename(workflow.name, run.run_number, "docx")
     return StreamingResponse(
@@ -268,10 +310,23 @@ async def approve_stage(
     return approved
 
 
-@router.get("/runs/{run_id}/stream")
+@router.get("/runs/{run_id}/stream-token")
+def mint_stream_token(run_id: str, current_user: UserRow = Depends(get_current_user)):
+    """Mint a short-lived token scoped to this run's SSE stream. EventSource
+    cannot set headers, so the client passes it via ?token=; it cannot be
+    replayed for other runs or as a session token."""
+    run = workflow_run_store.get_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    require_deal_access(current_user, run.deal_id)
+    token = create_scoped_token("run-stream", {"run_id": run_id}, user_id=current_user.id)
+    return {"token": token, "expires_in": 300}
+
+
+@stream_router.get("/runs/{run_id}/stream")
 async def stream_run(
     run_id: str,
-    current_user: UserRow = Depends(get_current_user_or_query_token),
+    current_user: UserRow = Depends(run_stream_query_auth),
 ):
     """SSE stream of run + cell events. Emits an initial snapshot, then
     realtime updates as the executor publishes them. Clients should

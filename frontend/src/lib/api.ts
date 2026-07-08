@@ -784,3 +784,30 @@ export async function getMe(): Promise<User> {
   return res.json();
 }
 
+export async function logout(): Promise<void> {
+  // Revoke the token server-side before clearing it locally; best-effort —
+  // a failed call must not trap the user in a logged-in state.
+  try {
+    await fetchWrapper(`${API_BASE}/auth/logout`, { method: "POST" });
+  } catch {
+    // ignore
+  }
+  clearAuthToken();
+}
+
+/**
+ * Mint a short-lived token scoped to viewing one document. Used for the
+ * viewer iframe URL, where the browser cannot send an Authorization header.
+ */
+export async function getDocumentViewToken(
+  deal_id: string,
+  filename: string
+): Promise<string> {
+  const res = await fetchWrapper(
+    `${API_BASE}/deals/${encodeURIComponent(deal_id)}/documents/${encodeURIComponent(filename)}/view-token`
+  );
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.token;
+}
+

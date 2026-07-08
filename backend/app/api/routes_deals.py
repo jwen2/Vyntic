@@ -1,9 +1,10 @@
 """Deal CRUD routes."""
 import os
 import shutil
+from html import escape
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from app.config import settings
@@ -21,11 +22,12 @@ from app.models.deal import (
 )
 from app.models.document import DocumentMetadata
 from app.models.manager import Position, PositionUpsert
-from app.services import deal_store, manager_store
+from app.services import audit_store, deal_store, manager_store
 from app.database import UserRow
 from app.auth import (
+    create_scoped_token,
+    doc_view_query_auth,
     get_current_user,
-    get_current_user_or_query_token,
     grant_deal_access,
     require_admin,
     require_deal_access,
@@ -33,9 +35,20 @@ from app.auth import (
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
+# Mounted WITHOUT the app-wide get_current_user dependency (main.py): the
+# document viewer authenticates via ?token= for iframes, where the browser
+# cannot set an Authorization header. Every route here must carry
+# get_current_user_or_query_token explicitly; the default-deny walker test
+# (tests/test_default_deny.py) enforces that nothing on it is open.
+view_router = APIRouter(prefix="/deals", tags=["deals"])
+
 
 @router.post("", response_model=Deal)
-def create_deal(data: DealCreate, current_user: UserRow = Depends(get_current_user)):
+def create_deal(
+    data: DealCreate,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
     require_admin(current_user)
     if data.entity_type not in ENTITY_TYPES:
         raise HTTPException(status_code=422, detail=f"entity_type must be one of {ENTITY_TYPES}")
@@ -53,6 +66,10 @@ def create_deal(data: DealCreate, current_user: UserRow = Depends(get_current_us
         deal = deal_store.create_deal(data)
         # Auto-grant access to the creator
         grant_deal_access(current_user.id, data.deal_id, role="admin")
+        audit_store.record(
+            current_user, "deal.create", resource_type="deal",
+            resource_id=data.deal_id, deal_id=data.deal_id, request=http_request,
+        )
         return deal
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -160,12 +177,21 @@ def list_deal_documents(deal_id: str, current_user: UserRow = Depends(get_curren
 
 
 @router.delete("/{deal_id}")
-async def delete_deal(deal_id: str, current_user: UserRow = Depends(get_current_user)):
+async def delete_deal(
+    deal_id: str,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
     require_admin(current_user)
     from app.services.vector_store import delete_deal_vectors
 
     if not deal_store.delete_deal(deal_id):
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+
+    audit_store.record(
+        current_user, "deal.delete", resource_type="deal",
+        resource_id=deal_id, deal_id=deal_id, request=http_request,
+    )
 
     try:
         await delete_deal_vectors(deal_id)
@@ -180,15 +206,36 @@ async def delete_deal(deal_id: str, current_user: UserRow = Depends(get_current_
     return {"status": "deleted", "deal_id": deal_id}
 
 
-@router.get("/{deal_id}/documents/{filename}/view")
+@router.get("/{deal_id}/documents/{filename}/view-token")
+def mint_view_token(
+    deal_id: str,
+    filename: str,
+    current_user: UserRow = Depends(get_current_user),
+):
+    """Mint a short-lived token scoped to viewing exactly this document.
+    The viewer iframe carries it in ?token= (browsers can't set headers
+    there); it cannot be replayed for other files or as a session token."""
+    require_deal_access(current_user, deal_id)
+    token = create_scoped_token(
+        "doc-view", {"deal_id": deal_id, "filename": filename}, user_id=current_user.id
+    )
+    return {"token": token, "expires_in": 300}
+
+
+@view_router.get("/{deal_id}/documents/{filename}/view")
 async def view_document(
     deal_id: str,
     filename: str,
+    http_request: Request,
     sheet: int | None = None,
     token: str | None = None,
-    current_user: UserRow = Depends(get_current_user_or_query_token),
+    current_user: UserRow = Depends(doc_view_query_auth),
 ):
     require_deal_access(current_user, deal_id)
+    audit_store.record(
+        current_user, "document.view", resource_type="document",
+        resource_id=filename, deal_id=deal_id, request=http_request,
+    )
     """Serve an original uploaded document file for inline viewing (not download).
 
     For Excel files, optionally pass ?sheet=0 to view a specific sheet.
@@ -220,13 +267,23 @@ async def view_document(
     elif lower.endswith(".csv"):
         media_type = "text/csv"
     else:
-        media_type = "application/octet-stream"
+        # Unknown/HTML-ish types must never render in the app origin — a
+        # renamed .html would script against the app. Force download.
+        return FileResponse(
+            file_path,
+            media_type="application/octet-stream",
+            filename=filename,
+            content_disposition_type="attachment",
+            headers={"X-Content-Type-Options": "nosniff"},
+        )
 
     # content_disposition_type="inline" prevents download — renders in browser
     return FileResponse(
         file_path,
         media_type=media_type,
+        filename=filename,
         content_disposition_type="inline",
+        headers={"X-Content-Type-Options": "nosniff"},
     )
 
 
@@ -274,7 +331,7 @@ def _excel_to_html_response(
     html_parts = [
         "<!DOCTYPE html><html><head>",
         "<meta charset='utf-8'>",
-        f"<title>{filename}</title>",
+        f"<title>{escape(filename)}</title>",
         "<style>",
         "  * { box-sizing: border-box; margin: 0; padding: 0; }",
         "  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; padding: 24px; }",
@@ -292,7 +349,7 @@ def _excel_to_html_response(
         "  .truncated { padding: 12px; text-align: center; color: #9ca3af; font-size: 13px; font-style: italic; }",
         "</style>",
         "</head><body>",
-        f"<h1>{filename}</h1>",
+        f"<h1>{escape(filename)}</h1>",
     ]
 
     # Sheet tabs — each is a link that reloads with ?sheet=N (server-side, no full Excel re-parse overhead for client)
@@ -305,13 +362,13 @@ def _excel_to_html_response(
             if token:
                 query["token"] = token
             html_parts.append(
-                f"<a class='sheet-tab {active_cls}' href='?{urlencode(query)}'>{name}</a>"
+                f"<a class='sheet-tab {active_cls}' href='?{urlencode(query)}'>{escape(name)}</a>"
             )
         html_parts.append("</div>")
 
     # Render only the active sheet
     ws = wb[sheet_names[active_idx]]
-    html_parts.append(f"<h2>{sheet_names[active_idx]}</h2>")
+    html_parts.append(f"<h2>{escape(sheet_names[active_idx])}</h2>")
     html_parts.append("<div style='overflow-x:auto'><table>")
 
     row_count = 0
@@ -349,4 +406,12 @@ def _excel_to_html_response(
     html_parts.append("</body></html>")
 
     wb.close()
-    return HTMLResponse(content="\n".join(html_parts))
+    return HTMLResponse(
+        content="\n".join(html_parts),
+        headers={
+            # Sheet-name/cell escaping is the primary defense; the CSP is
+            # belt-and-suspenders so a missed sink still can't run script.
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
