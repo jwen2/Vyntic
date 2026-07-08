@@ -49,6 +49,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["workflow-runs"])
 
+# Mounted WITHOUT the app-wide get_current_user dependency (main.py): the run
+# stream authenticates via ?token= because EventSource cannot set an
+# Authorization header. Every route here must carry
+# get_current_user_or_query_token explicitly; the default-deny walker test
+# (tests/test_default_deny.py) enforces that nothing on it is open.
+stream_router = APIRouter(tags=["workflow-runs"])
+
 
 @router.post(
     "/deals/{deal_id}/workflows/{workflow_id}/runs",
@@ -268,7 +275,7 @@ async def approve_stage(
     return approved
 
 
-@router.get("/runs/{run_id}/stream")
+@stream_router.get("/runs/{run_id}/stream")
 async def stream_run(
     run_id: str,
     current_user: UserRow = Depends(get_current_user_or_query_token),

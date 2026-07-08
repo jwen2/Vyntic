@@ -33,6 +33,13 @@ from app.auth import (
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
+# Mounted WITHOUT the app-wide get_current_user dependency (main.py): the
+# document viewer authenticates via ?token= for iframes, where the browser
+# cannot set an Authorization header. Every route here must carry
+# get_current_user_or_query_token explicitly; the default-deny walker test
+# (tests/test_default_deny.py) enforces that nothing on it is open.
+view_router = APIRouter(prefix="/deals", tags=["deals"])
+
 
 @router.post("", response_model=Deal)
 def create_deal(data: DealCreate, current_user: UserRow = Depends(get_current_user)):
@@ -180,7 +187,7 @@ async def delete_deal(deal_id: str, current_user: UserRow = Depends(get_current_
     return {"status": "deleted", "deal_id": deal_id}
 
 
-@router.get("/{deal_id}/documents/{filename}/view")
+@view_router.get("/{deal_id}/documents/{filename}/view")
 async def view_document(
     deal_id: str,
     filename: str,

@@ -4,12 +4,13 @@ AI-powered asset analysis for PE deal comparison.
 """
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth import get_current_user
 from app.config import settings
 
-from app.api.routes_deals import router as deals_router
+from app.api.routes_deals import router as deals_router, view_router as deals_view_router
 from app.api.routes_managers import router as managers_router
 from app.api.routes_ingest import router as ingest_router
 from app.api.routes_query import router as query_router
@@ -19,7 +20,10 @@ from app.api.routes_doc_matrix import router as doc_matrix_router
 from app.api.routes_auth import router as auth_router
 from app.api.routes_conversation import router as conversation_router
 from app.api.routes_workflows import router as workflows_router
-from app.api.routes_workflow_runs import router as workflow_runs_router
+from app.api.routes_workflow_runs import (
+    router as workflow_runs_router,
+    stream_router as runs_stream_router,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,17 +46,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Default-deny (S1-cross): every router is mounted behind get_current_user so
+# a newly added handler is authenticated even if its author forgets the
+# dependency. Handlers still declare their own Depends for the user object and
+# finer-grained checks (require_admin / require_deal_access); FastAPI's
+# dependency cache means auth resolves once per request.
+#
+# Opt-outs, each enforced by tests/test_default_deny.py:
+#   - auth_router: login/register are public by design; its other routes carry
+#     explicit per-route auth.
+#   - deals_view_router / runs_stream_router: iframe + EventSource clients
+#     cannot send headers, so these authenticate per-route via
+#     get_current_user_or_query_token.
+AUTHENTICATED = [Depends(get_current_user)]
+
 app.include_router(auth_router)
-app.include_router(deals_router)
-app.include_router(managers_router)
-app.include_router(ingest_router)
-app.include_router(query_router)
-app.include_router(matrix_router)
-app.include_router(stream_router)
-app.include_router(doc_matrix_router)
-app.include_router(conversation_router)
-app.include_router(workflows_router)
-app.include_router(workflow_runs_router)
+app.include_router(deals_router, dependencies=AUTHENTICATED)
+app.include_router(deals_view_router)
+app.include_router(managers_router, dependencies=AUTHENTICATED)
+app.include_router(ingest_router, dependencies=AUTHENTICATED)
+app.include_router(query_router, dependencies=AUTHENTICATED)
+app.include_router(matrix_router, dependencies=AUTHENTICATED)
+app.include_router(stream_router, dependencies=AUTHENTICATED)
+app.include_router(doc_matrix_router, dependencies=AUTHENTICATED)
+app.include_router(conversation_router, dependencies=AUTHENTICATED)
+app.include_router(workflows_router, dependencies=AUTHENTICATED)
+app.include_router(workflow_runs_router, dependencies=AUTHENTICATED)
+app.include_router(runs_stream_router)
 
 
 @app.on_event("startup")
