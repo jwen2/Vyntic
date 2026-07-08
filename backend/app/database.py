@@ -4,7 +4,8 @@ Uses SQLite for local/PoC — swap connection string to PostgreSQL for productio
 """
 import json
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer, Float, Text, Boolean, DateTime, ForeignKey, event, inspect, text
+from pathlib import Path
+from sqlalchemy import create_engine, Column, String, Integer, Float, Text, Boolean, DateTime, ForeignKey, event, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, Session
 
 from app.config import settings
@@ -387,49 +388,48 @@ class AssistantStageOutputRow(Base):
     run = relationship("WorkflowRunRow", back_populates="stage_outputs")
 
 
-def init_db():
-    """Create all tables if they don't exist."""
-    Base.metadata.create_all(bind=engine)
-    _ensure_schema_migrations()
+# The revision that captures the schema exactly as create_all + the old
+# additive-column shim produced it. Pre-Alembic databases are stamped here,
+# then upgraded through any later revisions.
+_BASELINE_REVISION = "0001"
 
 
-def _ensure_schema_migrations():
-    """Apply additive column migrations for databases predating a schema change.
+def _alembic_config(url: str):
+    from alembic.config import Config
 
-    SQLAlchemy create_all creates missing tables but does not ALTER existing ones.
-    Each entry maps a table to the columns (and their ADD COLUMN DDL) added
-    post-initial-deploy. Idempotent: only missing columns are added.
+    ini_path = Path(__file__).resolve().parent.parent / "alembic.ini"
+    cfg = Config(str(ini_path))
+    cfg.set_main_option("sqlalchemy.url", url)
+    return cfg
+
+
+def run_migrations(url: str | None = None) -> None:
+    """Bring the database at `url` (default: the app DB) to the current
+    schema via the Alembic migration chain.
+
+    A pre-Alembic database — tables present but no alembic_version — is
+    adopted in place: stamped at the baseline revision (the old
+    create_all + shim path kept every live DB at exactly that schema),
+    then upgraded to head like any other database.
     """
-    additive_columns: dict[str, list[tuple[str, str]]] = {
-        "documents": [
-            ("full_text_md", "TEXT"),
-            ("parse_tier", "INTEGER DEFAULT 1"),
-            ("doc_category", "TEXT DEFAULT 'other'"),
-            ("period", "TEXT"),
-            ("scope", "TEXT DEFAULT 'entity'"),
-        ],
-        "deals": [
-            ("entity_type", "TEXT DEFAULT 'deal'"),
-            ("manager_id", "TEXT"),
-            ("vintage", "INTEGER"),
-            ("strategy", "TEXT DEFAULT ''"),
-        ],
-        "ingest_jobs": [
-            ("doc_category", "TEXT DEFAULT 'other'"),
-            ("period", "TEXT"),
-            ("scope", "TEXT DEFAULT 'entity'"),
-        ],
-    }
-    inspector = inspect(engine)
-    table_names = set(inspector.get_table_names())
-    with engine.begin() as conn:
-        for table, columns in additive_columns.items():
-            if table not in table_names:
-                continue
-            existing = {column["name"] for column in inspector.get_columns(table)}
-            for column_name, ddl_type in columns:
-                if column_name not in existing:
-                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {ddl_type}"))
+    from alembic import command
+
+    url = url or settings.database_url
+    probe = create_engine(url)
+    try:
+        tables = set(inspect(probe).get_table_names())
+    finally:
+        probe.dispose()
+
+    cfg = _alembic_config(url)
+    if tables and "alembic_version" not in tables:
+        command.stamp(cfg, _BASELINE_REVISION)
+    command.upgrade(cfg, "head")
+
+
+def init_db():
+    """Bring the app database to the current schema."""
+    run_migrations()
 
 
 def get_db() -> Session:
