@@ -1,6 +1,7 @@
 """Deal CRUD routes."""
 import os
 import shutil
+from html import escape
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -266,13 +267,23 @@ async def view_document(
     elif lower.endswith(".csv"):
         media_type = "text/csv"
     else:
-        media_type = "application/octet-stream"
+        # Unknown/HTML-ish types must never render in the app origin — a
+        # renamed .html would script against the app. Force download.
+        return FileResponse(
+            file_path,
+            media_type="application/octet-stream",
+            filename=filename,
+            content_disposition_type="attachment",
+            headers={"X-Content-Type-Options": "nosniff"},
+        )
 
     # content_disposition_type="inline" prevents download — renders in browser
     return FileResponse(
         file_path,
         media_type=media_type,
+        filename=filename,
         content_disposition_type="inline",
+        headers={"X-Content-Type-Options": "nosniff"},
     )
 
 
@@ -320,7 +331,7 @@ def _excel_to_html_response(
     html_parts = [
         "<!DOCTYPE html><html><head>",
         "<meta charset='utf-8'>",
-        f"<title>{filename}</title>",
+        f"<title>{escape(filename)}</title>",
         "<style>",
         "  * { box-sizing: border-box; margin: 0; padding: 0; }",
         "  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; padding: 24px; }",
@@ -338,7 +349,7 @@ def _excel_to_html_response(
         "  .truncated { padding: 12px; text-align: center; color: #9ca3af; font-size: 13px; font-style: italic; }",
         "</style>",
         "</head><body>",
-        f"<h1>{filename}</h1>",
+        f"<h1>{escape(filename)}</h1>",
     ]
 
     # Sheet tabs — each is a link that reloads with ?sheet=N (server-side, no full Excel re-parse overhead for client)
@@ -351,13 +362,13 @@ def _excel_to_html_response(
             if token:
                 query["token"] = token
             html_parts.append(
-                f"<a class='sheet-tab {active_cls}' href='?{urlencode(query)}'>{name}</a>"
+                f"<a class='sheet-tab {active_cls}' href='?{urlencode(query)}'>{escape(name)}</a>"
             )
         html_parts.append("</div>")
 
     # Render only the active sheet
     ws = wb[sheet_names[active_idx]]
-    html_parts.append(f"<h2>{sheet_names[active_idx]}</h2>")
+    html_parts.append(f"<h2>{escape(sheet_names[active_idx])}</h2>")
     html_parts.append("<div style='overflow-x:auto'><table>")
 
     row_count = 0
@@ -395,4 +406,12 @@ def _excel_to_html_response(
     html_parts.append("</body></html>")
 
     wb.close()
-    return HTMLResponse(content="\n".join(html_parts))
+    return HTMLResponse(
+        content="\n".join(html_parts),
+        headers={
+            # Sheet-name/cell escaping is the primary defense; the CSP is
+            # belt-and-suspenders so a missed sink still can't run script.
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
