@@ -1,11 +1,11 @@
 """Deal CRUD routes."""
 import os
-import shutil
 from html import escape
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from app.config import settings
 from app.models.deal import (
@@ -186,27 +186,48 @@ async def delete_deal(
 ):
     require_admin(current_user)
     require_deal_access(current_user, deal_id)
-    from app.services.vector_store import delete_deal_vectors
 
-    if not deal_store.delete_deal(deal_id):
+    # Soft delete (C1): the row, files, and vectors survive until the
+    # retention purge; legal hold blocks deletion entirely.
+    try:
+        deleted = deal_store.delete_deal(deal_id)
+    except deal_store.LegalHoldError:
+        raise HTTPException(
+            status_code=423, detail=f"Deal '{deal_id}' is under legal hold"
+        )
+    if not deleted:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
 
     audit_store.record(
         current_user, "deal.delete", resource_type="deal",
         resource_id=deal_id, deal_id=deal_id, request=http_request,
     )
-
-    try:
-        await delete_deal_vectors(deal_id)
-    except Exception:
-        pass  # Best-effort cleanup of vectors
-
-    # Clean up uploaded files
-    deal_upload_dir = os.path.join(settings.uploads_dir, deal_id)
-    if os.path.isdir(deal_upload_dir):
-        shutil.rmtree(deal_upload_dir)
-
     return {"status": "deleted", "deal_id": deal_id}
+
+
+class LegalHoldRequest(BaseModel):
+    legal_hold: bool
+
+
+@router.patch("/{deal_id}/legal-hold")
+def set_legal_hold(
+    deal_id: str,
+    data: LegalHoldRequest,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
+    """Place or release a legal hold (C1/S8). While held, the deal and its
+    documents cannot be deleted and the retention purge skips them."""
+    require_admin(current_user)
+    require_deal_access(current_user, deal_id)
+    if not deal_store.set_legal_hold(deal_id, data.legal_hold):
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    audit_store.record(
+        current_user, "deal.legal_hold", resource_type="deal",
+        resource_id=deal_id, deal_id=deal_id, request=http_request,
+        legal_hold=data.legal_hold,
+    )
+    return {"deal_id": deal_id, "legal_hold": data.legal_hold}
 
 
 @router.get("/{deal_id}/documents/{filename}/view-token")

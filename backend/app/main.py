@@ -112,6 +112,11 @@ async def startup():
     if stranded_ingests:
         logger.info(f"Reconciled {stranded_ingests} ingest job(s) interrupted by restart")
 
+    # Retention purge (C1/S8): hard-remove rows soft-deleted past the
+    # window, unless under legal hold. Startup sweep, like the reconcilers.
+    from app.services.retention import purge_expired
+    await purge_expired()
+
     # Bounded ingest worker pool (claims queued ingest jobs from the DB).
     from app.services import ingest_worker
     ingest_worker.ensure_started()

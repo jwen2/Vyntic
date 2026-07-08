@@ -73,8 +73,10 @@ def _manager_shared_doc_rows(db, deal_id: str) -> list[DocumentRow]:
         .join(DealRow, DocumentRow.deal_id == DealRow.deal_id)
         .filter(
             DealRow.manager_id == deal_row.manager_id,
+            DealRow.deleted_at.is_(None),
             DocumentRow.scope == "manager",
             DocumentRow.deal_id != deal_id,
+            DocumentRow.deleted_at.is_(None),
         )
         .all()
     )
@@ -86,6 +88,7 @@ def _find_doc_row_for_entity(db, deal_id: str, doc_id: str) -> DocumentRow | Non
     row = db.query(DocumentRow).filter(
         DocumentRow.doc_id == doc_id,
         DocumentRow.deal_id == deal_id,
+        DocumentRow.deleted_at.is_(None),
     ).first()
     if row:
         return row
@@ -133,7 +136,9 @@ async def load_deal_context(deal_id: str, question: str) -> list[dict]:
 
     db, owned = current_session()
     try:
-        rows = db.query(DocumentRow).filter(DocumentRow.deal_id == deal_id).all()
+        rows = db.query(DocumentRow).filter(
+            DocumentRow.deal_id == deal_id, DocumentRow.deleted_at.is_(None)
+        ).all()
         # Funds additionally see the manager's shared documents (DDQs, Form
         # ADV, reference notes uploaded to sibling funds with scope="manager").
         rows = rows + _manager_shared_doc_rows(db, deal_id)

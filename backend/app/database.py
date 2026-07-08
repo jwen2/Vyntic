@@ -92,6 +92,11 @@ class DealRow(Base):
     manager_id = Column(String, ForeignKey("managers.manager_id", ondelete="SET NULL"), nullable=True, index=True)
     vintage = Column(Integer, nullable=True)  # fund vintage year
     strategy = Column(String, default="")  # e.g. "Buyout", "Growth", "Secondaries"
+    # Soft delete + legal hold (Plan 4 C1, S8). Deletes set deleted_at; the
+    # retention purge hard-removes past the window unless legal_hold is set.
+    # Documents inherit their deal's hold.
+    deleted_at = Column(DateTime, nullable=True, index=True)
+    legal_hold = Column(Boolean, nullable=False, default=False)
 
     documents = relationship("DocumentRow", back_populates="deal", cascade="all, delete-orphan")
     manager = relationship("ManagerRow", back_populates="funds")
@@ -133,6 +138,7 @@ class DocumentRow(Base):
     doc_category = Column(String, default="other", index=True)
     period = Column(String, nullable=True)
     scope = Column(String, default="entity", index=True)  # "entity" | "manager"
+    deleted_at = Column(DateTime, nullable=True, index=True)  # soft delete (C1)
 
     deal = relationship("DealRow", back_populates="documents")
 

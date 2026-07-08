@@ -10,7 +10,7 @@ from app.models.deal import DOC_CATEGORIES, DOC_SCOPES
 from app.models.document import DocumentMetadata
 from app.services.parser import parse_document_path
 from app.services.chunker import chunk_sections
-from app.services.vector_store import upsert_chunks, delete_doc_vectors
+from app.services.vector_store import upsert_chunks
 from app.services import audit_store
 from app.services import deal_store
 from app.services import ingest_store
@@ -430,27 +430,18 @@ async def delete_document(
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
 
-    # Look up filename before deleting metadata
-    docs = deal_store.list_documents(deal_id)
-    doc_meta = next((d for d in docs if d.doc_id == doc_id), None)
-
-    removed = deal_store.delete_document(deal_id, doc_id)
+    # Soft delete (C1): the file and vectors stay until the retention
+    # purge; legal hold blocks deletion entirely.
+    try:
+        removed = deal_store.delete_document(deal_id, doc_id)
+    except deal_store.LegalHoldError:
+        raise HTTPException(
+            status_code=423, detail=f"Deal '{deal_id}' is under legal hold"
+        )
     if not removed:
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
 
-    chunks_deleted = await delete_doc_vectors(deal_id, doc_id)
-
-    # Clean up original file from uploads
-    if doc_meta:
-        file_path = os.path.join(settings.uploads_dir, deal_id, doc_meta.filename)
-        still_referenced = any(
-            doc.filename == doc_meta.filename
-            for doc in deal_store.list_documents(deal_id)
-        )
-        if os.path.exists(file_path) and not still_referenced:
-            os.remove(file_path)
-
-    return {"deleted": True, "doc_id": doc_id, "chunks_removed": chunks_deleted}
+    return {"deleted": True, "doc_id": doc_id}
 
 
 class DocumentMetadataUpdate(BaseModel):
