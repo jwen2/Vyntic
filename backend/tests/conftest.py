@@ -14,9 +14,14 @@ from app.models.deal import DealCreate
 
 @pytest.fixture(autouse=True)
 def clear_store():
-    """Reset the database between tests by dropping and recreating all tables."""
+    """Reset the database between tests by dropping and recreating all tables.
+    Also resets the in-process rate limiter so auth tests that log in
+    repeatedly don't bleed 429s into each other."""
+    from app.rate_limit import limiter
+
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    limiter.reset()
     yield
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)

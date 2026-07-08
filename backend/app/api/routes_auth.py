@@ -18,6 +18,7 @@ from app.auth import (
     grant_deal_access,
 )
 from app.database import SessionLocal, UserRow, DealAccessRow
+from app.rate_limit import limiter, LOGIN_LIMIT, REGISTER_LIMIT
 from app.services import audit_store
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -56,10 +57,15 @@ class GrantAccessRequest(BaseModel):
 
 # ── Endpoints ──
 
+# NOTE: slowapi requires the starlette Request parameter to be named exactly
+# `request`, so these two handlers take their JSON body as `payload`.
+
 @router.post("/register", response_model=TokenResponse)
-def register(request: RegisterRequest, http_request: Request):
-    """Register a new user account."""
-    existing = get_user_by_email(request.email)
+@limiter.limit(REGISTER_LIMIT)
+def register(payload: RegisterRequest, request: Request):
+    """Register a new user account. Public during beta (decision 2026-07-07);
+    rate-limited per IP against junk-account flooding."""
+    existing = get_user_by_email(payload.email)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -67,13 +73,13 @@ def register(request: RegisterRequest, http_request: Request):
         )
 
     user = create_user(
-        email=request.email,
-        password=request.password,
-        full_name=request.full_name,
+        email=payload.email,
+        password=payload.password,
+        full_name=payload.full_name,
     )
     audit_store.record(
         user, "auth.register", resource_type="user",
-        resource_id=str(user.id), request=http_request,
+        resource_id=str(user.id), request=request,
     )
 
     token = create_access_token({"sub": str(user.id)})
@@ -84,16 +90,18 @@ def register(request: RegisterRequest, http_request: Request):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest, http_request: Request):
-    """Authenticate and return a JWT."""
-    user = get_user_by_email(request.email)
-    if not user or not verify_password(request.password, user.hashed_password):
+@limiter.limit(LOGIN_LIMIT)
+def login(payload: LoginRequest, request: Request):
+    """Authenticate and return a JWT. Rate-limited per IP against
+    credential stuffing."""
+    user = get_user_by_email(payload.email)
+    if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
 
-    audit_store.record(user, "auth.login", request=http_request)
+    audit_store.record(user, "auth.login", request=request)
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(
         access_token=token,

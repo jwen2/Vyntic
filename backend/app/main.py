@@ -6,9 +6,12 @@ import logging
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.auth import get_current_user
 from app.config import settings
+from app.rate_limit import limiter
 
 from app.api.routes_deals import router as deals_router, view_router as deals_view_router
 from app.api.routes_managers import router as managers_router
@@ -34,6 +37,11 @@ app = FastAPI(
     version="0.1.0",
     redirect_slashes=False,
 )
+
+# Rate limiting (S6): limiter state + 429 handler. Limits are declared on
+# the endpoints themselves (see routes_auth).
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
