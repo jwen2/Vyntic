@@ -11,6 +11,7 @@ from app.auth import (
     decode_access_token,
     revoke_token,
     security,
+    verify_deal_access,
     verify_password,
     get_current_user,
     get_user_by_email,
@@ -143,12 +144,17 @@ def grant_access(
     http_request: Request,
     current_user: UserRow = Depends(get_current_user),
 ):
-    """Grant a user access to a deal. Admin only."""
+    """Grant a user access to a deal. Admin only, within the admin's tenant:
+    the deal must be in-tenant, and a user from another tenant is reported
+    as not found (a cross-tenant grant would be inert anyway — the tenant
+    gate in verify_deal_access beats access rows — but must not probe
+    other tenants' user emails)."""
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
+    verify_deal_access(current_user, deal_id)
 
     target_user = get_user_by_email(request.email)
-    if not target_user:
+    if not target_user or target_user.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail=f"User '{request.email}' not found")
 
     grant_deal_access(target_user.id, deal_id, request.role)
@@ -165,9 +171,10 @@ def list_access(
     deal_id: str,
     current_user: UserRow = Depends(get_current_user),
 ):
-    """List users with access to a deal. Admin only."""
+    """List users with access to a deal. Admin only, within tenant."""
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
+    verify_deal_access(current_user, deal_id)
 
     db, owned = current_session()
     try:

@@ -52,6 +52,7 @@ def record(
         try:
             db.add(
                 AuditLogRow(
+                    tenant_id=user.tenant_id if user else None,
                     user_id=user.id if user else None,
                     user_email=user.email if user else "",
                     action=action,
@@ -77,11 +78,16 @@ def query(
     since: Optional[datetime] = None,
     limit: int = 100,
     offset: int = 0,
+    tenant_id: Optional[str] = None,
 ) -> list[AuditLogRow]:
-    """Filtered, newest-first page of audit rows (admin read API)."""
+    """Filtered, newest-first page of audit rows (admin read API). With
+    tenant_id, only that tenant's rows are visible — NULL-tenant rows
+    (pre-auth events) surface on no tenant's read path."""
     db, owned = current_session()
     try:
         q = db.query(AuditLogRow)
+        if tenant_id is not None:
+            q = q.filter(AuditLogRow.tenant_id == tenant_id)
         if deal_id is not None:
             q = q.filter(AuditLogRow.deal_id == deal_id)
         if user_id is not None:

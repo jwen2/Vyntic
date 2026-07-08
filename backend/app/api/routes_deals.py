@@ -160,6 +160,7 @@ def upsert_position(
     current_user: UserRow = Depends(get_current_user),
 ):
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -184,6 +185,7 @@ async def delete_deal(
     current_user: UserRow = Depends(get_current_user),
 ):
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     from app.services.vector_store import delete_deal_vectors
 
     if not deal_store.delete_deal(deal_id):

@@ -74,6 +74,7 @@ def list_audit_entries(
         since=_parse_since(since),
         limit=min(limit, 1000),
         offset=offset,
+        tenant_id=current_user.tenant_id,
     )
     return [
         AuditEntry(
@@ -110,6 +111,7 @@ def export_audit_csv(
         action=action,
         since=_parse_since(since),
         limit=10_000,
+        tenant_id=current_user.tenant_id,
     )
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")

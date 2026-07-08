@@ -175,6 +175,9 @@ class AuditLogRow(Base):
     __tablename__ = "audit_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    # Denormalized like user_email (no FK): rows must outlive their tenant.
+    # NULL = pre-auth event with no acting user; invisible to tenant reads.
+    tenant_id = Column(String, nullable=True, index=True)
     user_id = Column(Integer, nullable=True, index=True)
     user_email = Column(String, default="")
     action = Column(String, nullable=False, index=True)  # e.g. "auth.login", "deal.delete"
