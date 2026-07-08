@@ -60,10 +60,11 @@ def create_deal(
     if data.manager_id:
         if data.entity_type != "fund":
             raise HTTPException(status_code=422, detail="Only funds can belong to a manager")
-        if not manager_store.get_manager(data.manager_id):
+        # Tenant-scoped lookup: another tenant's manager is invisible here.
+        if not manager_store.get_manager(data.manager_id, tenant_id=current_user.tenant_id):
             raise HTTPException(status_code=422, detail=f"Manager '{data.manager_id}' not found")
     try:
-        deal = deal_store.create_deal(data)
+        deal = deal_store.create_deal(data, tenant_id=current_user.tenant_id)
         # Auto-grant access to the creator
         grant_deal_access(current_user.id, data.deal_id, role="admin")
         audit_store.record(
@@ -77,7 +78,7 @@ def create_deal(
 
 @router.get("", response_model=list[Deal])
 def list_deals(current_user: UserRow = Depends(get_current_user)):
-    return deal_store.list_deals()
+    return deal_store.list_deals(tenant_id=current_user.tenant_id)
 
 
 @router.get("/metadata/stages")

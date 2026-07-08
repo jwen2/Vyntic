@@ -7,10 +7,10 @@ deleting them — fund workspaces own the documents and run history.
 import json
 
 from app.models.manager import Manager, ManagerCreate, ManagerUpdate, Position, PositionUpsert
-from app.database import current_session, ManagerRow, DealRow, PositionRow
+from app.database import current_session, ManagerRow, DealRow, PositionRow, DEFAULT_TENANT_ID
 
 
-def create_manager(data: ManagerCreate) -> Manager:
+def create_manager(data: ManagerCreate, tenant_id: str = DEFAULT_TENANT_ID) -> Manager:
     db, owned = current_session()
     try:
         existing = db.query(ManagerRow).filter(ManagerRow.manager_id == data.manager_id).first()
@@ -18,6 +18,7 @@ def create_manager(data: ManagerCreate) -> Manager:
             raise ValueError(f"Manager '{data.manager_id}' already exists")
         row = ManagerRow(
             manager_id=data.manager_id,
+            tenant_id=tenant_id,
             name=data.name,
             description=data.description,
             tags_json=json.dumps(data.tags),
@@ -31,10 +32,15 @@ def create_manager(data: ManagerCreate) -> Manager:
             db.close()
 
 
-def get_manager(manager_id: str) -> Manager | None:
+def get_manager(manager_id: str, tenant_id: str | None = None) -> Manager | None:
+    """Fetch a manager; with tenant_id, cross-tenant managers resolve to
+    None (indistinguishable from nonexistent)."""
     db, owned = current_session()
     try:
-        row = db.query(ManagerRow).filter(ManagerRow.manager_id == manager_id).first()
+        q = db.query(ManagerRow).filter(ManagerRow.manager_id == manager_id)
+        if tenant_id is not None:
+            q = q.filter(ManagerRow.tenant_id == tenant_id)
+        row = q.first()
         if not row:
             return None
         fund_count = db.query(DealRow).filter(DealRow.manager_id == manager_id).count()
@@ -44,10 +50,13 @@ def get_manager(manager_id: str) -> Manager | None:
             db.close()
 
 
-def list_managers() -> list[Manager]:
+def list_managers(tenant_id: str | None = None) -> list[Manager]:
     db, owned = current_session()
     try:
-        rows = db.query(ManagerRow).order_by(ManagerRow.name).all()
+        q = db.query(ManagerRow)
+        if tenant_id is not None:
+            q = q.filter(ManagerRow.tenant_id == tenant_id)
+        rows = q.order_by(ManagerRow.name).all()
         # Count funds per manager in one pass.
         fund_counts: dict[str, int] = {}
         for (mid,) in db.query(DealRow.manager_id).filter(DealRow.manager_id.isnot(None)).all():

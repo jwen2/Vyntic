@@ -12,7 +12,14 @@ from jose import JWTError, jwt
 import bcrypt
 
 from app.config import settings
-from app.database import current_session, UserRow, DealAccessRow, RevokedTokenRow
+from app.database import (
+    current_session,
+    UserRow,
+    DealAccessRow,
+    DealRow,
+    RevokedTokenRow,
+    DEFAULT_TENANT_ID,
+)
 
 # ── Bearer token extraction ──
 security = HTTPBearer(auto_error=False)
@@ -224,12 +231,28 @@ def require_admin(user: UserRow) -> None:
 
 
 def verify_deal_access(user: UserRow, deal_id: str) -> bool:
-    """Check that user has access to the specified deal. Admins bypass."""
-    if user.is_admin:
-        return True
+    """Check that user has access to the specified deal.
 
+    The tenant boundary comes first and binds everyone: admin means
+    tenant-admin, and a stale deal_access row must not reach across
+    tenants. Cross-tenant deals return the same 403 as a plain access
+    miss so responses do not leak what exists in other tenants.
+    Within the tenant, admins bypass per-deal access rows.
+    """
     db, owned = current_session()
     try:
+        deal_tenant = (
+            db.query(DealRow.tenant_id).filter(DealRow.deal_id == deal_id).scalar()
+        )
+        if deal_tenant is not None and deal_tenant != user.tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"You do not have access to deal '{deal_id}'",
+            )
+
+        if user.is_admin:
+            return True
+
         access = db.query(DealAccessRow).filter(
             DealAccessRow.user_id == user.id,
             DealAccessRow.deal_id == deal_id,
@@ -264,7 +287,15 @@ def get_user_by_email(email: str) -> Optional[UserRow]:
             db.close()
 
 
-def create_user(email: str, password: str, full_name: str = "", is_admin: bool = False) -> UserRow:
+def create_user(
+    email: str,
+    password: str,
+    full_name: str = "",
+    is_admin: bool = False,
+    tenant_id: str = DEFAULT_TENANT_ID,
+) -> UserRow:
+    """Create a user bound to a tenant. Public registration stays on the
+    default tenant (beta decision) until invite/provisioning flows exist."""
     db, owned = current_session()
     try:
         user = UserRow(
@@ -272,6 +303,7 @@ def create_user(email: str, password: str, full_name: str = "", is_admin: bool =
             hashed_password=hash_password(password),
             full_name=full_name,
             is_admin=is_admin,
+            tenant_id=tenant_id,
         )
         db.add(user)
         db.commit()

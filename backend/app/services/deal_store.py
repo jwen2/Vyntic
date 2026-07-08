@@ -7,10 +7,10 @@ import json
 from sqlalchemy.orm import load_only
 from app.models.deal import Deal, DealCreate, DealUpdate
 from app.models.document import DocumentMetadata
-from app.database import current_session, DealRow, DocumentRow, ManagerRow
+from app.database import current_session, DealRow, DocumentRow, ManagerRow, DEFAULT_TENANT_ID
 
 
-def create_deal(data: DealCreate) -> Deal:
+def create_deal(data: DealCreate, tenant_id: str = DEFAULT_TENANT_ID) -> Deal:
     db, owned = current_session()
     try:
         existing = db.query(DealRow).filter(DealRow.deal_id == data.deal_id).first()
@@ -18,6 +18,7 @@ def create_deal(data: DealCreate) -> Deal:
             raise ValueError(f"Deal '{data.deal_id}' already exists")
         row = DealRow(
             deal_id=data.deal_id,
+            tenant_id=tenant_id,
             name=data.name,
             description=data.description,
             document_count=0,
@@ -49,10 +50,16 @@ def get_deal(deal_id: str) -> Deal | None:
             db.close()
 
 
-def list_deals() -> list[Deal]:
+def list_deals(tenant_id: str | None = None) -> list[Deal]:
+    """List deals, filtered to one tenant when given. None (internal/seed
+    callers) lists across tenants — routes must always pass the user's
+    tenant."""
     db, owned = current_session()
     try:
-        rows = db.query(DealRow).all()
+        q = db.query(DealRow)
+        if tenant_id is not None:
+            q = q.filter(DealRow.tenant_id == tenant_id)
+        rows = q.all()
         manager_names = dict(db.query(ManagerRow.manager_id, ManagerRow.name).all())
         return [
             _row_to_deal(r, manager_name=manager_names.get(r.manager_id))
