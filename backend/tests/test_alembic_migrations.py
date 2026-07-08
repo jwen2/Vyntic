@@ -57,14 +57,19 @@ def test_fresh_db_created_and_stamped(scratch_url):
 
 
 def test_pre_alembic_db_adopted_in_place(scratch_url):
-    # Simulate the pilot DB: full current schema from create_all, real data,
-    # no alembic_version.
+    # Simulate the pilot DB: exactly the baseline schema (what create_all +
+    # the old shim produced), real data, no alembic_version.
+    from alembic import command
+
+    from app.database import _alembic_config
+
+    command.upgrade(_alembic_config(scratch_url), "0001")
     engine = create_engine(scratch_url)
-    Base.metadata.create_all(bind=engine)
     with engine.begin() as conn:
         conn.execute(
             text("INSERT INTO deals (deal_id, name) VALUES ('d1', 'Pilot Deal')")
         )
+        conn.execute(text("DROP TABLE alembic_version"))
     engine.dispose()
 
     run_migrations(scratch_url)

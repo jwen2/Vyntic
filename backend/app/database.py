@@ -34,6 +34,21 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+class TenantRow(Base):
+    """An organizational tenant (Plan 4, S2). Every top-level entity —
+    users, deals/funds, managers — carries tenant_id; deal-scoped tables
+    inherit tenancy through deal_id. 'default' holds all pre-tenancy rows
+    until real tenants are provisioned."""
+    __tablename__ = "tenants"
+
+    tenant_id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+DEFAULT_TENANT_ID = "default"
+
+
 class ManagerRow(Base):
     """A GP firm (fund manager). Funds — DealRow with entity_type="fund" —
     reference it via manager_id. Manager-scoped documents (DDQs, Form ADV,
@@ -42,6 +57,7 @@ class ManagerRow(Base):
     __tablename__ = "managers"
 
     manager_id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.tenant_id"), nullable=False, default=DEFAULT_TENANT_ID, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, default="")
     tags_json = Column(Text, default="[]")
@@ -66,6 +82,7 @@ class DealRow(Base):
     __tablename__ = "deals"
 
     deal_id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.tenant_id"), nullable=False, default=DEFAULT_TENANT_ID, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, default="")
     document_count = Column(Integer, default=0)
@@ -195,6 +212,7 @@ class UserRow(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(String, ForeignKey("tenants.tenant_id"), nullable=False, default=DEFAULT_TENANT_ID, index=True)
     email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, default="")
