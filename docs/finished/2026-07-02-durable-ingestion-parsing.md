@@ -1,5 +1,7 @@
 # Plan 3 — Durable Ingestion & Parsing Throughput
 
+> **Status: COMPLETED 2026-07-03** — shipped in PR #91 alongside Plan 1. Concurrency decision resolved as (a): bounded in-process pool over DB job rows, structured to lift into a separate worker process in Plan 5. Task 3.3's manual smoke check is documented in the PR description.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:executing-plans. Checkbox steps, commit per task.
 
 **Source:** `docs/assessments/2026-07-02-resiliency-security-assessment.md` — R4, R5.
@@ -27,23 +29,23 @@ Move ingest state from an in-memory dict to the DB so it survives restarts, is v
 
 **Files:** `app/database.py` (new `IngestJobRow`), new `app/services/ingest_store.py`, modify `app/api/routes_ingest.py`, `app/main.py` (reconciler call); `tests/test_ingest_durability.py`.
 
-- [ ] **Step 1: Schema.** `IngestJobRow(id, deal_id, filename, file_path, status[queued|parsing|embedding|complete|error], stage, percent, detail, doc_id, created_at, updated_at)`. Replace `_ingest_progress` reads/writes with this table.
-- [ ] **Step 2: Reconciler.** `reconcile_interrupted_ingests()` — any job in `queued|parsing|embedding` at startup → `error` with detail "Interrupted by server restart" (or re-queue if Task 3.2's queue exists). Call from `main.py` startup next to `reconcile_interrupted_runs`. **Failing test first:** seed an in-flight job, run reconciler, assert it's errored; a `complete` job is untouched.
-- [ ] **Step 3: Progress endpoint reads the table.** `GET /deals/{id}/documents/progress/{job_id}` returns the row. Frontend already polls progress — keep the response shape compatible.
-- [ ] **Step 4:** Verify + commit — `feat(ingest): durable DB-backed ingest jobs + restart reconciler`
+- [x] **Step 1: Schema.** `IngestJobRow(id, deal_id, filename, file_path, status[queued|parsing|embedding|complete|error], stage, percent, detail, doc_id, created_at, updated_at)`. Replace `_ingest_progress` reads/writes with this table.
+- [x] **Step 2: Reconciler.** `reconcile_interrupted_ingests()` — any job in `queued|parsing|embedding` at startup → `error` with detail "Interrupted by server restart" (or re-queue if Task 3.2's queue exists). Call from `main.py` startup next to `reconcile_interrupted_runs`. **Failing test first:** seed an in-flight job, run reconciler, assert it's errored; a `complete` job is untouched.
+- [x] **Step 3: Progress endpoint reads the table.** `GET /deals/{id}/documents/progress/{job_id}` returns the row. Frontend already polls progress — keep the response shape compatible.
+- [x] **Step 4:** Verify + commit — `feat(ingest): durable DB-backed ingest jobs + restart reconciler`
 
 ## Task 3.2 — Parsing worker pool + backpressure (R5)
 
 **Files:** modify `app/config.py`, `app/services/parser.py` (or a new `app/services/ingest_worker.py`), `app/api/routes_ingest.py`; `tests/test_ingest_throughput.py`.
 
-- [ ] **Step 1: Bounded worker pool.** Per the decision above, process queued `IngestJobRow`s with a configurable pool (`INGEST_WORKERS`, default 2–4 depending on CPU), each claiming a job atomically (`queued → parsing`, same claim pattern as workflow cells). Docling stays subprocess-isolated per job.
-- [ ] **Step 2: Backpressure + limits.** Add a max upload size (`MAX_UPLOAD_MB`) and a per-deal in-flight cap; a full queue returns a clear 429/202 with the job id rather than blocking the request. Batch upload enqueues N jobs and returns immediately with job ids.
-- [ ] **Step 3: Tests.** Enqueuing many jobs processes them with bounded concurrency (assert no more than `INGEST_WORKERS` in `parsing` at once); oversized upload rejected; batch returns job ids without waiting for parse.
-- [ ] **Step 4:** Verify + commit — `feat(ingest): bounded parsing worker pool with backpressure`
+- [x] **Step 1: Bounded worker pool.** Per the decision above, process queued `IngestJobRow`s with a configurable pool (`INGEST_WORKERS`, default 2–4 depending on CPU), each claiming a job atomically (`queued → parsing`, same claim pattern as workflow cells). Docling stays subprocess-isolated per job.
+- [x] **Step 2: Backpressure + limits.** Add a max upload size (`MAX_UPLOAD_MB`) and a per-deal in-flight cap; a full queue returns a clear 429/202 with the job id rather than blocking the request. Batch upload enqueues N jobs and returns immediately with job ids.
+- [x] **Step 3: Tests.** Enqueuing many jobs processes them with bounded concurrency (assert no more than `INGEST_WORKERS` in `parsing` at once); oversized upload rejected; batch returns job ids without waiting for parse.
+- [x] **Step 4:** Verify + commit — `feat(ingest): bounded parsing worker pool with backpressure`
 
 ## Task 3.3 — Throughput smoke (manual, documented)
 
-- [ ] Document a manual check in the PR: upload ~25 small PDFs via batch, confirm all reach `complete`, jobs visible in the ingest table, and a mid-batch backend restart leaves interrupted jobs `error` (recoverable via re-upload) rather than stuck `processing`.
+- [x] Document a manual check in the PR: upload ~25 small PDFs via batch, confirm all reach `complete`, jobs visible in the ingest table, and a mid-batch backend restart leaves interrupted jobs `error` (recoverable via re-upload) rather than stuck `processing`.
 
 ---
 

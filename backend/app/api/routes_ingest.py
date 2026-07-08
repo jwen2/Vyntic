@@ -1,7 +1,5 @@
 """Document ingestion routes — supports single and multi-file upload."""
-import asyncio
 import os
-import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
@@ -12,52 +10,45 @@ from app.services.parser import parse_document_path
 from app.services.chunker import chunk_sections
 from app.services.vector_store import upsert_chunks, delete_doc_vectors
 from app.services import deal_store
+from app.services import ingest_store
+from app.services import ingest_worker
 from app.database import UserRow
 from app.auth import get_current_user, require_admin, require_deal_access
 
 router = APIRouter(prefix="/deals/{deal_id}/documents", tags=["ingestion"])
 
-_ingest_progress: dict[str, dict] = {}
-_PROGRESS_TTL_SECONDS = 600
-
-
-def _cleanup_progress() -> None:
-    cutoff = time.time() - _PROGRESS_TTL_SECONDS
-    stale = [
-        upload_id
-        for upload_id, progress in _ingest_progress.items()
-        if progress.get("updated_at", 0) < cutoff
-    ]
-    for upload_id in stale:
-        _ingest_progress.pop(upload_id, None)
-
 
 def _set_progress(
     upload_id: str | None,
     *,
+    deal_id: str,
     status: str,
     stage: str,
     percent: float,
     filename: str | None = None,
     detail: str = "",
+    file_path: str | None = None,
+    doc_id: str | None = None,
+    child_total: int | None = None,
 ) -> None:
-    if not upload_id:
-        return
-    _cleanup_progress()
-    _ingest_progress[upload_id] = {
-        "upload_id": upload_id,
-        "status": status,
-        "stage": stage,
-        "percent": max(0, min(100, round(percent))),
-        "filename": filename,
-        "detail": detail,
-        "updated_at": time.time(),
-    }
+    ingest_store.set_progress(
+        upload_id,
+        deal_id=deal_id,
+        status=status,
+        stage=stage,
+        percent=percent,
+        filename=filename,
+        detail=detail,
+        file_path=file_path,
+        doc_id=doc_id,
+        child_total=child_total,
+    )
 
 
 def _progress_mapper(
     upload_id: str | None,
     *,
+    deal_id: str,
     status: str,
     stage: str,
     start_percent: float,
@@ -68,6 +59,7 @@ def _progress_mapper(
         percent = start_percent + (end_percent - start_percent) * fraction
         _set_progress(
             upload_id,
+            deal_id=deal_id,
             status=status,
             stage=stage,
             percent=percent,
@@ -79,13 +71,41 @@ def _progress_mapper(
 
 
 async def _save_upload_to_disk(deal_id: str, file: UploadFile) -> Path:
+    """Stream the upload to disk, enforcing the max size as it arrives."""
+    max_bytes = settings.max_upload_mb * 1024 * 1024
     deal_dir = os.path.join(settings.uploads_dir, deal_id)
     os.makedirs(deal_dir, exist_ok=True)
     dest_path = Path(deal_dir) / file.filename
+    written = 0
     with dest_path.open("wb") as f:
         while chunk := await file.read(1024 * 1024):
+            written += len(chunk)
+            if written > max_bytes:
+                f.close()
+                dest_path.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=413,
+                    detail=(
+                        f"'{file.filename}' exceeds the {settings.max_upload_mb}MB "
+                        "upload limit"
+                    ),
+                )
             f.write(chunk)
     return dest_path
+
+
+def _check_inflight_cap(deal_id: str, adding: int) -> None:
+    cap = settings.ingest_max_inflight_per_deal
+    inflight = ingest_store.count_inflight(deal_id)
+    if inflight + adding > cap:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Too many documents in flight for this deal "
+                f"({inflight} active, cap {cap}). Retry once current "
+                "ingestion finishes."
+            ),
+        )
 
 
 def _count_pdf_pages(file_path: Path) -> int | None:
@@ -122,10 +142,12 @@ async def _ingest_saved_path(
     try:
         _set_progress(
             upload_id,
-            status="processing",
+            deal_id=deal_id,
+            status="parsing",
             stage="Parsing document",
             percent=start_percent + span * 0.15,
             filename=filename,
+            file_path=str(file_path),
         )
         doc_metadata, sections = await parse_document_path(
             file_path,
@@ -133,7 +155,8 @@ async def _ingest_saved_path(
             deal_id,
             progress_callback=_progress_mapper(
                 upload_id,
-                status="processing",
+                deal_id=deal_id,
+                status="parsing",
                 stage="Parsing document",
                 start_percent=start_percent + span * 0.15,
                 end_percent=start_percent + span * 0.72,
@@ -143,6 +166,7 @@ async def _ingest_saved_path(
     except ValueError as e:
         _set_progress(
             upload_id,
+            deal_id=deal_id,
             status="error",
             stage="Parsing failed",
             percent=start_percent + span * 0.15,
@@ -153,6 +177,7 @@ async def _ingest_saved_path(
     except Exception as e:
         _set_progress(
             upload_id,
+            deal_id=deal_id,
             status="error",
             stage="Parsing failed",
             percent=start_percent + span * 0.15,
@@ -164,7 +189,8 @@ async def _ingest_saved_path(
     if not settings.full_context_mode:
         _set_progress(
             upload_id,
-            status="processing",
+            deal_id=deal_id,
+            status="embedding",
             stage="Chunking document",
             percent=start_percent + span * 0.76,
             filename=filename,
@@ -175,7 +201,8 @@ async def _ingest_saved_path(
         try:
             _set_progress(
                 upload_id,
-                status="processing",
+                deal_id=deal_id,
+                status="embedding",
                 stage="Embedding chunks",
                 percent=start_percent + span * 0.82,
                 filename=filename,
@@ -186,7 +213,8 @@ async def _ingest_saved_path(
                 chunks,
                 progress_callback=_progress_mapper(
                     upload_id,
-                    status="processing",
+                    deal_id=deal_id,
+                    status="embedding",
                     stage="Embedding chunks",
                     start_percent=start_percent + span * 0.82,
                     end_percent=start_percent + span * 0.98,
@@ -196,6 +224,7 @@ async def _ingest_saved_path(
         except Exception as e:
             _set_progress(
                 upload_id,
+                deal_id=deal_id,
                 status="error",
                 stage="Embedding failed",
                 percent=start_percent + span * 0.82,
@@ -209,61 +238,15 @@ async def _ingest_saved_path(
     deal_store.add_document(deal_id, doc_metadata)
     _set_progress(
         upload_id,
-        status="processing",
+        deal_id=deal_id,
+        status="embedding",
         stage="Finalizing",
         percent=end_percent,
         filename=filename,
+        doc_id=doc_metadata.doc_id,
     )
 
     return doc_metadata
-
-
-def _schedule_background_ingest(
-    deal_id: str,
-    file_path: Path,
-    filename: str,
-    upload_id: str | None,
-    start_percent: float,
-    end_percent: float,
-) -> None:
-    async def _run() -> None:
-        try:
-            meta = await _ingest_saved_path(
-                deal_id,
-                file_path,
-                filename,
-                upload_id=upload_id,
-                start_percent=start_percent,
-                end_percent=end_percent,
-            )
-            _set_progress(
-                upload_id,
-                status="complete",
-                stage="Complete",
-                percent=end_percent,
-                filename=filename,
-                detail=f"Embedded {meta.chunk_count} chunks",
-            )
-        except HTTPException as e:
-            _set_progress(
-                upload_id,
-                status="error",
-                stage="Ingestion failed",
-                percent=end_percent,
-                filename=filename,
-                detail=str(e.detail),
-            )
-        except Exception as e:
-            _set_progress(
-                upload_id,
-                status="error",
-                stage="Ingestion failed",
-                percent=end_percent,
-                filename=filename,
-                detail=str(e),
-            )
-
-    asyncio.create_task(_run())
 
 
 async def _ingest_one(
@@ -281,7 +264,8 @@ async def _ingest_one(
     filename = file.filename
     _set_progress(
         upload_id,
-        status="processing",
+        deal_id=deal_id,
+        status="queued",
         stage="Saving upload",
         percent=start_percent + span * 0.12,
         filename=filename,
@@ -291,27 +275,20 @@ async def _ingest_one(
     page_count = _count_pdf_pages(dest_path) or 0
 
     if _should_ingest_in_background(dest_path):
-        _set_progress(
-            upload_id,
-            status="processing",
-            stage="Queued for parsing",
+        job_id = ingest_worker.enqueue_file(
+            deal_id,
+            str(dest_path),
+            filename,
+            job_id=upload_id,
             percent=start_percent + span * 0.15,
-            filename=filename,
             detail=(
                 f"{page_count} pages detected. Parsing will continue in the background."
             ),
         )
-        _schedule_background_ingest(
-            deal_id,
-            dest_path,
-            filename,
-            upload_id,
-            start_percent,
-            end_percent,
-        )
+        ingest_worker.ensure_started()
         return (
             DocumentMetadata(
-                doc_id=f"{deal_id}_pending",
+                doc_id=job_id,
                 deal_id=deal_id,
                 filename=filename,
                 page_count=page_count,
@@ -345,21 +322,32 @@ async def ingest_document(
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    _check_inflight_cap(deal_id, adding=1)
     try:
         meta, backgrounded = await _ingest_one(deal_id, file, upload_id=upload_id)
         if not backgrounded:
             _set_progress(
                 upload_id,
+                deal_id=deal_id,
                 status="complete",
                 stage="Complete",
                 percent=100,
                 filename=file.filename,
                 detail=f"Embedded {meta.chunk_count} chunks",
+                doc_id=meta.doc_id,
             )
         return meta
     except Exception:
-        if upload_id and upload_id not in _ingest_progress:
-            _set_progress(upload_id, status="error", stage="Upload failed", percent=0)
+        if upload_id:
+            job = ingest_store.get_job(upload_id)
+            if job is None or job["status"] not in ("complete", "error"):
+                _set_progress(
+                    upload_id,
+                    deal_id=deal_id,
+                    status="error",
+                    stage="Upload failed",
+                    percent=0,
+                )
         raise
 
 
@@ -370,10 +358,10 @@ async def get_ingest_progress(
     current_user: UserRow = Depends(get_current_user),
 ):
     require_deal_access(current_user, deal_id)
-    progress = _ingest_progress.get(upload_id)
+    progress = ingest_store.get_job(upload_id)
     if not progress:
         raise HTTPException(status_code=404, detail="Progress not found")
-    return {k: v for k, v in progress.items() if k != "updated_at"}
+    return progress
 
 
 @router.delete("/{doc_id}")
@@ -414,7 +402,10 @@ async def ingest_batch(
     upload_id: str | None = Query(None),
     current_user: UserRow = Depends(get_current_user),
 ):
-    """Upload and ingest multiple documents at once into a deal's namespace."""
+    """Upload multiple documents: save each to disk, enqueue one ingest job
+    per file, and return immediately with placeholder metadata whose doc_id
+    is the job id. The bounded worker pool parses them; the upload_id row
+    aggregates the children for the frontend's progress polling."""
     require_admin(current_user)
     deal = deal_store.get_deal(deal_id)
     if not deal:
@@ -423,32 +414,25 @@ async def ingest_batch(
     if not files:
         raise HTTPException(status_code=400, detail="At least one file is required")
 
-    results = []
+    _check_inflight_cap(deal_id, adding=len(files))
+
+    saved: list[tuple[Path, str, int]] = []
     errors = []
-    backgrounded_count = 0
-    total_files = len(files)
-    for index, f in enumerate(files):
-        file_start = (index / total_files) * 100
-        file_end = ((index + 1) / total_files) * 100
+    for f in files:
+        if not f.filename:
+            errors.append("(unnamed file): filename is required")
+            continue
         try:
-            meta, backgrounded = await _ingest_one(
-                deal_id,
-                f,
-                upload_id=upload_id,
-                start_percent=file_start,
-                end_percent=file_end,
-            )
-            results.append(meta)
-            if backgrounded:
-                backgrounded_count += 1
+            dest_path = await _save_upload_to_disk(deal_id, f)
         except HTTPException as e:
             errors.append(f"{f.filename}: {e.detail}")
-        except Exception as e:
-            errors.append(f"{f.filename}: {str(e)}")
+            continue
+        saved.append((dest_path, f.filename, _count_pdf_pages(dest_path) or 0))
 
-    if errors and not results:
+    if errors and not saved:
         _set_progress(
             upload_id,
+            deal_id=deal_id,
             status="error",
             stage="Upload failed",
             percent=100,
@@ -456,20 +440,39 @@ async def ingest_batch(
         )
         raise HTTPException(status_code=400, detail="; ".join(errors))
 
-    if backgrounded_count:
-        _set_progress(
-            upload_id,
-            status="processing",
-            stage="Background ingestion running",
-            percent=95,
-            detail=f"{backgrounded_count} large file(s) are still parsing.",
+    # Write the aggregate row (with the expected child count) before the
+    # children exist, so a fast worker can't observe a half-enqueued batch
+    # as finished — and so this write can never clobber a terminal state.
+    detail = f"{len(saved)} document(s) queued for ingestion."
+    if errors:
+        detail += " Failed to save: " + "; ".join(errors)
+    _set_progress(
+        upload_id,
+        deal_id=deal_id,
+        status="parsing",
+        stage="Background ingestion running",
+        percent=10,
+        detail=detail,
+        child_total=len(saved),
+    )
+
+    results = []
+    for dest_path, filename, page_count in saved:
+        job_id = ingest_worker.enqueue_file(
+            deal_id,
+            str(dest_path),
+            filename,
+            parent_id=upload_id,
         )
-    else:
-        _set_progress(
-            upload_id,
-            status="complete",
-            stage="Complete",
-            percent=100,
-            detail=f"Embedded {sum(meta.chunk_count for meta in results)} chunks",
+        results.append(
+            DocumentMetadata(
+                doc_id=job_id,
+                deal_id=deal_id,
+                filename=filename,
+                page_count=page_count,
+                chunk_count=0,
+            )
         )
+
+    ingest_worker.ensure_started()
     return results
