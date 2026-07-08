@@ -47,6 +47,21 @@ export default function DocumentsModal({
     [dealId, onDocumentUpdated],
   );
 
+  const handleScopeToggle = useCallback(
+    async (doc: DocumentMetadata) => {
+      setError(null);
+      try {
+        const updated = await updateDocumentMetadata(dealId, doc.doc_id, {
+          scope: doc.scope === "manager" ? "entity" : "manager",
+        });
+        onDocumentUpdated?.(updated);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update document");
+      }
+    },
+    [dealId, onDocumentUpdated],
+  );
+
   // Close on Escape (only when no inline confirm is open).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -188,9 +203,30 @@ export default function DocumentsModal({
                       {doc.page_count} page{doc.page_count === 1 ? "" : "s"}
                       {doc.chunk_count ? ` · ${doc.chunk_count} chunks` : ""}
                       {doc.period ? ` · ${doc.period}` : ""}
-                      {doc.scope === "manager" ? " · Shared (manager)" : ""}
                     </div>
                   </div>
+                  <button
+                    onClick={() => handleScopeToggle(doc)}
+                    title={
+                      doc.scope === "manager"
+                        ? "Shared with all funds of this manager — click to keep it in this workspace only"
+                        : "Visible in this workspace only — click to share across the manager's funds"
+                    }
+                    style={{
+                      flexShrink: 0,
+                      padding: "4px 8px",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      background: doc.scope === "manager" ? ACCENT + "22" : "transparent",
+                      color: doc.scope === "manager" ? ACCENT : c.t3,
+                      border: `1px solid ${doc.scope === "manager" ? ACCENT + "66" : c.border}`,
+                      borderRadius: 999,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {doc.scope === "manager" ? "Shared" : "This workspace"}
+                  </button>
                   <select
                     value={doc.doc_category || "other"}
                     onChange={(e) => handleCategoryChange(doc, e.target.value)}
