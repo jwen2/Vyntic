@@ -20,11 +20,12 @@ import io
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.auth import get_current_user, get_current_user_or_query_token, require_deal_access
 from app.database import UserRow
+from app.services import audit_store
 from app.models.workflow_run import (
     AssistantStageOutput,
     StageApprovePayload,
@@ -65,6 +66,7 @@ async def create_run(
     deal_id: str,
     workflow_id: str,
     payload: WorkflowRunCreate,
+    http_request: Request,
     current_user: UserRow = Depends(get_current_user),
 ):
     require_deal_access(current_user, deal_id)
@@ -101,6 +103,11 @@ async def create_run(
             started_by=current_user.id,
         )
         kick_off_run(run.id, deal_id)
+        audit_store.record(
+            current_user, "run.start", resource_type="run",
+            resource_id=run.id, deal_id=deal_id, request=http_request,
+            workflow_id=workflow_id,
+        )
         return run
 
     # Assistant
@@ -115,6 +122,11 @@ async def create_run(
     if run is None:
         raise HTTPException(status_code=400, detail="Failed to create assistant run")
     kick_off_assistant_run(run.id, deal_id)
+    audit_store.record(
+        current_user, "run.start", resource_type="run",
+        resource_id=run.id, deal_id=deal_id, request=http_request,
+        workflow_id=workflow_id,
+    )
     return run
 
 
@@ -141,7 +153,11 @@ def get_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
 
 
 @router.get("/runs/{run_id}/export.xlsx")
-def export_tabular_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
+def export_tabular_run(
+    run_id: str,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
     run = workflow_run_store.get_run(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -149,6 +165,11 @@ def export_tabular_run(run_id: str, current_user: UserRow = Depends(get_current_
     workflow = workflow_store.get_workflow(run.workflow_id)
     if not workflow or workflow.type != "tabular":
         raise HTTPException(status_code=400, detail="Run is not a tabular workflow")
+    audit_store.record(
+        current_user, "run.export", resource_type="run",
+        resource_id=run_id, deal_id=run.deal_id, request=http_request,
+        format="xlsx",
+    )
     content = build_tabular_xlsx(run, workflow)
     filename = safe_export_filename(workflow.name, run.run_number, "xlsx")
     return StreamingResponse(
@@ -159,7 +180,11 @@ def export_tabular_run(run_id: str, current_user: UserRow = Depends(get_current_
 
 
 @router.get("/runs/{run_id}/export.docx")
-def export_assistant_run(run_id: str, current_user: UserRow = Depends(get_current_user)):
+def export_assistant_run(
+    run_id: str,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
     run = workflow_run_store.get_run(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -167,6 +192,11 @@ def export_assistant_run(run_id: str, current_user: UserRow = Depends(get_curren
     workflow = workflow_store.get_workflow(run.workflow_id)
     if not workflow or workflow.type != "assistant":
         raise HTTPException(status_code=400, detail="Run is not an assistant workflow")
+    audit_store.record(
+        current_user, "run.export", resource_type="run",
+        resource_id=run_id, deal_id=run.deal_id, request=http_request,
+        format="docx",
+    )
     content = build_assistant_docx(run, workflow)
     filename = safe_export_filename(workflow.name, run.run_number, "docx")
     return StreamingResponse(

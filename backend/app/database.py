@@ -152,6 +152,36 @@ class IngestJobRow(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+# ── Audit log (Plan 2, S4) ──
+
+class AuditLogRow(Base):
+    """Append-only record of security-relevant actions. Deliberately no
+    foreign keys: rows must survive deletion of the user or deal they
+    reference, and user_email is denormalized so offboarded users stay
+    identifiable. There is no update/delete path anywhere in the app."""
+    __tablename__ = "audit_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    user_email = Column(String, default="")
+    action = Column(String, nullable=False, index=True)  # e.g. "auth.login", "deal.delete"
+    resource_type = Column(String, default="")  # "deal" | "document" | "run" | "user" | ...
+    resource_id = Column(String, default="")
+    deal_id = Column(String, nullable=True, index=True)
+    ip = Column(String, default="")
+    user_agent = Column(String, default="")
+    metadata_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    @property
+    def meta(self) -> dict:
+        try:
+            value = json.loads(self.metadata_json) if self.metadata_json else {}
+        except (TypeError, ValueError):
+            return {}
+        return value if isinstance(value, dict) else {}
+
+
 # ── Authentication models ──
 
 class UserRow(Base):

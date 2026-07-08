@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Query
 from pydantic import BaseModel
 
 from app.config import settings
@@ -11,6 +11,7 @@ from app.models.document import DocumentMetadata
 from app.services.parser import parse_document_path
 from app.services.chunker import chunk_sections
 from app.services.vector_store import upsert_chunks, delete_doc_vectors
+from app.services import audit_store
 from app.services import deal_store
 from app.services import ingest_store
 from app.services import ingest_worker
@@ -343,6 +344,7 @@ async def _ingest_one(
 @router.post("", response_model=DocumentMetadata)
 async def ingest_document(
     deal_id: str,
+    http_request: Request,
     file: UploadFile = File(...),
     upload_id: str | None = Query(None),
     doc_category: str = Query("other"),
@@ -357,6 +359,10 @@ async def ingest_document(
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
     _check_inflight_cap(deal_id, adding=1)
+    audit_store.record(
+        current_user, "document.upload", resource_type="document",
+        resource_id=file.filename or "", deal_id=deal_id, request=http_request,
+    )
     try:
         meta, backgrounded = await _ingest_one(
             deal_id,
@@ -406,9 +412,18 @@ async def get_ingest_progress(
 
 
 @router.delete("/{doc_id}")
-async def delete_document(deal_id: str, doc_id: str, current_user: UserRow = Depends(get_current_user)):
+async def delete_document(
+    deal_id: str,
+    doc_id: str,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
     """Delete a document and its vectors from a deal."""
     require_admin(current_user)
+    audit_store.record(
+        current_user, "document.delete", resource_type="document",
+        resource_id=doc_id, deal_id=deal_id, request=http_request,
+    )
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
@@ -473,6 +488,7 @@ async def update_document_metadata(
 @router.post("/batch", response_model=list[DocumentMetadata])
 async def ingest_batch(
     deal_id: str,
+    http_request: Request,
     files: list[UploadFile] = File(...),
     upload_id: str | None = Query(None),
     doc_category: str = Query("other"),
@@ -496,6 +512,11 @@ async def ingest_batch(
         raise HTTPException(status_code=400, detail="At least one file is required")
 
     _check_inflight_cap(deal_id, adding=len(files))
+    audit_store.record(
+        current_user, "document.upload", resource_type="document",
+        resource_id=f"batch:{len(files)}", deal_id=deal_id, request=http_request,
+        filenames=[f.filename for f in files],
+    )
 
     saved: list[tuple[Path, str, int]] = []
     errors = []

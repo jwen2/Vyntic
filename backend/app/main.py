@@ -17,6 +17,7 @@ from app.api.routes_query import router as query_router
 from app.api.routes_matrix import router as matrix_router
 from app.api.routes_stream import router as stream_router
 from app.api.routes_doc_matrix import router as doc_matrix_router
+from app.api.routes_audit import router as audit_router
 from app.api.routes_auth import router as auth_router
 from app.api.routes_conversation import router as conversation_router
 from app.api.routes_workflows import router as workflows_router
@@ -61,6 +62,7 @@ app.add_middleware(
 AUTHENTICATED = [Depends(get_current_user)]
 
 app.include_router(auth_router)
+app.include_router(audit_router, dependencies=AUTHENTICATED)
 app.include_router(deals_router, dependencies=AUTHENTICATED)
 app.include_router(deals_view_router)
 app.include_router(managers_router, dependencies=AUTHENTICATED)

@@ -1,7 +1,7 @@
 """
 Authentication routes: register, login, user profile, and deal access management.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 
 from app.auth import (
@@ -13,6 +13,7 @@ from app.auth import (
     grant_deal_access,
 )
 from app.database import SessionLocal, UserRow, DealAccessRow
+from app.services import audit_store
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -51,7 +52,7 @@ class GrantAccessRequest(BaseModel):
 # ── Endpoints ──
 
 @router.post("/register", response_model=TokenResponse)
-def register(request: RegisterRequest):
+def register(request: RegisterRequest, http_request: Request):
     """Register a new user account."""
     existing = get_user_by_email(request.email)
     if existing:
@@ -65,6 +66,10 @@ def register(request: RegisterRequest):
         password=request.password,
         full_name=request.full_name,
     )
+    audit_store.record(
+        user, "auth.register", resource_type="user",
+        resource_id=str(user.id), request=http_request,
+    )
 
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(
@@ -74,7 +79,7 @@ def register(request: RegisterRequest):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest):
+def login(request: LoginRequest, http_request: Request):
     """Authenticate and return a JWT."""
     user = get_user_by_email(request.email)
     if not user or not verify_password(request.password, user.hashed_password):
@@ -83,6 +88,7 @@ def login(request: LoginRequest):
             detail="Invalid email or password",
         )
 
+    audit_store.record(user, "auth.login", request=http_request)
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(
         access_token=token,
@@ -105,6 +111,7 @@ def get_me(current_user: UserRow = Depends(get_current_user)):
 def grant_access(
     deal_id: str,
     request: GrantAccessRequest,
+    http_request: Request,
     current_user: UserRow = Depends(get_current_user),
 ):
     """Grant a user access to a deal. Admin only."""
@@ -116,6 +123,11 @@ def grant_access(
         raise HTTPException(status_code=404, detail=f"User '{request.email}' not found")
 
     grant_deal_access(target_user.id, deal_id, request.role)
+    audit_store.record(
+        current_user, "access.grant", resource_type="user",
+        resource_id=str(target_user.id), deal_id=deal_id,
+        request=http_request, email=request.email, role=request.role,
+    )
     return {"status": "granted", "email": request.email, "deal_id": deal_id, "role": request.role}
 
 

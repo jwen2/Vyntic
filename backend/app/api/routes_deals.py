@@ -3,7 +3,7 @@ import os
 import shutil
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from app.config import settings
@@ -21,7 +21,7 @@ from app.models.deal import (
 )
 from app.models.document import DocumentMetadata
 from app.models.manager import Position, PositionUpsert
-from app.services import deal_store, manager_store
+from app.services import audit_store, deal_store, manager_store
 from app.database import UserRow
 from app.auth import (
     get_current_user,
@@ -42,7 +42,11 @@ view_router = APIRouter(prefix="/deals", tags=["deals"])
 
 
 @router.post("", response_model=Deal)
-def create_deal(data: DealCreate, current_user: UserRow = Depends(get_current_user)):
+def create_deal(
+    data: DealCreate,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
     require_admin(current_user)
     if data.entity_type not in ENTITY_TYPES:
         raise HTTPException(status_code=422, detail=f"entity_type must be one of {ENTITY_TYPES}")
@@ -60,6 +64,10 @@ def create_deal(data: DealCreate, current_user: UserRow = Depends(get_current_us
         deal = deal_store.create_deal(data)
         # Auto-grant access to the creator
         grant_deal_access(current_user.id, data.deal_id, role="admin")
+        audit_store.record(
+            current_user, "deal.create", resource_type="deal",
+            resource_id=data.deal_id, deal_id=data.deal_id, request=http_request,
+        )
         return deal
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -167,12 +175,21 @@ def list_deal_documents(deal_id: str, current_user: UserRow = Depends(get_curren
 
 
 @router.delete("/{deal_id}")
-async def delete_deal(deal_id: str, current_user: UserRow = Depends(get_current_user)):
+async def delete_deal(
+    deal_id: str,
+    http_request: Request,
+    current_user: UserRow = Depends(get_current_user),
+):
     require_admin(current_user)
     from app.services.vector_store import delete_deal_vectors
 
     if not deal_store.delete_deal(deal_id):
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+
+    audit_store.record(
+        current_user, "deal.delete", resource_type="deal",
+        resource_id=deal_id, deal_id=deal_id, request=http_request,
+    )
 
     try:
         await delete_deal_vectors(deal_id)
@@ -191,11 +208,16 @@ async def delete_deal(deal_id: str, current_user: UserRow = Depends(get_current_
 async def view_document(
     deal_id: str,
     filename: str,
+    http_request: Request,
     sheet: int | None = None,
     token: str | None = None,
     current_user: UserRow = Depends(get_current_user_or_query_token),
 ):
     require_deal_access(current_user, deal_id)
+    audit_store.record(
+        current_user, "document.view", resource_type="document",
+        resource_id=filename, deal_id=deal_id, request=http_request,
+    )
     """Serve an original uploaded document file for inline viewing (not download).
 
     For Excel files, optionally pass ?sheet=0 to view a specific sheet.
