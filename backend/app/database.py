@@ -95,14 +95,6 @@ class PositionRow(Base):
 
     deal = relationship("DealRow", back_populates="position")
 
-    @property
-    def tags(self) -> list[str]:
-        return json.loads(self.tags_json) if self.tags_json else []
-
-    @tags.setter
-    def tags(self, value: list[str]):
-        self.tags_json = json.dumps(value)
-
 
 class DocumentRow(Base):
     __tablename__ = "documents"
