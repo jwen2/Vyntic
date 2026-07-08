@@ -15,7 +15,7 @@ from typing import Optional
 
 from fastapi import Request
 
-from app.database import SessionLocal, AuditLogRow, UserRow
+from app.database import SessionLocal, current_session, AuditLogRow, UserRow
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,10 @@ def record(
                 ip = request.client.host or ""
             user_agent = request.headers.get("user-agent", "")
 
+        # Deliberately NOT the shared request session (current_session):
+        # the audit write must commit independently of whatever state the
+        # request's session is in, and its never-raise guarantee must not
+        # risk poisoning that session for the rest of the request.
         db = SessionLocal()
         try:
             db.add(
@@ -75,7 +79,7 @@ def query(
     offset: int = 0,
 ) -> list[AuditLogRow]:
     """Filtered, newest-first page of audit rows (admin read API)."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         q = db.query(AuditLogRow)
         if deal_id is not None:
@@ -93,4 +97,5 @@ def query(
             db.expunge(row)
         return rows
     finally:
-        db.close()
+        if owned:
+            db.close()

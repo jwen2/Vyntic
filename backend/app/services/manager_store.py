@@ -7,11 +7,11 @@ deleting them — fund workspaces own the documents and run history.
 import json
 
 from app.models.manager import Manager, ManagerCreate, ManagerUpdate, Position, PositionUpsert
-from app.database import SessionLocal, ManagerRow, DealRow, PositionRow
+from app.database import current_session, ManagerRow, DealRow, PositionRow
 
 
 def create_manager(data: ManagerCreate) -> Manager:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         existing = db.query(ManagerRow).filter(ManagerRow.manager_id == data.manager_id).first()
         if existing:
@@ -27,11 +27,12 @@ def create_manager(data: ManagerCreate) -> Manager:
         db.refresh(row)
         return _row_to_manager(row, fund_count=0)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def get_manager(manager_id: str) -> Manager | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(ManagerRow).filter(ManagerRow.manager_id == manager_id).first()
         if not row:
@@ -39,11 +40,12 @@ def get_manager(manager_id: str) -> Manager | None:
         fund_count = db.query(DealRow).filter(DealRow.manager_id == manager_id).count()
         return _row_to_manager(row, fund_count=fund_count)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def list_managers() -> list[Manager]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = db.query(ManagerRow).order_by(ManagerRow.name).all()
         # Count funds per manager in one pass.
@@ -52,11 +54,12 @@ def list_managers() -> list[Manager]:
             fund_counts[mid] = fund_counts.get(mid, 0) + 1
         return [_row_to_manager(r, fund_count=fund_counts.get(r.manager_id, 0)) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def update_manager(manager_id: str, data: ManagerUpdate) -> Manager | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(ManagerRow).filter(ManagerRow.manager_id == manager_id).first()
         if not row:
@@ -72,12 +75,13 @@ def update_manager(manager_id: str, data: ManagerUpdate) -> Manager | None:
         fund_count = db.query(DealRow).filter(DealRow.manager_id == manager_id).count()
         return _row_to_manager(row, fund_count=fund_count)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def delete_manager(manager_id: str) -> bool:
     """Delete a manager. Its funds are detached (manager_id set NULL), not deleted."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(ManagerRow).filter(ManagerRow.manager_id == manager_id).first()
         if not row:
@@ -89,33 +93,36 @@ def delete_manager(manager_id: str) -> bool:
         db.commit()
         return True
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def list_fund_ids(manager_id: str) -> list[str]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = db.query(DealRow.deal_id).filter(DealRow.manager_id == manager_id).all()
         return [r[0] for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 # ── Positions ──
 
 def get_position(deal_id: str) -> Position | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(PositionRow).filter(PositionRow.deal_id == deal_id).first()
         if not row:
             return None
         return _row_to_position(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def upsert_position(deal_id: str, data: PositionUpsert) -> Position:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(PositionRow).filter(PositionRow.deal_id == deal_id).first()
         if not row:
@@ -132,7 +139,8 @@ def upsert_position(deal_id: str, data: PositionUpsert) -> Position:
         db.refresh(row)
         return _row_to_position(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def _row_to_manager(row: ManagerRow, fund_count: int) -> Manager:

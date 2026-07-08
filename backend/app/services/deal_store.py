@@ -7,11 +7,11 @@ import json
 from sqlalchemy.orm import load_only
 from app.models.deal import Deal, DealCreate, DealUpdate
 from app.models.document import DocumentMetadata
-from app.database import SessionLocal, DealRow, DocumentRow, ManagerRow
+from app.database import current_session, DealRow, DocumentRow, ManagerRow
 
 
 def create_deal(data: DealCreate) -> Deal:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         existing = db.query(DealRow).filter(DealRow.deal_id == data.deal_id).first()
         if existing:
@@ -33,22 +33,24 @@ def create_deal(data: DealCreate) -> Deal:
         db.refresh(row)
         return _row_to_deal(row, manager_name=_manager_name(db, row.manager_id))
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def get_deal(deal_id: str) -> Deal | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
         if not row:
             return None
         return _row_to_deal(row, manager_name=_manager_name(db, row.manager_id))
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def list_deals() -> list[Deal]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = db.query(DealRow).all()
         manager_names = dict(db.query(ManagerRow.manager_id, ManagerRow.name).all())
@@ -57,11 +59,12 @@ def list_deals() -> list[Deal]:
             for r in rows
         ]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def update_deal(deal_id: str, data: DealUpdate) -> Deal | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
         if not row:
@@ -84,22 +87,24 @@ def update_deal(deal_id: str, data: DealUpdate) -> Deal | None:
         db.refresh(row)
         return _row_to_deal(row, manager_name=_manager_name(db, row.manager_id))
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def increment_doc_count(deal_id: str, count: int = 1):
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
         if row:
             row.document_count = (row.document_count or 0) + count
             db.commit()
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def add_document(deal_id: str, doc: DocumentMetadata):
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DocumentRow).filter(
             DocumentRow.deal_id == deal_id,
@@ -137,22 +142,24 @@ def add_document(deal_id: str, doc: DocumentMetadata):
             ).count()
         db.commit()
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def document_exists(deal_id: str, filename: str) -> bool:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         return db.query(DocumentRow).filter(
             DocumentRow.deal_id == deal_id,
             DocumentRow.filename == filename,
         ).first() is not None
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def list_documents(deal_id: str) -> list[DocumentMetadata]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = db.query(DocumentRow).options(
             load_only(
@@ -169,12 +176,13 @@ def list_documents(deal_id: str) -> list[DocumentMetadata]:
         ).filter(DocumentRow.deal_id == deal_id).all()
         return [_doc_row_to_metadata(r) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def list_manager_documents(manager_id: str) -> list[DocumentMetadata]:
     """All manager-scoped documents across the manager's funds."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(DocumentRow)
@@ -184,7 +192,8 @@ def list_manager_documents(manager_id: str) -> list[DocumentMetadata]:
         )
         return [_doc_row_to_metadata(r) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def update_document_metadata(
@@ -195,7 +204,7 @@ def update_document_metadata(
     scope: str | None = None,
 ) -> DocumentMetadata | None:
     """Reclassify a document (category / period / scope). Returns None if missing."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DocumentRow).filter(
             DocumentRow.doc_id == doc_id,
@@ -213,11 +222,12 @@ def update_document_metadata(
         db.refresh(row)
         return _doc_row_to_metadata(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def delete_document(deal_id: str, doc_id: str) -> bool:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DocumentRow).filter(
             DocumentRow.doc_id == doc_id,
@@ -233,11 +243,12 @@ def delete_document(deal_id: str, doc_id: str) -> bool:
         db.commit()
         return True
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def delete_deal(deal_id: str) -> bool:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
         if not row:
@@ -247,7 +258,8 @@ def delete_deal(deal_id: str) -> bool:
         db.commit()
         return True
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def _manager_name(db, manager_id: str | None) -> str | None:

@@ -17,7 +17,7 @@ from app.auth import (
     create_user,
     grant_deal_access,
 )
-from app.database import SessionLocal, UserRow, DealAccessRow
+from app.database import current_session, UserRow, DealAccessRow
 from app.rate_limit import limiter, LOGIN_LIMIT, REGISTER_LIMIT
 from app.services import audit_store
 
@@ -169,7 +169,7 @@ def list_access(
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = db.query(DealAccessRow).filter(DealAccessRow.deal_id == deal_id).all()
         result = []
@@ -183,4 +183,5 @@ def list_access(
                 })
         return result
     finally:
-        db.close()
+        if owned:
+            db.close()

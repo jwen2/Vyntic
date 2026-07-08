@@ -9,7 +9,7 @@ from datetime import datetime
 from sqlalchemy import or_
 
 from app.database import (
-    SessionLocal,
+    current_session,
     WorkflowRow,
     WorkflowStageRow,
     WorkflowColumnRow,
@@ -79,7 +79,7 @@ def _row_to_workflow(row: WorkflowRow) -> Workflow:
 def list_workflows(deal_id: str) -> list[Workflow]:
     """Return all workflows visible to this deal: built-ins (deal_id IS NULL)
     plus deal-scoped custom workflows."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(WorkflowRow)
@@ -88,18 +88,20 @@ def list_workflows(deal_id: str) -> list[Workflow]:
         )
         return [_row_to_workflow(r) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def get_workflow(workflow_id: str) -> Workflow | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(WorkflowRow).filter(WorkflowRow.id == workflow_id).first()
         if not row:
             return None
         return _row_to_workflow(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def create_workflow(
@@ -110,7 +112,7 @@ def create_workflow(
     cloned_from: str | None = None,
     workflow_id: str | None = None,
 ) -> Workflow:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         wf_id = workflow_id or _new_id()
         row = WorkflowRow(
@@ -132,7 +134,8 @@ def create_workflow(
         db.refresh(row)
         return _row_to_workflow(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def update_column(
@@ -147,7 +150,7 @@ def update_column(
     """Update a single column in place. Unlike `update_workflow`, this does
     NOT delete-and-recreate the column row, so existing cells in past runs
     keep their FK to it."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = (
             db.query(WorkflowColumnRow)
@@ -180,11 +183,12 @@ def update_column(
             formula=row.formula,
         )
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def update_workflow(workflow_id: str, data: WorkflowUpdate) -> Workflow | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(WorkflowRow).filter(WorkflowRow.id == workflow_id).first()
         if not row:
@@ -210,11 +214,12 @@ def update_workflow(workflow_id: str, data: WorkflowUpdate) -> Workflow | None:
         db.refresh(row)
         return _row_to_workflow(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def delete_workflow(workflow_id: str) -> bool:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(WorkflowRow).filter(WorkflowRow.id == workflow_id).first()
         if not row:
@@ -226,7 +231,8 @@ def delete_workflow(workflow_id: str) -> bool:
         db.commit()
         return True
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def clone_workflow(

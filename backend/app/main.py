@@ -11,6 +11,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.auth import get_current_user
 from app.config import settings
+from app.database import request_session
 from app.rate_limit import limiter
 
 from app.api.routes_deals import router as deals_router, view_router as deals_view_router
@@ -36,6 +37,8 @@ app = FastAPI(
     description="AI-powered asset analysis for PE deal comparison",
     version="0.1.0",
     redirect_slashes=False,
+    # One DB session per request (A3); stores reuse it via current_session().
+    dependencies=[Depends(request_session)],
 )
 
 # Rate limiting (S6): limiter state + 429 handler. Limits are declared on

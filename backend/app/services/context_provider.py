@@ -11,7 +11,7 @@ import logging
 import re
 
 from app.config import settings
-from app.database import SessionLocal, DealRow, DocumentRow
+from app.database import current_session, DealRow, DocumentRow
 
 logger = logging.getLogger(__name__)
 
@@ -106,11 +106,12 @@ async def load_doc_context(deal_id: str, doc_id: str, question: str) -> list[dic
         from app.services.vector_store import query_document
         return await query_document(deal_id, doc_id, question)
 
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = _find_doc_row_for_entity(db, deal_id, doc_id)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
     if not row:
         return []
@@ -130,14 +131,15 @@ async def load_deal_context(deal_id: str, question: str) -> list[dict]:
         from app.services.vector_store import query_deal
         return await query_deal(deal_id, question)
 
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = db.query(DocumentRow).filter(DocumentRow.deal_id == deal_id).all()
         # Funds additionally see the manager's shared documents (DDQs, Form
         # ADV, reference notes uploaded to sibling funds with scope="manager").
         rows = rows + _manager_shared_doc_rows(db, deal_id)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
     if not rows:
         return []
@@ -200,11 +202,12 @@ def get_doc_page_chunks(deal_id: str, doc_id: str) -> list[dict]:
         from app.services.vector_store import get_document_chunks
         return get_document_chunks(deal_id, doc_id)
 
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = _find_doc_row_for_entity(db, deal_id, doc_id)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
     if row and row.full_text_md:
         return _full_text_to_chunks(row.full_text_md, row.filename, row.doc_id)

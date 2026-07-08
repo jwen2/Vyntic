@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.database import SessionLocal, WorkflowColumnRow, WorkflowRow
+from app.database import current_session, WorkflowColumnRow, WorkflowRow
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def canonical_format(fmt: str | None) -> str:
 
 def workflow_format_migration_plan(workflow_ids: list[str] | None = None) -> list[dict[str, Any]]:
     """Preview legacy column-format updates without mutating the database."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         query = (
             db.query(WorkflowColumnRow, WorkflowRow)
@@ -63,7 +63,8 @@ def workflow_format_migration_plan(workflow_ids: list[str] | None = None) -> lis
             )
         return changes
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def migrate_workflow_formats(
@@ -84,7 +85,7 @@ def migrate_workflow_formats(
         return {"mode": "write", "changed_count": 0, "changes": []}
 
     by_column_id = {change["column_id"]: change for change in changes}
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(WorkflowColumnRow)
@@ -109,4 +110,5 @@ def migrate_workflow_formats(
         db.rollback()
         raise
     finally:
-        db.close()
+        if owned:
+            db.close()

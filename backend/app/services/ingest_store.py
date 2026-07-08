@@ -7,7 +7,7 @@ row, matching the old dict's semantics.
 """
 import logging
 
-from app.database import SessionLocal, IngestJobRow
+from app.database import current_session, IngestJobRow
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def set_progress(
     """Upsert a job row. No-op when job_id is None (progress not requested)."""
     if not job_id:
         return
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.get(IngestJobRow, job_id)
         if row is None:
@@ -62,21 +62,23 @@ def set_progress(
             row.scope = scope
         db.commit()
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def get_child_total(job_id: str) -> int | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.get(IngestJobRow, job_id)
         return row.child_total if row else None
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def get_job(job_id: str) -> dict | None:
     """Return the job in the shape the old progress endpoint served."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.get(IngestJobRow, job_id)
         if row is None:
@@ -90,7 +92,8 @@ def get_job(job_id: str) -> dict | None:
             "detail": row.detail,
         }
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def claim_next_job() -> dict | None:
@@ -102,7 +105,7 @@ def claim_next_job() -> dict | None:
     None when the queue is empty.
     """
     while True:
-        db = SessionLocal()
+        db, owned = current_session()
         try:
             row = (
                 db.query(IngestJobRow)
@@ -135,11 +138,12 @@ def claim_next_job() -> dict | None:
                 return job
             # Another worker claimed it between SELECT and UPDATE; retry.
         finally:
-            db.close()
+            if owned:
+                db.close()
 
 
 def get_children(parent_id: str) -> list[dict]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(IngestJobRow)
@@ -151,11 +155,12 @@ def get_children(parent_id: str) -> list[dict]:
             for r in rows
         ]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def count_inflight(deal_id: str) -> int:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         return (
             db.query(IngestJobRow)
@@ -167,7 +172,8 @@ def count_inflight(deal_id: str) -> int:
             .count()
         )
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def reconcile_interrupted_ingests() -> int:
@@ -178,7 +184,7 @@ def reconcile_interrupted_ingests() -> int:
     worker pool picks it up — so it is left alone. A queued row without a
     file_path was interrupted mid-upload and is errored.
     """
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         count = (
             db.query(IngestJobRow)
@@ -202,4 +208,5 @@ def reconcile_interrupted_ingests() -> int:
         db.commit()
         return count
     finally:
-        db.close()
+        if owned:
+            db.close()

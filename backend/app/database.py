@@ -2,9 +2,12 @@
 SQLAlchemy database setup.
 Uses SQLite for local/PoC — swap connection string to PostgreSQL for production.
 """
+import asyncio
 import json
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from sqlalchemy import create_engine, Column, String, Integer, Float, Text, Boolean, DateTime, ForeignKey, event, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, Session
 
@@ -432,6 +435,57 @@ def init_db():
     run_migrations()
 
 
-def get_db() -> Session:
-    """Get a database session. Caller must close it."""
-    return SessionLocal()
+# ── Session-per-request (Plan 4, A3) ──
+#
+# One session services a whole request: the app-level `request_session`
+# dependency opens it into a ContextVar, and `current_session()` in the
+# stores reuses it. Outside a request (worker pools, seeding, executor
+# tasks) callers get a fresh session they own and must close.
+
+_request_session: ContextVar[Optional[Session]] = ContextVar(
+    "request_session", default=None
+)
+# asyncio.create_task copies the caller's context, so a background task
+# spawned mid-request inherits the ContextVar. The owner-task check below
+# keeps such tasks from sharing (and outliving) the request's session.
+_request_session_owner: ContextVar[Optional[object]] = ContextVar(
+    "request_session_owner", default=None
+)
+
+
+def _current_task() -> Optional[object]:
+    try:
+        return asyncio.current_task()
+    except RuntimeError:  # no running loop (threadpool / sync context)
+        return None
+
+
+def current_session() -> tuple[Session, bool]:
+    """Return (session, owned). Inside a request this is the shared request
+    session and owned=False — do not close it. Anywhere else (or in a task
+    spawned during a request) it is a fresh session and owned=True — the
+    caller must close it in a finally block."""
+    session = _request_session.get()
+    if session is not None:
+        task = _current_task()
+        # Share on the request's own task, or in its threadpool (no loop
+        # runs there, so task is None). A different task means create_task
+        # copied the context — hand out an owned session instead.
+        if task is None or task is _request_session_owner.get():
+            return session, False
+    return SessionLocal(), True
+
+
+async def request_session():
+    """App-level FastAPI dependency: one session per request, closed when
+    the response is done. Sessions connect lazily, so requests that never
+    touch the DB cost nothing."""
+    db = SessionLocal()
+    session_token = _request_session.set(db)
+    owner_token = _request_session_owner.set(_current_task())
+    try:
+        yield
+    finally:
+        _request_session.reset(session_token)
+        _request_session_owner.reset(owner_token)
+        db.close()

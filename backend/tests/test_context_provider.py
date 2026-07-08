@@ -65,7 +65,7 @@ def test_load_doc_context_returns_chunks_from_full_text(monkeypatch):
     db_mock = MagicMock()
     db_mock.query.return_value.filter.return_value.first.return_value = row
 
-    with patch("app.services.context_provider.SessionLocal", return_value=db_mock):
+    with patch("app.services.context_provider.current_session", return_value=(db_mock, True)):
         result = asyncio.run(load_doc_context("deal_1", "doc_1", "What is revenue?"))
 
     assert len(result) == 1
@@ -78,7 +78,7 @@ def test_load_doc_context_returns_empty_when_doc_not_found(monkeypatch):
     db_mock = MagicMock()
     db_mock.query.return_value.filter.return_value.first.return_value = None
 
-    with patch("app.services.context_provider.SessionLocal", return_value=db_mock):
+    with patch("app.services.context_provider.current_session", return_value=(db_mock, True)):
         result = asyncio.run(load_doc_context("deal_1", "missing_doc", "question"))
 
     assert result == []
@@ -90,7 +90,7 @@ def test_load_doc_context_returns_empty_when_full_text_md_null(monkeypatch):
     db_mock = MagicMock()
     db_mock.query.return_value.filter.return_value.first.return_value = row
 
-    with patch("app.services.context_provider.SessionLocal", return_value=db_mock):
+    with patch("app.services.context_provider.current_session", return_value=(db_mock, True)):
         result = asyncio.run(load_doc_context("deal_1", "doc_1", "question"))
 
     assert result == []
@@ -107,7 +107,7 @@ def test_load_deal_context_concatenates_all_docs(monkeypatch):
     # Deal-row lookup for manager-shared docs finds no deal → no manager sharing.
     db_mock.query.return_value.filter.return_value.first.return_value = None
 
-    with patch("app.services.context_provider.SessionLocal", return_value=db_mock):
+    with patch("app.services.context_provider.current_session", return_value=(db_mock, True)):
         result = asyncio.run(load_deal_context("deal_1", "What is revenue?"))
 
     assert len(result) == 2
@@ -121,7 +121,7 @@ def test_get_doc_page_chunks_returns_chunks_from_full_text(monkeypatch):
     db_mock = MagicMock()
     db_mock.query.return_value.filter.return_value.first.return_value = row
 
-    with patch("app.services.context_provider.SessionLocal", return_value=db_mock):
+    with patch("app.services.context_provider.current_session", return_value=(db_mock, True)):
         chunks = get_doc_page_chunks("deal_1", "doc_1")
 
     assert len(chunks) == 1
