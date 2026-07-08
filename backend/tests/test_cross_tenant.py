@@ -56,6 +56,8 @@ DEAL_SCOPED_REQUESTS = [
     ("POST", "/auth/deals/{deal_id}/access", {"email": "admin@acme.com"}),
     ("GET", "/auth/deals/{deal_id}/access", None),
     ("POST", "/deals/{deal_id}/query", {"question": "q"}),
+    ("DELETE", "/deals/{deal_id}/documents/some_doc", None),
+    ("PATCH", "/deals/{deal_id}/documents/some_doc/metadata", {"doc_category": "other"}),
 ]
 
 
@@ -73,6 +75,21 @@ def test_cross_tenant_deal_surface_refused(
     assert res.status_code == 403, (
         f"{method} {path} returned {res.status_code} for a cross-tenant admin"
     )
+
+
+def test_cross_tenant_document_upload_refused(other_admin_client, sample_deal):
+    # Multipart uploads validate the file part before the handler runs, so
+    # these two need real file payloads instead of a sweep entry.
+    files = {"file": ("x.txt", b"content", "text/plain")}
+    res = other_admin_client.post(
+        f"/deals/{sample_deal.deal_id}/documents", files=files
+    )
+    assert res.status_code == 403
+    res = other_admin_client.post(
+        f"/deals/{sample_deal.deal_id}/documents/batch",
+        files=[("files", ("x.txt", b"content", "text/plain"))],
+    )
+    assert res.status_code == 403
 
 
 def test_manager_surface_invisible_cross_tenant(other_admin_client, client):

@@ -354,6 +354,7 @@ async def ingest_document(
 ):
     """Upload and ingest a single document into a deal's namespace."""
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     _validate_classification(doc_category, scope)
     deal = deal_store.get_deal(deal_id)
     if not deal:
@@ -420,6 +421,7 @@ async def delete_document(
 ):
     """Delete a document and its vectors from a deal."""
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     audit_store.record(
         current_user, "document.delete", resource_type="document",
         resource_id=doc_id, deal_id=deal_id, request=http_request,
@@ -466,6 +468,7 @@ async def update_document_metadata(
 ):
     """Reclassify a document (category / period / scope)."""
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     if data.doc_category is not None and data.doc_category not in DOC_CATEGORIES:
         raise HTTPException(
             status_code=422,
@@ -503,6 +506,7 @@ async def ingest_batch(
 
     Classification query params apply to every file in the batch."""
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     _validate_classification(doc_category, scope)
     deal = deal_store.get_deal(deal_id)
     if not deal:
