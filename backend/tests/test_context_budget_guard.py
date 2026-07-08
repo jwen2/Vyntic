@@ -33,6 +33,9 @@ def _doc_with_pages(doc_id, filename, n_pages, chars_per_page):
 def _run_with_rows(rows):
     db_mock = MagicMock()
     db_mock.query.return_value.filter.return_value.all.return_value = rows
+    # The manager-shared-context path looks up the deal row first; no deal
+    # means no shared sibling docs, keeping these tests on the budget guard.
+    db_mock.query.return_value.filter.return_value.first.return_value = None
     with patch("app.services.context_provider.SessionLocal", return_value=db_mock):
         return asyncio.run(load_deal_context("deal_1", "What is revenue?"))
 
