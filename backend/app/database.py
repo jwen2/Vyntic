@@ -171,6 +171,21 @@ class IngestJobRow(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ConversationRow(Base):
+    """Agent-chat Q&A history (Plan 4 C3). Previously an in-process dict —
+    lost on restart and wrong under multiple workers. Tenant-scoped via
+    deal_id; purged with the deal (FK cascade)."""
+    __tablename__ = "conversations"
+
+    id = Column(String, primary_key=True)
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, default="")
+    citations_json = Column(Text, default="[]")
+    workstream = Column(String, default="", index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 # ── Audit log (Plan 2, S4) ──
 
 class AuditLogRow(Base):
