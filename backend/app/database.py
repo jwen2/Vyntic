@@ -184,6 +184,17 @@ class AuditLogRow(Base):
 
 # ── Authentication models ──
 
+class RevokedTokenRow(Base):
+    """JWT blocklist (Plan 2, S5). A row means the token with this jti was
+    revoked (logout / offboarding) before its natural expiry. Rows past
+    expires_at are pruned opportunistically on each revocation."""
+    __tablename__ = "revoked_tokens"
+
+    jti = Column(String, primary_key=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    revoked_at = Column(DateTime, default=datetime.utcnow)
+
+
 class UserRow(Base):
     __tablename__ = "users"
 

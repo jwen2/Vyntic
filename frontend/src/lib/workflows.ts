@@ -418,26 +418,48 @@ export async function approveStage(
 
 /**
  * Subscribe to a run's SSE event stream. Returns a cleanup function that
- * closes the EventSource. Token is passed via `?token=` since EventSource
- * cannot set Authorization headers.
+ * closes the EventSource. EventSource cannot set Authorization headers, so
+ * we first mint a short-lived token scoped to exactly this run's stream and
+ * pass that via `?token=` — never the session JWT (it would land in server
+ * logs and browser history).
  */
 export function subscribeRun(
   runId: string,
   onEvent: (event: RunStreamEvent) => void,
   onError?: (err: Event) => void
 ): () => void {
-  const token = getAuthToken();
-  const url = new URL(`${API_BASE}/runs/${encodeURIComponent(runId)}/stream`, window.location.origin);
-  if (token) url.searchParams.set("token", token);
-  const source = new EventSource(url.toString());
-  source.onmessage = (event) => {
+  let source: EventSource | null = null;
+  let closed = false;
+
+  (async () => {
     try {
-      const parsed = JSON.parse(event.data) as RunStreamEvent;
-      onEvent(parsed);
+      const res = await authedFetch(
+        `${API_BASE}/runs/${encodeURIComponent(runId)}/stream-token`
+      );
+      const { token } = await unwrap<{ token: string }>(res);
+      if (closed) return;
+      const url = new URL(
+        `${API_BASE}/runs/${encodeURIComponent(runId)}/stream`,
+        window.location.origin
+      );
+      url.searchParams.set("token", token);
+      source = new EventSource(url.toString());
+      source.onmessage = (event) => {
+        try {
+          const parsed = JSON.parse(event.data) as RunStreamEvent;
+          onEvent(parsed);
+        } catch {
+          // ignore malformed events
+        }
+      };
+      if (onError) source.onerror = onError;
     } catch {
-      // ignore malformed events
+      onError?.(new Event("error"));
     }
+  })();
+
+  return () => {
+    closed = true;
+    source?.close();
   };
-  if (onError) source.onerror = onError;
-  return () => source.close();
 }

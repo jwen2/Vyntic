@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, getMe, getAuthToken, clearAuthToken } from "@/lib/api";
+import { User, getMe, getAuthToken, clearAuthToken, logout as apiLogout } from "@/lib/api";
 
 interface AuthContextValue {
   user: User | null;
@@ -32,9 +32,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   function logout() {
-    clearAuthToken();
-    setUser(null);
-    window.location.href = "/login";
+    // Revoke server-side first (best-effort), then clear locally and leave.
+    apiLogout().finally(() => {
+      setUser(null);
+      window.location.href = "/login";
+    });
   }
 
   return (

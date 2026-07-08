@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "@/components/ThemeProvider";
-import { getAuthToken } from "@/lib/api";
+import { getDocumentViewToken } from "@/lib/api";
 import CitationSnippet from "./dd/CitationSnippet";
 
 interface Props {
@@ -29,9 +29,30 @@ export default function DocumentViewer({
   const isPdf = lower.endsWith(".pdf");
   const isExcel = lower.endsWith(".xlsx") || lower.endsWith(".xls");
   const isPreviewable = isPdf || isExcel;
-  const token = getAuthToken();
+
+  // The iframe cannot send an Authorization header, so we mint a short-lived
+  // token scoped to exactly this document (S5) instead of leaking the
+  // session JWT into the URL.
+  const [viewToken, setViewToken] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setViewToken(null);
+    setTokenError(false);
+    getDocumentViewToken(dealId, filename)
+      .then((t) => {
+        if (!cancelled) setViewToken(t);
+      })
+      .catch(() => {
+        if (!cancelled) setTokenError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dealId, filename]);
+
   const params = new URLSearchParams();
-  if (token) params.set("token", token);
+  if (viewToken) params.set("token", viewToken);
   if (isExcel && page > 0) params.set("sheet", String(Math.max(0, page - 1)));
   const query = params.toString();
   const viewUrl = `/api/deals/${encodeURIComponent(dealId)}/documents/${encodeURIComponent(filename)}/view${query ? `?${query}` : ""}`;
@@ -113,7 +134,21 @@ export default function DocumentViewer({
         </div>
 
         <div className="flex-1 min-h-0">
-          {isPreviewable ? (
+          {tokenError ? (
+            <div
+              className="flex h-full items-center justify-center p-8 text-center text-sm"
+              style={{ color: muted }}
+            >
+              Could not authorize the document viewer. Close and try again.
+            </div>
+          ) : isPreviewable && !viewToken ? (
+            <div
+              className="flex h-full items-center justify-center p-8 text-center text-sm"
+              style={{ color: muted }}
+            >
+              Loading document…
+            </div>
+          ) : isPreviewable ? (
             <iframe
               src={isPdf ? `${viewUrl}#page=${page}` : viewUrl}
               className="w-full h-full border-0"

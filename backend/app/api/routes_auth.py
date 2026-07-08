@@ -4,8 +4,13 @@ Authentication routes: register, login, user profile, and deal access management
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 
+from fastapi.security import HTTPAuthorizationCredentials
+
 from app.auth import (
     create_access_token,
+    decode_access_token,
+    revoke_token,
+    security,
     verify_password,
     get_current_user,
     get_user_by_email,
@@ -94,6 +99,22 @@ def login(request: LoginRequest, http_request: Request):
         access_token=token,
         user={"id": user.id, "email": user.email, "full_name": user.full_name, "is_admin": user.is_admin},
     )
+
+
+@router.post("/logout")
+def logout(
+    http_request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    current_user: UserRow = Depends(get_current_user),
+):
+    """Revoke the current token (S5). It is 401 everywhere afterward, even
+    though its expiry has not passed."""
+    # get_current_user already validated the credentials; decode again just
+    # to extract jti/exp for the blocklist row.
+    payload = decode_access_token(credentials.credentials)
+    revoke_token(payload)
+    audit_store.record(current_user, "auth.logout", request=http_request)
+    return {"status": "logged_out"}
 
 
 @router.get("/me", response_model=UserResponse)

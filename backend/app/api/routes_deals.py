@@ -24,8 +24,9 @@ from app.models.manager import Position, PositionUpsert
 from app.services import audit_store, deal_store, manager_store
 from app.database import UserRow
 from app.auth import (
+    create_scoped_token,
+    doc_view_query_auth,
     get_current_user,
-    get_current_user_or_query_token,
     grant_deal_access,
     require_admin,
     require_deal_access,
@@ -204,6 +205,22 @@ async def delete_deal(
     return {"status": "deleted", "deal_id": deal_id}
 
 
+@router.get("/{deal_id}/documents/{filename}/view-token")
+def mint_view_token(
+    deal_id: str,
+    filename: str,
+    current_user: UserRow = Depends(get_current_user),
+):
+    """Mint a short-lived token scoped to viewing exactly this document.
+    The viewer iframe carries it in ?token= (browsers can't set headers
+    there); it cannot be replayed for other files or as a session token."""
+    require_deal_access(current_user, deal_id)
+    token = create_scoped_token(
+        "doc-view", {"deal_id": deal_id, "filename": filename}, user_id=current_user.id
+    )
+    return {"token": token, "expires_in": 300}
+
+
 @view_router.get("/{deal_id}/documents/{filename}/view")
 async def view_document(
     deal_id: str,
@@ -211,7 +228,7 @@ async def view_document(
     http_request: Request,
     sheet: int | None = None,
     token: str | None = None,
-    current_user: UserRow = Depends(get_current_user_or_query_token),
+    current_user: UserRow = Depends(doc_view_query_auth),
 ):
     require_deal_access(current_user, deal_id)
     audit_store.record(

@@ -2,16 +2,17 @@
 Authentication utilities: JWT token creation/validation, password hashing,
 and FastAPI dependency for protecting routes.
 """
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 import bcrypt
 
 from app.config import settings
-from app.database import SessionLocal, UserRow, DealAccessRow
+from app.database import SessionLocal, UserRow, DealAccessRow, RevokedTokenRow
 
 # ── Bearer token extraction ──
 security = HTTPBearer(auto_error=False)
@@ -36,12 +37,72 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.jwt_expire_minutes)
     )
+    # jti makes the token individually revocable (see revoke_token).
+    to_encode.setdefault("jti", uuid.uuid4().hex)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
+def create_scoped_token(
+    scope: str,
+    claims: dict,
+    user_id: int,
+    expires_delta: timedelta = timedelta(minutes=5),
+) -> str:
+    """Short-lived single-purpose token (S5). Carried in ?token= query params
+    where clients (iframes, EventSource) cannot set headers. The `scope` claim
+    marks it: scoped tokens are rejected as session tokens, and session tokens
+    are rejected on query params."""
+    payload = {
+        "scope": scope,
+        **claims,
+        "sub": str(user_id),
+        "jti": uuid.uuid4().hex,
+        "exp": datetime.now(timezone.utc) + expires_delta,
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    jti = payload.get("jti")
+    if jti and _is_revoked(jti):
+        raise JWTError("Token has been revoked")
+    return payload
+
+
+# ── Revocation (S5) ──
+
+def _is_revoked(jti: str) -> bool:
+    db = SessionLocal()
+    try:
+        return (
+            db.query(RevokedTokenRow).filter(RevokedTokenRow.jti == jti).first()
+            is not None
+        )
+    finally:
+        db.close()
+
+
+def revoke_token(payload: dict) -> None:
+    """Blocklist a token's jti until it would have expired anyway. Tokens
+    minted before the jti rollout can't be revoked individually — they age
+    out at the (short) JWT expiry. Piggybacks a prune of expired entries so
+    the blocklist doesn't grow unbounded without a scheduler."""
+    jti = payload.get("jti")
+    if not jti:
+        return
+    expires_at = datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
+    db = SessionLocal()
+    try:
+        db.query(RevokedTokenRow).filter(
+            RevokedTokenRow.expires_at < datetime.now(timezone.utc).replace(tzinfo=None)
+        ).delete()
+        if not db.query(RevokedTokenRow).filter(RevokedTokenRow.jti == jti).first():
+            db.add(RevokedTokenRow(jti=jti, expires_at=expires_at.replace(tzinfo=None)))
+        db.commit()
+    finally:
+        db.close()
 
 
 # ── FastAPI dependencies ──
@@ -57,20 +118,10 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token = credentials.credentials
-    try:
-        payload = decode_access_token(token)
-        sub_str = payload.get("sub")
-        if sub_str is None:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-        user_id = int(sub_str)
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    return _resolve_user_from_token(credentials.credentials)
 
+
+def _load_user(user_id: int) -> UserRow:
     db = SessionLocal()
     try:
         user = db.query(UserRow).filter(UserRow.id == user_id).first()
@@ -84,9 +135,16 @@ async def get_current_user(
 
 
 def _resolve_user_from_token(token: str) -> UserRow:
-    """Validate a raw JWT string and return the corresponding UserRow."""
+    """Validate a raw *session* JWT and return the corresponding UserRow.
+    Scoped tokens (S5) are rejected here — they are single-purpose and must
+    never grant general API access."""
     try:
         payload = decode_access_token(token)
+        if payload.get("scope"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Scoped token cannot be used as a session token",
+            )
         sub_str = payload.get("sub")
         if sub_str is None:
             raise HTTPException(status_code=401, detail="Invalid token payload")
@@ -98,34 +156,54 @@ def _resolve_user_from_token(token: str) -> UserRow:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    db = SessionLocal()
-    try:
-        user = db.query(UserRow).filter(UserRow.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        db.expunge(user)
-        return user
-    finally:
-        db.close()
+    return _load_user(user_id)
 
 
-async def get_current_user_or_query_token(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    token: Optional[str] = Query(None),
-) -> UserRow:
-    """Authenticate via Authorization header OR ?token= query param.
+def scoped_or_header_auth(expected_scope: str, bind_params: tuple[str, ...]):
+    """Dependency factory for routes reachable by clients that cannot set
+    headers (iframes, EventSource).
 
-    Useful for iframe/download URLs where the browser cannot set headers.
+    Header path: normal session JWT.
+    Query path (?token=): ONLY a scoped token whose `scope` matches and whose
+    claims match the route's path params — a session JWT on the query string
+    is rejected (S5: long-lived tokens must not land in server logs or
+    browser history), and a token minted for one resource cannot be replayed
+    against another.
     """
-    if credentials is not None:
-        return _resolve_user_from_token(credentials.credentials)
-    if token is not None:
-        return _resolve_user_from_token(token)
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+
+    async def dependency(
+        request: Request,
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+        token: Optional[str] = Query(None),
+    ) -> UserRow:
+        if credentials is not None:
+            return _resolve_user_from_token(credentials.credentials)
+        if token is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        try:
+            payload = decode_access_token(token)
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        if payload.get("scope") != expected_scope:
+            raise HTTPException(status_code=401, detail="Token not valid for this resource")
+        for name in bind_params:
+            if payload.get(name) != request.path_params.get(name):
+                raise HTTPException(status_code=401, detail="Token not valid for this resource")
+        sub_str = payload.get("sub")
+        if sub_str is None:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return _load_user(int(sub_str))
+
+    return dependency
+
+
+# Per-route instances for the two header-less surfaces.
+doc_view_query_auth = scoped_or_header_auth("doc-view", ("deal_id", "filename"))
+run_stream_query_auth = scoped_or_header_auth("run-stream", ("run_id",))
 
 
 def require_admin(user: UserRow) -> None:

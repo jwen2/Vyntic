@@ -23,7 +23,12 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from app.auth import get_current_user, get_current_user_or_query_token, require_deal_access
+from app.auth import (
+    create_scoped_token,
+    get_current_user,
+    require_deal_access,
+    run_stream_query_auth,
+)
 from app.database import UserRow
 from app.services import audit_store
 from app.models.workflow_run import (
@@ -305,10 +310,23 @@ async def approve_stage(
     return approved
 
 
+@router.get("/runs/{run_id}/stream-token")
+def mint_stream_token(run_id: str, current_user: UserRow = Depends(get_current_user)):
+    """Mint a short-lived token scoped to this run's SSE stream. EventSource
+    cannot set headers, so the client passes it via ?token=; it cannot be
+    replayed for other runs or as a session token."""
+    run = workflow_run_store.get_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    require_deal_access(current_user, run.deal_id)
+    token = create_scoped_token("run-stream", {"run_id": run_id}, user_id=current_user.id)
+    return {"token": token, "expires_in": 300}
+
+
 @stream_router.get("/runs/{run_id}/stream")
 async def stream_run(
     run_id: str,
-    current_user: UserRow = Depends(get_current_user_or_query_token),
+    current_user: UserRow = Depends(run_stream_query_auth),
 ):
     """SSE stream of run + cell events. Emits an initial snapshot, then
     realtime updates as the executor publishes them. Clients should
