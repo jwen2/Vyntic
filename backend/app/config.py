@@ -33,8 +33,13 @@ class Settings(BaseSettings):
     docling_page_batch_size: int = 10
     docling_queue_max_size: int = 2
     docling_worker_grace_seconds: int = 30
-    docling_max_concurrent_jobs: int = 1
+    docling_max_concurrent_jobs: int = 2
     ingest_background_min_pages: int = 25
+
+    # Ingest worker pool + backpressure
+    ingest_workers: int = 2
+    max_upload_mb: int = 100
+    ingest_max_inflight_per_deal: int = 100
 
     # ChromaDB
     chroma_persist_dir: str = "./data/chroma"
@@ -63,6 +68,13 @@ class Settings(BaseSettings):
     # Deployment environment: "development" | "production"
     environment: str = "development"
 
+    # Comma-separated list of allowed browser origins for CORS.
+    cors_origins: str = "http://localhost:3100,http://localhost:3200"
+
+    # Explicit dev-only opt-in to run with the shipped default secrets.
+    # Production must never set this.
+    allow_insecure_defaults: bool = False
+
     class Config:
         env_file = ".env"
 
@@ -70,18 +82,19 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-def assert_production_secrets(s: Settings) -> None:
-    """Refuse to run production with shipped default credentials/secrets."""
-    if s.environment != "production":
-        return
+def assert_secure_secrets(s: Settings) -> None:
+    """Refuse to run with shipped default credentials/secrets in any
+    environment, unless ALLOW_INSECURE_DEFAULTS=true is set explicitly
+    (local dev only). An unconfigured deploy must fail closed."""
     offenders = []
     if s.jwt_secret_key.startswith("CHANGE-ME"):
         offenders.append("JWT_SECRET_KEY")
     if s.default_admin_password == "admin":
         offenders.append("DEFAULT_ADMIN_PASSWORD")
-    if offenders:
+    if offenders and not s.allow_insecure_defaults:
         raise RuntimeError(
-            "Refusing to start in production with default secrets: "
+            "Refusing to start with default secrets: "
             + ", ".join(offenders)
-            + ". Set real values in the environment."
+            + ". Set real values in the environment, or set "
+            "ALLOW_INSECURE_DEFAULTS=true for local development only."
         )

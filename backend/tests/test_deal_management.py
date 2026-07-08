@@ -190,19 +190,35 @@ class TestMultiFileUpload:
         resp = client.get(f"/deals/{sample_deal.deal_id}")
         assert resp.json()["document_count"] == 2
 
+    @patch("app.services.ingest_worker.ensure_started")  # drain explicitly instead
     @patch("app.api.routes_ingest.parse_document_path", new_callable=AsyncMock)
-    def test_batch_upload_partial_failure(self, mock_parse, client, sample_deal):
-        """Batch upload with all files failing returns 400."""
+    def test_batch_upload_parse_failure_surfaces_on_job(
+        self, mock_parse, mock_started, client, sample_deal
+    ):
+        """Batch parsing is async: the upload succeeds and a parse failure
+        lands on the job (and its batch aggregate), not the response."""
+        import asyncio
+        from app.services import ingest_store, ingest_worker
+
         mock_parse.side_effect = ValueError("Unsupported format")
 
         files = [
             ("files", ("bad.txt", io.BytesIO(b"text"), "text/plain")),
         ]
         resp = client.post(
-            f"/deals/{sample_deal.deal_id}/documents/batch",
+            f"/deals/{sample_deal.deal_id}/documents/batch?upload_id=pf1",
             files=files,
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        job_id = resp.json()[0]["doc_id"]
+
+        asyncio.run(ingest_worker.drain_queue())
+        job = ingest_store.get_job(job_id)
+        assert job["status"] == "error"
+        assert "Unsupported format" in job["detail"]
+        parent = ingest_store.get_job("pf1")
+        assert parent["status"] == "error"
+        assert "bad.txt" in parent["detail"]
 
 
 class TestDealCRUD:
