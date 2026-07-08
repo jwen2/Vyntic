@@ -124,6 +124,34 @@ class DocumentRow(Base):
     deal = relationship("DealRow", back_populates="documents")
 
 
+class IngestJobRow(Base):
+    __tablename__ = "ingest_jobs"
+
+    id = Column(String, primary_key=True, index=True)  # upload_id from the client
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    # Batch uploads: one aggregate row per client upload_id (the row the
+    # frontend polls) plus one claimable child row per file pointing at it.
+    parent_id = Column(String, nullable=True, index=True)
+    # Aggregate rows only: how many children the batch will have. Written
+    # before the children are enqueued so a fast worker can't see a
+    # partially-enqueued batch as finished.
+    child_total = Column(Integer, nullable=True)
+    filename = Column(String, nullable=True)  # batch uploads carry a summary label
+    file_path = Column(String, nullable=True)
+    status = Column(String, default="queued", index=True)  # queued|parsing|embedding|complete|error
+    stage = Column(String, default="")
+    percent = Column(Integer, default=0)
+    detail = Column(Text, default="")
+    doc_id = Column(String, nullable=True)
+    # Classification the upload was submitted with; workers rebuild the
+    # ingest call from this row, so it must survive the queue.
+    doc_category = Column(String, default="other")
+    period = Column(String, nullable=True)
+    scope = Column(String, default="entity")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ── Authentication models ──
 
 class UserRow(Base):
@@ -352,6 +380,11 @@ def _ensure_schema_migrations():
             ("manager_id", "TEXT"),
             ("vintage", "INTEGER"),
             ("strategy", "TEXT DEFAULT ''"),
+        ],
+        "ingest_jobs": [
+            ("doc_category", "TEXT DEFAULT 'other'"),
+            ("period", "TEXT"),
+            ("scope", "TEXT DEFAULT 'entity'"),
         ],
     }
     inspector = inspect(engine)

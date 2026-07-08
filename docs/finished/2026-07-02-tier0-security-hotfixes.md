@@ -1,5 +1,7 @@
 # Plan 1 — Tier-0 Security Hotfixes
 
+> **Status: COMPLETED 2026-07-03** — shipped in PR #91 (branch `tier0-security-hotfixes`), one commit per task. Backend tests 131 → 146.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax. Commit per task.
 
 **Source:** `docs/assessments/2026-07-02-resiliency-security-assessment.md` — Tier 0.
@@ -29,13 +31,13 @@
 
 **Files:** modify `app/api/routes_conversation.py`; create `tests/test_conversation_auth.py`.
 
-- [ ] **Step 1: Failing tests.** Using the authed `client` / `analyst_client` fixtures (added in the rearchitect work):
+- [x] **Step 1: Failing tests.** Using the authed `client` / `analyst_client` fixtures (added in the rearchitect work):
   - unauthenticated client (no token) → 401 on POST/GET/DELETE
   - analyst without access to `deal_id` → 403
   - analyst with granted access → 200
   - admin → 200
-- [ ] **Step 2: Add auth to all three handlers.** Import `get_current_user, require_deal_access` and `UserRow`. Each handler gains `current_user: UserRow = Depends(get_current_user)` and calls `require_deal_access(current_user, deal_id)` before touching the store. Mirrors every other deal-scoped route.
-- [ ] **Step 3:** Verify + commit — `fix(security): authenticate conversation history routes`
+- [x] **Step 2: Add auth to all three handlers.** Import `get_current_user, require_deal_access` and `UserRow`. Each handler gains `current_user: UserRow = Depends(get_current_user)` and calls `require_deal_access(current_user, deal_id)` before touching the store. Mirrors every other deal-scoped route.
+- [x] **Step 3:** Verify + commit — `fix(security): authenticate conversation history routes`
 
 ## Task 1.2 — Secrets fail-closed (S3)
 
@@ -43,12 +45,12 @@ Refuse shipped default secrets in **any** environment unless an explicit dev opt
 
 **Files:** modify `app/config.py`, `app/main.py`; extend `tests/test_prod_secrets_guard.py`.
 
-- [ ] **Step 1: Failing tests.**
+- [x] **Step 1: Failing tests.**
   - defaults + no opt-in → raises (regardless of `environment`)
   - defaults + `allow_insecure_defaults=True` → passes (dev)
   - real secrets → passes
-- [ ] **Step 2: Rework the guard.** Add `allow_insecure_defaults: bool = False` to `Settings`. Rewrite `assert_production_secrets` → `assert_secure_secrets`: collect offenders (`jwt_secret_key` starts with `CHANGE-ME`; `default_admin_password == "admin"`); if any and not `allow_insecure_defaults`, raise `RuntimeError` naming them. Local dev sets `ALLOW_INSECURE_DEFAULTS=true` in `.env` explicitly.
-- [ ] **Step 3:** Update `main.py` startup call; add `ALLOW_INSECURE_DEFAULTS=true` to `.env.example` with a comment that production must never set it. Verify + commit — `fix(security): reject default secrets unless explicit dev opt-in`
+- [x] **Step 2: Rework the guard.** Add `allow_insecure_defaults: bool = False` to `Settings`. Rewrite `assert_production_secrets` → `assert_secure_secrets`: collect offenders (`jwt_secret_key` starts with `CHANGE-ME`; `default_admin_password == "admin"`); if any and not `allow_insecure_defaults`, raise `RuntimeError` naming them. Local dev sets `ALLOW_INSECURE_DEFAULTS=true` in `.env` explicitly.
+- [x] **Step 3:** Update `main.py` startup call; add `ALLOW_INSECURE_DEFAULTS=true` to `.env.example` with a comment that production must never set it. Verify + commit — `fix(security): reject default secrets unless explicit dev opt-in`
 
 ## Task 1.3 — Graceful oversized-context handling (R1-guard)
 
@@ -56,16 +58,16 @@ Never silently send an over-limit corpus. Deterministically cap to a char budget
 
 **Files:** modify `app/services/context_provider.py`; create `tests/test_context_budget_guard.py`.
 
-- [ ] **Step 1: Failing tests.** `load_deal_context` on a corpus over the char budget returns chunks whose total is within budget, in document/page order, and logs a warning; under budget returns everything.
-- [ ] **Step 2: Implement.** Add `_FC_HARD_CHAR_BUDGET` (≈3.2M chars ~ 800K tokens). In `load_deal_context`, after building chunks, if `total_chars` exceeds it, truncate at a chunk boundary and log which docs were dropped (mirror `_select_synthesis_chunks`). Consider a module-level `last_context_truncated` marker or returning a small metadata tuple the caller can surface — keep minimal; the real fix is Plan 5.
-- [ ] **Step 3:** Verify + commit — `fix(context): cap deal context at a hard budget instead of silently overflowing Gemini`
+- [x] **Step 1: Failing tests.** `load_deal_context` on a corpus over the char budget returns chunks whose total is within budget, in document/page order, and logs a warning; under budget returns everything.
+- [x] **Step 2: Implement.** Add `_FC_HARD_CHAR_BUDGET` (≈3.2M chars ~ 800K tokens). In `load_deal_context`, after building chunks, if `total_chars` exceeds it, truncate at a chunk boundary and log which docs were dropped (mirror `_select_synthesis_chunks`). Consider a module-level `last_context_truncated` marker or returning a small metadata tuple the caller can surface — keep minimal; the real fix is Plan 5.
+- [x] **Step 3:** Verify + commit — `fix(context): cap deal context at a hard budget instead of silently overflowing Gemini`
 
 ## Task 1.4 — Configurable CORS origins (S9-CORS)
 
 **Files:** modify `app/config.py`, `app/main.py`.
 
-- [ ] **Step 1:** Add `cors_origins: str = "http://localhost:3100,http://localhost:3200"` (comma-separated) to `Settings`. In `main.py`, split it for `allow_origins`. Document `CORS_ORIGINS` in `.env.example`.
-- [ ] **Step 2:** Verify the app boots and the existing localhost origins still work. Commit — `chore(security): make CORS origins configurable for production`
+- [x] **Step 1:** Add `cors_origins: str = "http://localhost:3100,http://localhost:3200"` (comma-separated) to `Settings`. In `main.py`, split it for `allow_origins`. Document `CORS_ORIGINS` in `.env.example`.
+- [x] **Step 2:** Verify the app boots and the existing localhost origins still work. Commit — `chore(security): make CORS origins configurable for production`
 
 ---
 
