@@ -27,6 +27,9 @@ def set_progress(
     doc_id: str | None = None,
     parent_id: str | None = None,
     child_total: int | None = None,
+    doc_category: str | None = None,
+    period: str | None = None,
+    scope: str | None = None,
 ) -> None:
     """Upsert a job row. No-op when job_id is None (progress not requested)."""
     if not job_id:
@@ -51,6 +54,12 @@ def set_progress(
             row.parent_id = parent_id
         if child_total is not None:
             row.child_total = child_total
+        if doc_category is not None:
+            row.doc_category = doc_category
+        if period is not None:
+            row.period = period
+        if scope is not None:
+            row.scope = scope
         db.commit()
     finally:
         db.close()
@@ -112,6 +121,9 @@ def claim_next_job() -> dict | None:
                 "filename": row.filename,
                 "file_path": row.file_path,
                 "parent_id": row.parent_id,
+                "doc_category": row.doc_category or "other",
+                "period": row.period,
+                "scope": row.scope or "entity",
             }
             claimed = (
                 db.query(IngestJobRow)

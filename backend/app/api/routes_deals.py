@@ -7,9 +7,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.models.deal import Deal, DealCreate, DealUpdate, DEAL_STAGES, SECTOR_TAGS
+from app.models.deal import (
+    Deal,
+    DealCreate,
+    DealUpdate,
+    DEAL_STAGES,
+    FUND_STAGES,
+    ENTITY_TYPES,
+    DOC_CATEGORIES,
+    DOC_SCOPES,
+    SECTOR_TAGS,
+    stages_for_entity,
+)
 from app.models.document import DocumentMetadata
-from app.services import deal_store
+from app.models.manager import Position, PositionUpsert
+from app.services import deal_store, manager_store
 from app.database import UserRow
 from app.auth import (
     get_current_user,
@@ -25,6 +37,18 @@ router = APIRouter(prefix="/deals", tags=["deals"])
 @router.post("", response_model=Deal)
 def create_deal(data: DealCreate, current_user: UserRow = Depends(get_current_user)):
     require_admin(current_user)
+    if data.entity_type not in ENTITY_TYPES:
+        raise HTTPException(status_code=422, detail=f"entity_type must be one of {ENTITY_TYPES}")
+    if data.stage not in stages_for_entity(data.entity_type):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid stage '{data.stage}' for entity_type '{data.entity_type}'",
+        )
+    if data.manager_id:
+        if data.entity_type != "fund":
+            raise HTTPException(status_code=422, detail="Only funds can belong to a manager")
+        if not manager_store.get_manager(data.manager_id):
+            raise HTTPException(status_code=422, detail=f"Manager '{data.manager_id}' not found")
     try:
         deal = deal_store.create_deal(data)
         # Auto-grant access to the creator
@@ -40,15 +64,24 @@ def list_deals(current_user: UserRow = Depends(get_current_user)):
 
 
 @router.get("/metadata/stages")
-def get_stages():
-    """Return valid pipeline stages."""
-    return DEAL_STAGES
+def get_stages(entity_type: str = "deal"):
+    """Return valid pipeline stages. Defaults to the buyout-deal pipeline for
+    backwards compatibility; pass ?entity_type=fund for the LP fund lifecycle."""
+    if entity_type not in ENTITY_TYPES:
+        raise HTTPException(status_code=422, detail=f"entity_type must be one of {ENTITY_TYPES}")
+    return stages_for_entity(entity_type)
 
 
 @router.get("/metadata/tags")
 def get_tags():
     """Return suggested sector tags."""
     return SECTOR_TAGS
+
+
+@router.get("/metadata/doc-categories")
+def get_doc_categories():
+    """Return the LP document taxonomy for classification dropdowns."""
+    return DOC_CATEGORIES
 
 
 @router.get("/{deal_id}", response_model=Deal)
@@ -63,14 +96,58 @@ def get_deal(deal_id: str, current_user: UserRow = Depends(get_current_user)):
 @router.patch("/{deal_id}", response_model=Deal)
 def update_deal(deal_id: str, data: DealUpdate, current_user: UserRow = Depends(get_current_user)):
     require_deal_access(current_user, deal_id)
+    existing = deal_store.get_deal(deal_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
     if data.stage is not None:
         # Stage moves are admin-only per the access model; analysts may still
         # edit name/description/tags on deals they can access.
         require_admin(current_user)
+        if data.stage not in stages_for_entity(existing.entity_type):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid stage '{data.stage}' for entity_type '{existing.entity_type}'",
+            )
+    if data.manager_id is not None:
+        require_admin(current_user)
+        if existing.entity_type != "fund":
+            raise HTTPException(status_code=422, detail="Only funds can belong to a manager")
+        if not manager_store.get_manager(data.manager_id):
+            raise HTTPException(status_code=422, detail=f"Manager '{data.manager_id}' not found")
     deal = deal_store.update_deal(deal_id, data)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
     return deal
+
+
+# ── Position (the LP's commitment in a fund) ──
+
+@router.get("/{deal_id}/position", response_model=Position)
+def get_position(deal_id: str, current_user: UserRow = Depends(get_current_user)):
+    require_deal_access(current_user, deal_id)
+    if not deal_store.get_deal(deal_id):
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    position = manager_store.get_position(deal_id)
+    if not position:
+        # Empty position rather than 404 — the UI treats "no position yet"
+        # as an editable blank form, not an error.
+        return Position(deal_id=deal_id)
+    return position
+
+
+@router.put("/{deal_id}/position", response_model=Position)
+def upsert_position(
+    deal_id: str,
+    data: PositionUpsert,
+    current_user: UserRow = Depends(get_current_user),
+):
+    require_admin(current_user)
+    deal = deal_store.get_deal(deal_id)
+    if not deal:
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    if deal.entity_type != "fund":
+        raise HTTPException(status_code=422, detail="Positions only apply to funds")
+    return manager_store.upsert_position(deal_id, data)
 
 
 @router.get("/{deal_id}/documents", response_model=list[DocumentMetadata])
@@ -119,7 +196,14 @@ async def view_document(
     """
     file_path = os.path.join(settings.uploads_dir, deal_id, filename)
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Document file not found")
+        # Manager-scoped documents live in the sibling fund they were uploaded
+        # to but appear in this fund's context — resolve the shared file so
+        # citation clicks keep working. Access to this fund implies access to
+        # the manager's shared documents (same rule as context assembly).
+        shared_path = _resolve_manager_shared_file(deal_id, filename)
+        if shared_path is None:
+            raise HTTPException(status_code=404, detail="Document file not found")
+        file_path = shared_path
 
     lower = filename.lower()
 
@@ -144,6 +228,21 @@ async def view_document(
         media_type=media_type,
         content_disposition_type="inline",
     )
+
+
+def _resolve_manager_shared_file(deal_id: str, filename: str) -> str | None:
+    """Locate a manager-scoped document's file via the sibling fund it was
+    uploaded to. Returns None when the deal has no manager or no sibling holds
+    a manager-scoped document with this filename."""
+    deal = deal_store.get_deal(deal_id)
+    if not deal or not deal.manager_id:
+        return None
+    for doc in deal_store.list_manager_documents(deal.manager_id):
+        if doc.filename == filename:
+            candidate = os.path.join(settings.uploads_dir, doc.deal_id, filename)
+            if os.path.exists(candidate):
+                return candidate
+    return None
 
 
 MAX_PREVIEW_ROWS = 500

@@ -1,13 +1,19 @@
 import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
-import { Deal, UploadProgress } from "@/lib/api";
+import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
 
 const STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
   Screening: { bg: "#f1f1ec", fg: "#5a5a54", border: "#d6d6cc" },
   "Due Diligence": { bg: "#e6e6df", fg: "#3f3f3a", border: "#d0d0c6" },
   "IC Review": { bg: "#dcdcd2", fg: "#252525", border: "#c9c9bf" },
   Closed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
+  // Fund lifecycle stages
+  Diligence: { bg: "#e6e6df", fg: "#3f3f3a", border: "#d0d0c6" },
+  IC: { bg: "#dcdcd2", fg: "#252525", border: "#c9c9bf" },
+  Committed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
+  Monitoring: { bg: "#e8ede8", fg: "#2f4a2f", border: "#c9d6c9" },
+  "Re-up review": { bg: "#ede8e0", fg: "#5a4a2f", border: "#d6ccbc" },
 };
 
 const DARK_STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
@@ -15,9 +21,13 @@ const DARK_STAGE_STYLES: Record<string, { bg: string; fg: string; border: string
   "Due Diligence": { bg: "#202020", fg: "#f5f5f5", border: "#303030" },
   "IC Review": { bg: "#262626", fg: "#ffffff", border: "#343434" },
   Closed: { bg: "#f5f5f5", fg: "#111111", border: "#f5f5f5" },
+  // Fund lifecycle stages
+  Diligence: { bg: "#202020", fg: "#f5f5f5", border: "#303030" },
+  IC: { bg: "#262626", fg: "#ffffff", border: "#343434" },
+  Committed: { bg: "#f5f5f5", fg: "#111111", border: "#f5f5f5" },
+  Monitoring: { bg: "#1c231c", fg: "#a8c5a8", border: "#2d3a2d" },
+  "Re-up review": { bg: "#231f18", fg: "#c5b596", border: "#3a3225" },
 };
-
-const STAGES = ["Screening", "Due Diligence", "IC Review", "Closed"];
 const SECTOR_TAGS = [
   "Technology",
   "Healthcare",
@@ -188,6 +198,8 @@ export default function DealListItem({
             }}
           >
             {deal.deal_id} · {deal.document_count} doc{deal.document_count !== 1 ? "s" : ""}
+            {deal.entity_type === "fund" && deal.vintage ? ` · ${deal.vintage}` : ""}
+            {deal.entity_type === "fund" && deal.strategy ? ` · ${deal.strategy}` : ""}
           </div>
         </button>
 
@@ -261,7 +273,7 @@ export default function DealListItem({
               </button>
               {showStageMenu && (
                 <Menu surface={surface} border={border} text={text}>
-                  {STAGES.map((stageName) => (
+                  {stagesForEntity(deal.entity_type).map((stageName) => (
                     <MenuItem
                       key={stageName}
                       label={stageName}

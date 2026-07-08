@@ -7,7 +7,7 @@ import json
 from sqlalchemy.orm import load_only
 from app.models.deal import Deal, DealCreate, DealUpdate
 from app.models.document import DocumentMetadata
-from app.database import SessionLocal, DealRow, DocumentRow
+from app.database import SessionLocal, DealRow, DocumentRow, ManagerRow
 
 
 def create_deal(data: DealCreate) -> Deal:
@@ -23,11 +23,15 @@ def create_deal(data: DealCreate) -> Deal:
             document_count=0,
             stage=data.stage,
             tags_json=json.dumps(data.tags),
+            entity_type=data.entity_type,
+            manager_id=data.manager_id,
+            vintage=data.vintage,
+            strategy=data.strategy,
         )
         db.add(row)
         db.commit()
         db.refresh(row)
-        return _row_to_deal(row)
+        return _row_to_deal(row, manager_name=_manager_name(db, row.manager_id))
     finally:
         db.close()
 
@@ -38,7 +42,7 @@ def get_deal(deal_id: str) -> Deal | None:
         row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
         if not row:
             return None
-        return _row_to_deal(row)
+        return _row_to_deal(row, manager_name=_manager_name(db, row.manager_id))
     finally:
         db.close()
 
@@ -47,7 +51,11 @@ def list_deals() -> list[Deal]:
     db = SessionLocal()
     try:
         rows = db.query(DealRow).all()
-        return [_row_to_deal(r) for r in rows]
+        manager_names = dict(db.query(ManagerRow.manager_id, ManagerRow.name).all())
+        return [
+            _row_to_deal(r, manager_name=manager_names.get(r.manager_id))
+            for r in rows
+        ]
     finally:
         db.close()
 
@@ -66,9 +74,15 @@ def update_deal(deal_id: str, data: DealUpdate) -> Deal | None:
             row.stage = data.stage
         if data.tags is not None:
             row.tags_json = json.dumps(data.tags)
+        if data.manager_id is not None:
+            row.manager_id = data.manager_id
+        if data.vintage is not None:
+            row.vintage = data.vintage
+        if data.strategy is not None:
+            row.strategy = data.strategy
         db.commit()
         db.refresh(row)
-        return _row_to_deal(row)
+        return _row_to_deal(row, manager_name=_manager_name(db, row.manager_id))
     finally:
         db.close()
 
@@ -97,6 +111,9 @@ def add_document(deal_id: str, doc: DocumentMetadata):
             row.chunk_count = doc.chunk_count
             row.full_text_md = doc.full_text_md
             row.parse_tier = doc.parse_tier
+            row.doc_category = doc.doc_category
+            row.period = doc.period
+            row.scope = doc.scope
         else:
             row = DocumentRow(
                 doc_id=doc.doc_id,
@@ -106,6 +123,9 @@ def add_document(deal_id: str, doc: DocumentMetadata):
                 chunk_count=doc.chunk_count,
                 full_text_md=doc.full_text_md,
                 parse_tier=doc.parse_tier,
+                doc_category=doc.doc_category,
+                period=doc.period,
+                scope=doc.scope,
             )
             db.add(row)
 
@@ -142,18 +162,56 @@ def list_documents(deal_id: str) -> list[DocumentMetadata]:
                 DocumentRow.page_count,
                 DocumentRow.chunk_count,
                 DocumentRow.parse_tier,
+                DocumentRow.doc_category,
+                DocumentRow.period,
+                DocumentRow.scope,
             )
         ).filter(DocumentRow.deal_id == deal_id).all()
-        return [
-            DocumentMetadata(
-                doc_id=r.doc_id,
-                deal_id=r.deal_id,
-                filename=r.filename,
-                page_count=r.page_count,
-                chunk_count=r.chunk_count,
-            )
-            for r in rows
-        ]
+        return [_doc_row_to_metadata(r) for r in rows]
+    finally:
+        db.close()
+
+
+def list_manager_documents(manager_id: str) -> list[DocumentMetadata]:
+    """All manager-scoped documents across the manager's funds."""
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(DocumentRow)
+            .join(DealRow, DocumentRow.deal_id == DealRow.deal_id)
+            .filter(DealRow.manager_id == manager_id, DocumentRow.scope == "manager")
+            .all()
+        )
+        return [_doc_row_to_metadata(r) for r in rows]
+    finally:
+        db.close()
+
+
+def update_document_metadata(
+    deal_id: str,
+    doc_id: str,
+    doc_category: str | None = None,
+    period: str | None = None,
+    scope: str | None = None,
+) -> DocumentMetadata | None:
+    """Reclassify a document (category / period / scope). Returns None if missing."""
+    db = SessionLocal()
+    try:
+        row = db.query(DocumentRow).filter(
+            DocumentRow.doc_id == doc_id,
+            DocumentRow.deal_id == deal_id,
+        ).first()
+        if not row:
+            return None
+        if doc_category is not None:
+            row.doc_category = doc_category
+        if period is not None:
+            row.period = period or None  # empty string clears the period
+        if scope is not None:
+            row.scope = scope
+        db.commit()
+        db.refresh(row)
+        return _doc_row_to_metadata(row)
     finally:
         db.close()
 
@@ -192,7 +250,14 @@ def delete_deal(deal_id: str) -> bool:
         db.close()
 
 
-def _row_to_deal(row: DealRow) -> Deal:
+def _manager_name(db, manager_id: str | None) -> str | None:
+    if not manager_id:
+        return None
+    row = db.query(ManagerRow.name).filter(ManagerRow.manager_id == manager_id).first()
+    return row[0] if row else None
+
+
+def _row_to_deal(row: DealRow, manager_name: str | None = None) -> Deal:
     return Deal(
         deal_id=row.deal_id,
         name=row.name,
@@ -200,4 +265,22 @@ def _row_to_deal(row: DealRow) -> Deal:
         document_count=row.document_count or 0,
         stage=row.stage or "Screening",
         tags=json.loads(row.tags_json) if row.tags_json else [],
+        entity_type=row.entity_type or "deal",
+        manager_id=row.manager_id,
+        manager_name=manager_name,
+        vintage=row.vintage,
+        strategy=row.strategy or "",
+    )
+
+
+def _doc_row_to_metadata(row: DocumentRow) -> DocumentMetadata:
+    return DocumentMetadata(
+        doc_id=row.doc_id,
+        deal_id=row.deal_id,
+        filename=row.filename,
+        page_count=row.page_count,
+        chunk_count=row.chunk_count,
+        doc_category=row.doc_category or "other",
+        period=row.period,
+        scope=row.scope or "entity",
     )

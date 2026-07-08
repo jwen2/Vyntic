@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
 from app.api.routes_deals import router as deals_router
+from app.api.routes_managers import router as managers_router
 from app.api.routes_ingest import router as ingest_router
 from app.api.routes_query import router as query_router
 from app.api.routes_matrix import router as matrix_router
@@ -43,6 +44,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(deals_router)
+app.include_router(managers_router)
 app.include_router(ingest_router)
 app.include_router(query_router)
 app.include_router(matrix_router)

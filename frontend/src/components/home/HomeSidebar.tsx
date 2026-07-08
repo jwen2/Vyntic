@@ -1,6 +1,42 @@
+import { useMemo } from "react";
 import { Deal, UploadProgress, User } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
 import DealListItem from "./DealListItem";
+
+/** Group funds under their manager; plain deals form a trailing group. */
+function groupByManager(deals: Deal[]): { label: string | null; deals: Deal[] }[] {
+  const managerGroups = new Map<string, { label: string; deals: Deal[] }>();
+  const plainDeals: Deal[] = [];
+  const orphanFunds: Deal[] = [];
+
+  for (const deal of deals) {
+    if (deal.entity_type === "fund" && deal.manager_id) {
+      const existing = managerGroups.get(deal.manager_id);
+      if (existing) {
+        existing.deals.push(deal);
+      } else {
+        managerGroups.set(deal.manager_id, {
+          label: deal.manager_name || deal.manager_id,
+          deals: [deal],
+        });
+      }
+    } else if (deal.entity_type === "fund") {
+      orphanFunds.push(deal);
+    } else {
+      plainDeals.push(deal);
+    }
+  }
+
+  const groups: { label: string | null; deals: Deal[] }[] = [...managerGroups.values()].sort(
+    (a, b) => a.label.localeCompare(b.label)
+  );
+  if (orphanFunds.length > 0) groups.push({ label: "Unassigned funds", deals: orphanFunds });
+  // Plain deals render without a group header unless funds exist alongside them.
+  if (plainDeals.length > 0) {
+    groups.push({ label: groups.length > 0 ? "Deals" : null, deals: plainDeals });
+  }
+  return groups;
+}
 
 interface Props {
   deals: Deal[];
@@ -40,6 +76,7 @@ export default function HomeSidebar({
 }: Props) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const groups = useMemo(() => groupByManager(filteredDeals), [filteredDeals]);
   const surface = isDark ? "#151515" : "#f8f8f4";
   const surfaceAlt = isDark ? "#101010" : "#ffffff";
   const border = isDark ? "#262626" : "var(--landing-border)";
@@ -199,29 +236,47 @@ export default function HomeSidebar({
             </div>
           </div>
         ) : (
-          filteredDeals.map((deal) => (
-            <DealListItem
-              key={deal.deal_id}
-              deal={deal}
-              selected={deal.deal_id === selectedDealId}
-              onSelect={
-                onSelectDeal
-                  ? () => {
-                      onSelectDeal(deal);
-                      onClose?.();
-                    }
-                  : undefined
-              }
-              onInvestigate={
-                onInvestigateDeal ? () => onInvestigateDeal(deal) : undefined
-              }
-              onDelete={() => onDeleteDeal(deal)}
-              onUploadFiles={onUploadFiles}
-              onUpdateDeal={onUpdateDeal}
-              uploading={uploading && Boolean(uploadProgressByDeal[deal.deal_id])}
-              uploadProgress={uploadProgressByDeal[deal.deal_id]}
-              readOnly={!user?.is_admin}
-            />
+          groups.map((group, groupIndex) => (
+            <div key={`${group.label ?? "__ungrouped__"}-${groupIndex}`}>
+              {group.label && (
+                <div
+                  className="font-mono-plex px-2 uppercase"
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.16em",
+                    color: muted,
+                    marginTop: groupIndex === 0 ? 4 : 16,
+                    marginBottom: 8,
+                  }}
+                >
+                  {group.label}
+                </div>
+              )}
+              {group.deals.map((deal) => (
+                <DealListItem
+                  key={deal.deal_id}
+                  deal={deal}
+                  selected={deal.deal_id === selectedDealId}
+                  onSelect={
+                    onSelectDeal
+                      ? () => {
+                          onSelectDeal(deal);
+                          onClose?.();
+                        }
+                      : undefined
+                  }
+                  onInvestigate={
+                    onInvestigateDeal ? () => onInvestigateDeal(deal) : undefined
+                  }
+                  onDelete={() => onDeleteDeal(deal)}
+                  onUploadFiles={onUploadFiles}
+                  onUpdateDeal={onUpdateDeal}
+                  uploading={uploading && Boolean(uploadProgressByDeal[deal.deal_id])}
+                  uploadProgress={uploadProgressByDeal[deal.deal_id]}
+                  readOnly={!user?.is_admin}
+                />
+              ))}
+            </div>
           ))
         )}
       </div>

@@ -1,12 +1,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { DocumentMetadata } from "@/lib/api";
-import { deleteDocument } from "@/lib/api";
+import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
 import { ACCENT, ddTheme } from "./types";
 
 // Compact document-management surface that replaces the Documents sidebar
 // from the retired Workstreams tab (PR #80). Opens from the TopBar; shows
-// each doc with page count and a delete affordance.
+// each doc with page count, LP classification controls, and a delete
+// affordance.
 
 interface Props {
   dealId: string;
@@ -15,6 +16,8 @@ interface Props {
   onClose: () => void;
   /** Fires after a successful delete so the parent can refresh state. */
   onDocumentDeleted: (docId: string) => void;
+  /** Fires after a successful metadata change so the parent can refresh state. */
+  onDocumentUpdated?: (doc: DocumentMetadata) => void;
 }
 
 export default function DocumentsModal({
@@ -23,12 +26,26 @@ export default function DocumentsModal({
   theme,
   onClose,
   onDocumentDeleted,
+  onDocumentUpdated,
 }: Props) {
   const c = ddTheme(theme);
   const isDark = theme === "dark";
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleCategoryChange = useCallback(
+    async (doc: DocumentMetadata, doc_category: string) => {
+      setError(null);
+      try {
+        const updated = await updateDocumentMetadata(dealId, doc.doc_id, { doc_category });
+        onDocumentUpdated?.(updated);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update document");
+      }
+    },
+    [dealId, onDocumentUpdated],
+  );
 
   // Close on Escape (only when no inline confirm is open).
   useEffect(() => {
@@ -170,8 +187,32 @@ export default function DocumentsModal({
                     <div style={{ fontSize: 10, color: c.t3, marginTop: 2 }}>
                       {doc.page_count} page{doc.page_count === 1 ? "" : "s"}
                       {doc.chunk_count ? ` · ${doc.chunk_count} chunks` : ""}
+                      {doc.period ? ` · ${doc.period}` : ""}
+                      {doc.scope === "manager" ? " · Shared (manager)" : ""}
                     </div>
                   </div>
+                  <select
+                    value={doc.doc_category || "other"}
+                    onChange={(e) => handleCategoryChange(doc, e.target.value)}
+                    aria-label={`Category for ${doc.filename}`}
+                    style={{
+                      flexShrink: 0,
+                      padding: "4px 6px",
+                      fontSize: 11,
+                      background: c.surface,
+                      color: c.t2,
+                      border: `1px solid ${c.border}`,
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      maxWidth: 150,
+                    }}
+                  >
+                    {DOC_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {DOC_CATEGORY_LABELS[cat] ?? cat}
+                      </option>
+                    ))}
+                  </select>
                   {confirming ? (
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <button

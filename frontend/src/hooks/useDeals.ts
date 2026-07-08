@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Deal,
+  CreateDealPayload,
   listDeals,
   createDeal as apiCreateDeal,
+  createManager as apiCreateManager,
   deleteDeal as apiDeleteDeal,
   uploadDocument as apiUploadDocument,
   uploadDocumentsBatch as apiUploadBatch,
@@ -42,11 +44,21 @@ export function useDeals() {
   }, [refresh]);
 
   const addDeal = useCallback(
-    async (deal_id: string, name: string, description: string = "") => {
+    async (payload: CreateDealPayload & { new_manager_name?: string }) => {
       setLoading(true);
       setError(null);
       try {
-        await apiCreateDeal(deal_id, name, description);
+        const { new_manager_name, ...dealPayload } = payload;
+        // "New manager" flow: create the GP firm first, then attach the fund.
+        if (new_manager_name && payload.entity_type === "fund" && !payload.manager_id) {
+          const managerId = new_manager_name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_+|_+$/g, "");
+          const manager = await apiCreateManager(managerId, new_manager_name);
+          dealPayload.manager_id = manager.manager_id;
+        }
+        await apiCreateDeal(dealPayload);
         await refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create deal");

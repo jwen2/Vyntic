@@ -11,7 +11,7 @@ import logging
 import re
 
 from app.config import settings
-from app.database import SessionLocal, DocumentRow
+from app.database import SessionLocal, DealRow, DocumentRow
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +56,50 @@ def _pages_to_chunks_from_null() -> list[dict]:
     return []
 
 
+def _manager_shared_doc_rows(db, deal_id: str) -> list[DocumentRow]:
+    """Manager-scoped documents from sibling funds of the same manager.
+
+    This is the ONE deliberate relaxation of per-entity context isolation:
+    a document uploaded to fund A with scope="manager" is visible in the
+    context of every fund that belongs to the same manager. Documents never
+    cross manager boundaries, and entity-scoped sibling documents are never
+    included.
+    """
+    deal_row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
+    if not deal_row or not deal_row.manager_id:
+        return []
+    return (
+        db.query(DocumentRow)
+        .join(DealRow, DocumentRow.deal_id == DealRow.deal_id)
+        .filter(
+            DealRow.manager_id == deal_row.manager_id,
+            DocumentRow.scope == "manager",
+            DocumentRow.deal_id != deal_id,
+        )
+        .all()
+    )
+
+
+def _find_doc_row_for_entity(db, deal_id: str, doc_id: str) -> DocumentRow | None:
+    """Resolve a doc_id addressable from this entity: its own documents first,
+    then manager-shared documents from sibling funds."""
+    row = db.query(DocumentRow).filter(
+        DocumentRow.doc_id == doc_id,
+        DocumentRow.deal_id == deal_id,
+    ).first()
+    if row:
+        return row
+    for shared in _manager_shared_doc_rows(db, deal_id):
+        if shared.doc_id == doc_id:
+            return shared
+    return None
+
+
 async def load_doc_context(deal_id: str, doc_id: str, question: str) -> list[dict]:
     """Load context for a single-document question.
 
     Full-context path: reads full_text_md from DB, returns all pages as chunk dicts.
+    Resolves manager-shared documents so doc-scoped questions work on them too.
     RAG fallback: delegates to vector_store.query_document when full_context_mode=False.
     """
     if not settings.full_context_mode:
@@ -68,10 +108,7 @@ async def load_doc_context(deal_id: str, doc_id: str, question: str) -> list[dic
 
     db = SessionLocal()
     try:
-        row = db.query(DocumentRow).filter(
-            DocumentRow.doc_id == doc_id,
-            DocumentRow.deal_id == deal_id,
-        ).first()
+        row = _find_doc_row_for_entity(db, deal_id, doc_id)
     finally:
         db.close()
 
@@ -96,6 +133,9 @@ async def load_deal_context(deal_id: str, question: str) -> list[dict]:
     db = SessionLocal()
     try:
         rows = db.query(DocumentRow).filter(DocumentRow.deal_id == deal_id).all()
+        # Funds additionally see the manager's shared documents (DDQs, Form
+        # ADV, reference notes uploaded to sibling funds with scope="manager").
+        rows = rows + _manager_shared_doc_rows(db, deal_id)
     finally:
         db.close()
 
@@ -162,10 +202,7 @@ def get_doc_page_chunks(deal_id: str, doc_id: str) -> list[dict]:
 
     db = SessionLocal()
     try:
-        row = db.query(DocumentRow).filter(
-            DocumentRow.doc_id == doc_id,
-            DocumentRow.deal_id == deal_id,
-        ).first()
+        row = _find_doc_row_for_entity(db, deal_id, doc_id)
     finally:
         db.close()
 

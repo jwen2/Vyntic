@@ -190,7 +190,11 @@ export default function TopBar({
               textTransform: "uppercase",
             }}
           >
-            Active deal
+            {deal.entity_type === "fund"
+              ? deal.manager_name
+                ? `${deal.manager_name} › Fund`
+                : "Active fund"
+              : "Active deal"}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1
@@ -204,6 +208,23 @@ export default function TopBar({
             >
               {deal.name}
             </h1>
+            {deal.entity_type === "fund" && deal.vintage && (
+              <span
+                className="font-mono-plex"
+                style={{
+                  fontSize: 10,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background: chip,
+                  color: c.t2,
+                  border: `1px solid ${c.border}`,
+                  whiteSpace: "nowrap",
+                  letterSpacing: "0.12em",
+                }}
+              >
+                {deal.vintage}
+              </span>
+            )}
             <span
               className="font-mono-plex"
               style={{

@@ -104,6 +104,8 @@ def test_load_deal_context_concatenates_all_docs(monkeypatch):
     ]
     db_mock = MagicMock()
     db_mock.query.return_value.filter.return_value.all.return_value = rows
+    # Deal-row lookup for manager-shared docs finds no deal → no manager sharing.
+    db_mock.query.return_value.filter.return_value.first.return_value = None
 
     with patch("app.services.context_provider.SessionLocal", return_value=db_mock):
         result = asyncio.run(load_deal_context("deal_1", "What is revenue?"))

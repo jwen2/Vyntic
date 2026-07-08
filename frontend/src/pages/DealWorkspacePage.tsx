@@ -328,6 +328,11 @@ export default function DealWorkspacePage() {
           documents={documents}
           theme={theme}
           onClose={() => setDocumentsModalOpen(false)}
+          onDocumentUpdated={(updated) => {
+            setDocuments((prev) =>
+              prev.map((d) => (d.doc_id === updated.doc_id ? updated : d))
+            );
+          }}
           onDocumentDeleted={(docId) => {
             setDocuments((prev) => prev.filter((d) => d.doc_id !== docId));
             // If the doc viewer was showing the deleted doc, close it.

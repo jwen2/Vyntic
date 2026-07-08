@@ -28,6 +28,9 @@ def enqueue_file(
     parent_id: str | None = None,
     percent: float = 0,
     detail: str = "",
+    doc_category: str = "other",
+    period: str | None = None,
+    scope: str = "entity",
 ) -> str:
     """Create a queued job for a file already saved to disk.
 
@@ -46,6 +49,9 @@ def enqueue_file(
         detail=detail,
         file_path=file_path,
         parent_id=parent_id,
+        doc_category=doc_category,
+        period=period,
+        scope=scope,
     )
     return job_id
 
@@ -60,6 +66,9 @@ async def _run_pipeline(job: dict):
         Path(job["file_path"]),
         job["filename"],
         upload_id=job["id"],
+        doc_category=job["doc_category"],
+        period=job["period"],
+        scope=job["scope"],
     )
 
 
