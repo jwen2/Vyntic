@@ -58,15 +58,36 @@ def get_deal(deal_id: str) -> Deal | None:
             db.close()
 
 
-def list_deals(tenant_id: str | None = None) -> list[Deal]:
-    """List deals, filtered to one tenant when given. None (internal/seed
-    callers) lists across tenants — routes must always pass the user's
-    tenant."""
+def count_deals(tenant_id: str | None = None) -> int:
     db, owned = current_session()
     try:
         q = db.query(DealRow).filter(DealRow.deleted_at.is_(None))
         if tenant_id is not None:
             q = q.filter(DealRow.tenant_id == tenant_id)
+        return q.count()
+    finally:
+        if owned:
+            db.close()
+
+
+def list_deals(
+    tenant_id: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[Deal]:
+    """List deals, filtered to one tenant when given. None (internal/seed
+    callers) lists across tenants — routes must always pass the user's
+    tenant. Ordered by name for stable pagination."""
+    db, owned = current_session()
+    try:
+        q = db.query(DealRow).filter(DealRow.deleted_at.is_(None))
+        if tenant_id is not None:
+            q = q.filter(DealRow.tenant_id == tenant_id)
+        q = q.order_by(DealRow.name, DealRow.deal_id)
+        if offset:
+            q = q.offset(offset)
+        if limit is not None:
+            q = q.limit(limit)
         rows = q.all()
         manager_names = dict(db.query(ManagerRow.manager_id, ManagerRow.name).all())
         return [
@@ -176,10 +197,23 @@ def document_exists(deal_id: str, filename: str) -> bool:
             db.close()
 
 
-def list_documents(deal_id: str) -> list[DocumentMetadata]:
+def count_documents(deal_id: str) -> int:
     db, owned = current_session()
     try:
-        rows = db.query(DocumentRow).options(
+        return db.query(DocumentRow).filter(
+            DocumentRow.deal_id == deal_id, DocumentRow.deleted_at.is_(None)
+        ).count()
+    finally:
+        if owned:
+            db.close()
+
+
+def list_documents(
+    deal_id: str, limit: int | None = None, offset: int = 0
+) -> list[DocumentMetadata]:
+    db, owned = current_session()
+    try:
+        q = db.query(DocumentRow).options(
             load_only(
                 DocumentRow.doc_id,
                 DocumentRow.deal_id,
@@ -193,7 +227,12 @@ def list_documents(deal_id: str) -> list[DocumentMetadata]:
             )
         ).filter(
             DocumentRow.deal_id == deal_id, DocumentRow.deleted_at.is_(None)
-        ).all()
+        ).order_by(DocumentRow.filename, DocumentRow.doc_id)
+        if offset:
+            q = q.offset(offset)
+        if limit is not None:
+            q = q.limit(limit)
+        rows = q.all()
         return [_doc_row_to_metadata(r) for r in rows]
     finally:
         if owned:

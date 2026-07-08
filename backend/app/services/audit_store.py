@@ -71,6 +71,36 @@ def record(
         logger.exception(f"Audit write failed for action={action!r} — event NOT recorded")
 
 
+def _filtered(db, deal_id, user_id, action, since, tenant_id):
+    q = db.query(AuditLogRow)
+    if tenant_id is not None:
+        q = q.filter(AuditLogRow.tenant_id == tenant_id)
+    if deal_id is not None:
+        q = q.filter(AuditLogRow.deal_id == deal_id)
+    if user_id is not None:
+        q = q.filter(AuditLogRow.user_id == user_id)
+    if action is not None:
+        q = q.filter(AuditLogRow.action == action)
+    if since is not None:
+        q = q.filter(AuditLogRow.created_at >= since)
+    return q
+
+
+def count(
+    deal_id: Optional[str] = None,
+    user_id: Optional[int] = None,
+    action: Optional[str] = None,
+    since: Optional[datetime] = None,
+    tenant_id: Optional[str] = None,
+) -> int:
+    db, owned = current_session()
+    try:
+        return _filtered(db, deal_id, user_id, action, since, tenant_id).count()
+    finally:
+        if owned:
+            db.close()
+
+
 def query(
     deal_id: Optional[str] = None,
     user_id: Optional[int] = None,
@@ -85,17 +115,7 @@ def query(
     (pre-auth events) surface on no tenant's read path."""
     db, owned = current_session()
     try:
-        q = db.query(AuditLogRow)
-        if tenant_id is not None:
-            q = q.filter(AuditLogRow.tenant_id == tenant_id)
-        if deal_id is not None:
-            q = q.filter(AuditLogRow.deal_id == deal_id)
-        if user_id is not None:
-            q = q.filter(AuditLogRow.user_id == user_id)
-        if action is not None:
-            q = q.filter(AuditLogRow.action == action)
-        if since is not None:
-            q = q.filter(AuditLogRow.created_at >= since)
+        q = _filtered(db, deal_id, user_id, action, since, tenant_id)
         rows = (
             q.order_by(AuditLogRow.id.desc()).offset(offset).limit(limit).all()
         )

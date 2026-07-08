@@ -76,7 +76,7 @@ class TestDealStatusAndTags:
         """GET /deals returns stage and tags for each deal."""
         resp = client.get("/deals")
         assert resp.status_code == 200
-        deals = resp.json()
+        deals = resp.json()["items"]
         assert len(deals) == 3
         for deal in deals:
             assert "stage" in deal
@@ -255,4 +255,4 @@ class TestDealCRUD:
         """New deal has no documents."""
         resp = client.get(f"/deals/{sample_deal.deal_id}/documents")
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.json() == {"items": [], "total": 0, "next_offset": None}

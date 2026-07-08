@@ -193,19 +193,40 @@ def get_run(run_id: str) -> WorkflowRun | None:
             db.close()
 
 
-def list_runs_for_workflow(workflow_id: str, deal_id: str) -> list[WorkflowRun]:
+def count_runs_for_workflow(workflow_id: str, deal_id: str) -> int:
+    db, owned = current_session()
+    try:
+        return db.query(WorkflowRunRow).filter(
+            WorkflowRunRow.workflow_id == workflow_id,
+            WorkflowRunRow.deal_id == deal_id,
+        ).count()
+    finally:
+        if owned:
+            db.close()
+
+
+def list_runs_for_workflow(
+    workflow_id: str,
+    deal_id: str,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[WorkflowRun]:
     """Return runs for this workflow scoped to deal, newest first.
 
     Cells are not loaded (use `get_run` for full detail).
     """
     db, owned = current_session()
     try:
-        rows = (
+        q = (
             db.query(WorkflowRunRow)
             .filter(WorkflowRunRow.workflow_id == workflow_id, WorkflowRunRow.deal_id == deal_id)
             .order_by(WorkflowRunRow.run_number.desc())
-            .all()
         )
+        if offset:
+            q = q.offset(offset)
+        if limit is not None:
+            q = q.limit(limit)
+        rows = q.all()
         out: list[WorkflowRun] = []
         for row in rows:
             try:

@@ -20,8 +20,10 @@ import io
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
+
+from app.models.page import Page, page_of
 
 from app.auth import (
     create_scoped_token,
@@ -137,15 +139,21 @@ async def create_run(
 
 @router.get(
     "/deals/{deal_id}/workflows/{workflow_id}/runs",
-    response_model=list[WorkflowRun],
+    response_model=Page[WorkflowRun],
 )
 def list_runs(
     deal_id: str,
     workflow_id: str,
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     current_user: UserRow = Depends(get_current_user),
 ):
     require_deal_access(current_user, deal_id)
-    return workflow_run_store.list_runs_for_workflow(workflow_id, deal_id)
+    items = workflow_run_store.list_runs_for_workflow(
+        workflow_id, deal_id, limit=limit, offset=offset
+    )
+    total = workflow_run_store.count_runs_for_workflow(workflow_id, deal_id)
+    return page_of(items, total, offset)
 
 
 @router.get("/runs/{run_id}", response_model=WorkflowRun)

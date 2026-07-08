@@ -132,8 +132,8 @@ def test_audit_log_reads_are_tenant_scoped(other_admin_client, client, sample_de
     other_admin_client.post("/deals", json={"deal_id": "acme_d", "name": "Acme D"})
     client.post("/deals", json={"deal_id": "default_d", "name": "Default D"})
 
-    default_rows = client.get("/audit").json()
-    acme_rows = other_admin_client.get("/audit").json()
+    default_rows = client.get("/audit").json()["items"]
+    acme_rows = other_admin_client.get("/audit").json()["items"]
     assert default_rows, "default tenant should see its own audit rows"
     assert acme_rows, "acme should see its own audit rows"
     assert all(r["user_email"].endswith("@test.com") for r in default_rows)

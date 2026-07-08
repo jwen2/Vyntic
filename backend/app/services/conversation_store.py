@@ -48,15 +48,35 @@ def save_entry(data: ConversationCreate) -> ConversationEntry:
             db.close()
 
 
-def list_entries(deal_id: str, workstream: str | None = None) -> list[ConversationEntry]:
+def count_entries(deal_id: str, workstream: str | None = None) -> int:
     db, owned = current_session()
     try:
         q = db.query(ConversationRow).filter(ConversationRow.deal_id == deal_id)
         if workstream:
             q = q.filter(ConversationRow.workstream == workstream)
-        rows = q.order_by(
-            ConversationRow.created_at.desc(), ConversationRow.id.desc()
-        ).all()
+        return q.count()
+    finally:
+        if owned:
+            db.close()
+
+
+def list_entries(
+    deal_id: str,
+    workstream: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[ConversationEntry]:
+    db, owned = current_session()
+    try:
+        q = db.query(ConversationRow).filter(ConversationRow.deal_id == deal_id)
+        if workstream:
+            q = q.filter(ConversationRow.workstream == workstream)
+        q = q.order_by(ConversationRow.created_at.desc(), ConversationRow.id.desc())
+        if offset:
+            q = q.offset(offset)
+        if limit is not None:
+            q = q.limit(limit)
+        rows = q.all()
         return [_row_to_entry(r) for r in rows]
     finally:
         if owned:

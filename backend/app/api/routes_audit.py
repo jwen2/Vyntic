@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from app.auth import get_current_user, require_admin
 from app.database import UserRow
+from app.models.page import Page, page_of
 from app.services import audit_store
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -56,7 +57,7 @@ def _parse_since(since: str | None) -> datetime | None:
         raise HTTPException(status_code=422, detail="'since' must be an ISO timestamp")
 
 
-@router.get("", response_model=list[AuditEntry])
+@router.get("", response_model=Page[AuditEntry])
 def list_audit_entries(
     deal_id: str | None = None,
     user_id: int | None = None,
@@ -67,16 +68,24 @@ def list_audit_entries(
     current_user: UserRow = Depends(get_current_user),
 ):
     require_admin(current_user)
+    since_dt = _parse_since(since)
     rows = audit_store.query(
         deal_id=deal_id,
         user_id=user_id,
         action=action,
-        since=_parse_since(since),
+        since=since_dt,
         limit=min(limit, 1000),
         offset=offset,
         tenant_id=current_user.tenant_id,
     )
-    return [
+    total = audit_store.count(
+        deal_id=deal_id,
+        user_id=user_id,
+        action=action,
+        since=since_dt,
+        tenant_id=current_user.tenant_id,
+    )
+    items = [
         AuditEntry(
             id=r.id,
             created_at=r.created_at,
@@ -92,6 +101,7 @@ def list_audit_entries(
         )
         for r in rows
     ]
+    return page_of(items, total, offset)
 
 
 @router.get("/export.csv")

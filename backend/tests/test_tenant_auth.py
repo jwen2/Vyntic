@@ -98,8 +98,8 @@ def test_deal_list_is_tenant_scoped(client, other_client, sample_deal):
     )
     assert res.status_code == 200
 
-    default_ids = {d["deal_id"] for d in client.get("/deals").json()}
-    acme_ids = {d["deal_id"] for d in other_client.get("/deals").json()}
+    default_ids = {d["deal_id"] for d in client.get("/deals").json()["items"]}
+    acme_ids = {d["deal_id"] for d in other_client.get("/deals").json()["items"]}
     assert sample_deal.deal_id in default_ids
     assert "acme_deal" not in default_ids
     assert acme_ids == {"acme_deal"}

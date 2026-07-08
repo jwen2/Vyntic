@@ -54,7 +54,7 @@ def test_deal_soft_delete_via_api(client, sample_deal):
 
     assert client.get(f"/deals/{sample_deal.deal_id}").status_code == 404
     assert sample_deal.deal_id not in {
-        d["deal_id"] for d in client.get("/deals").json()
+        d["deal_id"] for d in client.get("/deals").json()["items"]
     }
     row = _deal_row(sample_deal.deal_id)
     assert row is not None, "soft delete must keep the row"

@@ -3,9 +3,11 @@ import os
 from html import escape
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
+from app.models.page import Page, page_of
 
 from app.config import settings
 from app.models.deal import (
@@ -76,9 +78,17 @@ def create_deal(
         raise HTTPException(status_code=409, detail=str(e))
 
 
-@router.get("", response_model=list[Deal])
-def list_deals(current_user: UserRow = Depends(get_current_user)):
-    return deal_store.list_deals(tenant_id=current_user.tenant_id)
+@router.get("", response_model=Page[Deal])
+def list_deals(
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    current_user: UserRow = Depends(get_current_user),
+):
+    items = deal_store.list_deals(
+        tenant_id=current_user.tenant_id, limit=limit, offset=offset
+    )
+    total = deal_store.count_deals(tenant_id=current_user.tenant_id)
+    return page_of(items, total, offset)
 
 
 @router.get("/metadata/stages")
@@ -169,13 +179,19 @@ def upsert_position(
     return manager_store.upsert_position(deal_id, data)
 
 
-@router.get("/{deal_id}/documents", response_model=list[DocumentMetadata])
-def list_deal_documents(deal_id: str, current_user: UserRow = Depends(get_current_user)):
+@router.get("/{deal_id}/documents", response_model=Page[DocumentMetadata])
+def list_deal_documents(
+    deal_id: str,
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    current_user: UserRow = Depends(get_current_user),
+):
     require_deal_access(current_user, deal_id)
     deal = deal_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
-    return deal_store.list_documents(deal_id)
+    items = deal_store.list_documents(deal_id, limit=limit, offset=offset)
+    return page_of(items, deal_store.count_documents(deal_id), offset)
 
 
 @router.delete("/{deal_id}")

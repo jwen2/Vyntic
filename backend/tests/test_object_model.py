@@ -214,7 +214,7 @@ class TestDocumentClassification:
         _make_manager()
         _make_fund("fund_iv", "hillpath")
         _add_doc("fund_iv", "doc_lpa", "lpa.pdf", doc_category="lpa")
-        docs = client.get("/deals/fund_iv/documents").json()
+        docs = client.get("/deals/fund_iv/documents").json()["items"]
         assert docs[0]["doc_category"] == "lpa"
         assert docs[0]["scope"] == "entity"
 

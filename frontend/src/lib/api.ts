@@ -160,6 +160,15 @@ export interface ConversationEntry {
   created_at: string;
 }
 
+/** Pagination envelope returned by list endpoints (Plan 4 C2). The list
+ * helpers below unwrap `.items` so callers keep array semantics; paging
+ * UI can consume `total`/`next_offset` when it lands (frontend plan F2). */
+export interface Page<T> {
+  items: T[];
+  total: number;
+  next_offset: number | null;
+}
+
 export async function listConversations(
   deal_id: string,
   workstream?: string
@@ -167,7 +176,7 @@ export async function listConversations(
   const params = workstream ? `?workstream=${encodeURIComponent(workstream)}` : "";
   const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/conversations${params}`);
   if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return ((await res.json()) as Page<ConversationEntry>).items;
 }
 
 export async function saveConversation(
@@ -207,7 +216,7 @@ export async function createDeal(payload: CreateDealPayload): Promise<Deal> {
 export async function listDeals(): Promise<Deal[]> {
   const res = await fetchWrapper(`${API_BASE}/deals`);
   if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return ((await res.json()) as Page<Deal>).items;
 }
 
 export async function deleteDeal(deal_id: string): Promise<void> {
@@ -385,7 +394,7 @@ export async function listDocuments(
 ): Promise<DocumentMetadata[]> {
   const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents`);
   if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return ((await res.json()) as Page<DocumentMetadata>).items;
 }
 
 export async function matrixCompare(

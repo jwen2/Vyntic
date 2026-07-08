@@ -63,7 +63,7 @@ class TestAnalystWithAccess:
 
         resp = analyst_client.get("/deals/conv_deal/conversations")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()["items"]) == 1
 
         resp = analyst_client.delete("/deals/conv_deal/conversations")
         assert resp.status_code == 200
@@ -76,7 +76,7 @@ class TestAdmin:
 
         resp = client.get("/deals/conv_deal/conversations")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()["items"]) == 1
 
         resp = client.delete("/deals/conv_deal/conversations")
         assert resp.status_code == 200
