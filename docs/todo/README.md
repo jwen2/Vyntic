@@ -11,9 +11,9 @@ Ordered by the assessment's tiers. Tiers 0–1 are concrete code on the current 
 | # | Plan | Tier | Findings | Depends on | Status |
 |---|---|---|---|---|---|
 | 1 | `2026-07-02-tier0-security-hotfixes.md` | 0 — before any exposure | S1, S3, R1-guard, S9-CORS | — | **done (PR #91)** — moved to `docs/finished/` |
-| 2 | `2026-07-02-auth-access-control-audit.md` | 1 — before paid pilot | S1-cross, S4, S5, S6, S9-XSS | Plan 1 | not started |
+| 2 | `2026-07-02-auth-access-control-audit.md` | 1 — before paid pilot | S1-cross, S4, S5, S6, S9-XSS | Plan 1 | **done (PR #95)** — moved to `docs/finished/` |
 | 3 | `2026-07-02-durable-ingestion-parsing.md` | 1 — before paid pilot | R4, R5 | — | **done (PR #91)** — moved to `docs/finished/` |
-| 4 | `2026-07-02-postgres-multitenancy.md` | 2 — before multi-tenant | R2, S2, R6, S7, S8 | **tenancy decision (D1)** | blocked on decisions |
+| 4 | `2026-07-02-postgres-multitenancy.md` | 2 — before multi-tenant | R2, S2, R6, S7, S8 | ~~tenancy decision (D1)~~ resolved: row-level RLS | **in progress** (D1/D3 resolved 2026-07-08; D2 open) |
 | 5 | `2026-07-02-horizontal-scaling-context-cascade.md` | 2 — before multi-tenant | R3, R1-full | Plan 4 | blocked on Plan 4 |
 
 ## Frontend quality (audit 2026-07-07)
@@ -27,7 +27,7 @@ From `docs/assessments/2026-07-07-frontend-audit.md` (audited on `main` @ `19e6d
 | F3 | `2026-07-07-frontend-decomposition-client-state.md` | god-component decomposition, typed-cell rendering (**D1**), findings/overrides → backend (**D2**), theming + a11y (**D3**) | FE5, FE6, FE9, FE11, FE13 | F1, F2; F3.4 coordinates with Plan 2 | not started, 3 decisions in header |
 
 ## Suggested order
-1. **Plan 2** (auth/audit) → 2. resolve **Plan 4 D1 tenancy decision**, then **Plan 4** → 3. **Plan 5**.
-Frontend track (parallel): **F1** anytime → resolve **F2's library decision**, then **F2** → **F3** (resolve D1–D3 first; align F3.4 with Plan 2).
+1. ~~**Plan 2** (auth/audit)~~ done (PR #95) → 2. **Plan 4** (in progress; D1 = row-level RLS, D3 = migrate existing data, D2 hosting still open) → 3. **Plan 5**.
+Frontend track (parallel): **F1** anytime → resolve **F2's library decision**, then **F2** → **F3** (resolve D1–D3 first; align F3.4 with Plan 2's default-deny + audit conventions).
 
-Plans 1 and 3 shipped in PR #91 (Plan 3's concurrency decision resolved as the in-process pool over DB job rows). Plan 2 can proceed immediately. Plans 4–5 need the D1/D2/D3 decisions in Plan 4's header settled first — start with tenancy (D1), since it shapes the Postgres schema everything else builds on.
+Plans 1 and 3 shipped in PR #91 (Plan 3's concurrency decision resolved as the in-process pool over DB job rows). Plan 2 shipped in PR #95. Plan 4's remaining decision (D2: managed Postgres host) is only needed before its Task 4.5 / Phase D.

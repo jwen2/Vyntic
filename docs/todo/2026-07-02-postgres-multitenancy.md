@@ -21,11 +21,15 @@
 
 **Recommendation:** **A (row-level + Postgres RLS)** for operational sanity, *provided* RLS is enforced at the DB layer (not just app `WHERE` clauses) so an app bug can't cross tenants. Fund-of-funds security teams sometimes require C; if a named prospect demands physical separation, revisit. **This choice shapes every task below — resolve it first.**
 
+> **RESOLVED 2026-07-08: Option A** (row-level `tenant_id` + Postgres RLS, enforced at the DB layer).
+
 ### D2 — Hosting / managed Postgres
 Which managed Postgres (RDS / Cloud SQL / Neon / Supabase)? Determines connection pooling, backup, and encryption-at-rest configuration. Needed before Task 4.5.
 
 ### D3 — Migration of existing pilot data
 Is there production/pilot SQLite data to migrate, or is this greenfield? Determines whether Task 4.6 (data migration) is needed.
+
+> **RESOLVED 2026-07-08: existing pilot data must be migrated** — Task 4.6 and the default-tenant backfill are in scope.
 
 ---
 
