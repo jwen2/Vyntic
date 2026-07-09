@@ -207,7 +207,7 @@ export default function DealWorkspacePage() {
               ? dealQuery.error.message
               : `No deal with ID "${dealId}" exists.`}
           </p>
-          <button onClick={() => navigate("/app")} style={{ padding: "8px 14px", background: ACCENT, color: "white", border: "none", borderRadius: 999, cursor: "pointer" }}>
+          <button onClick={() => navigate("/app")} style={{ padding: "8px 14px", background: ACCENT, color: "var(--on-accent)", border: "none", borderRadius: 999, cursor: "pointer" }}>
             Back to Dashboard
           </button>
         </div>

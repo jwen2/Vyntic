@@ -64,12 +64,12 @@ export default function TopBar({
             style={{
               width: 34,
               height: 34,
-              background: isDark ? "#f5f5f5" : ACCENT,
+              background: isDark ? "#f5f5f5" : "#111111",
               borderRadius: 12,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: isDark ? ACCENT : "white",
+              color: isDark ? "#111111" : "white",
               fontWeight: 700,
               fontSize: 14,
             }}
@@ -357,7 +357,7 @@ function ModeSegmentedControl({
             fontSize: 12,
             fontWeight: 600,
             background: mode === item.key ? ACCENT : "transparent",
-            color: mode === item.key ? "white" : c.t2,
+            color: mode === item.key ? "var(--on-accent)" : c.t2,
             border: "none",
             borderRadius: 999,
             cursor: "pointer",

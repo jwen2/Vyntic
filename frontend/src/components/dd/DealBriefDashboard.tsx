@@ -699,7 +699,7 @@ export default function DealBriefDashboard({
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "white",
+                  color: "var(--on-accent)",
                   background: ACCENT,
                   border: "none",
                   borderRadius: 999,
@@ -918,7 +918,7 @@ function EmptyBrief({ theme, onOpenProactiveScan }: { theme: "light" | "dark"; o
           style={{
             fontSize: 13,
             fontWeight: 600,
-            color: "white",
+            color: "var(--on-accent)",
             background: ACCENT,
             border: "none",
             borderRadius: 999,
@@ -1253,7 +1253,7 @@ function SegmentedTabs({
               padding: "6px 10px",
               fontSize: 10,
               fontWeight: 700,
-              color: option.disabled ? c.t4 : active ? "white" : c.t2,
+              color: option.disabled ? c.t4 : active ? "var(--on-accent)" : c.t2,
               background: active ? ACCENT : "transparent",
               cursor: option.disabled ? "default" : "pointer",
             }}
@@ -1678,7 +1678,7 @@ function SourceChip({ citation, index, onClick }: { citation?: Citation | null; 
         padding: "2px 6px",
         fontSize: 9,
         fontWeight: 700,
-        color: "white",
+        color: "var(--on-accent)",
         background: ACCENT,
         border: "none",
         borderRadius: 999,

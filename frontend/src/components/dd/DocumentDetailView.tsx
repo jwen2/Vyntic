@@ -215,7 +215,7 @@ export default function DocumentDetailView({
                 style={{
                   padding: "7px 14px",
                   background: prompt.trim() ? ACCENT : c.border,
-                  color: prompt.trim() ? "white" : c.t3,
+                  color: prompt.trim() ? "var(--on-accent)" : c.t3,
                   border: "none",
                   borderRadius: 6,
                   fontSize: 12,

@@ -232,7 +232,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           style={{
             padding: "6px 12px",
             background: ACCENT,
-            color: "white",
+            color: "var(--on-accent)",
             border: "none",
             borderRadius: 6,
             fontSize: 12,

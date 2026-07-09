@@ -140,7 +140,7 @@ export default function WorkflowLibrary({
                   style={{
                     padding: "11px 16px",
                     background: ACCENT,
-                    color: "white",
+                    color: "var(--on-accent)",
                     border: "none",
                     borderRadius: 999,
                     fontSize: 13,
@@ -455,7 +455,7 @@ function QuickCreateButton({
       style={{
         padding: "10px 14px",
         background: accent,
-        color: "white",
+        color: accent === ACCENT ? "var(--on-accent)" : "white",
         border: "none",
         borderRadius: 999,
         fontSize: 12,
@@ -511,7 +511,7 @@ function NewMenuButton({
             height: 28,
             borderRadius: 10,
             background: accent,
-            color: "white",
+            color: accent === ACCENT ? "var(--on-accent)" : "white",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
