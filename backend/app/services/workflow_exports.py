@@ -16,7 +16,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from app.database import DocumentRow, SessionLocal
+from app.database import DocumentRow, current_session
 from app.models.workflow import Workflow
 from app.models.workflow_run import TabularCell, WorkflowRun
 
@@ -91,12 +91,13 @@ def _run_row_keys(run: WorkflowRun) -> list[str]:
 
 
 def _doc_name_map(deal_id: str) -> dict[str, str]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = db.query(DocumentRow).filter(DocumentRow.deal_id == deal_id).all()
         return {row.doc_id: row.filename for row in rows}
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def _export_value(cell: TabularCell | None) -> Any:

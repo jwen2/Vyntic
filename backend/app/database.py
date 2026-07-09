@@ -2,9 +2,13 @@
 SQLAlchemy database setup.
 Uses SQLite for local/PoC — swap connection string to PostgreSQL for production.
 """
+import asyncio
 import json
+from contextvars import ContextVar
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer, Float, Text, Boolean, DateTime, ForeignKey, event, inspect, text
+from pathlib import Path
+from typing import Optional
+from sqlalchemy import create_engine, Column, String, Integer, Float, Text, Boolean, DateTime, ForeignKey, event, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, Session
 
 from app.config import settings
@@ -30,6 +34,21 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+class TenantRow(Base):
+    """An organizational tenant (Plan 4, S2). Every top-level entity —
+    users, deals/funds, managers — carries tenant_id; deal-scoped tables
+    inherit tenancy through deal_id. 'default' holds all pre-tenancy rows
+    until real tenants are provisioned."""
+    __tablename__ = "tenants"
+
+    tenant_id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+DEFAULT_TENANT_ID = "default"
+
+
 class ManagerRow(Base):
     """A GP firm (fund manager). Funds — DealRow with entity_type="fund" —
     reference it via manager_id. Manager-scoped documents (DDQs, Form ADV,
@@ -38,6 +57,7 @@ class ManagerRow(Base):
     __tablename__ = "managers"
 
     manager_id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.tenant_id"), nullable=False, default=DEFAULT_TENANT_ID, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, default="")
     tags_json = Column(Text, default="[]")
@@ -62,6 +82,7 @@ class DealRow(Base):
     __tablename__ = "deals"
 
     deal_id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.tenant_id"), nullable=False, default=DEFAULT_TENANT_ID, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, default="")
     document_count = Column(Integer, default=0)
@@ -71,6 +92,11 @@ class DealRow(Base):
     manager_id = Column(String, ForeignKey("managers.manager_id", ondelete="SET NULL"), nullable=True, index=True)
     vintage = Column(Integer, nullable=True)  # fund vintage year
     strategy = Column(String, default="")  # e.g. "Buyout", "Growth", "Secondaries"
+    # Soft delete + legal hold (Plan 4 C1, S8). Deletes set deleted_at; the
+    # retention purge hard-removes past the window unless legal_hold is set.
+    # Documents inherit their deal's hold.
+    deleted_at = Column(DateTime, nullable=True, index=True)
+    legal_hold = Column(Boolean, nullable=False, default=False)
 
     documents = relationship("DocumentRow", back_populates="deal", cascade="all, delete-orphan")
     manager = relationship("ManagerRow", back_populates="funds")
@@ -112,6 +138,7 @@ class DocumentRow(Base):
     doc_category = Column(String, default="other", index=True)
     period = Column(String, nullable=True)
     scope = Column(String, default="entity", index=True)  # "entity" | "manager"
+    deleted_at = Column(DateTime, nullable=True, index=True)  # soft delete (C1)
 
     deal = relationship("DealRow", back_populates="documents")
 
@@ -144,6 +171,21 @@ class IngestJobRow(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ConversationRow(Base):
+    """Agent-chat Q&A history (Plan 4 C3). Previously an in-process dict —
+    lost on restart and wrong under multiple workers. Tenant-scoped via
+    deal_id; purged with the deal (FK cascade)."""
+    __tablename__ = "conversations"
+
+    id = Column(String, primary_key=True)
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, default="")
+    citations_json = Column(Text, default="[]")
+    workstream = Column(String, default="", index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 # ── Audit log (Plan 2, S4) ──
 
 class AuditLogRow(Base):
@@ -154,6 +196,9 @@ class AuditLogRow(Base):
     __tablename__ = "audit_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    # Denormalized like user_email (no FK): rows must outlive their tenant.
+    # NULL = pre-auth event with no acting user; invisible to tenant reads.
+    tenant_id = Column(String, nullable=True, index=True)
     user_id = Column(Integer, nullable=True, index=True)
     user_email = Column(String, default="")
     action = Column(String, nullable=False, index=True)  # e.g. "auth.login", "deal.delete"
@@ -191,6 +236,7 @@ class UserRow(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(String, ForeignKey("tenants.tenant_id"), nullable=False, default=DEFAULT_TENANT_ID, index=True)
     email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, default="")
@@ -387,51 +433,101 @@ class AssistantStageOutputRow(Base):
     run = relationship("WorkflowRunRow", back_populates="stage_outputs")
 
 
-def init_db():
-    """Create all tables if they don't exist."""
-    Base.metadata.create_all(bind=engine)
-    _ensure_schema_migrations()
+# The revision that captures the schema exactly as create_all + the old
+# additive-column shim produced it. Pre-Alembic databases are stamped here,
+# then upgraded through any later revisions.
+_BASELINE_REVISION = "0001"
 
 
-def _ensure_schema_migrations():
-    """Apply additive column migrations for databases predating a schema change.
+def _alembic_config(url: str):
+    from alembic.config import Config
 
-    SQLAlchemy create_all creates missing tables but does not ALTER existing ones.
-    Each entry maps a table to the columns (and their ADD COLUMN DDL) added
-    post-initial-deploy. Idempotent: only missing columns are added.
+    ini_path = Path(__file__).resolve().parent.parent / "alembic.ini"
+    cfg = Config(str(ini_path))
+    cfg.set_main_option("sqlalchemy.url", url)
+    return cfg
+
+
+def run_migrations(url: str | None = None) -> None:
+    """Bring the database at `url` (default: the app DB) to the current
+    schema via the Alembic migration chain.
+
+    A pre-Alembic database — tables present but no alembic_version — is
+    adopted in place: stamped at the baseline revision (the old
+    create_all + shim path kept every live DB at exactly that schema),
+    then upgraded to head like any other database.
     """
-    additive_columns: dict[str, list[tuple[str, str]]] = {
-        "documents": [
-            ("full_text_md", "TEXT"),
-            ("parse_tier", "INTEGER DEFAULT 1"),
-            ("doc_category", "TEXT DEFAULT 'other'"),
-            ("period", "TEXT"),
-            ("scope", "TEXT DEFAULT 'entity'"),
-        ],
-        "deals": [
-            ("entity_type", "TEXT DEFAULT 'deal'"),
-            ("manager_id", "TEXT"),
-            ("vintage", "INTEGER"),
-            ("strategy", "TEXT DEFAULT ''"),
-        ],
-        "ingest_jobs": [
-            ("doc_category", "TEXT DEFAULT 'other'"),
-            ("period", "TEXT"),
-            ("scope", "TEXT DEFAULT 'entity'"),
-        ],
-    }
-    inspector = inspect(engine)
-    table_names = set(inspector.get_table_names())
-    with engine.begin() as conn:
-        for table, columns in additive_columns.items():
-            if table not in table_names:
-                continue
-            existing = {column["name"] for column in inspector.get_columns(table)}
-            for column_name, ddl_type in columns:
-                if column_name not in existing:
-                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {ddl_type}"))
+    from alembic import command
+
+    url = url or settings.database_url
+    probe = create_engine(url)
+    try:
+        tables = set(inspect(probe).get_table_names())
+    finally:
+        probe.dispose()
+
+    cfg = _alembic_config(url)
+    if tables and "alembic_version" not in tables:
+        command.stamp(cfg, _BASELINE_REVISION)
+    command.upgrade(cfg, "head")
 
 
-def get_db() -> Session:
-    """Get a database session. Caller must close it."""
-    return SessionLocal()
+def init_db():
+    """Bring the app database to the current schema."""
+    run_migrations()
+
+
+# ── Session-per-request (Plan 4, A3) ──
+#
+# One session services a whole request: the app-level `request_session`
+# dependency opens it into a ContextVar, and `current_session()` in the
+# stores reuses it. Outside a request (worker pools, seeding, executor
+# tasks) callers get a fresh session they own and must close.
+
+_request_session: ContextVar[Optional[Session]] = ContextVar(
+    "request_session", default=None
+)
+# asyncio.create_task copies the caller's context, so a background task
+# spawned mid-request inherits the ContextVar. The owner-task check below
+# keeps such tasks from sharing (and outliving) the request's session.
+_request_session_owner: ContextVar[Optional[object]] = ContextVar(
+    "request_session_owner", default=None
+)
+
+
+def _current_task() -> Optional[object]:
+    try:
+        return asyncio.current_task()
+    except RuntimeError:  # no running loop (threadpool / sync context)
+        return None
+
+
+def current_session() -> tuple[Session, bool]:
+    """Return (session, owned). Inside a request this is the shared request
+    session and owned=False — do not close it. Anywhere else (or in a task
+    spawned during a request) it is a fresh session and owned=True — the
+    caller must close it in a finally block."""
+    session = _request_session.get()
+    if session is not None:
+        task = _current_task()
+        # Share on the request's own task, or in its threadpool (no loop
+        # runs there, so task is None). A different task means create_task
+        # copied the context — hand out an owned session instead.
+        if task is None or task is _request_session_owner.get():
+            return session, False
+    return SessionLocal(), True
+
+
+async def request_session():
+    """App-level FastAPI dependency: one session per request, closed when
+    the response is done. Sessions connect lazily, so requests that never
+    touch the DB cost nothing."""
+    db = SessionLocal()
+    session_token = _request_session.set(db)
+    owner_token = _request_session_owner.set(_current_task())
+    try:
+        yield
+    finally:
+        _request_session.reset(session_token)
+        _request_session_owner.reset(owner_token)
+        db.close()

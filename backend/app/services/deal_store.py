@@ -7,17 +7,24 @@ import json
 from sqlalchemy.orm import load_only
 from app.models.deal import Deal, DealCreate, DealUpdate
 from app.models.document import DocumentMetadata
-from app.database import SessionLocal, DealRow, DocumentRow, ManagerRow
+from datetime import datetime
+
+from app.database import current_session, DealRow, DocumentRow, ManagerRow, DEFAULT_TENANT_ID
 
 
-def create_deal(data: DealCreate) -> Deal:
-    db = SessionLocal()
+class LegalHoldError(Exception):
+    """Raised when a delete targets a deal under legal hold."""
+
+
+def create_deal(data: DealCreate, tenant_id: str = DEFAULT_TENANT_ID) -> Deal:
+    db, owned = current_session()
     try:
         existing = db.query(DealRow).filter(DealRow.deal_id == data.deal_id).first()
         if existing:
             raise ValueError(f"Deal '{data.deal_id}' already exists")
         row = DealRow(
             deal_id=data.deal_id,
+            tenant_id=tenant_id,
             name=data.name,
             description=data.description,
             document_count=0,
@@ -33,35 +40,67 @@ def create_deal(data: DealCreate) -> Deal:
         db.refresh(row)
         return _row_to_deal(row, manager_name=_manager_name(db, row.manager_id))
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def get_deal(deal_id: str) -> Deal | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
-        row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
+        row = db.query(DealRow).filter(
+            DealRow.deal_id == deal_id, DealRow.deleted_at.is_(None)
+        ).first()
         if not row:
             return None
         return _row_to_deal(row, manager_name=_manager_name(db, row.manager_id))
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
-def list_deals() -> list[Deal]:
-    db = SessionLocal()
+def count_deals(tenant_id: str | None = None) -> int:
+    db, owned = current_session()
     try:
-        rows = db.query(DealRow).all()
+        q = db.query(DealRow).filter(DealRow.deleted_at.is_(None))
+        if tenant_id is not None:
+            q = q.filter(DealRow.tenant_id == tenant_id)
+        return q.count()
+    finally:
+        if owned:
+            db.close()
+
+
+def list_deals(
+    tenant_id: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[Deal]:
+    """List deals, filtered to one tenant when given. None (internal/seed
+    callers) lists across tenants — routes must always pass the user's
+    tenant. Ordered by name for stable pagination."""
+    db, owned = current_session()
+    try:
+        q = db.query(DealRow).filter(DealRow.deleted_at.is_(None))
+        if tenant_id is not None:
+            q = q.filter(DealRow.tenant_id == tenant_id)
+        q = q.order_by(DealRow.name, DealRow.deal_id)
+        if offset:
+            q = q.offset(offset)
+        if limit is not None:
+            q = q.limit(limit)
+        rows = q.all()
         manager_names = dict(db.query(ManagerRow.manager_id, ManagerRow.name).all())
         return [
             _row_to_deal(r, manager_name=manager_names.get(r.manager_id))
             for r in rows
         ]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def update_deal(deal_id: str, data: DealUpdate) -> Deal | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
         if not row:
@@ -84,26 +123,29 @@ def update_deal(deal_id: str, data: DealUpdate) -> Deal | None:
         db.refresh(row)
         return _row_to_deal(row, manager_name=_manager_name(db, row.manager_id))
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def increment_doc_count(deal_id: str, count: int = 1):
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
         if row:
             row.document_count = (row.document_count or 0) + count
             db.commit()
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def add_document(deal_id: str, doc: DocumentMetadata):
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DocumentRow).filter(
             DocumentRow.deal_id == deal_id,
             DocumentRow.filename == doc.filename,
+            DocumentRow.deleted_at.is_(None),
         ).first()
         if row:
             row.doc_id = doc.doc_id
@@ -134,27 +176,44 @@ def add_document(deal_id: str, doc: DocumentMetadata):
         if deal_row:
             deal_row.document_count = db.query(DocumentRow).filter(
                 DocumentRow.deal_id == deal_id,
+                DocumentRow.deleted_at.is_(None),
             ).count()
         db.commit()
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def document_exists(deal_id: str, filename: str) -> bool:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         return db.query(DocumentRow).filter(
             DocumentRow.deal_id == deal_id,
             DocumentRow.filename == filename,
+            DocumentRow.deleted_at.is_(None),
         ).first() is not None
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
-def list_documents(deal_id: str) -> list[DocumentMetadata]:
-    db = SessionLocal()
+def count_documents(deal_id: str) -> int:
+    db, owned = current_session()
     try:
-        rows = db.query(DocumentRow).options(
+        return db.query(DocumentRow).filter(
+            DocumentRow.deal_id == deal_id, DocumentRow.deleted_at.is_(None)
+        ).count()
+    finally:
+        if owned:
+            db.close()
+
+
+def list_documents(
+    deal_id: str, limit: int | None = None, offset: int = 0
+) -> list[DocumentMetadata]:
+    db, owned = current_session()
+    try:
+        q = db.query(DocumentRow).options(
             load_only(
                 DocumentRow.doc_id,
                 DocumentRow.deal_id,
@@ -166,25 +225,39 @@ def list_documents(deal_id: str) -> list[DocumentMetadata]:
                 DocumentRow.period,
                 DocumentRow.scope,
             )
-        ).filter(DocumentRow.deal_id == deal_id).all()
+        ).filter(
+            DocumentRow.deal_id == deal_id, DocumentRow.deleted_at.is_(None)
+        ).order_by(DocumentRow.filename, DocumentRow.doc_id)
+        if offset:
+            q = q.offset(offset)
+        if limit is not None:
+            q = q.limit(limit)
+        rows = q.all()
         return [_doc_row_to_metadata(r) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def list_manager_documents(manager_id: str) -> list[DocumentMetadata]:
     """All manager-scoped documents across the manager's funds."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(DocumentRow)
             .join(DealRow, DocumentRow.deal_id == DealRow.deal_id)
-            .filter(DealRow.manager_id == manager_id, DocumentRow.scope == "manager")
+            .filter(
+                DealRow.manager_id == manager_id,
+                DealRow.deleted_at.is_(None),
+                DocumentRow.scope == "manager",
+                DocumentRow.deleted_at.is_(None),
+            )
             .all()
         )
         return [_doc_row_to_metadata(r) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def update_document_metadata(
@@ -195,7 +268,7 @@ def update_document_metadata(
     scope: str | None = None,
 ) -> DocumentMetadata | None:
     """Reclassify a document (category / period / scope). Returns None if missing."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(DocumentRow).filter(
             DocumentRow.doc_id == doc_id,
@@ -213,41 +286,70 @@ def update_document_metadata(
         db.refresh(row)
         return _doc_row_to_metadata(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def delete_document(deal_id: str, doc_id: str) -> bool:
-    db = SessionLocal()
+    """Soft-delete a document (C1). Files and vectors stay for the
+    retention window; purge_expired removes them. Refuses when the deal
+    is under legal hold."""
+    db, owned = current_session()
     try:
         row = db.query(DocumentRow).filter(
             DocumentRow.doc_id == doc_id,
             DocumentRow.deal_id == deal_id,
+            DocumentRow.deleted_at.is_(None),
         ).first()
         if not row:
             return False
-        db.delete(row)
-        # Decrement deal doc count
         deal_row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
+        if deal_row and deal_row.legal_hold:
+            raise LegalHoldError(f"Deal '{deal_id}' is under legal hold")
+        row.deleted_at = datetime.utcnow()
         if deal_row:
             deal_row.document_count = max(0, (deal_row.document_count or 0) - 1)
         db.commit()
         return True
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def delete_deal(deal_id: str) -> bool:
-    db = SessionLocal()
+    """Soft-delete a deal (C1). The row, its documents, files, and vectors
+    survive until the retention purge. Refuses under legal hold."""
+    db, owned = current_session()
+    try:
+        row = db.query(DealRow).filter(
+            DealRow.deal_id == deal_id, DealRow.deleted_at.is_(None)
+        ).first()
+        if not row:
+            return False
+        if row.legal_hold:
+            raise LegalHoldError(f"Deal '{deal_id}' is under legal hold")
+        row.deleted_at = datetime.utcnow()
+        db.commit()
+        return True
+    finally:
+        if owned:
+            db.close()
+
+
+def set_legal_hold(deal_id: str, on: bool) -> bool:
+    """Set/release the legal hold on a deal. Works on soft-deleted deals
+    too (a hold placed after deletion must still block the purge)."""
+    db, owned = current_session()
     try:
         row = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
         if not row:
             return False
-        # Documents cascade-deleted via FK relationship
-        db.delete(row)
+        row.legal_hold = on
         db.commit()
         return True
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def _manager_name(db, manager_id: str | None) -> str | None:

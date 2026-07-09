@@ -21,11 +21,15 @@
 
 **Recommendation:** **A (row-level + Postgres RLS)** for operational sanity, *provided* RLS is enforced at the DB layer (not just app `WHERE` clauses) so an app bug can't cross tenants. Fund-of-funds security teams sometimes require C; if a named prospect demands physical separation, revisit. **This choice shapes every task below — resolve it first.**
 
+> **RESOLVED 2026-07-08: Option A** (row-level `tenant_id` + Postgres RLS, enforced at the DB layer).
+
 ### D2 — Hosting / managed Postgres
 Which managed Postgres (RDS / Cloud SQL / Neon / Supabase)? Determines connection pooling, backup, and encryption-at-rest configuration. Needed before Task 4.5.
 
 ### D3 — Migration of existing pilot data
 Is there production/pilot SQLite data to migrate, or is this greenfield? Determines whether Task 4.6 (data migration) is needed.
+
+> **RESOLVED 2026-07-08: existing pilot data must be migrated** — Task 4.6 and the default-tenant backfill are in scope.
 
 ---
 
@@ -44,22 +48,22 @@ Is there production/pilot SQLite data to migrate, or is this greenfield? Determi
 
 ## Phase A — Foundations (Alembic + Postgres, no behavior change)
 
-- [ ] **A1. Introduce Alembic.** Replace the ad-hoc `_ensure_document_cache_columns` shim with Alembic migrations; baseline the current schema. (Prereq for every schema change here.)
+- [x] **A1. Introduce Alembic.** Replace the ad-hoc `_ensure_document_cache_columns` shim with Alembic migrations; baseline the current schema. (Prereq for every schema change here.)
 - [ ] **A2. Postgres engine + config.** Add `psycopg` driver wiring; the connect-listener currently sets SQLite PRAGMAs (`database.py`) — guard it so Postgres is clean. Parameterize `DATABASE_URL`. CI runs the suite against Postgres (service container) in addition to SQLite.
-- [ ] **A3. Session-per-request dependency.** Replace the ~30 `SessionLocal()/expunge/close` copies with a FastAPI dependency (rearchitect Phase 6 item 8) — Postgres connection pooling needs disciplined session lifecycle. Move blocking DB + bcrypt off the event loop.
+- [x] **A3. Session-per-request dependency.** Replace the ~30 `SessionLocal()/expunge/close` copies with a FastAPI dependency (rearchitect Phase 6 item 8) — Postgres connection pooling needs disciplined session lifecycle. Move blocking DB + bcrypt off the event loop.
 
 ## Phase B — Tenant model (per D1; assumes Option A)
 
-- [ ] **B1. `TenantRow` + `tenant_id` everywhere.** New `tenants` table; add `tenant_id` FK to `users`, `deals`, and (via deal) all deal-scoped tables. Alembic migration backfills a default tenant for existing rows (per D3).
+- [x] **B1. `TenantRow` + `tenant_id` everywhere.** New `tenants` table; add `tenant_id` FK to `users`, `deals`, and (via deal) all deal-scoped tables. Alembic migration backfills a default tenant for existing rows (per D3).
 - [ ] **B2. Enforce at the DB layer.** Enable Postgres **Row-Level Security** with policies keyed on a per-request `SET app.current_tenant`. The session dependency sets it from the authenticated user's tenant. **Failing test first:** a query as tenant A cannot read tenant B's rows even with a deliberately-wrong app-level filter (proves DB-layer enforcement, not app-layer).
-- [ ] **B3. Tenant-scoped auth.** `create_user`/login/registration bind to a tenant; `require_deal_access` and `require_admin` operate within tenant. Admin becomes tenant-admin (a super-admin concept, if needed, is separate and explicit).
-- [ ] **B4. Cross-tenant regression suite.** Dedicated tests that every list/get/mutation is tenant-scoped. This is the durable guard for the highest-severity finding.
+- [x] **B3. Tenant-scoped auth.** `create_user`/login/registration bind to a tenant; `require_deal_access` and `require_admin` operate within tenant. Admin becomes tenant-admin (a super-admin concept, if needed, is separate and explicit).
+- [x] **B4. Cross-tenant regression suite.** Dedicated tests that every list/get/mutation is tenant-scoped. This is the durable guard for the highest-severity finding.
 
 ## Phase C — Data lifecycle (S8) + pagination (R6)
 
-- [ ] **C1. Soft-delete + retention.** Add `deleted_at` (soft-delete) to deals/documents; deletes set it rather than hard-removing. Add a `legal_hold` flag that blocks deletion/retention purge. A retention job hard-purges soft-deleted rows past a configurable window unless held. Vector/file cleanup follows the same lifecycle.
-- [ ] **C2. Pagination.** Cursor or limit/offset on `list_deals`, `list_documents`, conversation history, run lists, audit log. Consistent envelope (`items`, `next_cursor`). Frontend `api.ts` updated to page.
-- [ ] **C3. Persist conversation history.** Move `conversation_store` from the in-memory dict to a tenant-scoped table (fixes the README's false "persisted in SQLite" claim and makes chat history durable + multi-worker safe).
+- [x] **C1. Soft-delete + retention.** Add `deleted_at` (soft-delete) to deals/documents; deletes set it rather than hard-removing. Add a `legal_hold` flag that blocks deletion/retention purge. A retention job hard-purges soft-deleted rows past a configurable window unless held. Vector/file cleanup follows the same lifecycle.
+- [x] **C2. Pagination.** Cursor or limit/offset on `list_deals`, `list_documents`, conversation history, run lists, audit log. Consistent envelope (`items`, `next_cursor`). Frontend `api.ts` updated to page.
+- [x] **C3. Persist conversation history.** Move `conversation_store` from the in-memory dict to a tenant-scoped table (fixes the README's false "persisted in SQLite" claim and makes chat history durable + multi-worker safe).
 
 ## Phase D — Encryption at rest (S7) + infra
 

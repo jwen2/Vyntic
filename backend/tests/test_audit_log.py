@@ -84,7 +84,7 @@ def test_audit_read_filters(client, sample_deal):
     )
     res = client.get("/audit", params={"deal_id": "aud_a"})
     assert res.status_code == 200
-    entries = res.json()
+    entries = res.json()["items"]
     assert entries and all(e["deal_id"] == "aud_a" for e in entries)
 
 

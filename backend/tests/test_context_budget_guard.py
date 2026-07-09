@@ -35,7 +35,7 @@ def _run_with_rows(rows):
     db_mock.query.return_value.filter.return_value.all.return_value = rows
     # Deal-row lookup for manager-shared docs finds no deal -> no manager sharing.
     db_mock.query.return_value.filter.return_value.first.return_value = None
-    with patch("app.services.context_provider.SessionLocal", return_value=db_mock):
+    with patch("app.services.context_provider.current_session", return_value=(db_mock, True)):
         return asyncio.run(load_deal_context("deal_1", "What is revenue?"))
 
 

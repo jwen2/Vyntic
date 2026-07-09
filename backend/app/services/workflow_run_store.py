@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 from app.database import (
     AssistantStageOutputRow,
-    SessionLocal,
+    current_session,
     TabularCellRow,
     WorkflowColumnRow,
     WorkflowRunRow,
@@ -139,7 +139,7 @@ def create_run(
     `row_keys` defaults to document_ids for one-doc-per-row workflows. For
     multi-doc synthesis, row_keys are analyst-supplied questions.
     """
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         # run_number = max + 1, scoped per workflow
         max_n = (
@@ -177,33 +177,56 @@ def create_run(
         db.refresh(run)
         return _row_to_run(run)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def get_run(run_id: str) -> WorkflowRun | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(WorkflowRunRow).filter(WorkflowRunRow.id == run_id).first()
         if not row:
             return None
         return _row_to_run(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
-def list_runs_for_workflow(workflow_id: str, deal_id: str) -> list[WorkflowRun]:
+def count_runs_for_workflow(workflow_id: str, deal_id: str) -> int:
+    db, owned = current_session()
+    try:
+        return db.query(WorkflowRunRow).filter(
+            WorkflowRunRow.workflow_id == workflow_id,
+            WorkflowRunRow.deal_id == deal_id,
+        ).count()
+    finally:
+        if owned:
+            db.close()
+
+
+def list_runs_for_workflow(
+    workflow_id: str,
+    deal_id: str,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[WorkflowRun]:
     """Return runs for this workflow scoped to deal, newest first.
 
     Cells are not loaded (use `get_run` for full detail).
     """
-    db = SessionLocal()
+    db, owned = current_session()
     try:
-        rows = (
+        q = (
             db.query(WorkflowRunRow)
             .filter(WorkflowRunRow.workflow_id == workflow_id, WorkflowRunRow.deal_id == deal_id)
             .order_by(WorkflowRunRow.run_number.desc())
-            .all()
         )
+        if offset:
+            q = q.offset(offset)
+        if limit is not None:
+            q = q.limit(limit)
+        rows = q.all()
         out: list[WorkflowRun] = []
         for row in rows:
             try:
@@ -227,11 +250,12 @@ def list_runs_for_workflow(workflow_id: str, deal_id: str) -> list[WorkflowRun]:
             )
         return out
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def set_run_status(run_id: str, status: RunStatus) -> None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(WorkflowRunRow).filter(WorkflowRunRow.id == run_id).first()
         if not row:
@@ -241,7 +265,8 @@ def set_run_status(run_id: str, status: RunStatus) -> None:
             row.completed_at = datetime.utcnow()
         db.commit()
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def reconcile_interrupted_runs() -> int:
@@ -251,7 +276,7 @@ def reconcile_interrupted_runs() -> int:
     pending/running was interrupted. Checkpoint runs are legitimately paused
     and resume via the approve endpoint, so they are skipped.
     """
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         stranded = (
             db.query(WorkflowRunRow)
@@ -272,13 +297,14 @@ def reconcile_interrupted_runs() -> int:
         db.commit()
         return len(stranded)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def cancel_queued_cells(run_id: str) -> int:
     """Mark all queued cells for this run as cancelled. In-flight cells are
     untouched. Returns count of cells affected."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         affected = (
             db.query(TabularCellRow)
@@ -288,11 +314,12 @@ def cancel_queued_cells(run_id: str) -> int:
         db.commit()
         return int(affected)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def list_queued_cells(run_id: str) -> list[TabularCell]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(TabularCellRow)
@@ -301,25 +328,27 @@ def list_queued_cells(run_id: str) -> list[TabularCell]:
         )
         return [_row_to_cell(r) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def get_cell(cell_id: str) -> TabularCell | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(TabularCellRow).filter(TabularCellRow.id == cell_id).first()
         if not row:
             return None
         return _row_to_cell(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def mark_cell_running(cell_id: str) -> TabularCell | None:
     """Atomically claim a queued cell. Returns None if the cell is not
     claimable (already running / terminal / cancelled) — callers must skip
     the cell rather than execute it."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         claimed = (
             db.query(TabularCellRow)
@@ -332,7 +361,8 @@ def mark_cell_running(cell_id: str) -> TabularCell | None:
         row = db.query(TabularCellRow).filter(TabularCellRow.id == cell_id).first()
         return _row_to_cell(row) if row else None
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def complete_cell(
@@ -345,7 +375,7 @@ def complete_cell(
     fallback: bool = False,
     duration_ms: int = 0,
 ) -> TabularCell | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(TabularCellRow).filter(TabularCellRow.id == cell_id).first()
         if not row:
@@ -364,11 +394,12 @@ def complete_cell(
         db.refresh(row)
         return _row_to_cell(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def error_cell(cell_id: str, error_message: str) -> TabularCell | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(TabularCellRow).filter(TabularCellRow.id == cell_id).first()
         if not row:
@@ -380,13 +411,14 @@ def error_cell(cell_id: str, error_message: str) -> TabularCell | None:
         db.refresh(row)
         return _row_to_cell(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def requeue_cell(cell_id: str) -> TabularCell | None:
     """Reset a cell back to 'queued' so it can be re-executed. Clears any
     prior answer / citations / error state."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(TabularCellRow).filter(TabularCellRow.id == cell_id).first()
         if not row:
@@ -405,13 +437,14 @@ def requeue_cell(cell_id: str) -> TabularCell | None:
         db.refresh(row)
         return _row_to_cell(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def requeue_cells_for_column(run_id: str, column_id: str) -> list[TabularCell]:
     """Reset every cell in this run for a given column back to 'queued'.
     Used when the column's prompt is edited from the run page."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(TabularCellRow)
@@ -437,13 +470,14 @@ def requeue_cells_for_column(run_id: str, column_id: str) -> list[TabularCell]:
             db.refresh(row)
         return [_row_to_cell(r) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def all_cells_terminal(run_id: str) -> tuple[bool, CellStatus | None]:
     """Return (all_terminal, worst_status). worst_status is 'error' if any cell
     errored, else 'complete' if all complete, else None when not all terminal."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = db.query(TabularCellRow.status).filter(TabularCellRow.run_id == run_id).all()
         if not rows:
@@ -455,12 +489,13 @@ def all_cells_terminal(run_id: str) -> tuple[bool, CellStatus | None]:
             return True, "error"
         return True, "complete"
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def load_column(column_id: str):
     """Convenience helper: fetch a column row + parse its tags."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = db.query(WorkflowColumnRow).filter(WorkflowColumnRow.id == column_id).first()
         if not row:
@@ -475,20 +510,22 @@ def load_column(column_id: str):
             "formula": row.formula or "",
         }
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def list_cells_for_run(run_id: str) -> list[TabularCell]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = db.query(TabularCellRow).filter(TabularCellRow.run_id == run_id).all()
         return [_row_to_cell(r) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def load_columns_for_workflow(workflow_id: str) -> list[dict]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(WorkflowColumnRow)
@@ -510,7 +547,8 @@ def load_columns_for_workflow(workflow_id: str) -> list[dict]:
             for row in rows
         ]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 # ── Phase 3: assistant runs + stage outputs ──
@@ -529,7 +567,7 @@ def create_assistant_run(
     stage_output so the run remains coherent even if the workflow template
     is edited later.
     """
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         stages = (
             db.query(WorkflowStageRow)
@@ -574,11 +612,12 @@ def create_assistant_run(
         db.refresh(run)
         return _row_to_run(run)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def get_stage_output(stage_output_id: str) -> AssistantStageOutput | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = (
             db.query(AssistantStageOutputRow)
@@ -589,12 +628,13 @@ def get_stage_output(stage_output_id: str) -> AssistantStageOutput | None:
             return None
         return _row_to_stage_output(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def next_queued_stage(run_id: str) -> AssistantStageOutput | None:
     """Return the next queued stage_output for the run in order, or None."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = (
             db.query(AssistantStageOutputRow)
@@ -609,13 +649,14 @@ def next_queued_stage(run_id: str) -> AssistantStageOutput | None:
             return None
         return _row_to_stage_output(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def list_terminal_stages(run_id: str) -> list[AssistantStageOutput]:
     """All complete stage outputs for the run, in order. Used to build
     prior-stage context for downstream stages."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(AssistantStageOutputRow)
@@ -628,13 +669,14 @@ def list_terminal_stages(run_id: str) -> list[AssistantStageOutput]:
         )
         return [_row_to_stage_output(r) for r in rows]
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def mark_stage_running(stage_output_id: str) -> AssistantStageOutput | None:
     """Atomically claim a queued stage. Returns None if the stage is not
     claimable — callers must skip execution."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         claimed = (
             db.query(AssistantStageOutputRow)
@@ -654,7 +696,8 @@ def mark_stage_running(stage_output_id: str) -> AssistantStageOutput | None:
         )
         return _row_to_stage_output(row) if row else None
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def complete_stage(
@@ -670,7 +713,7 @@ def complete_stage(
     """Mark a stage's LLM call done. If `needs_checkpoint`, status becomes
     `checkpoint` (waiting on `approve_stage`); otherwise it becomes
     `complete` and the executor proceeds to the next stage."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = (
             db.query(AssistantStageOutputRow)
@@ -695,7 +738,8 @@ def complete_stage(
         db.refresh(row)
         return _row_to_stage_output(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def approve_stage(
@@ -704,7 +748,7 @@ def approve_stage(
     """Promote a stage from `checkpoint` to `complete`, optionally storing
     the analyst's edited markdown. Idempotent: approving a non-checkpoint
     stage is a no-op."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = (
             db.query(AssistantStageOutputRow)
@@ -725,13 +769,14 @@ def approve_stage(
         db.refresh(row)
         return _row_to_stage_output(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def error_stage(
     stage_output_id: str, error_message: str
 ) -> AssistantStageOutput | None:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         row = (
             db.query(AssistantStageOutputRow)
@@ -747,11 +792,12 @@ def error_stage(
         db.refresh(row)
         return _row_to_stage_output(row)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def cancel_queued_stages(run_id: str) -> int:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         affected = (
             db.query(AssistantStageOutputRow)
@@ -764,13 +810,14 @@ def cancel_queued_stages(run_id: str) -> int:
         db.commit()
         return int(affected)
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def all_stages_terminal(run_id: str) -> tuple[bool, StageOutputStatus | None]:
     """(all_terminal, worst_status). 'checkpoint' counts as non-terminal since
     the executor will resume after approve. 'error' is the worst terminal."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         rows = (
             db.query(AssistantStageOutputRow.status)
@@ -786,4 +833,5 @@ def all_stages_terminal(run_id: str) -> tuple[bool, StageOutputStatus | None]:
             return True, "error"
         return True, "complete"
     finally:
-        db.close()
+        if owned:
+            db.close()

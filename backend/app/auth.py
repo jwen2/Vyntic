@@ -12,7 +12,14 @@ from jose import JWTError, jwt
 import bcrypt
 
 from app.config import settings
-from app.database import SessionLocal, UserRow, DealAccessRow, RevokedTokenRow
+from app.database import (
+    current_session,
+    UserRow,
+    DealAccessRow,
+    DealRow,
+    RevokedTokenRow,
+    DEFAULT_TENANT_ID,
+)
 
 # ── Bearer token extraction ──
 security = HTTPBearer(auto_error=False)
@@ -74,14 +81,15 @@ def decode_access_token(token: str) -> dict:
 # ── Revocation (S5) ──
 
 def _is_revoked(jti: str) -> bool:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         return (
             db.query(RevokedTokenRow).filter(RevokedTokenRow.jti == jti).first()
             is not None
         )
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def revoke_token(payload: dict) -> None:
@@ -93,7 +101,7 @@ def revoke_token(payload: dict) -> None:
     if not jti:
         return
     expires_at = datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         db.query(RevokedTokenRow).filter(
             RevokedTokenRow.expires_at < datetime.now(timezone.utc).replace(tzinfo=None)
@@ -102,15 +110,18 @@ def revoke_token(payload: dict) -> None:
             db.add(RevokedTokenRow(jti=jti, expires_at=expires_at.replace(tzinfo=None)))
         db.commit()
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 # ── FastAPI dependencies ──
 
-async def get_current_user(
+def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> UserRow:
-    """Extract and validate JWT from Authorization header. Returns the UserRow."""
+    """Extract and validate JWT from Authorization header. Returns the UserRow.
+    Deliberately sync: FastAPI runs it in the threadpool, keeping the
+    per-request user/revocation DB lookups off the event loop."""
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -122,16 +133,18 @@ async def get_current_user(
 
 
 def _load_user(user_id: int) -> UserRow:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         user = db.query(UserRow).filter(UserRow.id == user_id).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        # Detach from session so it can be used after db.close()
+        # Detach so callers get the same plain-object semantics regardless
+        # of which session (request-shared or owned) produced the row.
         db.expunge(user)
         return user
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def _resolve_user_from_token(token: str) -> UserRow:
@@ -171,7 +184,7 @@ def scoped_or_header_auth(expected_scope: str, bind_params: tuple[str, ...]):
     against another.
     """
 
-    async def dependency(
+    def dependency(
         request: Request,
         credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
         token: Optional[str] = Query(None),
@@ -218,12 +231,28 @@ def require_admin(user: UserRow) -> None:
 
 
 def verify_deal_access(user: UserRow, deal_id: str) -> bool:
-    """Check that user has access to the specified deal. Admins bypass."""
-    if user.is_admin:
-        return True
+    """Check that user has access to the specified deal.
 
-    db = SessionLocal()
+    The tenant boundary comes first and binds everyone: admin means
+    tenant-admin, and a stale deal_access row must not reach across
+    tenants. Cross-tenant deals return the same 403 as a plain access
+    miss so responses do not leak what exists in other tenants.
+    Within the tenant, admins bypass per-deal access rows.
+    """
+    db, owned = current_session()
     try:
+        deal_tenant = (
+            db.query(DealRow.tenant_id).filter(DealRow.deal_id == deal_id).scalar()
+        )
+        if deal_tenant is not None and deal_tenant != user.tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"You do not have access to deal '{deal_id}'",
+            )
+
+        if user.is_admin:
+            return True
+
         access = db.query(DealAccessRow).filter(
             DealAccessRow.user_id == user.id,
             DealAccessRow.deal_id == deal_id,
@@ -235,7 +264,8 @@ def verify_deal_access(user: UserRow, deal_id: str) -> bool:
             )
         return True
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def require_deal_access(user: UserRow, deal_id: str):
@@ -246,24 +276,34 @@ def require_deal_access(user: UserRow, deal_id: str):
 # ── User management helpers ──
 
 def get_user_by_email(email: str) -> Optional[UserRow]:
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         user = db.query(UserRow).filter(UserRow.email == email).first()
         if user:
             db.expunge(user)
         return user
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
-def create_user(email: str, password: str, full_name: str = "", is_admin: bool = False) -> UserRow:
-    db = SessionLocal()
+def create_user(
+    email: str,
+    password: str,
+    full_name: str = "",
+    is_admin: bool = False,
+    tenant_id: str = DEFAULT_TENANT_ID,
+) -> UserRow:
+    """Create a user bound to a tenant. Public registration stays on the
+    default tenant (beta decision) until invite/provisioning flows exist."""
+    db, owned = current_session()
     try:
         user = UserRow(
             email=email,
             hashed_password=hash_password(password),
             full_name=full_name,
             is_admin=is_admin,
+            tenant_id=tenant_id,
         )
         db.add(user)
         db.commit()
@@ -271,11 +311,12 @@ def create_user(email: str, password: str, full_name: str = "", is_admin: bool =
         db.expunge(user)
         return user
     finally:
-        db.close()
+        if owned:
+            db.close()
 
 
 def grant_deal_access(user_id: int, deal_id: str, role: str = "analyst"):
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         existing = db.query(DealAccessRow).filter(
             DealAccessRow.user_id == user_id,
@@ -287,4 +328,5 @@ def grant_deal_access(user_id: int, deal_id: str, role: str = "analyst"):
         db.add(access)
         db.commit()
     finally:
-        db.close()
+        if owned:
+            db.close()

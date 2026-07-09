@@ -7,16 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services import conversation_store
 
 ENTRY = {"deal_id": "conv_deal", "question": "What is revenue?", "answer": "10M"}
 
-
-@pytest.fixture(autouse=True)
-def clear_conversations():
-    conversation_store._conversations.clear()
-    yield
-    conversation_store._conversations.clear()
+# Conversations are table-backed since C3; the conftest clear_store
+# fixture resets them along with everything else.
 
 
 @pytest.fixture
@@ -68,7 +63,7 @@ class TestAnalystWithAccess:
 
         resp = analyst_client.get("/deals/conv_deal/conversations")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()["items"]) == 1
 
         resp = analyst_client.delete("/deals/conv_deal/conversations")
         assert resp.status_code == 200
@@ -81,7 +76,7 @@ class TestAdmin:
 
         resp = client.get("/deals/conv_deal/conversations")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()["items"]) == 1
 
         resp = client.delete("/deals/conv_deal/conversations")
         assert resp.status_code == 200

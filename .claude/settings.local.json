@@ -32,7 +32,24 @@
       "Bash(ls Dockerfile)",
       "Bash(ls ../Dockerfile)",
       "Bash(find /Users/szeng/projects/Vyntic -name \"Dockerfile\")",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(xargs wc -l)",
+      "PowerShell(git checkout *)",
+      "PowerShell(docker compose ps)",
+      "PowerShell(docker --version)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest -q 2>&1)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest \"tests/test_deal_management.py::TestDealCRUD::test_create_and_get_deal\" -v 2>&1)",
+      "PowerShell(git stash --include-untracked)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest \"tests/test_deal_management.py::TestDealCRUD::test_create_and_get_deal\" \"tests/test_streaming.py::TestStreamingEndpoint::test_stream_rejects_missing_deals\" -q --tb=no 2>&1)",
+      "PowerShell(git stash pop)",
+      "PowerShell(git *)",
+      "PowerShell(& \"C:\\\\Users\\\\stanl\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\bin\\\\gh.exe\" pr view 90 --repo jwen2/Vyntic --json state,mergedAt,reviewDecision,title)",
+      "PowerShell(& \"C:\\\\Users\\\\stanl\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\bin\\\\gh.exe\" pr view 92 --repo jwen2/Vyntic --json title,body,files,headRefName,state | Out-String -Width 4096)",
+      "PowerShell(& \"C:\\\\Users\\\\stanl\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\bin\\\\gh.exe\" pr list --repo jwen2/Vyntic --state open --json number,title,headRefName,author,mergeable,url)",
+      "PowerShell(& \"C:\\\\Users\\\\stanl\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\bin\\\\gh.exe\" pr view 92 --repo jwen2/Vyntic --json body,baseRefName,commits --jq \"{base: .baseRefName, commitCount: \\(.commits|length\\), body: .body}\")",
+      "PowerShell(if \\(-not \\(Test-Path D:\\\\projects\\\\Vyntic\\\\backend\\\\data\\)\\) { New-Item -ItemType Directory D:\\\\projects\\\\Vyntic\\\\backend\\\\data | Out-Null }; Set-Location D:\\\\projects\\\\Vyntic\\\\backend; .\\\\.venv\\\\Scripts\\\\python.exe -m pytest -q)",
+      "PowerShell(& \"C:\\\\Users\\\\stanl\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\bin\\\\gh.exe\" pr view 92 --repo jwen2/Vyntic --json mergeable,mergeStateStatus)",
+      "Bash(git -C /d/projects/Vyntic diff docker-compose.yml)"
     ]
   }
 }

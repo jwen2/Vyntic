@@ -10,7 +10,6 @@ import pytest
 
 from app.auth import grant_deal_access
 from app.database import SessionLocal, DocumentRow, engine
-from app.database import _ensure_schema_migrations
 from app.models.deal import DealCreate, FUND_STAGES
 from app.models.document import DocumentMetadata
 from app.models.manager import ManagerCreate
@@ -215,7 +214,7 @@ class TestDocumentClassification:
         _make_manager()
         _make_fund("fund_iv", "hillpath")
         _add_doc("fund_iv", "doc_lpa", "lpa.pdf", doc_category="lpa")
-        docs = client.get("/deals/fund_iv/documents").json()
+        docs = client.get("/deals/fund_iv/documents").json()["items"]
         assert docs[0]["doc_category"] == "lpa"
         assert docs[0]["scope"] == "entity"
 
@@ -311,18 +310,3 @@ class TestManagerSharedContext:
     def test_doc_context_does_not_resolve_entity_scoped_sibling(self, clear_store):
         self._setup_two_managers()
         assert asyncio.run(load_doc_context("hp_fund_v", "doc_lpa", "q")) == []
-
-
-# ── Migration shim ──
-
-class TestMigrations:
-    def test_schema_migrations_idempotent(self, clear_store):
-        # Running the shim on an up-to-date schema is a no-op both times.
-        _ensure_schema_migrations()
-        _ensure_schema_migrations()
-        # Sanity: the new columns are queryable.
-        db = SessionLocal()
-        try:
-            db.query(DocumentRow.doc_category, DocumentRow.period, DocumentRow.scope).all()
-        finally:
-            db.close()

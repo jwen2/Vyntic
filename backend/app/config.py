@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     # Concurrency
     max_concurrent_llm_calls: int = 3
 
+    # Retention (S8): soft-deleted rows are hard-purged after this many
+    # days unless the deal is under legal hold.
+    retention_purge_days: int = 30
+
     # Feature flags
     seed_sample_data: bool = True
     full_context_mode: bool = True

@@ -7,9 +7,20 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.auth import create_access_token, create_user, grant_deal_access
-from app.database import Base, engine, SessionLocal
+from app.database import Base, engine, SessionLocal, TenantRow, DEFAULT_TENANT_ID
 from app.services import deal_store
 from app.models.deal import DealCreate
+
+
+def _seed_default_tenant():
+    """create_all builds the schema but not the default tenant row the
+    migration inserts — every tenant_id FK needs it."""
+    db = SessionLocal()
+    try:
+        db.merge(TenantRow(tenant_id=DEFAULT_TENANT_ID, name="Default Tenant"))
+        db.commit()
+    finally:
+        db.close()
 
 
 @pytest.fixture(autouse=True)
@@ -21,10 +32,12 @@ def clear_store():
 
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    _seed_default_tenant()
     limiter.reset()
     yield
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    _seed_default_tenant()
 
 
 def _client_for(user) -> TestClient:

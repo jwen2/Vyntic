@@ -11,7 +11,7 @@ run history keeps working, while letting prompt/format tweaks propagate.
 import json
 import logging
 
-from app.database import SessionLocal, WorkflowRow
+from app.database import current_session, WorkflowRow
 from app.models.workflow import (
     WorkflowCreate,
     WorkflowStageInput,
@@ -771,7 +771,7 @@ def _reconcile_builtin_columns(db, workflow_row: WorkflowRow, source: WorkflowCr
 
 def seed_builtin_workflows():
     """Insert (or reconcile) built-in workflow templates. Safe on every startup."""
-    db = SessionLocal()
+    db, owned = current_session()
     try:
         existing = {
             row.id: row
@@ -792,4 +792,5 @@ def seed_builtin_workflows():
             )
             logger.info("Seeded built-in workflow: %s (%s)", payload.name, builtin_id)
     finally:
-        db.close()
+        if owned:
+            db.close()

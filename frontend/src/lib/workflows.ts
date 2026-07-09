@@ -344,7 +344,9 @@ export async function listRuns(dealId: string, workflowId: string): Promise<Work
   const res = await authedFetch(
     `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/runs`
   );
-  return unwrap<WorkflowRun[]>(res);
+  // Pagination envelope since Plan 4 C2; callers keep array semantics.
+  const page = await unwrap<{ items: WorkflowRun[]; total: number; next_offset: number | null }>(res);
+  return page.items;
 }
 
 export async function getRun(runId: string): Promise<WorkflowRun> {

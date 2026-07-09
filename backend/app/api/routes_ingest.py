@@ -10,7 +10,7 @@ from app.models.deal import DOC_CATEGORIES, DOC_SCOPES
 from app.models.document import DocumentMetadata
 from app.services.parser import parse_document_path
 from app.services.chunker import chunk_sections
-from app.services.vector_store import upsert_chunks, delete_doc_vectors
+from app.services.vector_store import upsert_chunks
 from app.services import audit_store
 from app.services import deal_store
 from app.services import ingest_store
@@ -354,6 +354,7 @@ async def ingest_document(
 ):
     """Upload and ingest a single document into a deal's namespace."""
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     _validate_classification(doc_category, scope)
     deal = deal_store.get_deal(deal_id)
     if not deal:
@@ -420,6 +421,7 @@ async def delete_document(
 ):
     """Delete a document and its vectors from a deal."""
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     audit_store.record(
         current_user, "document.delete", resource_type="document",
         resource_id=doc_id, deal_id=deal_id, request=http_request,
@@ -428,27 +430,18 @@ async def delete_document(
     if not deal:
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
 
-    # Look up filename before deleting metadata
-    docs = deal_store.list_documents(deal_id)
-    doc_meta = next((d for d in docs if d.doc_id == doc_id), None)
-
-    removed = deal_store.delete_document(deal_id, doc_id)
+    # Soft delete (C1): the file and vectors stay until the retention
+    # purge; legal hold blocks deletion entirely.
+    try:
+        removed = deal_store.delete_document(deal_id, doc_id)
+    except deal_store.LegalHoldError:
+        raise HTTPException(
+            status_code=423, detail=f"Deal '{deal_id}' is under legal hold"
+        )
     if not removed:
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
 
-    chunks_deleted = await delete_doc_vectors(deal_id, doc_id)
-
-    # Clean up original file from uploads
-    if doc_meta:
-        file_path = os.path.join(settings.uploads_dir, deal_id, doc_meta.filename)
-        still_referenced = any(
-            doc.filename == doc_meta.filename
-            for doc in deal_store.list_documents(deal_id)
-        )
-        if os.path.exists(file_path) and not still_referenced:
-            os.remove(file_path)
-
-    return {"deleted": True, "doc_id": doc_id, "chunks_removed": chunks_deleted}
+    return {"deleted": True, "doc_id": doc_id}
 
 
 class DocumentMetadataUpdate(BaseModel):
@@ -466,6 +459,7 @@ async def update_document_metadata(
 ):
     """Reclassify a document (category / period / scope)."""
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     if data.doc_category is not None and data.doc_category not in DOC_CATEGORIES:
         raise HTTPException(
             status_code=422,
@@ -503,6 +497,7 @@ async def ingest_batch(
 
     Classification query params apply to every file in the batch."""
     require_admin(current_user)
+    require_deal_access(current_user, deal_id)
     _validate_classification(doc_category, scope)
     deal = deal_store.get_deal(deal_id)
     if not deal:

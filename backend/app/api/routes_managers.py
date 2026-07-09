@@ -36,23 +36,30 @@ def _require_any_fund_access(user: UserRow, manager_id: str) -> None:
     )
 
 
+def _require_manager_in_tenant(user: UserRow, manager_id: str) -> None:
+    """404 unless the manager exists in the user's tenant — cross-tenant
+    managers are indistinguishable from nonexistent ones."""
+    if not manager_store.get_manager(manager_id, tenant_id=user.tenant_id):
+        raise HTTPException(status_code=404, detail=f"Manager '{manager_id}' not found")
+
+
 @router.post("", response_model=Manager)
 def create_manager(data: ManagerCreate, current_user: UserRow = Depends(get_current_user)):
     require_admin(current_user)
     try:
-        return manager_store.create_manager(data)
+        return manager_store.create_manager(data, tenant_id=current_user.tenant_id)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.get("", response_model=list[Manager])
 def list_managers(current_user: UserRow = Depends(get_current_user)):
-    return manager_store.list_managers()
+    return manager_store.list_managers(tenant_id=current_user.tenant_id)
 
 
 @router.get("/{manager_id}", response_model=Manager)
 def get_manager(manager_id: str, current_user: UserRow = Depends(get_current_user)):
-    manager = manager_store.get_manager(manager_id)
+    manager = manager_store.get_manager(manager_id, tenant_id=current_user.tenant_id)
     if not manager:
         raise HTTPException(status_code=404, detail=f"Manager '{manager_id}' not found")
     return manager
@@ -65,6 +72,7 @@ def update_manager(
     current_user: UserRow = Depends(get_current_user),
 ):
     require_admin(current_user)
+    _require_manager_in_tenant(current_user, manager_id)
     manager = manager_store.update_manager(manager_id, data)
     if not manager:
         raise HTTPException(status_code=404, detail=f"Manager '{manager_id}' not found")
@@ -75,6 +83,7 @@ def update_manager(
 def delete_manager(manager_id: str, current_user: UserRow = Depends(get_current_user)):
     """Delete a manager. Funds are detached, not deleted."""
     require_admin(current_user)
+    _require_manager_in_tenant(current_user, manager_id)
     if not manager_store.delete_manager(manager_id):
         raise HTTPException(status_code=404, detail=f"Manager '{manager_id}' not found")
     return {"status": "deleted", "manager_id": manager_id}
@@ -82,15 +91,17 @@ def delete_manager(manager_id: str, current_user: UserRow = Depends(get_current_
 
 @router.get("/{manager_id}/funds", response_model=list[Deal])
 def list_manager_funds(manager_id: str, current_user: UserRow = Depends(get_current_user)):
-    if not manager_store.get_manager(manager_id):
-        raise HTTPException(status_code=404, detail=f"Manager '{manager_id}' not found")
-    return [d for d in deal_store.list_deals() if d.manager_id == manager_id]
+    _require_manager_in_tenant(current_user, manager_id)
+    return [
+        d
+        for d in deal_store.list_deals(tenant_id=current_user.tenant_id)
+        if d.manager_id == manager_id
+    ]
 
 
 @router.get("/{manager_id}/documents", response_model=list[DocumentMetadata])
 def list_manager_documents(manager_id: str, current_user: UserRow = Depends(get_current_user)):
     """Manager-scoped documents (scope="manager") across the manager's funds."""
-    if not manager_store.get_manager(manager_id):
-        raise HTTPException(status_code=404, detail=f"Manager '{manager_id}' not found")
+    _require_manager_in_tenant(current_user, manager_id)
     _require_any_fund_access(current_user, manager_id)
     return deal_store.list_manager_documents(manager_id)
