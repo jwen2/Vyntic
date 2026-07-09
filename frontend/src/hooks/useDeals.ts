@@ -84,95 +84,6 @@ export function useDeals() {
     [refresh]
   );
 
-  const uploadDoc = useCallback(
-    async (deal_id: string, file: File) => {
-      setLoading(true);
-      setError(null);
-      const uploadId = newUploadId();
-      let pollTimer: ReturnType<typeof setInterval> | undefined;
-      const setProgress = (progress: UploadProgress) => {
-        setUploadProgressByDeal((prev) => ({ ...prev, [deal_id]: progress }));
-      };
-      const clearProgressSoon = () => {
-        setTimeout(() => {
-          setUploadProgressByDeal((prev) => {
-            if (prev[deal_id]?.upload_id !== uploadId) return prev;
-            const next = { ...prev };
-            delete next[deal_id];
-            return next;
-          });
-        }, 3000);
-      };
-      const waitForProcessing = async () => {
-        const deadline = Date.now() + 2 * 60 * 60 * 1000;
-        while (Date.now() < deadline) {
-          try {
-            const progress = await getUploadProgress(deal_id, uploadId);
-            setProgress(progress);
-            if (progress.status === "complete") return;
-            if (progress.status === "error") {
-              throw new Error(progress.detail || "Upload failed");
-            }
-          } catch (err) {
-            if (err instanceof Error && !err.message.includes("Progress not found")) {
-              throw err;
-            }
-          }
-          await delay(1000);
-        }
-        throw new Error("Ingestion is still running after two hours");
-      };
-      try {
-        setProgress({
-          upload_id: uploadId,
-          status: "uploading",
-          stage: "Uploading file",
-          percent: 0,
-          filename: file.name,
-        });
-        pollTimer = setInterval(async () => {
-          try {
-            setProgress(await getUploadProgress(deal_id, uploadId));
-          } catch {}
-        }, 1000);
-        await apiUploadDocument(deal_id, file, {
-          uploadId,
-          onUploadProgress: (percent) =>
-            setProgress({
-              upload_id: uploadId,
-              status: "uploading",
-              stage: percent >= 100 ? "Preparing backend processing" : "Uploading file",
-              percent: Math.round(percent * 0.1),
-              filename: file.name,
-              detail:
-                percent >= 100
-                  ? "The first parsing batch can take a few minutes."
-                  : undefined,
-            }),
-        });
-        await waitForProcessing();
-        await refresh();
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to upload document"
-        );
-        setProgress({
-          upload_id: uploadId,
-          status: "error",
-          stage: "Upload failed",
-          percent: 100,
-          filename: file.name,
-          detail: err instanceof Error ? err.message : "Failed to upload document",
-        });
-      } finally {
-        if (pollTimer) clearInterval(pollTimer);
-        clearProgressSoon();
-        setLoading(false);
-      }
-    },
-    [refresh]
-  );
-
   const uploadDocs = useCallback(
     async (deal_id: string, files: File[]) => {
       setLoading(true);
@@ -180,7 +91,6 @@ export function useDeals() {
       const uploadId = newUploadId();
       const label =
         files.length === 1 ? files[0].name : `${files.length} documents`;
-      let pollTimer: ReturnType<typeof setInterval> | undefined;
       const setProgress = (progress: UploadProgress) => {
         setUploadProgressByDeal((prev) => ({ ...prev, [deal_id]: progress }));
       };
@@ -194,6 +104,10 @@ export function useDeals() {
           });
         }, 3000);
       };
+      // Single source of post-upload progress: this 1s poll loop. The XHR
+      // onUploadProgress callbacks below own the 0-10% upload phase; there is
+      // deliberately no second interval poller racing it (it used to cause
+      // progress flicker from two writers on uploadProgressByDeal).
       const waitForProcessing = async () => {
         const deadline = Date.now() + 2 * 60 * 60 * 1000;
         while (Date.now() < deadline) {
@@ -221,11 +135,6 @@ export function useDeals() {
           percent: 0,
           filename: label,
         });
-        pollTimer = setInterval(async () => {
-          try {
-            setProgress(await getUploadProgress(deal_id, uploadId));
-          } catch {}
-        }, 1000);
         if (files.length === 1) {
           await apiUploadDocument(deal_id, files[0], {
             uploadId,
@@ -274,7 +183,6 @@ export function useDeals() {
           detail: err instanceof Error ? err.message : "Failed to upload documents",
         });
       } finally {
-        if (pollTimer) clearInterval(pollTimer);
         clearProgressSoon();
         setLoading(false);
       }
@@ -304,7 +212,6 @@ export function useDeals() {
     error,
     addDeal,
     removeDeal,
-    uploadDoc,
     uploadDocs,
     uploadProgressByDeal,
     editDeal,
