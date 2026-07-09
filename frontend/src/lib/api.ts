@@ -1,3 +1,5 @@
+import { sseStream } from "./sse";
+
 const API_BASE = "/api";
 const TOKEN_KEY = "vyntic_auth_token";
 
@@ -473,66 +475,11 @@ export function matrixCompareStream(
   onFinish?: () => void,
   onError?: (err: Error) => void
 ): AbortController {
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      const token = getAuthToken();
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_BASE}/matrix/compare/stream`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ deal_ids, queries }),
-        signal: controller.signal,
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        onError?.(new Error(text));
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        onError?.(new Error("No response body"));
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(trimmed.slice(6)) as StreamEvent;
-            onEvent(event);
-          } catch {
-            // skip malformed
-          }
-        }
-      }
-
-      onFinish?.();
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        onError?.(err as Error);
-      }
-    }
-  })();
-
-  return controller;
+  return sseStream<StreamEvent>(
+    `${API_BASE}/matrix/compare/stream`,
+    { deal_ids, queries },
+    { onEvent, onFinish, onError }
+  );
 }
 
 // ── Query stream events (used by the Agent chat surface) ──
@@ -599,6 +546,19 @@ export type DocMatrixEvent =
   | DocMatrixDoneEvent
   | DocMatrixErrorEvent;
 
+/** Raw doc-matrix payload from the backend; event type is derived from shape. */
+interface DocMatrixRawPayload {
+  doc_id: string;
+  error?: string;
+  done?: boolean;
+  answer?: string;
+  citations?: (Citation | null)[];
+  model?: string;
+  fallback?: boolean;
+  duration_ms?: number;
+  token?: string;
+}
+
 /**
  * Opens a streaming SSE connection to run a prompt against individual documents.
  * Each document gets its own streaming response.
@@ -612,87 +572,35 @@ export function docMatrixStream(
   onFinish?: () => void,
   onError?: (err: Error) => void
 ): AbortController {
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      const token = getAuthToken();
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(
-        `${API_BASE}/deals/${dealId}/doc-matrix/stream`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ doc_ids: docIds, query }),
-          signal: controller.signal,
+  return sseStream<DocMatrixRawPayload>(
+    `${API_BASE}/deals/${dealId}/doc-matrix/stream`,
+    { doc_ids: docIds, query },
+    {
+      onEvent: (raw) => {
+        // Derive event type from backend payload shape
+        let event: DocMatrixEvent;
+        if (raw.error) {
+          event = { type: "error", doc_id: raw.doc_id, query: "", error: raw.error };
+        } else if (raw.done) {
+          event = {
+            type: "done",
+            doc_id: raw.doc_id,
+            query: "",
+            answer: raw.answer ?? "",
+            citations: raw.citations || [],
+            model: raw.model,
+            fallback: raw.fallback,
+            duration_ms: raw.duration_ms,
+          };
+        } else {
+          event = { type: "token", doc_id: raw.doc_id, query: "", token: raw.token ?? "" };
         }
-      );
-
-      if (!res.ok) {
-        const text = await res.text();
-        onError?.(new Error(text));
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        onError?.(new Error("No response body"));
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          try {
-            const raw = JSON.parse(trimmed.slice(6));
-            // Derive event type from backend payload shape
-            let event: DocMatrixEvent;
-            if (raw.error) {
-              event = { type: "error", doc_id: raw.doc_id, query: "", error: raw.error };
-            } else if (raw.done) {
-              event = {
-                type: "done",
-                doc_id: raw.doc_id,
-                query: "",
-                answer: raw.answer,
-                citations: raw.citations || [],
-                model: raw.model,
-                fallback: raw.fallback,
-                duration_ms: raw.duration_ms,
-              };
-            } else {
-              event = { type: "token", doc_id: raw.doc_id, query: "", token: raw.token };
-            }
-            onEvent(event);
-          } catch {
-            // skip malformed
-          }
-        }
-      }
-
-      onFinish?.();
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        onError?.(err as Error);
-      }
+        onEvent(event);
+      },
+      onFinish,
+      onError,
     }
-  })();
-
-  return controller;
+  );
 }
 
 /**
@@ -705,69 +613,11 @@ export function singleQuestionStream(
   onFinish?: () => void,
   onError?: (err: Error) => void
 ): AbortController {
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      const token = getAuthToken();
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(
-        `${API_BASE}/deals/${dealId}/query/stream`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ question }),
-          signal: controller.signal,
-        }
-      );
-
-      if (!res.ok) {
-        const text = await res.text();
-        onError?.(new Error(text));
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        onError?.(new Error("No response body"));
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(trimmed.slice(6)) as QueryStreamEvent;
-            onEvent(event);
-          } catch {
-            // skip malformed
-          }
-        }
-      }
-
-      onFinish?.();
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        onError?.(err as Error);
-      }
-    }
-  })();
-
-  return controller;
+  return sseStream<QueryStreamEvent>(
+    `${API_BASE}/deals/${dealId}/query/stream`,
+    { question },
+    { onEvent, onFinish, onError }
+  );
 }
 
 // ── Authentication API ──
