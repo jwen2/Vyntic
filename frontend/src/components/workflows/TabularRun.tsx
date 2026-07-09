@@ -1692,7 +1692,7 @@ function cellBodyStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
 }
 
 /** Renders a placeholder for non-complete cells (queued / running / error).
- * Complete cells are delegated to MatrixCell which renders its own <td>. */
+ * Complete cells are delegated to CellRenderer. */
 function PlaceholderCell({
   cell,
   theme,
