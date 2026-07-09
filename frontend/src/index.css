@@ -8,7 +8,9 @@
   --landing-bg: #f3f3ee;
   --landing-surface: #ffffff;
   --landing-surface-alt: #ecece4;
-  --landing-border: #d6d6cc;
+  /* ~2.2:1 against white surfaces — panel edges must stay visible on
+     washed-out displays (was #d6d6cc at 1.46:1). */
+  --landing-border: #b0b0a3;
   --landing-text: #111111;
   --landing-muted: #5e5e57;
   --landing-inverse: #111111;
@@ -17,6 +19,13 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Keyboard-visible focus for every interactive element; currentColor keeps
+   it legible in both themes without per-component styles. */
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 body {
