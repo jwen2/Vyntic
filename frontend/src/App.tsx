@@ -11,8 +11,10 @@ import LandingPage from "@/pages/LandingPage";
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
+      {/* AuthProvider sits inside the router so its 401 listener can
+          navigate to /login without a full page reload. */}
+      <BrowserRouter>
+        <AuthProvider>
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={<LandingPage />} />
@@ -37,8 +39,8 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
-        </BrowserRouter>
-      </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }

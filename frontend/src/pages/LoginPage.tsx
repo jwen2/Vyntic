@@ -33,13 +33,9 @@ export default function LoginPage() {
       navigate("/app");
     } catch (err) {
       console.error("Auth error:", err);
+      // ApiError.message already carries the backend's `detail` string.
       const message = err instanceof Error ? err.message : "";
-      try {
-        const parsed = JSON.parse(message);
-        setError(parsed.detail || "Authentication failed");
-      } catch {
-        setError(message || "Authentication failed");
-      }
+      setError(message || "Authentication failed");
     } finally {
       setIsLoading(false);
     }

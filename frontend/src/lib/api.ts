@@ -13,6 +13,50 @@ export function clearAuthToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+/** Typed API error: `status` + the backend's `detail`/`message` when present. */
+export class ApiError extends Error {
+  status: number;
+  detail: string;
+
+  constructor(status: number, detail: string) {
+    super(detail);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+/**
+ * Fired when any authenticated request comes back 401. The transport layer
+ * clears the token and announces it; AuthProvider owns the navigation to
+ * /login (soft, via the router — no full page reload).
+ */
+export const UNAUTHORIZED_EVENT = "vyntic:unauthorized";
+
+function notifyUnauthorized() {
+  clearAuthToken();
+  window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+}
+
+/**
+ * Extract a human-readable message from an error response body. Prefers
+ * JSON `detail`/`message` fields (FastAPI convention); falls back to the
+ * trimmed raw text so an HTML error page doesn't get shown verbatim as JSON.
+ */
+export function errorDetailFromText(text: string, status: number): string {
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object") {
+      const detail = parsed.detail ?? parsed.message;
+      if (typeof detail === "string" && detail) return detail;
+      if (detail != null) return JSON.stringify(detail);
+    }
+  } catch {
+    // not JSON — fall through to raw text
+  }
+  return text.trim() || `Request failed with status ${status}`;
+}
+
 async function fetchWrapper(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
@@ -24,13 +68,34 @@ async function fetchWrapper(url: string, options: RequestInit = {}): Promise<Res
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401) {
-    clearAuthToken();
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
+    notifyUnauthorized();
   }
 
   return response;
+}
+
+/**
+ * Authenticated request that throws `ApiError` on non-2xx and returns the
+ * raw `Response` (for blobs/headers). String bodies default to JSON
+ * Content-Type. `path` is relative to the API base.
+ */
+export async function requestRaw(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers || {});
+  if (typeof init.body === "string" && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const res = await fetchWrapper(`${API_BASE}${path}`, { ...init, headers });
+  if (!res.ok) {
+    throw new ApiError(res.status, errorDetailFromText(await res.text(), res.status));
+  }
+  return res;
+}
+
+/** `requestRaw` + JSON parse. Empty bodies (204, DELETEs) resolve undefined. */
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await requestRaw(path, init);
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 export const SYNTHESIS_DEAL_ID = "__synthesis__";
 
@@ -107,9 +172,7 @@ export interface Manager {
 }
 
 export async function listManagers(): Promise<Manager[]> {
-  const res = await fetchWrapper(`${API_BASE}/managers`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return request<Manager[]>("/managers");
 }
 
 export async function createManager(
@@ -117,13 +180,10 @@ export async function createManager(
   name: string,
   description: string = ""
 ): Promise<Manager> {
-  const res = await fetchWrapper(`${API_BASE}/managers`, {
+  return request<Manager>("/managers", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ manager_id, name, description }),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 export interface Citation {
@@ -165,22 +225,17 @@ export async function listConversations(
   workstream?: string
 ): Promise<ConversationEntry[]> {
   const params = workstream ? `?workstream=${encodeURIComponent(workstream)}` : "";
-  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/conversations${params}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return request<ConversationEntry[]>(`/deals/${deal_id}/conversations${params}`);
 }
 
 export async function saveConversation(
   deal_id: string,
   data: { question: string; answer: string; citations?: (Citation | null)[]; workstream?: string }
 ): Promise<ConversationEntry> {
-  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/conversations`, {
+  return request<ConversationEntry>(`/deals/${deal_id}/conversations`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deal_id, ...data }),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 export interface CreateDealPayload {
@@ -195,24 +250,22 @@ export interface CreateDealPayload {
 }
 
 export async function createDeal(payload: CreateDealPayload): Promise<Deal> {
-  const res = await fetchWrapper(`${API_BASE}/deals`, {
+  return request<Deal>("/deals", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 export async function listDeals(): Promise<Deal[]> {
-  const res = await fetchWrapper(`${API_BASE}/deals`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return request<Deal[]>("/deals");
+}
+
+export async function getDeal(deal_id: string): Promise<Deal> {
+  return request<Deal>(`/deals/${encodeURIComponent(deal_id)}`);
 }
 
 export async function deleteDeal(deal_id: string): Promise<void> {
-  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(await res.text());
+  await request<void>(`/deals/${deal_id}`, { method: "DELETE" });
 }
 
 export interface UploadProgress {
@@ -248,16 +301,13 @@ function xhrUpload<T>(
 
     xhr.onload = () => {
       if (xhr.status === 401) {
-        clearAuthToken();
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
-        reject(new Error("Not authenticated"));
+        notifyUnauthorized();
+        reject(new ApiError(401, "Not authenticated"));
         return;
       }
 
       if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new Error(xhr.responseText || `Upload failed with status ${xhr.status}`));
+        reject(new ApiError(xhr.status, errorDetailFromText(xhr.responseText || "", xhr.status)));
         return;
       }
 
@@ -322,13 +372,10 @@ export async function updateDeal(
     strategy?: string;
   }
 ): Promise<Deal> {
-  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}`, {
+  return request<Deal>(`/deals/${deal_id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 export interface DocumentMetadata {
@@ -347,58 +394,42 @@ export async function updateDocumentMetadata(
   doc_id: string,
   data: { doc_category?: string; period?: string; scope?: "entity" | "manager" }
 ): Promise<DocumentMetadata> {
-  const res = await fetchWrapper(
-    `${API_BASE}/deals/${deal_id}/documents/${doc_id}/metadata`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }
-  );
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return request<DocumentMetadata>(`/deals/${deal_id}/documents/${doc_id}/metadata`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function getUploadProgress(
   deal_id: string,
   uploadId: string
 ): Promise<UploadProgress> {
-  const res = await fetchWrapper(
-    `${API_BASE}/deals/${deal_id}/documents/progress/${encodeURIComponent(uploadId)}`
+  return request<UploadProgress>(
+    `/deals/${deal_id}/documents/progress/${encodeURIComponent(uploadId)}`
   );
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 export async function deleteDocument(
   deal_id: string,
   doc_id: string
 ): Promise<void> {
-  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents/${doc_id}`, {
-    method: "DELETE",
-  });
-  if (!res.ok) throw new Error(await res.text());
+  await request<void>(`/deals/${deal_id}/documents/${doc_id}`, { method: "DELETE" });
 }
 
 export async function listDocuments(
   deal_id: string
 ): Promise<DocumentMetadata[]> {
-  const res = await fetchWrapper(`${API_BASE}/deals/${deal_id}/documents`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return request<DocumentMetadata[]>(`/deals/${deal_id}/documents`);
 }
 
 export async function matrixCompare(
   deal_ids: string[],
   queries: string[]
 ): Promise<MatrixResponse> {
-  const res = await fetchWrapper(`${API_BASE}/matrix/compare`, {
+  return request<MatrixResponse>("/matrix/compare", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deal_ids, queries }),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 // ── Streaming SSE API ──
@@ -754,41 +785,41 @@ export interface AuthResponse {
   user: User;
 }
 
-export async function login(email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+/**
+ * Login/register use raw fetch, not `request()`: they run unauthenticated,
+ * and a 401 for bad credentials must not fire UNAUTHORIZED_EVENT.
+ */
+async function authRequest(path: string, payload: unknown): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
+  if (!res.ok) {
+    throw new ApiError(res.status, errorDetailFromText(await res.text(), res.status));
+  }
+  const data: AuthResponse = await res.json();
   setAuthToken(data.access_token);
   return data;
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  return authRequest("/auth/login", { email, password });
 }
 
 export async function register(email: string, password: string, full_name: string = ""): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, full_name }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  setAuthToken(data.access_token);
-  return data;
+  return authRequest("/auth/register", { email, password, full_name });
 }
 
 export async function getMe(): Promise<User> {
-  const res = await fetchWrapper(`${API_BASE}/auth/me`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return request<User>("/auth/me");
 }
 
 export async function logout(): Promise<void> {
   // Revoke the token server-side before clearing it locally; best-effort —
   // a failed call must not trap the user in a logged-in state.
   try {
-    await fetchWrapper(`${API_BASE}/auth/logout`, { method: "POST" });
+    await request<void>("/auth/logout", { method: "POST" });
   } catch {
     // ignore
   }
@@ -803,11 +834,9 @@ export async function getDocumentViewToken(
   deal_id: string,
   filename: string
 ): Promise<string> {
-  const res = await fetchWrapper(
-    `${API_BASE}/deals/${encodeURIComponent(deal_id)}/documents/${encodeURIComponent(filename)}/view-token`
+  const data = await request<{ token: string }>(
+    `/deals/${encodeURIComponent(deal_id)}/documents/${encodeURIComponent(filename)}/view-token`
   );
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
   return data.token;
 }
 

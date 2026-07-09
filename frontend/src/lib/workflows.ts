@@ -5,10 +5,8 @@
  *
  * Mirrors Pydantic schemas in backend/app/models/workflow.py and workflow_run.py.
  */
-import { getAuthToken, type Citation } from "./api";
+import { request, requestRaw, type Citation } from "./api";
 import type { ColumnFormat } from "./matrixColumnConfig";
-
-const API_BASE = "/api";
 
 export type WorkflowType = "assistant" | "tabular";
 export type RowSource = "one_doc_per_row" | "multi_doc_synthesis";
@@ -103,45 +101,24 @@ export interface WorkflowUpdatePayload {
   variables?: WorkflowVariableInput[];
 }
 
-async function authedFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = getAuthToken();
-  const headers = new Headers(options.headers || {});
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  if (options.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  return fetch(url, { ...options, headers });
-}
-
-async function unwrap<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Request failed: ${res.status}`);
-  }
-  return res.json() as Promise<T>;
-}
-
 export async function listWorkflows(dealId: string): Promise<Workflow[]> {
-  const res = await authedFetch(`${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows`);
-  return unwrap<Workflow[]>(res);
+  return request<Workflow[]>(`/deals/${encodeURIComponent(dealId)}/workflows`);
 }
 
 export async function getWorkflow(dealId: string, workflowId: string): Promise<Workflow> {
-  const res = await authedFetch(
-    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}`
+  return request<Workflow>(
+    `/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}`
   );
-  return unwrap<Workflow>(res);
 }
 
 export async function createWorkflow(
   dealId: string,
   payload: WorkflowCreatePayload
 ): Promise<Workflow> {
-  const res = await authedFetch(`${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows`, {
+  return request<Workflow>(`/deals/${encodeURIComponent(dealId)}/workflows`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  return unwrap<Workflow>(res);
 }
 
 export async function updateWorkflow(
@@ -149,19 +126,17 @@ export async function updateWorkflow(
   workflowId: string,
   payload: WorkflowUpdatePayload
 ): Promise<Workflow> {
-  const res = await authedFetch(
-    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}`,
+  return request<Workflow>(
+    `/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}`,
     { method: "PUT", body: JSON.stringify(payload) }
   );
-  return unwrap<Workflow>(res);
 }
 
 export async function deleteWorkflow(dealId: string, workflowId: string): Promise<void> {
-  const res = await authedFetch(
-    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}`,
+  await request<void>(
+    `/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}`,
     { method: "DELETE" }
   );
-  if (!res.ok) throw new Error(await res.text());
 }
 
 export interface WorkflowColumnPatch {
@@ -177,19 +152,17 @@ export async function patchWorkflowColumn(
   columnId: string,
   patch: WorkflowColumnPatch
 ): Promise<WorkflowColumn> {
-  const res = await authedFetch(
-    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/columns/${encodeURIComponent(columnId)}`,
+  return request<WorkflowColumn>(
+    `/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/columns/${encodeURIComponent(columnId)}`,
     { method: "PATCH", body: JSON.stringify(patch) }
   );
-  return unwrap<WorkflowColumn>(res);
 }
 
 export async function cloneWorkflow(dealId: string, workflowId: string): Promise<Workflow> {
-  const res = await authedFetch(
-    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/clone`,
+  return request<Workflow>(
+    `/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/clone`,
     { method: "POST" }
   );
-  return unwrap<Workflow>(res);
 }
 
 // ── Phase 2/3: Run + cell + stage types ──
@@ -327,8 +300,8 @@ export async function startWorkflowRun(
   documentIds: string[],
   synthesisQuestions: string[] = []
 ): Promise<WorkflowRun> {
-  const res = await authedFetch(
-    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/runs`,
+  return request<WorkflowRun>(
+    `/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/runs`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -337,55 +310,46 @@ export async function startWorkflowRun(
       }),
     }
   );
-  return unwrap<WorkflowRun>(res);
 }
 
 export async function listRuns(dealId: string, workflowId: string): Promise<WorkflowRun[]> {
-  const res = await authedFetch(
-    `${API_BASE}/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/runs`
+  return request<WorkflowRun[]>(
+    `/deals/${encodeURIComponent(dealId)}/workflows/${encodeURIComponent(workflowId)}/runs`
   );
-  return unwrap<WorkflowRun[]>(res);
 }
 
 export async function getRun(runId: string): Promise<WorkflowRun> {
-  const res = await authedFetch(`${API_BASE}/runs/${encodeURIComponent(runId)}`);
-  return unwrap<WorkflowRun>(res);
+  return request<WorkflowRun>(`/runs/${encodeURIComponent(runId)}`);
 }
 
 export async function retryCell(runId: string, cellId: string): Promise<TabularCell> {
-  const res = await authedFetch(
-    `${API_BASE}/runs/${encodeURIComponent(runId)}/cells/${encodeURIComponent(cellId)}/retry`,
+  return request<TabularCell>(
+    `/runs/${encodeURIComponent(runId)}/cells/${encodeURIComponent(cellId)}/retry`,
     { method: "POST" }
   );
-  return unwrap<TabularCell>(res);
 }
 
 export async function retryColumn(
   runId: string,
   columnId: string
 ): Promise<{ requeued: number }> {
-  const res = await authedFetch(
-    `${API_BASE}/runs/${encodeURIComponent(runId)}/columns/${encodeURIComponent(columnId)}/retry`,
+  return request<{ requeued: number }>(
+    `/runs/${encodeURIComponent(runId)}/columns/${encodeURIComponent(columnId)}/retry`,
     { method: "POST" }
   );
-  return unwrap<{ requeued: number }>(res);
 }
 
 export async function cancelRun(runId: string): Promise<WorkflowRun> {
-  const res = await authedFetch(`${API_BASE}/runs/${encodeURIComponent(runId)}/cancel`, {
+  return request<WorkflowRun>(`/runs/${encodeURIComponent(runId)}/cancel`, {
     method: "POST",
   });
-  return unwrap<WorkflowRun>(res);
 }
 
 export async function downloadRunExport(
   runId: string,
   format: "xlsx" | "docx"
 ): Promise<void> {
-  const res = await authedFetch(
-    `${API_BASE}/runs/${encodeURIComponent(runId)}/export.${format}`
-  );
-  if (!res.ok) throw new Error(await res.text());
+  const res = await requestRaw(`/runs/${encodeURIComponent(runId)}/export.${format}`);
   const blob = await res.blob();
   const disposition = res.headers.get("Content-Disposition") || "";
   const match = disposition.match(/filename="?([^";]+)"?/i);
@@ -406,14 +370,13 @@ export async function approveStage(
   stageOutputId: string,
   editedMd?: string
 ): Promise<AssistantStageOutput> {
-  const res = await authedFetch(
-    `${API_BASE}/runs/${encodeURIComponent(runId)}/stages/${encodeURIComponent(stageOutputId)}/approve`,
+  return request<AssistantStageOutput>(
+    `/runs/${encodeURIComponent(runId)}/stages/${encodeURIComponent(stageOutputId)}/approve`,
     {
       method: "POST",
       body: JSON.stringify({ edited_md: editedMd ?? null }),
     }
   );
-  return unwrap<AssistantStageOutput>(res);
 }
 
 /**
@@ -433,13 +396,12 @@ export function subscribeRun(
 
   (async () => {
     try {
-      const res = await authedFetch(
-        `${API_BASE}/runs/${encodeURIComponent(runId)}/stream-token`
+      const { token } = await request<{ token: string }>(
+        `/runs/${encodeURIComponent(runId)}/stream-token`
       );
-      const { token } = await unwrap<{ token: string }>(res);
       if (closed) return;
       const url = new URL(
-        `${API_BASE}/runs/${encodeURIComponent(runId)}/stream`,
+        `/api/runs/${encodeURIComponent(runId)}/stream`,
         window.location.origin
       );
       url.searchParams.set("token", token);
