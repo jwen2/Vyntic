@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DocumentMetadata } from "@/lib/api";
 import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
-import { ACCENT, ddTheme } from "./types";
+import { ACCENT, ddTheme, tint } from "./types";
 
 // Compact document-management surface that replaces the Documents sidebar
 // from the retired Workstreams tab (PR #80). Opens from the TopBar; shows
@@ -217,9 +217,9 @@ export default function DocumentsModal({
                       padding: "4px 8px",
                       fontSize: 10,
                       fontWeight: 600,
-                      background: doc.scope === "manager" ? ACCENT + "22" : "transparent",
+                      background: doc.scope === "manager" ? tint(ACCENT, 13) : "transparent",
                       color: doc.scope === "manager" ? ACCENT : c.t3,
-                      border: `1px solid ${doc.scope === "manager" ? ACCENT + "66" : c.border}`,
+                      border: `1px solid ${doc.scope === "manager" ? tint(ACCENT, 40) : c.border}`,
                       borderRadius: 999,
                       cursor: "pointer",
                       whiteSpace: "nowrap",
