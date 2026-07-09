@@ -15,6 +15,7 @@ import {
   WorkflowUpdatePayload,
 } from "@/lib/workflows";
 import { ddTheme } from "@/components/dd/types";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { ACCENT } from "./theme";
 import WorkflowLibrary from "./WorkflowLibrary";
 import AssistantEditor from "./AssistantEditor";
@@ -48,6 +49,12 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   const [runModalWorkflowId, setRunModalWorkflowId] = useState<string | null>(null);
   const [historyWorkflowId, setHistoryWorkflowId] = useState<string | null>(null);
   const [runStartError, setRunStartError] = useState<string | null>(null);
+  /** Clone request paused on the "you already have a copy" dialog. */
+  const [pendingClone, setPendingClone] = useState<{
+    sourceId: string;
+    existing: Workflow;
+    copies: number;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -66,6 +73,19 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
     void refresh();
   }, [refresh]);
 
+  const doClone = useCallback(
+    async (workflowId: string) => {
+      try {
+        const cloned = await cloneWorkflow(dealId, workflowId);
+        await refresh();
+        setScreen({ kind: "editor", workflowId: cloned.id });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to clone workflow");
+      }
+    },
+    [dealId, refresh]
+  );
+
   const handleClone = useCallback(
     async (workflowId: string) => {
       // If we've already cloned this built-in for this deal, opening that
@@ -80,24 +100,12 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
         const mostRecent = existing
           .slice()
           .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
-        const open = window.confirm(
-          `You already have ${existing.length === 1 ? "a copy" : `${existing.length} copies`} of this workflow ("${mostRecent.name}"). ` +
-            `Click OK to open the most recent copy, or Cancel to make a brand-new copy.`
-        );
-        if (open) {
-          setScreen({ kind: "editor", workflowId: mostRecent.id });
-          return;
-        }
+        setPendingClone({ sourceId: workflowId, existing: mostRecent, copies: existing.length });
+        return;
       }
-      try {
-        const cloned = await cloneWorkflow(dealId, workflowId);
-        await refresh();
-        setScreen({ kind: "editor", workflowId: cloned.id });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to clone workflow");
-      }
+      await doClone(workflowId);
     },
-    [dealId, refresh, workflows]
+    [doClone, workflows]
   );
 
   const handleEdit = useCallback((workflowId: string) => {
@@ -269,6 +277,22 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           theme={theme}
           onClose={() => setHistoryWorkflowId(null)}
           onOpen={(run) => handleOpenRun(historyWorkflow, run)}
+        />
+      )}
+      {pendingClone && (
+        <ConfirmDialog
+          title="You already have a copy"
+          message={`You already have ${pendingClone.copies === 1 ? "a copy" : `${pendingClone.copies} copies`} of this workflow ("${pendingClone.existing.name}"). Open the most recent copy, or make a brand-new one?`}
+          confirmLabel="Open existing copy"
+          cancelLabel="Make a new copy"
+          onConfirm={() => {
+            setScreen({ kind: "editor", workflowId: pendingClone.existing.id });
+            setPendingClone(null);
+          }}
+          onCancel={() => {
+            void doClone(pendingClone.sourceId);
+            setPendingClone(null);
+          }}
         />
       )}
       {runStartError && modalWorkflow && (

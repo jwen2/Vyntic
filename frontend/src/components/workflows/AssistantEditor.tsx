@@ -1,6 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ddTheme } from "@/components/dd/types";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import type {
   OutputFormat,
   Workflow,
@@ -75,6 +76,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
   );
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (!activeStageUid && stages.length > 0) setActiveStageUid(stages[0].uid);
@@ -299,9 +301,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
           )}
           {props.mode === "edit" && props.onDelete && !isReadOnly && (
             <button
-              onClick={() => {
-                if (confirm("Delete this workflow? This cannot be undone.")) props.onDelete?.();
-              }}
+              onClick={() => setConfirmingDelete(true)}
               style={{
                 padding: "6px 12px",
                 background: "transparent",
@@ -571,6 +571,18 @@ export default function AssistantEditor(props: AssistantEditorProps) {
           </div>
         </div>
       </div>
+
+      {confirmingDelete && props.mode === "edit" && (
+        <ConfirmDialog
+          title="Delete Workflow"
+          message="Delete this workflow? This cannot be undone."
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            props.onDelete?.();
+          }}
+          onCancel={() => setConfirmingDelete(false)}
+        />
+      )}
     </div>
   );
 }
