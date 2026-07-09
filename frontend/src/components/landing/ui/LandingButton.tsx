@@ -16,7 +16,7 @@ interface LandingButtonProps {
 
 const VARIANT_CLASSES: Record<Variant, string> = {
   primary:
-    "bg-[var(--landing-inverse)] text-[var(--landing-inverse-text)] border-[var(--landing-inverse)] hover:bg-black",
+    "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] hover:bg-[var(--accent-strong)]",
   secondary:
     "bg-[var(--landing-surface)] text-[var(--landing-text)] border-[var(--landing-border)] hover:bg-[var(--landing-surface-alt)]",
   ghost:
