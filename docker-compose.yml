@@ -1,4 +1,24 @@
 services:
+  # Local Postgres for Plan 4 development (multi-tenancy/RLS work needs a
+  # real Postgres; SQLite remains the zero-setup default for the backend
+  # service below until the cutover). Matches CI's service container.
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=vyntic
+      - POSTGRES_PASSWORD=vyntic
+      - POSTGRES_DB=vyntic
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vyntic"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   backend:
     build: ./backend
     ports:
@@ -45,3 +65,6 @@ services:
       - ./frontend:/app
       - /app/node_modules
     restart: unless-stopped
+
+volumes:
+  pgdata:
