@@ -47,7 +47,7 @@ Accent appears in exactly these roles, both themes:
 
 1. **Primary action buttons** — one per view region (Run analysis, Upload, New deal, Save). Light: `--accent` fill, white text. Dark: `--accent` fill, near-black (`#0f0f0f`) text.
 2. **Active navigation** — active tab / nav item: `--accent-strong` text + 2px accent indicator (underline or left bar, matching each nav's existing geometry).
-3. **Selection** — selected deal row, list item, matrix cell focus: `--accent-tint` wash + 3px accent inset bar + `--accent-tint-border`.
+3. **Selection** — selected deal row, list item, matrix cell focus: `--accent-tint` wash + `--accent-tint-border`, recoloring each component's existing selection geometry (no new inset bars added; the candidate mockups' 3px bar was illustrative).
 4. **Links & citation references** — `--accent-strong`.
 5. **Focus** — global `:focus-visible` outline switches from `currentColor` to `var(--accent)`.
 6. **Live/progress indicators** — streaming pulse, progress bars, spinners (including the off-palette `ProtectedRoute` spinner — fixes part of FE13 early).
