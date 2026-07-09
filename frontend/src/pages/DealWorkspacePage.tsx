@@ -11,6 +11,7 @@ import {
   getMe,
 } from "@/lib/api";
 import DocumentViewer from "@/components/DocumentViewer";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { useTheme } from "@/components/ThemeProvider";
 
 import TopBar, { DealWorkspaceMode } from "@/components/dd/TopBar";
@@ -292,29 +293,35 @@ export default function DealWorkspacePage() {
 
         <main className="flex min-w-0 flex-1 overflow-hidden" style={{ background: c.bg }}>
           {mode === "workflows" ? (
-            <WorkflowsView dealId={dealId} theme={theme} />
+            <ErrorBoundary>
+              <WorkflowsView dealId={dealId} theme={theme} />
+            </ErrorBoundary>
           ) : mode === "brief" ? (
             <div style={{ flex: 1, width: "100%", minWidth: 0, overflow: "auto" }}>
-              <DealBriefDashboard
-                dealId={dealId}
-                theme={theme}
-                onCit={handleCit}
-                onFindingsExtracted={syncScanFindings}
-              />
+              <ErrorBoundary>
+                <DealBriefDashboard
+                  dealId={dealId}
+                  theme={theme}
+                  onCit={handleCit}
+                  onFindingsExtracted={syncScanFindings}
+                />
+              </ErrorBoundary>
             </div>
           ) : (
             <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden", borderRight: activeCit ? `1px solid ${c.border}` : "none" }}>
-              <DealAssistantPanel
-                deal={deal}
-                documents={documents}
-                selectedEntry={assistantHistory.find((entry) => entry.id === selectedAssistantEntryId) || null}
-                newChatSignal={assistantNewChatSignal}
-                activeCitId={activeCit?.id ?? null}
-                onCit={handleCit}
-                onOpenDocument={handleViewDocument}
-                onConversationSaved={handleAssistantConversationSaved}
-                onProactiveScan={handleProactiveScan}
-              />
+              <ErrorBoundary>
+                <DealAssistantPanel
+                  deal={deal}
+                  documents={documents}
+                  selectedEntry={assistantHistory.find((entry) => entry.id === selectedAssistantEntryId) || null}
+                  newChatSignal={assistantNewChatSignal}
+                  activeCitId={activeCit?.id ?? null}
+                  onCit={handleCit}
+                  onOpenDocument={handleViewDocument}
+                  onConversationSaved={handleAssistantConversationSaved}
+                  onProactiveScan={handleProactiveScan}
+                />
+              </ErrorBoundary>
             </div>
           )}
         </main>
