@@ -31,13 +31,14 @@ export default function LoginPage() {
         : await register(email, password, fullName);
       setUser(data.user);
       navigate("/app");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Auth error:", err);
+      const message = err instanceof Error ? err.message : "";
       try {
-        const parsed = JSON.parse(err.message);
+        const parsed = JSON.parse(message);
         setError(parsed.detail || "Authentication failed");
       } catch {
-        setError(err.message || "Authentication failed");
+        setError(message || "Authentication failed");
       }
     } finally {
       setIsLoading(false);

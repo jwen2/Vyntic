@@ -424,7 +424,6 @@ export default function DealBriefDashboard({
   }, []);
 
   const {
-    workflow,
     run,
     scanWorkstream,
     scanResults,
@@ -1802,7 +1801,7 @@ function FreshnessPill({ at, theme }: { at: number; theme: "light" | "dark" }) {
   );
 }
 
-function DiffPill({ count, theme, onClick, active }: { count: number; theme: "light" | "dark"; onClick: () => void; active: boolean }) {
+function DiffPill({ count, onClick, active }: { count: number; theme: "light" | "dark"; onClick: () => void; active: boolean }) {
   const accent = active ? "#2a2a2a" : "#111111";
   return (
     <button

@@ -828,7 +828,6 @@ function AssistantSourceSidebar({
   run,
   runHistory,
   dealId,
-  activeCitationId,
   theme,
   onCitationClick,
 }: {

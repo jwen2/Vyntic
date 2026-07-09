@@ -53,8 +53,11 @@ function saveModeToLocal(dealId: string, mode: DealWorkspaceMode) {
 }
 
 export default function DealWorkspacePage() {
-  const { dealId } = useParams<{ dealId: string }>();
-  if (!dealId) return null;
+  const { dealId: dealIdParam } = useParams<{ dealId: string }>();
+  // The route always provides :dealId; the empty-string fallback keeps hook
+  // order stable when it's absent — the guard below (after all hooks) renders
+  // nothing in that case, and effects early-exit so no I/O happens.
+  const dealId = dealIdParam ?? "";
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const c = ddTheme(theme);
@@ -83,10 +86,12 @@ export default function DealWorkspacePage() {
   } | null>(null);
 
   useEffect(() => {
+    if (!dealId) return;
     setMode(loadModeFromLocal(dealId));
   }, [dealId]);
 
   useEffect(() => {
+    if (!dealId) return;
     saveModeToLocal(dealId, mode);
   }, [dealId, mode]);
 
@@ -150,13 +155,14 @@ export default function DealWorkspacePage() {
   }, [dealId]);
 
   useEffect(() => {
+    if (!dealId) return;
     Promise.all([
       fetchDeal(),
       fetchDocuments(),
       fetchAssistantHistory(),
       getMe().catch(() => navigate("/login")),
     ]).finally(() => setLoading(false));
-  }, [fetchAssistantHistory, fetchDeal, fetchDocuments, navigate]);
+  }, [dealId, fetchAssistantHistory, fetchDeal, fetchDocuments, navigate]);
 
   const dealBreakers = findings.filter((f) => f.sev === "deal-breaker").length;
 
@@ -198,6 +204,8 @@ export default function DealWorkspacePage() {
     setMode("workflows");
     setActiveCit(null);
   }, []);
+
+  if (!dealIdParam) return null;
 
   if (loading) {
     return (

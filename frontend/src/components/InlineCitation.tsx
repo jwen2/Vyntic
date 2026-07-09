@@ -10,7 +10,7 @@ interface Props {
   onViewDocument?: (citation: Citation) => void;
 }
 
-export default function InlineCitation({ index, citation, onViewDocument }: Props) {
+export default function InlineCitation({ citation, onViewDocument }: Props) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);

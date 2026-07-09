@@ -609,7 +609,6 @@ function ChatBubble({
 }) {
   const c = ddTheme(theme);
   const isUser = message.role === "user";
-  const isDark = theme === "dark";
 
   if (isUser) {
     return (
