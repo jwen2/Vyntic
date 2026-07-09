@@ -3,17 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
 
+// Light badge palette is contrast-checked: label ≥ 7.7:1 against its chip
+// background, chip border ≥ 2.6:1 against the white card, and the tint still
+// darkens as the stage progresses (Screening lightest → IC darkest → inverse).
 const STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Screening: { bg: "#f1f1ec", fg: "#5a5a54", border: "#d6d6cc" },
-  "Due Diligence": { bg: "#e6e6df", fg: "#3f3f3a", border: "#d0d0c6" },
-  "IC Review": { bg: "#dcdcd2", fg: "#252525", border: "#c9c9bf" },
+  Screening: { bg: "#efefe8", fg: "#4a4a42", border: "#a0a091" },
+  "Due Diligence": { bg: "#e3e3d8", fg: "#33332c", border: "#8f8f80" },
+  "IC Review": { bg: "#d6d6c8", fg: "#1c1c18", border: "#7d7d6e" },
   Closed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
   // Fund lifecycle stages
-  Diligence: { bg: "#e6e6df", fg: "#3f3f3a", border: "#d0d0c6" },
-  IC: { bg: "#dcdcd2", fg: "#252525", border: "#c9c9bf" },
+  Diligence: { bg: "#e3e3d8", fg: "#33332c", border: "#8f8f80" },
+  IC: { bg: "#d6d6c8", fg: "#1c1c18", border: "#7d7d6e" },
   Committed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
-  Monitoring: { bg: "#e8ede8", fg: "#2f4a2f", border: "#c9d6c9" },
-  "Re-up review": { bg: "#ede8e0", fg: "#5a4a2f", border: "#d6ccbc" },
+  Monitoring: { bg: "#e2eae2", fg: "#274427", border: "#7f9a7f" },
+  "Re-up review": { bg: "#ece4d2", fg: "#523f1b", border: "#a8905c" },
 };
 
 const DARK_STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {

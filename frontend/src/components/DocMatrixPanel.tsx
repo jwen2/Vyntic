@@ -697,7 +697,7 @@ export default function DocMatrixPanel({
 
   if (documents.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-600">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-600">
         <svg
           className="w-12 h-12 mb-3"
           fill="none"
@@ -728,7 +728,7 @@ export default function DocMatrixPanel({
   return (
     <div className="space-y-2 p-4">
       {/* Selection info */}
-      <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 px-1">
+      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500 px-1">
         <span>
           {documents.length} document{documents.length !== 1 ? "s" : ""} &middot;{" "}
           {queries.length} quer{queries.length !== 1 ? "ies" : "y"}
@@ -741,7 +741,7 @@ export default function DocMatrixPanel({
         <div className="flex items-center gap-2">
           {gridSearchOpen && (
             <div className="relative">
-              <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -749,14 +749,14 @@ export default function DocMatrixPanel({
                 value={gridSearch}
                 onChange={(e) => setGridSearch(e.target.value)}
                 placeholder="Filter grid..."
-                className="w-56 pl-7 pr-7 py-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-56 pl-7 pr-7 py-1.5 text-xs border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 autoFocus
               />
               {gridSearch && (
                 <button
                   type="button"
                   onClick={() => setGridSearch("")}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-500 hover:text-gray-600 dark:hover:text-gray-200"
                   title="Clear search"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}>
@@ -777,7 +777,7 @@ export default function DocMatrixPanel({
             className={`h-7 w-7 inline-flex items-center justify-center rounded-md border transition-colors ${
               gridSearchOpen || gridSearch.trim()
                 ? "border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-400"
-                : "border-gray-200 bg-white text-gray-500 hover:text-blue-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:text-blue-400"
+                : "border-gray-300 bg-white text-gray-500 hover:text-blue-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:text-blue-400"
             }`}
             title={gridSearchOpen ? "Close grid filter" : "Search and filter grid"}
             aria-label={gridSearchOpen ? "Close grid filter" : "Search and filter grid"}
@@ -808,7 +808,7 @@ export default function DocMatrixPanel({
             <tr>
               {/* Document column header with Excel-like dropdown — sticky top + left (corner) */}
               <th
-                className={`p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-gray-200 dark:border-gray-700 sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${sortConfig?.col === "doc" ? "bg-blue-50 dark:bg-blue-950/40" : "bg-gray-100 dark:bg-gray-800"}`}
+                className={`p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-gray-300 dark:border-gray-700 sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${sortConfig?.col === "doc" ? "bg-blue-50 dark:bg-blue-950/40" : "bg-gray-100 dark:bg-gray-800"}`}
                 onClick={(e) => openColMenu(e.currentTarget)}
               >
                 <DocColumnHeaderLabel label="Document" sortConfig={sortConfig} />
@@ -830,7 +830,7 @@ export default function DocMatrixPanel({
                   onDragOver={(e) => handleColDragOver(e, i)}
                   onDrop={() => handleColDrop(i)}
                   onDragEnd={handleColDragEnd}
-                  className={`p-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
+                  className={`p-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-b border-gray-300 dark:border-gray-700 sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
                     dragColIndex === i ? "opacity-50" : ""
                   } ${
                     dragOverColIndex === i && dragColIndex !== i
@@ -846,7 +846,7 @@ export default function DocMatrixPanel({
                             {getFormatShort(column.format)}
                           </span>
                           {column.prompt !== column.label && (
-                            <span className="truncate text-[10px] font-normal text-gray-400 dark:text-gray-500">
+                            <span className="truncate text-[10px] font-normal text-gray-500 dark:text-gray-500">
                               {column.prompt}
                             </span>
                           )}
@@ -871,7 +871,7 @@ export default function DocMatrixPanel({
                 );
               })}
               {/* Add query column — sticky top */}
-              <th className="p-3 border-r border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 bg-gray-100 dark:bg-gray-800">
+              <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 sticky top-0 z-20 bg-gray-100 dark:bg-gray-800">
                 <div className="flex gap-2 items-center">
                   <input
                     type="text"
@@ -917,19 +917,19 @@ export default function DocMatrixPanel({
                       createPortal(
                         <div
                           ref={templateRef}
-                          className="fixed w-96 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-[9999] max-h-[480px] overflow-y-auto"
+                          className="fixed w-96 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-300 dark:border-gray-700 z-[9999] max-h-[480px] overflow-y-auto"
                           style={{
                             top: dropdownPos.top,
                             left: dropdownPos.left,
                           }}
                         >
-                          <div className="p-2.5 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
+                          <div className="p-2.5 border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
                             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                               Column Templates
                             </span>
                           </div>
                           <div>
-                            <div className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 flex items-center gap-1.5 sticky top-10 z-[2] border-b border-gray-200 dark:border-gray-700">
+                            <div className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 flex items-center gap-1.5 sticky top-10 z-[2] border-b border-gray-300 dark:border-gray-700">
                               <span>PE</span>
                               Diligence columns
                             </div>
@@ -950,7 +950,7 @@ export default function DocMatrixPanel({
                                   <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                                     {preset.name}
                                   </span>
-                                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">
                                     {getFormatShort(preset.format)}
                                   </span>
                                 </div>
@@ -962,7 +962,7 @@ export default function DocMatrixPanel({
                           </div>
                           {QUERY_TEMPLATES.map((cat) => (
                             <div key={cat.name}>
-                              <div className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 flex items-center gap-1.5 sticky top-10 z-[2] border-b border-gray-200 dark:border-gray-700">
+                              <div className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 flex items-center gap-1.5 sticky top-10 z-[2] border-b border-gray-300 dark:border-gray-700">
                                 <span>{cat.icon}</span>
                                 {cat.name}
                               </div>
@@ -994,7 +994,7 @@ export default function DocMatrixPanel({
             {filteredDocuments.map((doc) => (
               <tr key={doc.doc_id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                 {/* Document name cell (sticky left) */}
-                <td className="p-3 font-medium border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 z-10 bg-white dark:bg-gray-900">
+                <td className="p-3 font-medium border-r border-b border-gray-300 dark:border-gray-700 sticky left-0 z-10 bg-white dark:bg-gray-900">
                   <div className="flex items-center gap-2.5">
                     <span
                       className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${fileTypeColor(
@@ -1018,7 +1018,7 @@ export default function DocMatrixPanel({
                       >
                         {doc.filename}
                       </button>
-                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 dark:text-gray-500">
                         <span>{doc.page_count} pg</span>
                       </div>
                     </div>
@@ -1066,7 +1066,7 @@ export default function DocMatrixPanel({
                   />
                 ))}
                 {/* Empty cell under add-query column */}
-                <td className="border-r border-b border-gray-200 dark:border-gray-700" />
+                <td className="border-r border-b border-gray-300 dark:border-gray-700" />
               </tr>
             ))}
           </tbody>
@@ -1312,7 +1312,7 @@ function DocColumnEditMenu({
         createPortal(
         <div
           ref={panelRef}
-          className="fixed z-[9999] rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+          className="fixed z-[9999] rounded-xl border border-gray-300 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
           style={{
             top: panelPos.top,
             left: panelPos.left,
@@ -1322,12 +1322,12 @@ function DocColumnEditMenu({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="sticky top-0 z-10 mb-1 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+          <div className="sticky top-0 z-10 mb-1 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
             <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Edit column</div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+              className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
               aria-label="Close column editor"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1350,7 +1350,7 @@ function DocColumnEditMenu({
                   : {}),
               });
             }}
-            className="mt-1 w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
           />
 
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1364,7 +1364,7 @@ function DocColumnEditMenu({
                     tags: event.target.value === "tag" ? draft.tags : [],
                   })
                 }
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
               >
                 {FORMAT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -1380,7 +1380,7 @@ function DocColumnEditMenu({
                 onChange={(event) => {
                   if (event.target.value) applyPreset(event.target.value);
                 }}
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
               >
                 <option value="">Choose...</option>
                 {PE_COLUMN_PRESETS.map((preset) => (
@@ -1395,7 +1395,7 @@ function DocColumnEditMenu({
           {draft.format === "tag" && (
             <div className="mt-3">
               <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Tags</label>
-              <div className="mt-1 flex min-h-[32px] flex-wrap gap-1 rounded-md border border-gray-200 px-2 py-1.5 dark:border-gray-700">
+              <div className="mt-1 flex min-h-[32px] flex-wrap gap-1 rounded-md border border-gray-300 px-2 py-1.5 dark:border-gray-700">
                 {draft.tags.map((tag, tagIdx) => (
                   <span
                     key={tag}
@@ -1417,7 +1417,7 @@ function DocColumnEditMenu({
                   onKeyDown={handleTagKeyDown}
                   onBlur={commitTag}
                   placeholder={draft.tags.length === 0 ? "Add tag..." : ""}
-                  className="min-w-[70px] flex-1 bg-transparent text-xs text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
+                  className="min-w-[70px] flex-1 bg-transparent text-xs text-gray-900 outline-none placeholder:text-gray-500 dark:text-gray-100"
                 />
               </div>
             </div>
@@ -1438,11 +1438,11 @@ function DocColumnEditMenu({
             rows={8}
             value={draft.prompt}
             onChange={(event) => updateDraft({ prompt: event.target.value })}
-            className="mt-1 w-full resize-none rounded-md border border-gray-200 bg-white px-2 py-2 text-xs leading-relaxed text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+            className="mt-1 w-full resize-none rounded-md border border-gray-300 bg-white px-2 py-2 text-xs leading-relaxed text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
           />
           </div>
 
-          <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+          <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
             <button
               type="button"
               onClick={() => {
@@ -1536,7 +1536,7 @@ function DocMatrixCell({
 
   if (!cell || cell.status === "idle") {
     return (
-      <td className="p-3 text-gray-400 dark:text-gray-600 text-sm border-r border-b border-gray-200 dark:border-gray-700">
+      <td className="p-3 text-gray-500 dark:text-gray-600 text-sm border-r border-b border-gray-300 dark:border-gray-700">
         &mdash;
       </td>
     );
@@ -1545,10 +1545,10 @@ function DocMatrixCell({
   // Loading with no content yet
   if (cell.status === "loading" && cleanAnswer.length === 0) {
     return (
-      <td className="p-3 border-r border-b border-gray-200 dark:border-gray-700">
+      <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-          <span className="text-xs text-gray-400 dark:text-gray-500">Analyzing...</span>
+          <span className="text-xs text-gray-500 dark:text-gray-500">Analyzing...</span>
         </div>
       </td>
     );
@@ -1558,7 +1558,7 @@ function DocMatrixCell({
   if (cell.status === "loading" && cleanAnswer.length > 0) {
     if (!cleanAnswer) {
       return (
-        <td className="p-3 border-r border-b border-gray-200 dark:border-gray-700 text-sm align-top max-w-xs">
+        <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-sm align-top max-w-xs">
           <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <div className="animate-pulse text-xs">Reasoning...</div>
           </div>
@@ -1566,7 +1566,7 @@ function DocMatrixCell({
       );
     }
     return (
-      <td className="p-3 border-r border-b border-gray-200 dark:border-gray-700 text-sm align-top max-w-xs">
+      <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-sm align-top max-w-xs">
         <div className="max-w-none text-gray-800 dark:text-gray-200 line-clamp-6">
           <AnswerText
             text={cleanAnswer}
@@ -1583,7 +1583,7 @@ function DocMatrixCell({
   // Error
   if (cell.status === "error") {
     return (
-      <td className="p-3 border-r border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-950/30 text-sm align-top group">
+      <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 bg-red-50 dark:bg-red-950/30 text-sm align-top group">
         <div className="flex items-start justify-between gap-2">
           <div className="text-red-700 dark:text-red-400 flex-1 min-w-0">
             {cell.answer}
@@ -1604,10 +1604,10 @@ function DocMatrixCell({
   // Complete
   const clampClass = expanded ? "" : "line-clamp-4";
   return (
-    <td className="p-3 border-r border-b border-gray-200 dark:border-gray-700 text-sm max-w-xs align-top group relative">
+    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-sm max-w-xs align-top group relative">
       <button
         onClick={onRetry}
-        className="absolute top-1.5 right-1.5 z-[1] inline-flex items-center justify-center w-6 h-6 rounded text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-1.5 right-1.5 z-[1] inline-flex items-center justify-center w-6 h-6 rounded text-gray-500 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 opacity-0 group-hover:opacity-100 transition-opacity"
         title="Re-run this question for this document"
         aria-label="Retry this cell"
       >
@@ -1639,8 +1639,8 @@ function DocMatrixCell({
       )}
 
       {nonNullCitations.length > 0 && (
-        <div className="mt-2 flex items-center gap-1.5 flex-wrap border-t border-gray-100 pt-2 dark:border-gray-800">
-          <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500">
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap border-t border-gray-200 pt-2 dark:border-gray-800">
+          <span className="text-[10px] font-medium text-gray-500 dark:text-gray-500">
             Sources
           </span>
           {nonNullCitations.map((citation, index) => {
@@ -1672,12 +1672,12 @@ function DocMatrixCell({
 
       {/* Model info */}
       {cell.model && (
-        <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-400 dark:text-gray-500">
+        <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-500">
           <span
             className={`px-1.5 py-0.5 rounded-full font-mono ${
               cell.fallback
                 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
             }`}
           >
             {cell.model}
@@ -1732,7 +1732,7 @@ function DocColumnHeaderLabel({
           </span>
         )}
       </div>
-      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <svg className="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
       </svg>
     </div>
@@ -1757,7 +1757,7 @@ const DocColumnSortMenu = forwardRef<
   return (
     <div
       ref={ref}
-      className="fixed w-44 bg-white rounded-lg shadow-2xl border border-gray-200 z-[9999] overflow-hidden"
+      className="fixed w-44 bg-white rounded-lg shadow-2xl border border-gray-300 z-[9999] overflow-hidden"
       style={{ top: pos.top, left: pos.left }}
     >
       <div>
@@ -1775,7 +1775,7 @@ const DocColumnSortMenu = forwardRef<
         </button>
       </div>
       {(isSortedAsc || isSortedDesc) && (
-        <div className="border-t border-gray-100 p-1 space-y-0.5">
+        <div className="border-t border-gray-200 p-1 space-y-0.5">
           <button
             onClick={onClear}
             className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
