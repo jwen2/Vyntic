@@ -232,6 +232,42 @@ Open **http://localhost:3100** (or `:3200` for dev) and sign in:
 
 Sample deals seed automatically with documents and are bound to the admin account.
 
+### Running natively (no Docker)
+
+Both services run directly if you have **Python 3.11+** and **Node 18+** installed.
+
+**Backend** — create `backend/.env` (not the project root — the backend reads `.env` relative to its own working directory):
+
+```bash
+GEMINI_API_KEY=your_api_key_here
+
+# Dev only: allows booting on the default JWT secret + admin password.
+# Never set in production.
+ALLOW_INSECURE_DEFAULTS=true
+```
+
+Everything else (SQLite path, ChromaDB dir, uploads dir) falls back to defaults under `backend/data/`. Then:
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\Activate.ps1     # Windows PowerShell (macOS/Linux: source .venv/bin/activate)
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+If `docling` isn't installed (it pulls heavy dependencies), PDF parsing automatically falls back to PyMuPDF — fine for local testing.
+
+**Frontend** — no `.env` needed; the Vite proxy targets `http://localhost:8000` by default:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the printed URL (default **http://localhost:5173**) and log in with the same credentials as above.
+
 ### Restarting after frontend changes
 
 Port 3100 serves a production build baked into the image, so changes require a rebuild:

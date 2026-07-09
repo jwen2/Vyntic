@@ -451,9 +451,13 @@ export default function DocMatrixPanel({
   const runQueryStream = useCallback(
     (
       columnId: string,
-      opts?: { docIds?: string[]; controllerKey?: string }
+      opts?: { docIds?: string[]; controllerKey?: string; column?: MatrixColumnConfig }
     ) => {
-      const column = columnById[columnId];
+      // Callers that just created or edited a column must pass it via
+      // opts.column — setColumns hasn't re-rendered yet, so the columnById
+      // lookup would miss (or return the stale prompt) and the fallback
+      // would send the column UUID to the LLM as the question.
+      const column = opts?.column ?? columnById[columnId];
       const prompt = column?.prompt || columnId;
       const docIds = opts?.docIds ?? documents.map((d) => d.doc_id);
       const controllerKey = opts?.controllerKey ?? columnId;
@@ -584,7 +588,7 @@ export default function DocMatrixPanel({
         }
         return next;
       });
-      runQueryStream(nextColumn.id);
+      runQueryStream(nextColumn.id, { column: nextColumn });
     },
     [columnById, documents, runQueryStream]
   );
@@ -657,7 +661,7 @@ export default function DocMatrixPanel({
         return updated;
       });
 
-      runQueryStream(column.id);
+      runQueryStream(column.id, { column });
     },
     [columns, documents, runQueryStream]
   );
@@ -685,7 +689,7 @@ export default function DocMatrixPanel({
         }
         return updated;
       });
-      runQueryStream(column.id);
+      runQueryStream(column.id, { column });
       setShowTemplates(false);
     },
     [columns, documents, runQueryStream]
@@ -1295,11 +1299,11 @@ function DocColumnEditMenu({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
-        className="p-0.5 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded opacity-0 group-hover:opacity-100 data-[open=true]:opacity-100 transition-opacity disabled:opacity-30"
+        className="p-0.5 text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 rounded disabled:opacity-30"
         data-open={open}
         title="Edit label, prompt, and format"
       >
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6h.01M12 12h.01M12 18h.01" />
         </svg>
       </button>

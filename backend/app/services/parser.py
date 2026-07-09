@@ -574,6 +574,7 @@ async def parse_excel(
     wb = openpyxl.load_workbook(BytesIO(file_bytes), data_only=True)
 
     sections = []
+    full_text_parts = []
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
         rows = list(ws.iter_rows(values_only=True))
@@ -609,12 +610,14 @@ async def parse_excel(
                 },
             )
         )
+        full_text_parts.append(content)
 
     metadata = DocumentMetadata(
         doc_id=doc_id,
         deal_id=deal_id,
         filename=filename,
         page_count=len(sections),
+        full_text_md="\n\n".join(full_text_parts) or None,
     )
 
     return metadata, sections
