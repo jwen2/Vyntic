@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import type { Citation } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
 import { citationReferenceLabel } from "@/lib/citationLabels";
-import { SEV_COLOR } from "./types";
+import { ACCENT, SEV_COLOR, tint } from "./types";
 import CitationSnippet from "./CitationSnippet";
 
 interface Props {
@@ -462,17 +462,15 @@ export function CitBadge({
           alignItems: "center",
           padding: "1px 6px",
           borderRadius: 4,
-          background: active
-            ? isDark ? "#1e3a8a" : "#dbeafe"
-            : isDark ? "#172554" : "#eff6ff",
-          border: `1px solid ${active ? (isDark ? "#3b82f6" : "#93c5fd") : (isDark ? "#1d4ed8" : "#bfdbfe")}`,
-          color: active ? (isDark ? "#bfdbfe" : "#1d4ed8") : (isDark ? "#93c5fd" : "#3b82f6"),
+          background: active ? "var(--accent-tint)" : tint(ACCENT, 8),
+          border: `1px solid ${active ? "var(--accent)" : "var(--accent-tint-border)"}`,
+          color: "var(--accent-strong)",
           fontSize: 10,
           fontWeight: 500,
           cursor: "pointer",
           margin: "0 1px",
           lineHeight: 1.4,
-          boxShadow: active ? `0 0 0 2px ${isDark ? "#1e40af" : "#bfdbfe"}` : "none",
+          boxShadow: active ? "0 0 0 2px var(--accent-tint-border)" : "none",
           transition: "all .15s",
         }}
       >
