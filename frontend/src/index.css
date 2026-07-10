@@ -8,15 +8,51 @@
   --landing-bg: #f3f3ee;
   --landing-surface: #ffffff;
   --landing-surface-alt: #ecece4;
-  --landing-border: #d6d6cc;
+  /* ~2.2:1 against white surfaces — panel edges must stay visible on
+     washed-out displays (was #d6d6cc at 1.46:1). */
+  --landing-border: #b0b0a3;
   --landing-text: #111111;
   --landing-muted: #5e5e57;
   --landing-inverse: #111111;
   --landing-inverse-text: #ffffff;
+  /* Cobalt accent scale — measured: #1d4ed8 6.7:1 w/ white, #1e40af 8.7:1 on white */
+  --accent: #1d4ed8;
+  --accent-strong: #1e40af;
+  --accent-tint: #e7edfb;
+  --accent-tint-border: #b6c6ee;
+  --on-accent: #ffffff;
+  /* Violet — the second semantic hue: tabular workflows, derived (vs
+     extracted) citations, KV cells. Coordinated with the IC Review badge
+     family. #6d28d9 = 7.1:1 on white (works as fill under white text too). */
+  --violet: #6d28d9;
+  --violet-tint: #f1eafd;
+  --violet-tint-border: #c4b0ea;
+  --on-violet: #ffffff;
+}
+
+/* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
+.dark {
+  --accent: #8ab4ff;
+  --accent-strong: #8ab4ff;
+  --accent-tint: rgba(138, 180, 255, 0.12);
+  --accent-tint-border: rgba(138, 180, 255, 0.35);
+  --on-accent: #0f0f0f;
+  /* #b19fdb: 7.6:1 on #171717. Tint/border mirror the accent's alpha idiom. */
+  --violet: #b19fdb;
+  --violet-tint: rgba(177, 159, 219, 0.12);
+  --violet-tint-border: rgba(177, 159, 219, 0.35);
+  --on-violet: #0f0f0f;
 }
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Keyboard-visible focus for every interactive element; the accent var flips
+   with the theme so the ring stays legible without per-component styles. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 body {

@@ -1,7 +1,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DocCoverage, Finding, FindingSeverity } from "./types";
-import { ACCENT, SEV_COLOR, ddTheme } from "./types";
+import { ACCENT, SEV_COLOR, ddTheme, tint } from "./types";
 
 interface Props {
   doc: DocCoverage;
@@ -215,7 +215,7 @@ export default function DocumentDetailView({
                 style={{
                   padding: "7px 14px",
                   background: prompt.trim() ? ACCENT : c.border,
-                  color: prompt.trim() ? "white" : c.t3,
+                  color: prompt.trim() ? "var(--on-accent)" : c.t3,
                   border: "none",
                   borderRadius: 6,
                   fontSize: 12,
@@ -232,7 +232,7 @@ export default function DocumentDetailView({
                   key={suggestion}
                   onClick={() => onAsk(suggestion)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = `${ACCENT}66`;
+                    e.currentTarget.style.borderColor = tint(ACCENT, 40);
                     e.currentTarget.style.color = c.t1;
                   }}
                   onMouseLeave={(e) => {
@@ -306,7 +306,7 @@ function FindingCard({
         }
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = `${ACCENT}66`;
+        e.currentTarget.style.borderColor = tint(ACCENT, 40);
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = isDealBreaker ? (isDark ? "#7f1d1d" : "#fecaca") : c.border;

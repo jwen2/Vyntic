@@ -1,6 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ddTheme } from "@/components/dd/types";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import type {
   OutputFormat,
   Workflow,
@@ -75,6 +76,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
   );
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (!activeStageUid && stages.length > 0) setActiveStageUid(stages[0].uid);
@@ -285,7 +287,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
               style={{
                 padding: "6px 14px",
                 background: ACCENT,
-                color: "white",
+                color: "var(--on-accent)",
                 border: "none",
                 borderRadius: 7,
                 fontSize: 12,
@@ -299,9 +301,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
           )}
           {props.mode === "edit" && props.onDelete && !isReadOnly && (
             <button
-              onClick={() => {
-                if (confirm("Delete this workflow? This cannot be undone.")) props.onDelete?.();
-              }}
+              onClick={() => setConfirmingDelete(true)}
               style={{
                 padding: "6px 12px",
                 background: "transparent",
@@ -401,7 +401,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
                     flex: 1,
                     padding: "5px 6px",
                     background: outputFormat === fmt ? ACCENT : "transparent",
-                    color: outputFormat === fmt ? "white" : c.t2,
+                    color: outputFormat === fmt ? "var(--on-accent)" : c.t2,
                     border: "none",
                     borderRadius: 5,
                     fontSize: 10,
@@ -571,6 +571,18 @@ export default function AssistantEditor(props: AssistantEditorProps) {
           </div>
         </div>
       </div>
+
+      {confirmingDelete && props.mode === "edit" && (
+        <ConfirmDialog
+          title="Delete Workflow"
+          message="Delete this workflow? This cannot be undone."
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            props.onDelete?.();
+          }}
+          onCancel={() => setConfirmingDelete(false)}
+        />
+      )}
     </div>
   );
 }
@@ -636,7 +648,7 @@ function StageRailItem({
           borderRadius: "50%",
           background: active ? ACCENT : "transparent",
           border: `1px solid ${active ? ACCENT : c.border}`,
-          color: active ? "white" : c.t2,
+          color: active ? "var(--on-accent)" : c.t2,
           fontSize: 11,
           fontWeight: 600,
           display: "flex",
@@ -754,7 +766,7 @@ function ToggleSwitch({
           left: on ? 18 : 2,
           width: 16,
           height: 16,
-          background: "white",
+          background: "var(--on-accent)",
           borderRadius: "50%",
           transition: "left .15s",
         }}

@@ -75,18 +75,30 @@ export const SEV_COLOR: Record<
   },
 };
 
-export const ACCENT = "#111111";
+export const ACCENT = "var(--accent)";
 
+/** Alpha wash via color-mix — works on hex AND var() strings (8-digit hex can't). */
+export function tint(color: string, alphaPct: number): string {
+  return `color-mix(in srgb, ${color} ${alphaPct}%, transparent)`;
+}
+
+// Border and t3 values are contrast-checked: borders ≥ ~1.8:1 against their
+// surface, t3 ≥ 4.5:1 (WCAG AA for the small uppercase labels it colors).
 export const DD_DARK = {
   bg: "#0f0f0f",
   surface: "#171717",
   surfaceAlt: "#111111",
-  border: "#2a2a2a",
-  borderLight: "#202020",
+  border: "#424242",
+  borderLight: "#2e2e2e",
   t1: "#f5f5f5",
   t2: "rgba(255,255,255,0.68)",
-  t3: "rgba(255,255,255,0.45)",
+  t3: "rgba(255,255,255,0.55)",
   t4: "#303030",
+  accent: "var(--accent)",
+  accentStrong: "var(--accent-strong)",
+  accentTint: "var(--accent-tint)",
+  accentTintBorder: "var(--accent-tint-border)",
+  onAccent: "var(--on-accent)",
 };
 
 export const DD_LIGHT = {
@@ -94,11 +106,16 @@ export const DD_LIGHT = {
   surface: "var(--landing-surface)",
   surfaceAlt: "var(--landing-surface-alt)",
   border: "var(--landing-border)",
-  borderLight: "#e5e5dc",
+  borderLight: "#d2d2c5",
   t1: "var(--landing-text)",
   t2: "var(--landing-muted)",
-  t3: "#8a8a80",
+  t3: "#6e6e66",
   t4: "#c8c8bd",
+  accent: "var(--accent)",
+  accentStrong: "var(--accent-strong)",
+  accentTint: "var(--accent-tint)",
+  accentTintBorder: "var(--accent-tint-border)",
+  onAccent: "var(--on-accent)",
 };
 
 export function ddTheme(theme: "light" | "dark") {

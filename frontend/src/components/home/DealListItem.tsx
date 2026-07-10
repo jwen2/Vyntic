@@ -2,31 +2,31 @@ import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
+import { STAGE_STYLES, DARK_STAGE_STYLES } from "@/lib/stageBadges";
 
-const STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Screening: { bg: "#f1f1ec", fg: "#5a5a54", border: "#d6d6cc" },
-  "Due Diligence": { bg: "#e6e6df", fg: "#3f3f3a", border: "#d0d0c6" },
-  "IC Review": { bg: "#dcdcd2", fg: "#252525", border: "#c9c9bf" },
-  Closed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
-  // Fund lifecycle stages
-  Diligence: { bg: "#e6e6df", fg: "#3f3f3a", border: "#d0d0c6" },
-  IC: { bg: "#dcdcd2", fg: "#252525", border: "#c9c9bf" },
-  Committed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
-  Monitoring: { bg: "#e8ede8", fg: "#2f4a2f", border: "#c9d6c9" },
-  "Re-up review": { bg: "#ede8e0", fg: "#5a4a2f", border: "#d6ccbc" },
+// Sector tags carry fixed hues (same contrast targets as the stage chips);
+// hues were picked to stay clear of the stage set so a card row never shows
+// two near-identical chips. Unknown tags fall back to the neutral chip.
+const SECTOR_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
+  Technology: { bg: "#e1edfa", fg: "#1b4d7e", border: "#7099c2" },
+  Healthcare: { bg: "#f8e2e7", fg: "#822638", border: "#b87a87" },
+  Industrials: { bg: "#e9eef2", fg: "#3a4d59", border: "#839daf" },
+  Consumer: { bg: "#f8e3f2", fg: "#7d2667", border: "#b67ca7" },
+  "Financial Services": { bg: "#e3f7ed", fg: "#1d583b", border: "#70a98c" },
+  Energy: { bg: "#faf5e1", fg: "#5d4e14", border: "#b19b43" },
+  "Real Estate": { bg: "#f9e7e2", fg: "#7a361f", border: "#bd8775" },
+  Infrastructure: { bg: "#eef5e5", fg: "#3f5223", border: "#8ea470" },
 };
 
-const DARK_STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Screening: { bg: "#1a1a1a", fg: "rgba(255,255,255,0.72)", border: "#2d2d2d" },
-  "Due Diligence": { bg: "#202020", fg: "#f5f5f5", border: "#303030" },
-  "IC Review": { bg: "#262626", fg: "#ffffff", border: "#343434" },
-  Closed: { bg: "#f5f5f5", fg: "#111111", border: "#f5f5f5" },
-  // Fund lifecycle stages
-  Diligence: { bg: "#202020", fg: "#f5f5f5", border: "#303030" },
-  IC: { bg: "#262626", fg: "#ffffff", border: "#343434" },
-  Committed: { bg: "#f5f5f5", fg: "#111111", border: "#f5f5f5" },
-  Monitoring: { bg: "#1c231c", fg: "#a8c5a8", border: "#2d3a2d" },
-  "Re-up review": { bg: "#231f18", fg: "#c5b596", border: "#3a3225" },
+const DARK_SECTOR_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
+  Technology: { bg: "#151c23", fg: "#89add2", border: "#2c3844" },
+  Healthcare: { bg: "#231518", fg: "#d897a4", border: "#442c31" },
+  Industrials: { bg: "#151d23", fg: "#85b1d1", border: "#2c3a44" },
+  Consumer: { bg: "#231520", fg: "#d694c6", border: "#442c3e" },
+  "Financial Services": { bg: "#15231c", fg: "#5cc18f", border: "#2c4438" },
+  Energy: { bg: "#232015", fg: "#c3af60", border: "#44402c" },
+  "Real Estate": { bg: "#231915", fg: "#d49e8c", border: "#44322c" },
+  Infrastructure: { bg: "#1d2315", fg: "#95c059", border: "#3a442c" },
 };
 const SECTOR_TAGS = [
   "Technology",
@@ -82,10 +82,11 @@ export default function DealListItem({
   const border = isDark ? "#262626" : "var(--landing-border)";
   const text = isDark ? "#f5f5f5" : "var(--landing-text)";
   const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
-  const selectedBg = isDark ? "#202020" : "#111111";
-  const selectedText = isDark ? "#ffffff" : "#ffffff";
-  const selectedMuted = isDark ? "rgba(255,255,255,0.62)" : "rgba(255,255,255,0.68)";
+  // Selection = accent tint wash + accent border (same idiom as the workspace);
+  // text stays at normal contrast on the wash, so no inverse overrides needed.
+  const selectedBg = "var(--accent-tint)";
   const stageMap = isDark ? DARK_STAGE_STYLES : STAGE_STYLES;
+  const sectorMap = isDark ? DARK_SECTOR_STYLES : SECTOR_STYLES;
   const stage =
     stageMap[deal.stage] || {
       bg: surfaceAlt,
@@ -102,14 +103,14 @@ export default function DealListItem({
       : hovered
         ? surfaceAlt
         : surface;
-  const cardText = selected ? selectedText : text;
-  const cardMuted = selected ? selectedMuted : muted;
+  const cardText = text;
+  const cardMuted = muted;
   const cardBorder = dragging
     ? isDark
       ? "#3a3a3a"
       : "#bdbdb3"
     : selected
-      ? selectedBg
+      ? "var(--accent)"
       : border;
 
   const handleDragEnter = (e: DragEvent) => {
@@ -213,9 +214,9 @@ export default function DealListItem({
               }}
               className="rounded-full border px-3 py-2 text-[10px] font-medium uppercase tracking-[0.12em]"
               style={{
-                borderColor: selected ? "rgba(255,255,255,0.2)" : border,
-                background: selected ? "rgba(255,255,255,0.08)" : surfaceAlt,
-                color: selected ? selectedText : cardText,
+                borderColor: selected ? "var(--accent)" : border,
+                background: selected ? "var(--accent)" : surfaceAlt,
+                color: selected ? "var(--on-accent)" : cardText,
               }}
             >
               Analyze
@@ -290,30 +291,37 @@ export default function DealListItem({
           )}
         </div>
 
-        {deal.tags.map((tag) => (
-          <button
-            key={tag}
-            type="button"
-            title={readOnly ? undefined : `Remove ${tag}`}
-            onClick={
-              readOnly
-                ? undefined
-                : () =>
-                    onUpdateDeal(deal.deal_id, {
-                      tags: deal.tags.filter((t) => t !== tag),
-                    })
-            }
-            className="rounded-full border px-3 py-1 text-[11px]"
-            style={{
-              background: selected ? "rgba(255,255,255,0.08)" : surfaceAlt,
-              color: cardMuted,
-              borderColor: selected ? "rgba(255,255,255,0.14)" : border,
-              cursor: readOnly ? "default" : "pointer",
-            }}
-          >
-            {tag}
-          </button>
-        ))}
+        {deal.tags.map((tag) => {
+          const sector = sectorMap[tag];
+          return (
+            <button
+              key={tag}
+              type="button"
+              title={readOnly ? undefined : `Remove ${tag}`}
+              onClick={
+                readOnly
+                  ? undefined
+                  : () =>
+                      onUpdateDeal(deal.deal_id, {
+                        tags: deal.tags.filter((t) => t !== tag),
+                      })
+              }
+              className="rounded-full border px-3 py-1 text-[11px]"
+              style={{
+                background: sector ? sector.bg : selected ? "transparent" : surfaceAlt,
+                color: sector ? sector.fg : cardMuted,
+                borderColor: sector
+                  ? sector.border
+                  : selected
+                    ? "var(--accent-tint-border)"
+                    : border,
+                cursor: readOnly ? "default" : "pointer",
+              }}
+            >
+              {tag}
+            </button>
+          );
+        })}
 
         {!readOnly && (
           <div style={{ position: "relative" }}>
@@ -327,7 +335,7 @@ export default function DealListItem({
               style={{
                 background: "transparent",
                 color: cardMuted,
-                borderColor: selected ? "rgba(255,255,255,0.18)" : border,
+                borderColor: selected ? "var(--accent-tint-border)" : border,
               }}
             >
               Add tag
@@ -356,9 +364,9 @@ export default function DealListItem({
         <div
           className="mt-4 rounded-2xl border border-dashed px-4 py-3 text-center text-sm"
           style={{
-            borderColor: selected ? "rgba(255,255,255,0.3)" : border,
+            borderColor: selected ? "var(--accent-tint-border)" : border,
             color: cardMuted,
-            background: selected ? "rgba(255,255,255,0.06)" : surfaceAlt,
+            background: selected ? "transparent" : surfaceAlt,
           }}
         >
           Drop PDF or Excel files here
@@ -379,7 +387,12 @@ export default function DealListItem({
                 fontSize: 10,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: cardMuted,
+                color:
+                  uploadProgress?.status === "error"
+                    ? isDark
+                      ? "#f87171"
+                      : "#dc2626"
+                    : cardMuted,
               }}
             >
               {uploadProgress?.stage || "Indexing"}
@@ -399,8 +412,8 @@ export default function DealListItem({
               width: "100%",
               overflow: "hidden",
               borderRadius: 999,
-              background: selected ? "rgba(255,255,255,0.08)" : surfaceAlt,
-              border: `1px solid ${selected ? "rgba(255,255,255,0.1)" : border}`,
+              background: surfaceAlt,
+              border: `1px solid ${selected ? "var(--accent-tint-border)" : border}`,
             }}
           >
             <div
@@ -410,14 +423,10 @@ export default function DealListItem({
                 borderRadius: 999,
                 background:
                   uploadProgress?.status === "error"
-                    ? "#7a7a7a"
-                    : uploadProgress?.status === "complete"
-                      ? isDark
-                        ? "#f5f5f5"
-                        : "#111111"
-                      : isDark
-                        ? "#bbbbbb"
-                        : "#444444",
+                    ? isDark
+                      ? "#f87171"
+                      : "#dc2626"
+                    : "var(--accent)",
                 transition: "width .25s ease",
               }}
             />
@@ -449,7 +458,7 @@ export default function DealListItem({
             style={{
               background: "transparent",
               color: cardMuted,
-              borderColor: selected ? "rgba(255,255,255,0.18)" : border,
+              borderColor: selected ? "var(--accent-tint-border)" : border,
             }}
           >
             Drop files here or click to upload
@@ -524,7 +533,7 @@ function MenuItem({
         width: "100%",
         textAlign: "left",
         padding: "8px 10px",
-        background: active ? "rgba(17,17,17,0.06)" : "transparent",
+        background: active ? "var(--accent-tint)" : "transparent",
         color: "inherit",
         border: "none",
         borderRadius: 12,

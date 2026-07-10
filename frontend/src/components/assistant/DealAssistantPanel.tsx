@@ -7,7 +7,7 @@ import {
 } from "@/lib/api";
 import AnswerText from "@/components/dd/AnswerText";
 import { useTheme } from "@/components/ThemeProvider";
-import { ACCENT, ddTheme } from "@/components/dd/types";
+import { ACCENT, ddTheme, tint } from "@/components/dd/types";
 
 type ChatMessage = {
   id: string;
@@ -357,7 +357,7 @@ export default function DealAssistantPanel({
                       gap: 5,
                       padding: "4px 8px",
                       borderRadius: 99,
-                      border: `1px solid ${selected ? `${ACCENT}88` : c.border}`,
+                      border: `1px solid ${selected ? tint(ACCENT, 53) : c.border}`,
                       background: selected ? (isDark ? "#1f1f1f" : "#f0f0e8") : c.surface,
                       color: selected ? ACCENT : c.t2,
                       fontSize: 11,
@@ -428,7 +428,7 @@ export default function DealAssistantPanel({
                   borderRadius: 8,
                   border: "none",
                   background: isStreaming || draft.trim() ? ACCENT : c.border,
-                  color: isStreaming || draft.trim() ? "white" : c.t3,
+                  color: isStreaming || draft.trim() ? "var(--on-accent)" : c.t3,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -501,7 +501,7 @@ function InitialAssistantState({
           margin: "0 auto 18px",
           borderRadius: 10,
           background: ACCENT,
-          color: "white",
+          color: "var(--on-accent)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -609,7 +609,6 @@ function ChatBubble({
 }) {
   const c = ddTheme(theme);
   const isUser = message.role === "user";
-  const isDark = theme === "dark";
 
   if (isUser) {
     return (
@@ -655,7 +654,7 @@ function ChatBubble({
         height: 28,
         borderRadius: 8,
         background: ACCENT,
-        color: "white",
+        color: "var(--on-accent)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

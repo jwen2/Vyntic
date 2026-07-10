@@ -10,6 +10,8 @@
 
 **Decision required before Task F2.4:** server-state library. Options: (a) **TanStack Query** (`@tanstack/react-query`) — caching, invalidation, dedup, retries, devtools; the standard answer; one new runtime dep. (b) Hand-rolled `useQuery`-shaped hook (zero deps, no cache sharing between components, we own the bugs). **Recommended: (a).** This is a new runtime dependency outside the current stack — confirm before implementing. If (b) is chosen, Task F2.4 shrinks to "extract shared fetch hooks" and the caching wins are foregone.
 
+> **DECIDED 2026-07-09: (a) TanStack Query.** Confirmed by Stanley in session — rationale: the hand-rolled `fetch → useState → useEffect` duplication (FE4) and most of the react-hooks `set-state-in-effect` warnings left from Plan F1 are exactly what it eliminates; the ~13kB dep is accepted.
+
 ---
 
 ## Findings addressed

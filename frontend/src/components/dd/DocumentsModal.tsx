@@ -2,7 +2,55 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DocumentMetadata } from "@/lib/api";
 import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
-import { ACCENT, ddTheme } from "./types";
+import { ACCENT, ddTheme, tint } from "./types";
+
+// The 14 doc categories collapse into three color families so a document's
+// type is scannable at a glance without 14 distinct hues. Reuses the
+// stage/severity chip trios (contrast-checked); "other" falls back to neutral.
+type CategoryFamily = "legal" | "financial" | "diligence" | "other";
+
+const CATEGORY_FAMILY: Record<string, CategoryFamily> = {
+  lpa: "legal",
+  side_letter: "legal",
+  form_adv: "legal",
+  valuation_policy: "legal",
+  financial_statements: "financial",
+  capital_account: "financial",
+  capital_call: "financial",
+  distribution_notice: "financial",
+  quarterly_report: "financial",
+  ddq: "diligence",
+  ppm: "diligence",
+  pitchbook: "diligence",
+  track_record: "diligence",
+  other: "other",
+};
+
+const FAMILY_STYLES: Record<
+  "light" | "dark",
+  Record<Exclude<CategoryFamily, "other">, { bg: string; fg: string; border: string }>
+> = {
+  light: {
+    legal: { bg: "#e9e3f8", fg: "#50309c", border: "#8e7cb6" },
+    financial: { bg: "#e4f6f3", fg: "#20554c", border: "#73a59d" },
+    diligence: { bg: "#f9f2e2", fg: "#624c18", border: "#b39a61" },
+  },
+  dark: {
+    legal: { bg: "#191523", fg: "#b19fdb", border: "#332c44" },
+    financial: { bg: "#152321", fg: "#59c0af", border: "#2c4440" },
+    diligence: { bg: "#231f15", fg: "#c7ab6b", border: "#443d2c" },
+  },
+};
+
+function categoryChipStyle(
+  category: string | null | undefined,
+  isDark: boolean,
+  neutral: { bg: string; fg: string; border: string }
+): { bg: string; fg: string; border: string } {
+  const family = CATEGORY_FAMILY[category || "other"] ?? "other";
+  if (family === "other") return neutral;
+  return FAMILY_STYLES[isDark ? "dark" : "light"][family];
+}
 
 // Compact document-management surface that replaces the Documents sidebar
 // from the retired Workstreams tab (PR #80). Opens from the TopBar; shows
@@ -217,9 +265,9 @@ export default function DocumentsModal({
                       padding: "4px 8px",
                       fontSize: 10,
                       fontWeight: 600,
-                      background: doc.scope === "manager" ? ACCENT + "22" : "transparent",
+                      background: doc.scope === "manager" ? tint(ACCENT, 13) : "transparent",
                       color: doc.scope === "manager" ? ACCENT : c.t3,
-                      border: `1px solid ${doc.scope === "manager" ? ACCENT + "66" : c.border}`,
+                      border: `1px solid ${doc.scope === "manager" ? tint(ACCENT, 40) : c.border}`,
                       borderRadius: 999,
                       cursor: "pointer",
                       whiteSpace: "nowrap",
@@ -227,6 +275,13 @@ export default function DocumentsModal({
                   >
                     {doc.scope === "manager" ? "Shared" : "This workspace"}
                   </button>
+                  {(() => {
+                    const chip = categoryChipStyle(doc.doc_category, isDark, {
+                      bg: c.surface,
+                      fg: c.t2,
+                      border: c.border,
+                    });
+                    return (
                   <select
                     value={doc.doc_category || "other"}
                     onChange={(e) => handleCategoryChange(doc, e.target.value)}
@@ -235,9 +290,10 @@ export default function DocumentsModal({
                       flexShrink: 0,
                       padding: "4px 6px",
                       fontSize: 11,
-                      background: c.surface,
-                      color: c.t2,
-                      border: `1px solid ${c.border}`,
+                      fontWeight: 600,
+                      background: chip.bg,
+                      color: chip.fg,
+                      border: `1px solid ${chip.border}`,
                       borderRadius: 6,
                       cursor: "pointer",
                       maxWidth: 150,
@@ -249,6 +305,8 @@ export default function DocumentsModal({
                       </option>
                     ))}
                   </select>
+                    );
+                  })()}
                   {confirming ? (
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <button

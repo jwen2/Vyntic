@@ -5,19 +5,16 @@
  */
 import type { WorkflowType } from "@/lib/workflows";
 
-export const VIOLET = "#5f5f57";
-export const ACCENT = "#111111";
+// The second semantic hue (tabular workflows, derived citations, KV cells).
+// Reads the themed token — flips to a light violet in dark mode like --accent,
+// so any *fill* using VIOLET must pair text with var(--on-violet).
+export const VIOLET = "var(--violet)";
+export const ACCENT = "var(--accent)";
 export const AMBER = "#f59e0b";
 export const GREEN = "#22c55e";
 export const RED = "#ef4444";
 
-/** With opacity suffix in 8-digit hex (browser-supported in Chrome/Safari/FF) */
-export function tint(hex: string, alphaPct: number): string {
-  const a = Math.round((alphaPct / 100) * 255)
-    .toString(16)
-    .padStart(2, "0");
-  return `${hex}${a}`;
-}
+export { tint } from "@/components/dd/types";
 
 export function workflowTypeColor(type: WorkflowType): string {
   return type === "assistant" ? ACCENT : VIOLET;

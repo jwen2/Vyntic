@@ -68,7 +68,7 @@ export default function WorkflowCard({
               height: 40,
               borderRadius: 14,
               background: workflow.type === "assistant" ? ACCENT : VIOLET,
-              color: "white",
+              color: workflow.type === "assistant" ? "var(--on-accent)" : "var(--on-violet)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",

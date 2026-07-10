@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type React from "react";
 import type { ConversationEntry } from "@/lib/api";
-import { ACCENT, ddTheme } from "./types";
+import { ACCENT, ddTheme, tint } from "./types";
 
 // LeftSidebar is now agent-only — the Workstreams tab (and its Documents +
 // Coverage sidebar block) was retired in PR #80. The sidebar still gates on
@@ -91,7 +91,7 @@ export default function LeftSidebar({
               borderRadius: 999,
               border: "none",
               background: ACCENT,
-              color: "white",
+              color: "var(--on-accent)",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
@@ -262,7 +262,7 @@ function AssistantHistoryRow({
         display: "block",
         padding: "12px 12px",
         background: bg,
-        border: `1px solid ${active ? `${ACCENT}33` : c.border}`,
+        border: `1px solid ${active ? tint(ACCENT, 20) : c.border}`,
         borderRadius: 18,
         cursor: "pointer",
         textAlign: "left",
@@ -277,7 +277,7 @@ function AssistantHistoryRow({
             height: 28,
             borderRadius: 10,
             background: active ? ACCENT : c.surfaceAlt,
-            color: active ? "white" : c.t2,
+            color: active ? "var(--on-accent)" : c.t2,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",

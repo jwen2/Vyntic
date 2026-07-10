@@ -95,12 +95,11 @@ export default function HomeTopBar({
       <div style={{ flex: 1 }} />
 
       <div className="hidden items-center gap-2 sm:flex">
-        <StatPill label="Deals" value={dealCount} muted={muted} text={text} chip={chip} chipBorder={chipBorder} />
+        <StatPill label="Deals" value={dealCount} muted={muted} chip={chip} chipBorder={chipBorder} />
         <StatPill
           label="Documents"
           value={documentTotal}
           muted={muted}
-          text={text}
           chip={chip}
           chipBorder={chipBorder}
         />
@@ -179,8 +178,8 @@ export default function HomeTopBar({
           className="hidden sm:block"
           style={{
             padding: "10px 16px",
-            background: isDark ? "#f5f5f5" : "#111111",
-            color: isDark ? "#111111" : "#ffffff",
+            background: "var(--accent)",
+            color: "var(--on-accent)",
             borderRadius: 999,
             fontSize: 12,
             fontWeight: 600,
@@ -250,14 +249,12 @@ function StatPill({
   label,
   value,
   muted,
-  text,
   chip,
   chipBorder,
 }: {
   label: string;
   value: number;
   muted: string;
-  text: string;
   chip: string;
   chipBorder: string;
 }) {
@@ -281,7 +278,8 @@ function StatPill({
       >
         {label}
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: text }}>{value}</div>
+      {/* Accent numeral: #1d4ed8 ≥ 6.5:1 on the light chip, #8ab4ff ≥ 8.4:1 on the dark one. */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>{value}</div>
     </div>
   );
 }

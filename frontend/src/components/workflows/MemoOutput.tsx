@@ -198,7 +198,7 @@ export default function MemoOutput({
           style={{
             padding: "5px 10px",
             background: ACCENT,
-            color: "white",
+            color: "var(--on-accent)",
             border: "none",
             borderRadius: 7,
             fontSize: 12,

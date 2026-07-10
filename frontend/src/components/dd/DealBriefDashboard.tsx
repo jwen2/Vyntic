@@ -424,7 +424,6 @@ export default function DealBriefDashboard({
   }, []);
 
   const {
-    workflow,
     run,
     scanWorkstream,
     scanResults,
@@ -700,7 +699,7 @@ export default function DealBriefDashboard({
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "white",
+                  color: "var(--on-accent)",
                   background: ACCENT,
                   border: "none",
                   borderRadius: 999,
@@ -919,7 +918,7 @@ function EmptyBrief({ theme, onOpenProactiveScan }: { theme: "light" | "dark"; o
           style={{
             fontSize: 13,
             fontWeight: 600,
-            color: "white",
+            color: "var(--on-accent)",
             background: ACCENT,
             border: "none",
             borderRadius: 999,
@@ -1254,7 +1253,7 @@ function SegmentedTabs({
               padding: "6px 10px",
               fontSize: 10,
               fontWeight: 700,
-              color: option.disabled ? c.t4 : active ? "white" : c.t2,
+              color: option.disabled ? c.t4 : active ? "var(--on-accent)" : c.t2,
               background: active ? ACCENT : "transparent",
               cursor: option.disabled ? "default" : "pointer",
             }}
@@ -1679,7 +1678,7 @@ function SourceChip({ citation, index, onClick }: { citation?: Citation | null; 
         padding: "2px 6px",
         fontSize: 9,
         fontWeight: 700,
-        color: "white",
+        color: "var(--on-accent)",
         background: ACCENT,
         border: "none",
         borderRadius: 999,
@@ -1802,7 +1801,7 @@ function FreshnessPill({ at, theme }: { at: number; theme: "light" | "dark" }) {
   );
 }
 
-function DiffPill({ count, theme, onClick, active }: { count: number; theme: "light" | "dark"; onClick: () => void; active: boolean }) {
+function DiffPill({ count, onClick, active }: { count: number; theme: "light" | "dark"; onClick: () => void; active: boolean }) {
   const accent = active ? "#2a2a2a" : "#111111";
   return (
     <button

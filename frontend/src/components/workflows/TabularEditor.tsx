@@ -1,6 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ddTheme } from "@/components/dd/types";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   type ColumnFormat,
   getFormatShort,
@@ -111,6 +112,7 @@ export default function TabularEditor(props: TabularEditorProps) {
   );
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (!activeColumnUid && columns.length > 0) setActiveColumnUid(columns[0].uid);
@@ -341,7 +343,7 @@ export default function TabularEditor(props: TabularEditorProps) {
               style={{
                 padding: "6px 14px",
                 background: VIOLET,
-                color: "white",
+                color: "var(--on-violet)",
                 border: "none",
                 borderRadius: 7,
                 fontSize: 12,
@@ -355,9 +357,7 @@ export default function TabularEditor(props: TabularEditorProps) {
           )}
           {props.mode === "edit" && props.onDelete && !isReadOnly && (
             <button
-              onClick={() => {
-                if (confirm("Delete this workflow? This cannot be undone.")) props.onDelete?.();
-              }}
+              onClick={() => setConfirmingDelete(true)}
               style={{
                 padding: "6px 12px",
                 background: "transparent",
@@ -422,7 +422,7 @@ export default function TabularEditor(props: TabularEditorProps) {
                     flex: 1,
                     padding: "5px 8px",
                     background: rowSource === opt.v ? VIOLET : "transparent",
-                    color: rowSource === opt.v ? "white" : c.t2,
+                    color: rowSource === opt.v ? "var(--on-violet)" : c.t2,
                     border: "none",
                     borderRadius: 5,
                     fontSize: 11,
@@ -704,6 +704,18 @@ export default function TabularEditor(props: TabularEditorProps) {
           )}
         </div>
       </div>
+
+      {confirmingDelete && props.mode === "edit" && (
+        <ConfirmDialog
+          title="Delete Workflow"
+          message="Delete this workflow? This cannot be undone."
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            props.onDelete?.();
+          }}
+          onCancel={() => setConfirmingDelete(false)}
+        />
+      )}
     </div>
   );
 }

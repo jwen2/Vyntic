@@ -302,7 +302,7 @@ export default function DocumentSelectorModal({
               style={{
                 padding: "6px 14px",
                 background: !canRun ? c.surfaceAlt : ACCENT,
-                color: !canRun ? c.t3 : "white",
+                color: !canRun ? c.t3 : "var(--on-accent)",
                 border: "none",
                 borderRadius: 7,
                 fontSize: 12,
@@ -323,7 +323,7 @@ function smallBtnStyle(c: ReturnType<typeof ddTheme>, primary: boolean): React.C
   return {
     padding: "5px 10px",
     background: primary ? ACCENT : c.surfaceAlt,
-    color: primary ? "white" : c.t2,
+    color: primary ? "var(--on-accent)" : c.t2,
     border: `1px solid ${c.border}`,
     borderRadius: 6,
     fontSize: 11,

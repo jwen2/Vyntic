@@ -1,6 +1,7 @@
 
 import type React from "react";
 import type { Deal } from "@/lib/api";
+import { stageBadge } from "@/lib/stageBadges";
 import { ACCENT, ddTheme } from "./types";
 
 export type DealWorkspaceMode = "agent" | "workflows" | "brief";
@@ -64,12 +65,12 @@ export default function TopBar({
             style={{
               width: 34,
               height: 34,
-              background: isDark ? "#f5f5f5" : ACCENT,
+              background: isDark ? "#f5f5f5" : "#111111",
               borderRadius: 12,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: isDark ? ACCENT : "white",
+              color: isDark ? "#111111" : "white",
               fontWeight: 700,
               fontSize: 14,
             }}
@@ -225,22 +226,30 @@ export default function TopBar({
                 {deal.vintage}
               </span>
             )}
-            <span
-              className="font-mono-plex"
-              style={{
-                fontSize: 10,
-                padding: "4px 10px",
-                borderRadius: 999,
-                background: chip,
-                color: c.t2,
-                border: `1px solid ${c.border}`,
-                whiteSpace: "nowrap",
-                textTransform: "uppercase",
-                letterSpacing: "0.12em",
-              }}
-            >
-              {deal.stage}
-            </span>
+            {(() => {
+              // Same hued stage chip as the home deal list, so a stage keeps
+              // its color when the deal opens in the workspace. Unknown stages
+              // fall back to the neutral chip.
+              const badge = stageBadge(deal.stage, isDark);
+              return (
+                <span
+                  className="font-mono-plex"
+                  style={{
+                    fontSize: 10,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    background: badge ? badge.bg : chip,
+                    color: badge ? badge.fg : c.t2,
+                    border: `1px solid ${badge ? badge.border : c.border}`,
+                    whiteSpace: "nowrap",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  {deal.stage}
+                </span>
+              );
+            })()}
           </div>
         </div>
 
@@ -357,7 +366,7 @@ function ModeSegmentedControl({
             fontSize: 12,
             fontWeight: 600,
             background: mode === item.key ? ACCENT : "transparent",
-            color: mode === item.key ? "white" : c.t2,
+            color: mode === item.key ? "var(--on-accent)" : c.t2,
             border: "none",
             borderRadius: 999,
             cursor: "pointer",

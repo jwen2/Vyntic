@@ -138,8 +138,8 @@ export default function FlagItem({ f, active, onSelect, onStatus, onNote }: Prop
               color: "#cbd5e1",
               marginTop: 5,
               padding: "4px 6px",
-              background: "rgba(59,130,246,.08)",
-              borderLeft: "2px solid #3b82f6",
+              background: "color-mix(in srgb, var(--accent) 8%, transparent)",
+              borderLeft: "2px solid var(--accent)",
               borderRadius: 2,
               fontStyle: "italic",
             }}
@@ -236,8 +236,8 @@ export default function FlagItem({ f, active, onSelect, onStatus, onNote }: Prop
                 style={{
                   padding: "3px 8px",
                   fontSize: 10,
-                  background: "#2563eb",
-                  color: "white",
+                  background: "var(--accent)",
+                  color: "var(--on-accent)",
                   border: "none",
                   borderRadius: 4,
                   cursor: "pointer",

@@ -1,6 +1,6 @@
 /**
- * Pre-built PE deal analysis question templates used by the legacy matrix
- * comparison view (DocMatrixPanel, MatrixGrid).
+ * Pre-built PE deal analysis question templates used by the matrix
+ * comparison view (DocMatrixPanel).
  *
  * NOTE: The DD workstream packs (Financial / Commercial / Operational / Legal /
  * Risk / Proactive Scan) used to live here as `DD_WORKSTREAMS`. They were

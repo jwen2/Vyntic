@@ -4,7 +4,7 @@ import { ddTheme } from "@/components/dd/types";
 import type { Citation } from "@/lib/api";
 import type { ColumnFormat } from "@/lib/matrixColumnConfig";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
-import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "../theme";
+import { ACCENT, AMBER, GREEN, VIOLET, tint } from "../theme";
 import CellRenderer from "./CellRenderer";
 
 type Theme = "light" | "dark";

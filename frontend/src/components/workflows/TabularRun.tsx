@@ -492,7 +492,7 @@ export default function TabularRun({
           style={{
             padding: "6px 12px",
             background: ACCENT,
-            color: "white",
+            color: "var(--on-accent)",
             border: "none",
             borderRadius: 6,
             fontSize: 12,
@@ -608,7 +608,7 @@ export default function TabularRun({
                 padding: "5px 10px",
                 background: ACCENT,
                 border: "none",
-                color: "white",
+                color: "var(--on-accent)",
                 borderRadius: 7,
                 fontSize: 12,
                 fontWeight: 600,
@@ -1052,79 +1052,6 @@ function RetryIcon({ spinning = false }: { spinning?: boolean }) {
     >
       <path d="M4 4v6h6M20 20v-6h-6M5.07 9A8 8 0 0119.93 9M18.93 15A8 8 0 014.07 15" />
     </svg>
-  );
-}
-
-function DisplayValue({
-  value,
-  column,
-  theme,
-  hasSource,
-}: {
-  value: string;
-  column: WorkflowColumn;
-  theme: Theme;
-  hasSource?: boolean;
-}) {
-  const c = ddTheme(theme);
-  const label = value || "";
-  const lower = label.toLowerCase();
-  const pill =
-    lower === "yes"
-      ? { bg: tint(GREEN, 20), fg: GREEN }
-      : lower === "no"
-        ? { bg: tint(RED, 16), fg: RED }
-        : lower === "high"
-          ? { bg: tint(RED, 16), fg: RED }
-          : lower === "medium"
-            ? { bg: tint(AMBER, 16), fg: AMBER }
-            : lower === "low"
-              ? { bg: tint(GREEN, 20), fg: GREEN }
-              : null;
-  if (pill && label) {
-    return (
-      <span
-        style={{
-          display: "inline-flex",
-          maxWidth: "100%",
-          padding: "2px 8px",
-          borderRadius: 4,
-          fontSize: 10,
-          fontWeight: 700,
-          background: pill.bg,
-          color: pill.fg,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </span>
-    );
-  }
-  const muted = !label || lower === "n/a" || lower === "na" || lower === "not disclosed";
-  return (
-    <span
-      style={{
-        display: "block",
-        color: muted ? c.t3 : c.t1,
-        maxWidth: 220,
-        minHeight: 13,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-        fontFamily:
-          column.format === "number" ||
-          column.format === "percentage" ||
-          column.format === "monetary_amount" ||
-          column.format === "metric"
-            ? "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
-            : "inherit",
-        fontVariantNumeric: "tabular-nums",
-        textDecoration: hasSource ? `underline dotted ${tint(ACCENT, 45)}` : "none",
-        textUnderlineOffset: 3,
-      }}
-    >
-      {label}
-    </span>
   );
 }
 
@@ -1765,7 +1692,7 @@ function cellBodyStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
 }
 
 /** Renders a placeholder for non-complete cells (queued / running / error).
- * Complete cells are delegated to MatrixCell which renders its own <td>. */
+ * Complete cells are delegated to CellRenderer. */
 function PlaceholderCell({
   cell,
   theme,
@@ -1841,7 +1768,7 @@ function ColResizeHandle({
         width: 6,
         cursor: "col-resize",
         userSelect: "none",
-        background: active ? "rgba(59, 130, 246, 0.55)" : "transparent",
+        background: active ? "var(--accent)" : "transparent",
         transition: "background 120ms",
         zIndex: 5,
       }}
@@ -2215,7 +2142,7 @@ function ColumnEditMenu({
                   border: "none",
                   borderRadius: 7,
                   background: ACCENT,
-                  color: "white",
+                  color: "var(--on-accent)",
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: saving ? "wait" : "pointer",

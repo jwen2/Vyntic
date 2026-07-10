@@ -13,7 +13,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
           style={{
             width: 28,
             height: 28,
-            border: "3px solid #2563eb",
+            border: "3px solid var(--accent)",
             borderTopColor: "transparent",
             borderRadius: "50%",
           }}
