@@ -2,37 +2,7 @@ import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
-
-// Badge palette is contrast-checked in both themes: label ≥ 7.3:1 against its
-// chip background, light chip border ≥ 2.7:1 against the white card. Each stage
-// keeps a distinct hue (teal → cobalt → violet as the deal advances; inverse ink
-// stays the terminal-state marker) so the row reads colorful without any pair
-// relying on color alone — every chip is text-labeled.
-const STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Screening: { bg: "#e4f6f3", fg: "#20554c", border: "#73a59d" },
-  "Due Diligence": { bg: "#e1e7fa", fg: "#21429c", border: "#6e85c4" },
-  "IC Review": { bg: "#e9e3f8", fg: "#50309c", border: "#8e7cb6" },
-  Closed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
-  // Fund lifecycle stages
-  Diligence: { bg: "#e1e7fa", fg: "#21429c", border: "#6e85c4" },
-  IC: { bg: "#e9e3f8", fg: "#50309c", border: "#8e7cb6" },
-  Committed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
-  Monitoring: { bg: "#e5f6e7", fg: "#23582c", border: "#76a77e" },
-  "Re-up review": { bg: "#f9f2e2", fg: "#624c18", border: "#b39a61" },
-};
-
-const DARK_STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Screening: { bg: "#152321", fg: "#59c0af", border: "#2c4440" },
-  "Due Diligence": { bg: "#151923", fg: "#97a9d8", border: "#2c3244" },
-  "IC Review": { bg: "#191523", fg: "#b19fdb", border: "#332c44" },
-  Closed: { bg: "#f5f5f5", fg: "#111111", border: "#f5f5f5" },
-  // Fund lifecycle stages
-  Diligence: { bg: "#151923", fg: "#97a9d8", border: "#2c3244" },
-  IC: { bg: "#191523", fg: "#b19fdb", border: "#332c44" },
-  Committed: { bg: "#f5f5f5", fg: "#111111", border: "#f5f5f5" },
-  Monitoring: { bg: "#152317", fg: "#60c370", border: "#2c4430" },
-  "Re-up review": { bg: "#231f15", fg: "#c7ab6b", border: "#443d2c" },
-};
+import { STAGE_STYLES, DARK_STAGE_STYLES } from "@/lib/stageBadges";
 
 // Sector tags carry fixed hues (same contrast targets as the stage chips);
 // hues were picked to stay clear of the stage set so a card row never shows
@@ -417,7 +387,12 @@ export default function DealListItem({
                 fontSize: 10,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: cardMuted,
+                color:
+                  uploadProgress?.status === "error"
+                    ? isDark
+                      ? "#f87171"
+                      : "#dc2626"
+                    : cardMuted,
               }}
             >
               {uploadProgress?.stage || "Indexing"}
@@ -448,7 +423,9 @@ export default function DealListItem({
                 borderRadius: 999,
                 background:
                   uploadProgress?.status === "error"
-                    ? "#7a7a7a"
+                    ? isDark
+                      ? "#f87171"
+                      : "#dc2626"
                     : "var(--accent)",
                 transition: "width .25s ease",
               }}
