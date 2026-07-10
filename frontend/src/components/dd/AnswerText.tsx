@@ -316,7 +316,7 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
         // table
         return (
           <div key={idx} style={{ overflowX: "auto", margin: "10px 0" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
                 <tr>
                   {b.heads.map((h, j) => (

@@ -94,6 +94,10 @@ export const DD_DARK = {
   t2: "rgba(255,255,255,0.68)",
   t3: "rgba(255,255,255,0.55)",
   t4: "#303030",
+  // Data-grid separation: zebra = alternating body row; gridHeader = the
+  // column-header fill (a second scanning channel beyond the 1px gridline).
+  zebra: "#1c1c1c",
+  gridHeader: "#202020",
   accent: "var(--accent)",
   accentStrong: "var(--accent-strong)",
   accentTint: "var(--accent-tint)",
@@ -111,6 +115,8 @@ export const DD_LIGHT = {
   t2: "var(--landing-muted)",
   t3: "#6e6e66",
   t4: "#c8c8bd",
+  zebra: "#f6f5ef",
+  gridHeader: "#e5e3d8",
   accent: "var(--accent)",
   accentStrong: "var(--accent-strong)",
   accentTint: "var(--accent-tint)",

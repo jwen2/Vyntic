@@ -57,7 +57,9 @@ export default function WorkflowCard({
         flexDirection: "column",
         gap: 14,
         minHeight: 272,
-        boxShadow: isDark ? "0 16px 30px rgba(0,0,0,0.18)" : "0 16px 30px rgba(17,17,17,0.04)",
+        boxShadow: isDark
+          ? "0 14px 30px rgba(0,0,0,0.42)"
+          : "0 10px 26px rgba(17,17,17,0.11), 0 1px 2px rgba(17,17,17,0.05)",
       }}
     >
       <div className="flex items-start justify-between gap-3">
