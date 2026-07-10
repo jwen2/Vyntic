@@ -62,6 +62,7 @@ export default function DealWorkspacePage() {
   const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
   const c = ddTheme(theme);
+  const isDark = theme === "dark";
 
   const [mode, setMode] = useState<DealWorkspaceMode>("agent");
   const [selectedAssistantEntryId, setSelectedAssistantEntryId] = useState<string | null>(null);
@@ -245,9 +246,9 @@ export default function DealWorkspacePage() {
             gap: 12,
             padding: "8px 16px",
             fontSize: 12,
-            color: "#dc2626",
-            background: c.surface,
-            borderBottom: `1px solid ${c.border}`,
+            color: isDark ? "#fca5a5" : "#9a2e23",
+            background: isDark ? "#2a1212" : "#fff1f2",
+            borderBottom: `1px solid ${isDark ? "#4b1919" : "#f0c2bd"}`,
           }}
         >
           <span>
@@ -268,9 +269,9 @@ export default function DealWorkspacePage() {
             style={{
               padding: "2px 10px",
               borderRadius: 999,
-              border: `1px solid ${c.border}`,
+              border: `1px solid ${isDark ? "#4b1919" : "#f0c2bd"}`,
               background: "transparent",
-              color: c.t1,
+              color: "inherit",
               fontSize: 12,
               cursor: "pointer",
             }}

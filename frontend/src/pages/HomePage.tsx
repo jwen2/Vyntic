@@ -189,9 +189,9 @@ export default function HomePage() {
         <div
           className="border-b px-4 py-3 text-sm font-medium sm:px-5"
           style={{
-            background: isDark ? "#1a1a1a" : "#efefe7",
-            borderBottomColor: border,
-            color: text,
+            background: isDark ? "#2a1212" : "#fff1f2",
+            borderBottomColor: isDark ? "#4b1919" : "#f0c2bd",
+            color: isDark ? "#fca5a5" : "#9a2e23",
             flexShrink: 0,
           }}
         >
