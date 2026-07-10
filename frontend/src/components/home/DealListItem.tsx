@@ -3,33 +3,60 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
 
-// Light badge palette is contrast-checked: label ≥ 7.7:1 against its chip
-// background, chip border ≥ 2.6:1 against the white card, and the tint still
-// darkens as the stage progresses (Screening lightest → IC darkest → inverse).
+// Badge palette is contrast-checked in both themes: label ≥ 7.3:1 against its
+// chip background, light chip border ≥ 2.7:1 against the white card. Each stage
+// keeps a distinct hue (teal → cobalt → violet as the deal advances; inverse ink
+// stays the terminal-state marker) so the row reads colorful without any pair
+// relying on color alone — every chip is text-labeled.
 const STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Screening: { bg: "#efefe8", fg: "#4a4a42", border: "#a0a091" },
-  "Due Diligence": { bg: "#e3e3d8", fg: "#33332c", border: "#8f8f80" },
-  "IC Review": { bg: "#d6d6c8", fg: "#1c1c18", border: "#7d7d6e" },
+  Screening: { bg: "#e4f6f3", fg: "#20554c", border: "#73a59d" },
+  "Due Diligence": { bg: "#e1e7fa", fg: "#21429c", border: "#6e85c4" },
+  "IC Review": { bg: "#e9e3f8", fg: "#50309c", border: "#8e7cb6" },
   Closed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
   // Fund lifecycle stages
-  Diligence: { bg: "#e3e3d8", fg: "#33332c", border: "#8f8f80" },
-  IC: { bg: "#d6d6c8", fg: "#1c1c18", border: "#7d7d6e" },
+  Diligence: { bg: "#e1e7fa", fg: "#21429c", border: "#6e85c4" },
+  IC: { bg: "#e9e3f8", fg: "#50309c", border: "#8e7cb6" },
   Committed: { bg: "#111111", fg: "#ffffff", border: "#111111" },
-  Monitoring: { bg: "#e2eae2", fg: "#274427", border: "#7f9a7f" },
-  "Re-up review": { bg: "#ece4d2", fg: "#523f1b", border: "#a8905c" },
+  Monitoring: { bg: "#e5f6e7", fg: "#23582c", border: "#76a77e" },
+  "Re-up review": { bg: "#f9f2e2", fg: "#624c18", border: "#b39a61" },
 };
 
 const DARK_STAGE_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Screening: { bg: "#1a1a1a", fg: "rgba(255,255,255,0.72)", border: "#2d2d2d" },
-  "Due Diligence": { bg: "#202020", fg: "#f5f5f5", border: "#303030" },
-  "IC Review": { bg: "#262626", fg: "#ffffff", border: "#343434" },
+  Screening: { bg: "#152321", fg: "#59c0af", border: "#2c4440" },
+  "Due Diligence": { bg: "#151923", fg: "#97a9d8", border: "#2c3244" },
+  "IC Review": { bg: "#191523", fg: "#b19fdb", border: "#332c44" },
   Closed: { bg: "#f5f5f5", fg: "#111111", border: "#f5f5f5" },
   // Fund lifecycle stages
-  Diligence: { bg: "#202020", fg: "#f5f5f5", border: "#303030" },
-  IC: { bg: "#262626", fg: "#ffffff", border: "#343434" },
+  Diligence: { bg: "#151923", fg: "#97a9d8", border: "#2c3244" },
+  IC: { bg: "#191523", fg: "#b19fdb", border: "#332c44" },
   Committed: { bg: "#f5f5f5", fg: "#111111", border: "#f5f5f5" },
-  Monitoring: { bg: "#1c231c", fg: "#a8c5a8", border: "#2d3a2d" },
-  "Re-up review": { bg: "#231f18", fg: "#c5b596", border: "#3a3225" },
+  Monitoring: { bg: "#152317", fg: "#60c370", border: "#2c4430" },
+  "Re-up review": { bg: "#231f15", fg: "#c7ab6b", border: "#443d2c" },
+};
+
+// Sector tags carry fixed hues (same contrast targets as the stage chips);
+// hues were picked to stay clear of the stage set so a card row never shows
+// two near-identical chips. Unknown tags fall back to the neutral chip.
+const SECTOR_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
+  Technology: { bg: "#e1edfa", fg: "#1b4d7e", border: "#7099c2" },
+  Healthcare: { bg: "#f8e2e7", fg: "#822638", border: "#b87a87" },
+  Industrials: { bg: "#e9eef2", fg: "#3a4d59", border: "#839daf" },
+  Consumer: { bg: "#f8e3f2", fg: "#7d2667", border: "#b67ca7" },
+  "Financial Services": { bg: "#e3f7ed", fg: "#1d583b", border: "#70a98c" },
+  Energy: { bg: "#faf5e1", fg: "#5d4e14", border: "#b19b43" },
+  "Real Estate": { bg: "#f9e7e2", fg: "#7a361f", border: "#bd8775" },
+  Infrastructure: { bg: "#eef5e5", fg: "#3f5223", border: "#8ea470" },
+};
+
+const DARK_SECTOR_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
+  Technology: { bg: "#151c23", fg: "#89add2", border: "#2c3844" },
+  Healthcare: { bg: "#231518", fg: "#d897a4", border: "#442c31" },
+  Industrials: { bg: "#151d23", fg: "#85b1d1", border: "#2c3a44" },
+  Consumer: { bg: "#231520", fg: "#d694c6", border: "#442c3e" },
+  "Financial Services": { bg: "#15231c", fg: "#5cc18f", border: "#2c4438" },
+  Energy: { bg: "#232015", fg: "#c3af60", border: "#44402c" },
+  "Real Estate": { bg: "#231915", fg: "#d49e8c", border: "#44322c" },
+  Infrastructure: { bg: "#1d2315", fg: "#95c059", border: "#3a442c" },
 };
 const SECTOR_TAGS = [
   "Technology",
@@ -89,6 +116,7 @@ export default function DealListItem({
   // text stays at normal contrast on the wash, so no inverse overrides needed.
   const selectedBg = "var(--accent-tint)";
   const stageMap = isDark ? DARK_STAGE_STYLES : STAGE_STYLES;
+  const sectorMap = isDark ? DARK_SECTOR_STYLES : SECTOR_STYLES;
   const stage =
     stageMap[deal.stage] || {
       bg: surfaceAlt,
@@ -293,30 +321,37 @@ export default function DealListItem({
           )}
         </div>
 
-        {deal.tags.map((tag) => (
-          <button
-            key={tag}
-            type="button"
-            title={readOnly ? undefined : `Remove ${tag}`}
-            onClick={
-              readOnly
-                ? undefined
-                : () =>
-                    onUpdateDeal(deal.deal_id, {
-                      tags: deal.tags.filter((t) => t !== tag),
-                    })
-            }
-            className="rounded-full border px-3 py-1 text-[11px]"
-            style={{
-              background: selected ? "transparent" : surfaceAlt,
-              color: cardMuted,
-              borderColor: selected ? "var(--accent-tint-border)" : border,
-              cursor: readOnly ? "default" : "pointer",
-            }}
-          >
-            {tag}
-          </button>
-        ))}
+        {deal.tags.map((tag) => {
+          const sector = sectorMap[tag];
+          return (
+            <button
+              key={tag}
+              type="button"
+              title={readOnly ? undefined : `Remove ${tag}`}
+              onClick={
+                readOnly
+                  ? undefined
+                  : () =>
+                      onUpdateDeal(deal.deal_id, {
+                        tags: deal.tags.filter((t) => t !== tag),
+                      })
+              }
+              className="rounded-full border px-3 py-1 text-[11px]"
+              style={{
+                background: sector ? sector.bg : selected ? "transparent" : surfaceAlt,
+                color: sector ? sector.fg : cardMuted,
+                borderColor: sector
+                  ? sector.border
+                  : selected
+                    ? "var(--accent-tint-border)"
+                    : border,
+                cursor: readOnly ? "default" : "pointer",
+              }}
+            >
+              {tag}
+            </button>
+          );
+        })}
 
         {!readOnly && (
           <div style={{ position: "relative" }}>

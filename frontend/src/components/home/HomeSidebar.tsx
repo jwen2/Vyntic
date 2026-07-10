@@ -152,7 +152,7 @@ export default function HomeSidebar({
             >
               Total
             </div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: text }}>{deals.length}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)" }}>{deals.length}</div>
           </div>
         </div>
       </div>
