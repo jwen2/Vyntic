@@ -94,9 +94,9 @@ export default function WorkflowCard({
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <WorkflowBadge
                 label={workflow.type === "assistant" ? "Assistant workflow" : "Tabular workflow"}
-                color={workflow.is_builtin ? c.t2 : typeColor}
-                background={workflow.is_builtin ? c.surfaceAlt : tint(typeColor, 10)}
-                border={workflow.is_builtin ? c.border : tint(typeColor, 22)}
+                color={typeColor}
+                background={tint(typeColor, 10)}
+                border={tint(typeColor, 22)}
               />
               {workflow.variables.length > 0 && (
                 <WorkflowBadge
