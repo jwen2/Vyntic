@@ -455,7 +455,7 @@ function QuickCreateButton({
       style={{
         padding: "10px 14px",
         background: accent,
-        color: accent === ACCENT ? "var(--on-accent)" : "white",
+        color: accent === ACCENT ? "var(--on-accent)" : "var(--on-violet)",
         border: "none",
         borderRadius: 999,
         fontSize: 12,
@@ -511,7 +511,7 @@ function NewMenuButton({
             height: 28,
             borderRadius: 10,
             background: accent,
-            color: accent === ACCENT ? "var(--on-accent)" : "white",
+            color: accent === ACCENT ? "var(--on-accent)" : "var(--on-violet)",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",

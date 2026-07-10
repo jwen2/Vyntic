@@ -5,7 +5,10 @@
  */
 import type { WorkflowType } from "@/lib/workflows";
 
-export const VIOLET = "#5f5f57";
+// The second semantic hue (tabular workflows, derived citations, KV cells).
+// Reads the themed token — flips to a light violet in dark mode like --accent,
+// so any *fill* using VIOLET must pair text with var(--on-violet).
+export const VIOLET = "var(--violet)";
 export const ACCENT = "var(--accent)";
 export const AMBER = "#f59e0b";
 export const GREEN = "#22c55e";

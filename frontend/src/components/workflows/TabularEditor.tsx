@@ -343,7 +343,7 @@ export default function TabularEditor(props: TabularEditorProps) {
               style={{
                 padding: "6px 14px",
                 background: VIOLET,
-                color: "white",
+                color: "var(--on-violet)",
                 border: "none",
                 borderRadius: 7,
                 fontSize: 12,
@@ -422,7 +422,7 @@ export default function TabularEditor(props: TabularEditorProps) {
                     flex: 1,
                     padding: "5px 8px",
                     background: rowSource === opt.v ? VIOLET : "transparent",
-                    color: rowSource === opt.v ? "white" : c.t2,
+                    color: rowSource === opt.v ? "var(--on-violet)" : c.t2,
                     border: "none",
                     borderRadius: 5,
                     fontSize: 11,
