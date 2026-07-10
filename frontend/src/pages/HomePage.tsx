@@ -309,8 +309,8 @@ export default function HomePage() {
                     <div
                       className="rounded-full border px-3 py-2"
                       style={{
-                        borderColor: border,
-                        background: surfaceAlt,
+                        borderColor: "var(--accent-tint-border)",
+                        background: "var(--accent-tint)",
                       }}
                     >
                       <div

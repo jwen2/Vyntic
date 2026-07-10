@@ -85,9 +85,9 @@ export default function DealListItem({
   const border = isDark ? "#262626" : "var(--landing-border)";
   const text = isDark ? "#f5f5f5" : "var(--landing-text)";
   const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
-  const selectedBg = isDark ? "#202020" : "#111111";
-  const selectedText = isDark ? "#ffffff" : "#ffffff";
-  const selectedMuted = isDark ? "rgba(255,255,255,0.62)" : "rgba(255,255,255,0.68)";
+  // Selection = accent tint wash + accent border (same idiom as the workspace);
+  // text stays at normal contrast on the wash, so no inverse overrides needed.
+  const selectedBg = "var(--accent-tint)";
   const stageMap = isDark ? DARK_STAGE_STYLES : STAGE_STYLES;
   const stage =
     stageMap[deal.stage] || {
@@ -105,14 +105,14 @@ export default function DealListItem({
       : hovered
         ? surfaceAlt
         : surface;
-  const cardText = selected ? selectedText : text;
-  const cardMuted = selected ? selectedMuted : muted;
+  const cardText = text;
+  const cardMuted = muted;
   const cardBorder = dragging
     ? isDark
       ? "#3a3a3a"
       : "#bdbdb3"
     : selected
-      ? selectedBg
+      ? "var(--accent)"
       : border;
 
   const handleDragEnter = (e: DragEvent) => {
@@ -216,9 +216,9 @@ export default function DealListItem({
               }}
               className="rounded-full border px-3 py-2 text-[10px] font-medium uppercase tracking-[0.12em]"
               style={{
-                borderColor: selected ? "rgba(255,255,255,0.2)" : border,
-                background: selected ? "rgba(255,255,255,0.08)" : surfaceAlt,
-                color: selected ? selectedText : cardText,
+                borderColor: selected ? "var(--accent)" : border,
+                background: selected ? "var(--accent)" : surfaceAlt,
+                color: selected ? "var(--on-accent)" : cardText,
               }}
             >
               Analyze
@@ -308,9 +308,9 @@ export default function DealListItem({
             }
             className="rounded-full border px-3 py-1 text-[11px]"
             style={{
-              background: selected ? "rgba(255,255,255,0.08)" : surfaceAlt,
+              background: selected ? "transparent" : surfaceAlt,
               color: cardMuted,
-              borderColor: selected ? "rgba(255,255,255,0.14)" : border,
+              borderColor: selected ? "var(--accent-tint-border)" : border,
               cursor: readOnly ? "default" : "pointer",
             }}
           >
@@ -330,7 +330,7 @@ export default function DealListItem({
               style={{
                 background: "transparent",
                 color: cardMuted,
-                borderColor: selected ? "rgba(255,255,255,0.18)" : border,
+                borderColor: selected ? "var(--accent-tint-border)" : border,
               }}
             >
               Add tag
@@ -359,9 +359,9 @@ export default function DealListItem({
         <div
           className="mt-4 rounded-2xl border border-dashed px-4 py-3 text-center text-sm"
           style={{
-            borderColor: selected ? "rgba(255,255,255,0.3)" : border,
+            borderColor: selected ? "var(--accent-tint-border)" : border,
             color: cardMuted,
-            background: selected ? "rgba(255,255,255,0.06)" : surfaceAlt,
+            background: selected ? "transparent" : surfaceAlt,
           }}
         >
           Drop PDF or Excel files here
@@ -402,8 +402,8 @@ export default function DealListItem({
               width: "100%",
               overflow: "hidden",
               borderRadius: 999,
-              background: selected ? "rgba(255,255,255,0.08)" : surfaceAlt,
-              border: `1px solid ${selected ? "rgba(255,255,255,0.1)" : border}`,
+              background: surfaceAlt,
+              border: `1px solid ${selected ? "var(--accent-tint-border)" : border}`,
             }}
           >
             <div
@@ -414,13 +414,7 @@ export default function DealListItem({
                 background:
                   uploadProgress?.status === "error"
                     ? "#7a7a7a"
-                    : uploadProgress?.status === "complete"
-                      ? isDark
-                        ? "#f5f5f5"
-                        : "#111111"
-                      : isDark
-                        ? "#bbbbbb"
-                        : "#444444",
+                    : "var(--accent)",
                 transition: "width .25s ease",
               }}
             />
@@ -452,7 +446,7 @@ export default function DealListItem({
             style={{
               background: "transparent",
               color: cardMuted,
-              borderColor: selected ? "rgba(255,255,255,0.18)" : border,
+              borderColor: selected ? "var(--accent-tint-border)" : border,
             }}
           >
             Drop files here or click to upload
@@ -527,7 +521,7 @@ function MenuItem({
         width: "100%",
         textAlign: "left",
         padding: "8px 10px",
-        background: active ? "rgba(17,17,17,0.06)" : "transparent",
+        background: active ? "var(--accent-tint)" : "transparent",
         color: "inherit",
         border: "none",
         borderRadius: 12,

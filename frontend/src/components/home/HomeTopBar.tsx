@@ -179,8 +179,8 @@ export default function HomeTopBar({
           className="hidden sm:block"
           style={{
             padding: "10px 16px",
-            background: isDark ? "#f5f5f5" : "#111111",
-            color: isDark ? "#111111" : "#ffffff",
+            background: "var(--accent)",
+            color: "var(--on-accent)",
             borderRadius: 999,
             fontSize: 12,
             fontWeight: 600,
