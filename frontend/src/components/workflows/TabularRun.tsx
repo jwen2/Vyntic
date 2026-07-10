@@ -1768,7 +1768,7 @@ function ColResizeHandle({
         width: 6,
         cursor: "col-resize",
         userSelect: "none",
-        background: active ? "rgba(59, 130, 246, 0.55)" : "transparent",
+        background: active ? "var(--accent)" : "transparent",
         transition: "background 120ms",
         zIndex: 5,
       }}
