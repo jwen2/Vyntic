@@ -66,7 +66,9 @@ export default function WorkflowLibrary({
             borderRadius: 28,
             border: `1px solid ${c.border}`,
             background: c.surface,
-            boxShadow: isDark ? "0 18px 40px rgba(0,0,0,0.24)" : "0 18px 40px rgba(17,17,17,0.05)",
+            boxShadow: isDark
+              ? "0 16px 34px rgba(0,0,0,0.4)"
+              : "0 12px 30px rgba(17,17,17,0.10), 0 1px 2px rgba(17,17,17,0.05)",
             marginBottom: 20,
           }}
         >
@@ -403,7 +405,7 @@ function MetricTile({
       >
         {label}
       </div>
-      <div style={{ marginTop: 6, fontSize: 24, lineHeight: 1, fontWeight: 600, color: c.t1 }}>{value}</div>
+      <div style={{ marginTop: 6, fontSize: 24, lineHeight: 1, fontWeight: 600, color: c.accent }}>{value}</div>
       <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5, color: c.t2 }}>{detail}</div>
     </div>
   );

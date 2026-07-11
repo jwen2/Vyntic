@@ -152,7 +152,7 @@ export default function RunTable({
         </tr>
       </thead>
       <tbody>
-        {rowKeys.map((rowKey) => {
+        {rowKeys.map((rowKey, rowIndex) => {
           const doc = docs.find((d) => d.doc_id === rowKey);
           const rowLabel = rowSourceIsDoc ? doc?.filename ?? rowKey.slice(0, 8) : rowKey;
           const rowTitle = rowSourceIsDoc ? doc?.filename ?? rowKey : rowKey;
@@ -169,6 +169,7 @@ export default function RunTable({
               rowCells={rowCells}
               rowLabel={rowLabel}
               rowTitle={rowTitle}
+              zebra={rowIndex % 2 === 1}
               selectedColId={selectedColId}
               retryingCellIds={retryingCellIds}
               theme={theme}
@@ -192,6 +193,7 @@ interface RunRowProps {
   rowCells: (TabularCell | undefined)[];
   rowLabel: string;
   rowTitle: string;
+  zebra: boolean;
   selectedColId: string | null;
   retryingCellIds: Set<string>;
   theme: Theme;
@@ -207,6 +209,7 @@ function RunRowImpl({
   rowCells,
   rowLabel,
   rowTitle,
+  zebra,
   selectedColId,
   retryingCellIds,
   theme,
@@ -218,7 +221,7 @@ function RunRowImpl({
   const c = ddTheme(theme);
   return (
     <tr>
-      <td style={cellBodyStyle(c)}>
+      <td style={cellBodyStyle(c, zebra)}>
         <div
           style={{
             overflow: "hidden",
@@ -245,6 +248,7 @@ function RunRowImpl({
               onSelectKey={onSelectKey}
               onRetry={onRetryCell}
               retrying={retryingCellIds.has(cell.id)}
+              zebra={zebra}
               theme={theme}
               density={density}
               onCitationClick={onCitationClick}
@@ -252,7 +256,7 @@ function RunRowImpl({
           );
         }
         return (
-          <td key={col.id} style={cellBodyStyle(c)}>
+          <td key={col.id} style={cellBodyStyle(c, zebra)}>
             <PlaceholderCell cell={cell} theme={theme} />
           </td>
         );
@@ -267,6 +271,7 @@ const RunRow = memo(RunRowImpl, (prev, next) => {
     prev.columns !== next.columns ||
     prev.rowLabel !== next.rowLabel ||
     prev.rowTitle !== next.rowTitle ||
+    prev.zebra !== next.zebra ||
     prev.selectedColId !== next.selectedColId ||
     prev.retryingCellIds !== next.retryingCellIds ||
     prev.theme !== next.theme ||

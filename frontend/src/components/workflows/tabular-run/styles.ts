@@ -12,13 +12,13 @@ export function cellHeaderStyle(c: ReturnType<typeof ddTheme>): React.CSSPropert
     textTransform: "uppercase",
     letterSpacing: "0.05em",
     textAlign: "left",
-    background: c.surfaceAlt,
+    background: c.gridHeader,
     position: "relative",
     verticalAlign: "top",
   };
 }
 
-export function cellBodyStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
+export function cellBodyStyle(c: ReturnType<typeof ddTheme>, zebra = false): React.CSSProperties {
   return {
     padding: "8px 10px",
     borderBottom: `1px solid ${c.border}`,
@@ -26,6 +26,6 @@ export function cellBodyStyle(c: ReturnType<typeof ddTheme>): React.CSSPropertie
     color: c.t1,
     verticalAlign: "middle",
     height: 38,
-    background: c.surface,
+    background: zebra ? c.zebra : c.surface,
   };
 }

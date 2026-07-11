@@ -20,6 +20,7 @@ function ValueCellImpl({
   onSelectKey,
   onRetry,
   retrying,
+  zebra,
   theme,
   density,
   onCitationClick,
@@ -31,6 +32,7 @@ function ValueCellImpl({
   onSelectKey: (key: string) => void;
   onRetry: (cellId: string) => void;
   retrying: boolean;
+  zebra: boolean;
   theme: Theme;
   density: CellDensity;
   onCitationClick: (citation: Citation, id: string) => void;
@@ -44,14 +46,14 @@ function ValueCellImpl({
       onClick={() => onSelectKey(cellKeyStr)}
       className="group/cell"
       style={{
-        ...cellBodyStyle(c),
+        ...cellBodyStyle(c, zebra),
         padding: 0,
         fontSize: 11,
         lineHeight: 1.2,
         cursor: "pointer",
         position: "relative",
         verticalAlign: "top",
-        background: selected ? tint(ACCENT, 12) : c.surface,
+        background: selected ? tint(ACCENT, 12) : zebra ? c.zebra : c.surface,
         boxShadow: selected ? `inset 0 0 0 1px ${tint(ACCENT, 55)}` : undefined,
       }}
       title={fullAnswer || (Array.isArray(display) ? display.join("; ") : display)}

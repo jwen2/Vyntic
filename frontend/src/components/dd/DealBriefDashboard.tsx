@@ -628,7 +628,9 @@ export default function DealBriefDashboard({
             border: `1px solid ${c.border}`,
             borderRadius: 28,
             padding: "20px",
-            boxShadow: theme === "dark" ? "0 18px 40px rgba(0,0,0,0.24)" : "0 18px 40px rgba(17,17,17,0.05)",
+            boxShadow: theme === "dark"
+              ? "0 16px 34px rgba(0,0,0,0.44)"
+              : "0 12px 30px rgba(17,17,17,0.11), 0 1px 2px rgba(17,17,17,0.05)",
           }}
         >
           <div
@@ -1286,12 +1288,12 @@ function FinancialChart({ series, theme }: { series: ChartSeries[]; theme: "ligh
 function FinancialTableView({ table, theme }: { table: FinancialTable; theme: "light" | "dark" }) {
   const c = ddTheme(theme);
   return (
-    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surfaceAlt, overflow: "hidden" }}>
-      <div style={{ padding: "9px 12px", borderBottom: `1px solid ${c.border}`, fontSize: 11, fontWeight: 700, color: c.t1 }}>
+    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surface, overflow: "hidden" }}>
+      <div style={{ padding: "9px 12px", borderBottom: `1px solid ${c.border}`, fontSize: 11, fontWeight: 700, color: c.t1, background: c.gridHeader }}>
         {table.title}
       </div>
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}>
+        <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}>
           <thead>
             <tr>
               {table.headers.map((header, idx) => (
@@ -1303,6 +1305,7 @@ function FinancialTableView({ table, theme }: { table: FinancialTable; theme: "l
                     fontSize: 10,
                     fontWeight: 700,
                     color: c.t3,
+                    background: c.gridHeader,
                     borderBottom: `1px solid ${c.border}`,
                     whiteSpace: "nowrap",
                   }}
@@ -1344,12 +1347,12 @@ function FinancialTableView({ table, theme }: { table: FinancialTable; theme: "l
 function MetricsTable({ metrics, theme }: { metrics: Metric[]; theme: "light" | "dark" }) {
   const c = ddTheme(theme);
   return (
-    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surfaceAlt, overflow: "hidden" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surface, overflow: "hidden" }}>
+      <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
             {["Metric", "Value", "Context"].map((header, idx) => (
-              <th key={header} style={{ padding: "9px 10px", textAlign: idx === 1 ? "right" : "left", fontSize: 10, fontWeight: 700, color: c.t3, borderBottom: `1px solid ${c.border}` }}>{header}</th>
+              <th key={header} style={{ padding: "9px 10px", textAlign: idx === 1 ? "right" : "left", fontSize: 10, fontWeight: 700, color: c.t3, background: c.gridHeader, borderBottom: `1px solid ${c.border}` }}>{header}</th>
             ))}
           </tr>
         </thead>
@@ -1370,8 +1373,8 @@ function MetricsTable({ metrics, theme }: { metrics: Metric[]; theme: "light" | 
 function SimpleFinancialTable({ items, theme }: { items: string[]; theme: "light" | "dark" }) {
   const c = ddTheme(theme);
   return (
-    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surfaceAlt, overflow: "hidden" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surface, overflow: "hidden" }}>
+      <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
           {items.map((item, idx) => {
             const [label, ...rest] = item.split(":");
