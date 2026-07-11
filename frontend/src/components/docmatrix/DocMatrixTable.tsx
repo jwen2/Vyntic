@@ -196,8 +196,8 @@ export default function DocMatrixTable({
         >
           <colgroup>
             <col style={{ width: getColWidth("doc", COL_DOC) }} />
-            {queries.map((q, i) => (
-              <col key={i} style={{ width: getColWidth(q, COL_QUERY) }} />
+            {queries.map((q) => (
+              <col key={q} style={{ width: getColWidth(q, COL_QUERY) }} />
             ))}
             <col />
           </colgroup>
@@ -219,7 +219,7 @@ export default function DocMatrixTable({
                 const q = column.id;
                 return (
                   <th
-                    key={i}
+                    key={q}
                     draggable
                     onDragStart={() => handleColDragStart(i)}
                     onDragOver={(e) => handleColDragOver(e, i)}
@@ -505,9 +505,9 @@ function DocMatrixRowImpl({
         </div>
       </td>
       {/* Query result cells */}
-      {columns.map((column, i) => (
+      {columns.map((column) => (
         <DocMatrixCell
-          key={i}
+          key={column.id}
           cell={docCells?.[column.id]}
           column={column}
           dealId={dealId}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "@/components/ThemeProvider";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { getDocumentViewToken } from "@/lib/api";
 import CitationSnippet from "./dd/CitationSnippet";
 
@@ -58,6 +59,10 @@ export default function DocumentViewer({
   const viewUrl = `/api/deals/${encodeURIComponent(dealId)}/documents/${encodeURIComponent(filename)}/view${query ? `?${query}` : ""}`;
   const locatorLabel = isExcel ? "Sheet" : "Page";
 
+  // role/focus-trap/restore via the shared hook; Escape stays global below
+  // because the viewer embeds a cross-origin iframe that can swallow keydowns.
+  const dialogRef = useDialogA11y<HTMLDivElement>();
+
   // Close on Escape key
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -82,7 +87,12 @@ export default function DocumentViewer({
         onClick={onClose}
       />
       <div
-        className="animate-slide-in-right flex w-[94vw] max-w-[1400px] flex-col shadow-2xl sm:w-[90vw]"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Document viewer: ${filename}`}
+        tabIndex={-1}
+        className="animate-slide-in-right flex w-[94vw] max-w-[1400px] flex-col shadow-2xl outline-none sm:w-[90vw]"
         style={{ background: surface }}
       >
         <div
