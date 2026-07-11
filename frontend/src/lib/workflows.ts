@@ -40,6 +40,7 @@ export interface WorkflowVariable {
 export interface Workflow {
   id: string;
   deal_id: string | null;
+  entity_type: "deal" | "fund";
   name: string;
   description: string;
   type: WorkflowType;

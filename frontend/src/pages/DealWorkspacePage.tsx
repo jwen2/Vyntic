@@ -19,6 +19,8 @@ import DealAssistantPanel from "@/components/assistant/DealAssistantPanel";
 import WorkflowsView from "@/components/workflows/WorkflowsView";
 import DealBriefDashboard from "@/components/dd/DealBriefDashboard";
 import DocumentsModal from "@/components/dd/DocumentsModal";
+import PositionModal from "@/components/dd/PositionModal";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFindings } from "@/components/dd/useFindings";
 import { ACCENT, ddTheme } from "@/components/dd/types";
 
@@ -60,6 +62,7 @@ export default function DealWorkspacePage() {
   const dealId = dealIdParam ?? "";
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const c = ddTheme(theme);
   const isDark = theme === "dark";
@@ -69,6 +72,7 @@ export default function DealWorkspacePage() {
   const [assistantNewChatSignal, setAssistantNewChatSignal] = useState(0);
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
   const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
+  const [positionModalOpen, setPositionModalOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   // useFindings persists scan-extracted findings to localStorage and drives
   // the deal-breaker pill in TopBar. New findings flow in from the Brief tab
@@ -232,6 +236,8 @@ export default function DealWorkspacePage() {
         dealBreakers={dealBreakers}
         documentCount={documents.length}
         onOpenDocuments={() => setDocumentsModalOpen(true)}
+        onOpenPosition={deal.entity_type === "fund" ? () => setPositionModalOpen(true) : undefined}
+        onOpenManager={deal.manager_id ? () => navigate(`/manager/${encodeURIComponent(deal.manager_id!)}`) : undefined}
         onBack={() => navigate("/app")}
         onOpenSidebar={() => setMobileSidebarOpen(true)}
         onToggleTheme={toggleTheme}
@@ -393,6 +399,16 @@ export default function DealWorkspacePage() {
             void queryClient.invalidateQueries({ queryKey: ["deal", dealId] });
             void queryClient.invalidateQueries({ queryKey: ["deals"] });
           }}
+        />
+      )}
+
+      {positionModalOpen && deal.entity_type === "fund" && (
+        <PositionModal
+          dealId={dealId}
+          dealName={deal.name}
+          isAdmin={Boolean(user?.is_admin)}
+          theme={theme}
+          onClose={() => setPositionModalOpen(false)}
         />
       )}
     </div>
