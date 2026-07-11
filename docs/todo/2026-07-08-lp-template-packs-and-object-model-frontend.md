@@ -1,6 +1,6 @@
 # LP Template Packs + Object-Model Frontend Completion
 
-**Status:** not started (branch `feat/lp-template-packs` exists off `main` @ `8f6bb45`, no commits yet)
+**Status:** complete (2026-07-11 on `feat/lp-template-packs`; demo fixtures A4 deferred)
 **Author of spec:** Claude (session 2026-07-08), handed off mid-implementation. All code facts below were verified against the working tree at `8f6bb45` on 2026-07-08.
 
 ---

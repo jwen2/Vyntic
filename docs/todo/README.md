@@ -20,7 +20,7 @@ Ordered by the assessment's tiers. Tiers 0–1 are concrete code on the current 
 
 | # | Plan | Scope | Depends on | Status |
 |---|---|---|---|---|
-| LP1 | `2026-07-08-lp-template-packs-and-object-model-frontend.md` | 7 LP built-in templates + workflow entity-scoping; Manager page + Position panel | PR #94 (merged) | **not started** — fully-specced handoff, self-contained context |
+| LP1 | `2026-07-08-lp-template-packs-and-object-model-frontend.md` | 7 LP built-in templates + workflow entity-scoping; Manager page + Position panel | PR #94 (merged) | **done on `feat/lp-template-packs`** — 21 entity-scoped built-ins, Manager page, Position panel; demo fixtures deferred |
 
 ## Frontend quality (audit 2026-07-07)
 
@@ -33,7 +33,7 @@ From `docs/assessments/2026-07-07-frontend-audit.md` (audited on `main` @ `19e6d
 | F3 | `2026-07-07-frontend-decomposition-client-state.md` | god-component decomposition, typed-cell rendering (**D1**), findings/overrides → backend (**D2**), theming + a11y (**D3**) | FE5, FE6, FE9, FE11, FE13 | F1, F2; F3.4 coordinates with Plan 2 | not started, 3 decisions in header |
 
 ## Suggested order
-1. **Plan 2** (auth/audit) → 2. resolve **Plan 4 D1 tenancy decision**, then **Plan 4** → 3. **Plan 5**.
+1. Resolve **Plan 4 D1 tenancy decision**, then implement **Plan 4** → 2. **Plan 5**.
 Frontend track (parallel): **F1 + F2 done** → **F3** (resolve D1–D3 first; align F3.4 with Plan 2).
 
-Plans 1 and 3 shipped in PR #91 (Plan 3's concurrency decision resolved as the in-process pool over DB job rows). Plan 2 can proceed immediately. Plans 4–5 need the D1/D2/D3 decisions in Plan 4's header settled first — start with tenancy (D1), since it shapes the Postgres schema everything else builds on.
+Plans 1 and 3 shipped in PR #91 (Plan 3's concurrency decision resolved as the in-process pool over DB job rows), and Plan 2 shipped in PR #95. Plans 4–5 need the D1/D2/D3 decisions in Plan 4's header settled first — start with tenancy (D1), since it shapes the Postgres schema everything else builds on.
