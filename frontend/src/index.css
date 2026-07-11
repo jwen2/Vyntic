@@ -33,6 +33,22 @@
      Applied via the .dd-zebra class (see rule below). */
   --table-zebra: #f6f5ef;
   --table-header: #e5e3d8;
+
+  /* Semantic surface/text/border tokens — the single theming source (FE11).
+     Light values mirror the old DD_LIGHT; .dark overrides them below. Consumed
+     via ddTheme() (which now returns these var refs) and the Tailwind color
+     aliases (bg-surface, text-t1, border-edge, …). */
+  --surface: var(--landing-surface);
+  --surface-alt: var(--landing-surface-alt);
+  --bg: var(--landing-bg);
+  --border: var(--landing-border);
+  --border-light: #d2d2c5;
+  --text-1: var(--landing-text);
+  --text-2: var(--landing-muted);
+  --text-3: #6e6e66;
+  --text-4: #c8c8bd;
+  --zebra: var(--table-zebra);
+  --grid-header: var(--table-header);
 }
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
@@ -49,6 +65,17 @@
   --on-violet: #0f0f0f;
   --table-zebra: #1c1c1c;
   --table-header: #202020;
+
+  /* Dark overrides for the semantic tokens (mirror the old DD_DARK). */
+  --surface: #171717;
+  --surface-alt: #111111;
+  --bg: #0f0f0f;
+  --border: #424242;
+  --border-light: #2e2e2e;
+  --text-1: #f5f5f5;
+  --text-2: rgba(255, 255, 255, 0.68);
+  --text-3: rgba(255, 255, 255, 0.55);
+  --text-4: #303030;
 }
 
 /* Zebra striping for any data table — opt in with class="dd-zebra". Cells

@@ -31,7 +31,7 @@ function fileTypeColor(filename: string) {
   if (ext === "pdf") return "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400";
   if (ext === "xlsx" || ext === "xls") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400";
   if (ext === "csv") return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400";
-  return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+  return "bg-grid-header text-t2";
 }
 
 interface DocMatrixTableProps {
@@ -186,7 +186,7 @@ export default function DocMatrixTable({
 
   return (
     <>
-      <div className="min-h-[360px] overflow-auto rounded-lg shadow dark:shadow-gray-900/50 bg-white dark:bg-gray-900 max-h-[calc(100vh-220px)]">
+      <div className="min-h-[360px] overflow-auto rounded-lg shadow dark:shadow-gray-900/50 bg-surface max-h-[calc(100vh-220px)]">
         <table
           className="border-separate border-spacing-0"
           style={{
@@ -205,7 +205,7 @@ export default function DocMatrixTable({
             <tr>
               {/* Document column header with Excel-like dropdown — sticky top + left (corner) */}
               <th
-                className={`p-3 text-left font-semibold text-gray-700 dark:text-gray-300 border-r border-b border-gray-300 dark:border-gray-700 sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${sortConfig?.col === "doc" ? "bg-blue-50 dark:bg-blue-950/40" : "bg-gray-100 dark:bg-gray-800"}`}
+                className={`p-3 text-left font-semibold text-t2 border-r border-b border-edge sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-surface-alt transition-colors ${sortConfig?.col === "doc" ? "bg-blue-50 dark:bg-blue-950/40" : "bg-grid-header"}`}
                 onClick={(e) => openColMenu(e.currentTarget)}
               >
                 <DocColumnHeaderLabel label="Document" sortConfig={sortConfig} />
@@ -225,23 +225,23 @@ export default function DocMatrixTable({
                     onDragOver={(e) => handleColDragOver(e, i)}
                     onDrop={() => handleColDrop(i)}
                     onDragEnd={handleColDragEnd}
-                    className={`p-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-b border-gray-300 dark:border-gray-700 sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
+                    className={`p-3 text-left font-medium text-t2 border-r border-b border-edge sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
                       dragColIndex === i ? "opacity-50" : ""
                     } ${
                       dragOverColIndex === i && dragColIndex !== i
                         ? "bg-blue-50 dark:bg-blue-950/40"
-                        : "bg-gray-100 dark:bg-gray-800"
+                        : "bg-grid-header"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-1">
                       <div className="text-sm leading-snug flex-1 min-w-0">
                         <div className="truncate">{column.label}</div>
                         <div className="mt-1 flex items-center gap-1.5">
-                          <span className="rounded bg-gray-200/70 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                          <span className="rounded bg-surface-alt px-1.5 py-0.5 text-[10px] font-medium text-t3">
                             {getFormatShort(column.format)}
                           </span>
                           {column.prompt !== column.label && (
-                            <span className="truncate text-[10px] font-normal text-gray-500 dark:text-gray-500">
+                            <span className="truncate text-[10px] font-normal text-t3">
                               {column.prompt}
                             </span>
                           )}
@@ -264,7 +264,7 @@ export default function DocMatrixTable({
                 );
               })}
               {/* Add query column — sticky top */}
-              <th className="p-3 border-r border-b border-gray-300 dark:border-gray-700 sticky top-0 z-20 bg-gray-100 dark:bg-gray-800">
+              <th className="p-3 border-r border-b border-edge sticky top-0 z-20 bg-grid-header">
                 <div className="flex gap-2 items-center">
                   <input
                     type="text"
@@ -272,7 +272,7 @@ export default function DocMatrixTable({
                     onChange={(e) => setNewQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAddQuery()}
                     placeholder="Ask a question..."
-                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    className="flex-1 px-3 py-1.5 text-sm border border-edge rounded-md bg-surface text-t1 placeholder:text-t3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     disabled={loading}
                   />
                   <button
@@ -287,7 +287,7 @@ export default function DocMatrixTable({
                       ref={templateBtnRef}
                       onClick={() => setShowTemplates(!showTemplates)}
                       disabled={loading}
-                      className="px-2 py-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-md transition-colors disabled:opacity-50"
+                      className="px-2 py-1.5 text-t3 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-md transition-colors disabled:opacity-50"
                       title="Question templates"
                     >
                       <svg
@@ -310,19 +310,19 @@ export default function DocMatrixTable({
                       createPortal(
                         <div
                           ref={templateRef}
-                          className="fixed w-96 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-300 dark:border-gray-700 z-[9999] max-h-[480px] overflow-y-auto"
+                          className="fixed w-96 bg-surface rounded-lg shadow-2xl border border-edge z-[9999] max-h-[480px] overflow-y-auto"
                           style={{
                             top: dropdownPos.top,
                             left: dropdownPos.left,
                           }}
                         >
-                          <div className="p-2.5 border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
-                            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          <div className="p-2.5 border-b border-edge-light sticky top-0 bg-surface z-10">
+                            <span className="text-xs font-semibold text-t3 uppercase tracking-wide">
                               Column Templates
                             </span>
                           </div>
                           <div>
-                            <div className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 flex items-center gap-1.5 sticky top-10 z-[2] border-b border-gray-300 dark:border-gray-700">
+                            <div className="px-3 py-1.5 text-xs font-semibold text-t2 bg-grid-header flex items-center gap-1.5 sticky top-10 z-[2] border-b border-edge">
                               <span>PE</span>
                               Diligence columns
                             </div>
@@ -337,17 +337,17 @@ export default function DocMatrixTable({
                                     preset.tags
                                   )
                                 }
-                                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
+                                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors border-b border-edge-light last:border-0"
                               >
                                 <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                  <span className="text-sm font-medium text-t1">
                                     {preset.name}
                                   </span>
-                                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                                  <span className="rounded bg-grid-header px-1.5 py-0.5 text-[10px] text-t2">
                                     {getFormatShort(preset.format)}
                                   </span>
                                 </div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                                <div className="text-xs text-t3 mt-0.5 leading-relaxed">
                                   {preset.prompt}
                                 </div>
                               </button>
@@ -355,7 +355,7 @@ export default function DocMatrixTable({
                           </div>
                           {QUERY_TEMPLATES.map((cat) => (
                             <div key={cat.name}>
-                              <div className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 flex items-center gap-1.5 sticky top-10 z-[2] border-b border-gray-300 dark:border-gray-700">
+                              <div className="px-3 py-1.5 text-xs font-semibold text-t2 bg-grid-header flex items-center gap-1.5 sticky top-10 z-[2] border-b border-edge">
                                 <span>{cat.icon}</span>
                                 {cat.name}
                               </div>
@@ -363,12 +363,12 @@ export default function DocMatrixTable({
                                 <button
                                   key={t.label}
                                   onClick={() => handleTemplateSelect(t.label, t.query)}
-                                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
+                                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors border-b border-edge-light last:border-0"
                                 >
-                                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                  <div className="text-sm font-medium text-t1">
                                     {t.label}
                                   </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                                  <div className="text-xs text-t3 mt-0.5 leading-relaxed">
                                     {t.query}
                                   </div>
                                 </button>
@@ -454,9 +454,9 @@ function DocMatrixRowImpl({
   showDeleteDoc: boolean;
 }) {
   return (
-    <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+    <tr className="hover:bg-surface-alt transition-colors">
       {/* Document name cell (sticky left) */}
-      <td className="p-3 font-medium border-r border-b border-gray-300 dark:border-gray-700 sticky left-0 z-10 bg-white dark:bg-gray-900">
+      <td className="p-3 font-medium border-r border-b border-edge sticky left-0 z-10 bg-surface">
         <div className="flex items-center gap-2.5">
           <span
             className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${fileTypeColor(
@@ -468,12 +468,12 @@ function DocMatrixRowImpl({
           <div className="min-w-0 flex-1">
             <button
               onClick={() => onOpenViewer(doc)}
-              className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate block max-w-full text-left"
+              className="text-sm font-medium text-t1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate block max-w-full text-left"
               title={doc.filename}
             >
               {doc.filename}
             </button>
-            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 dark:text-gray-500">
+            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-t3">
               <span>{doc.page_count} pg</span>
             </div>
           </div>
@@ -517,7 +517,7 @@ function DocMatrixRowImpl({
         />
       ))}
       {/* Empty cell under add-query column */}
-      <td className="border-r border-b border-gray-300 dark:border-gray-700" />
+      <td className="border-r border-b border-edge" />
     </tr>
   );
 }
@@ -581,7 +581,7 @@ function DocColumnHeaderLabel({
           </span>
         )}
       </div>
-      <svg className="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <svg className="w-3.5 h-3.5 text-t3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
       </svg>
     </div>
@@ -603,25 +603,25 @@ const DocColumnSortMenu = forwardRef<
   return (
     <div
       ref={ref}
-      className="fixed w-44 bg-white rounded-lg shadow-2xl border border-gray-300 z-[9999] overflow-hidden"
+      className="fixed w-44 bg-surface rounded-lg shadow-2xl border border-edge z-[9999] overflow-hidden"
       style={{ top: pos.top, left: pos.left }}
     >
       <div>
         <button
           onClick={() => onSort(isSortedAsc ? null : "asc")}
-          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${isSortedAsc ? "text-blue-600 font-medium bg-blue-50" : "text-gray-700"}`}
+          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-surface-alt transition-colors ${isSortedAsc ? "text-blue-600 font-medium bg-blue-50" : "text-t2"}`}
         >
           <span className="text-sm">{"▲"}</span> Sort A to Z
         </button>
         <button
           onClick={() => onSort(isSortedDesc ? null : "desc")}
-          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${isSortedDesc ? "text-blue-600 font-medium bg-blue-50" : "text-gray-700"}`}
+          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-surface-alt transition-colors ${isSortedDesc ? "text-blue-600 font-medium bg-blue-50" : "text-t2"}`}
         >
           <span className="text-sm">{"▼"}</span> Sort Z to A
         </button>
       </div>
       {(isSortedAsc || isSortedDesc) && (
-        <div className="border-t border-gray-200 p-1 space-y-0.5">
+        <div className="border-t border-edge-light p-1 space-y-0.5">
           <button
             onClick={onClear}
             className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"

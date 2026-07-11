@@ -126,7 +126,7 @@ export default function DocMatrixPanel({
 
   if (documents.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-600">
+      <div className="flex flex-col items-center justify-center py-20 text-t3">
         <svg
           className="w-12 h-12 mb-3"
           fill="none"

@@ -95,7 +95,7 @@ export default function CitationSnippet({ sourceFile, text, variant = "panel" }:
     }
     return (
       <p
-        className={isViewer ? "mt-1 text-gray-700 dark:text-gray-300 leading-relaxed" : undefined}
+        className={isViewer ? "mt-1 text-t2 leading-relaxed" : undefined}
         style={!isViewer ? { fontSize: 11.5, color: "#1e293b", lineHeight: 1.65 } : undefined}
       >
         {fallback}
@@ -121,7 +121,7 @@ export default function CitationSnippet({ sourceFile, text, variant = "panel" }:
         </div>
         {parsed.subtitle ? (
           <div
-            className={isViewer ? "text-gray-500 dark:text-gray-400" : undefined}
+            className={isViewer ? "text-t3" : undefined}
             style={{ fontSize: isViewer ? 11 : 10.5, color: isViewer ? undefined : "#64748b", marginTop: 2 }}
           >
             {parsed.subtitle}
@@ -213,7 +213,7 @@ function MarkdownSnippet({ text, isViewer }: { text: string; isViewer: boolean }
 
   return (
     <div
-      className={isViewer ? "text-gray-700 dark:text-gray-300 leading-relaxed" : undefined}
+      className={isViewer ? "text-t2 leading-relaxed" : undefined}
       style={!isViewer ? { fontSize: 11.5, color: "#1e293b", lineHeight: 1.55 } : undefined}
     >
       <ReactMarkdown

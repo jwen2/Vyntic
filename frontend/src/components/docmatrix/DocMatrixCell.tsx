@@ -81,7 +81,7 @@ function DocMatrixCellImpl({
 
   if (!cell || cell.status === "idle") {
     return (
-      <td className="p-3 text-gray-500 dark:text-gray-600 text-sm border-r border-b border-gray-300 dark:border-gray-700">
+      <td className="p-3 text-t3 text-sm border-r border-b border-edge">
         &mdash;
       </td>
     );
@@ -90,10 +90,10 @@ function DocMatrixCellImpl({
   // Loading with no content yet
   if (cell.status === "loading" && cleanAnswer.length === 0) {
     return (
-      <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700">
+      <td className="p-3 border-r border-b border-edge">
         <div className="flex items-center gap-2">
           <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-          <span className="text-xs text-gray-500 dark:text-gray-500">Analyzing...</span>
+          <span className="text-xs text-t3">Analyzing...</span>
         </div>
       </td>
     );
@@ -103,7 +103,7 @@ function DocMatrixCellImpl({
   if (cell.status === "loading" && cleanAnswer.length > 0) {
     if (!cleanAnswer) {
       return (
-        <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-sm align-top max-w-xs">
+        <td className="p-3 border-r border-b border-edge text-sm align-top max-w-xs">
           <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <div className="animate-pulse text-xs">Reasoning...</div>
           </div>
@@ -111,8 +111,8 @@ function DocMatrixCellImpl({
       );
     }
     return (
-      <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-sm align-top max-w-xs">
-        <div className="max-w-none text-gray-800 dark:text-gray-200 line-clamp-6">
+      <td className="p-3 border-r border-b border-edge text-sm align-top max-w-xs">
+        <div className="max-w-none text-t1 line-clamp-6">
           <AnswerText
             text={cleanAnswer}
             citations={citations}
@@ -128,14 +128,14 @@ function DocMatrixCellImpl({
   // Error
   if (cell.status === "error") {
     return (
-      <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 bg-red-50 dark:bg-red-950/30 text-sm align-top group">
+      <td className="p-3 border-r border-b border-edge bg-red-50 dark:bg-red-950/30 text-sm align-top group">
         <div className="flex items-start justify-between gap-2">
           <div className="text-red-700 dark:text-red-400 flex-1 min-w-0">
             {cell.answer}
           </div>
           <button
             onClick={onRetry}
-            className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded border border-red-300 dark:border-red-800 bg-white dark:bg-red-950/50 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+            className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded border border-red-300 dark:border-red-800 bg-surface dark:bg-red-950/50 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
             title="Re-run this question for this document"
           >
             <RetryIcon />
@@ -149,10 +149,10 @@ function DocMatrixCellImpl({
   // Complete
   const clampClass = expanded ? "" : "line-clamp-4";
   return (
-    <td className="p-3 border-r border-b border-gray-300 dark:border-gray-700 text-sm max-w-xs align-top group relative">
+    <td className="p-3 border-r border-b border-edge text-sm max-w-xs align-top group relative">
       <button
         onClick={onRetry}
-        className="absolute top-1.5 right-1.5 z-[1] inline-flex items-center justify-center w-6 h-6 rounded text-gray-500 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-1.5 right-1.5 z-[1] inline-flex items-center justify-center w-6 h-6 rounded text-t3 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 opacity-0 group-hover:opacity-100 transition-opacity"
         title="Re-run this question for this document"
         aria-label="Retry this cell"
       >
@@ -172,7 +172,7 @@ function DocMatrixCellImpl({
         </div>
       ) : (
         <div
-          className={`max-w-none text-gray-800 dark:text-gray-200 ${clampClass}`}
+          className={`max-w-none text-t1 ${clampClass}`}
         >
           <AnswerText
             text={cleanAnswer}
@@ -184,8 +184,8 @@ function DocMatrixCellImpl({
       )}
 
       {nonNullCitations.length > 0 && (
-        <div className="mt-2 flex items-center gap-1.5 flex-wrap border-t border-gray-200 pt-2 dark:border-gray-800">
-          <span className="text-[10px] font-medium text-gray-500 dark:text-gray-500">
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap border-t border-edge-light pt-2">
+          <span className="text-[10px] font-medium text-t3">
             Sources
           </span>
           {nonNullCitations.map((citation, index) => {
@@ -217,12 +217,12 @@ function DocMatrixCellImpl({
 
       {/* Model info */}
       {cell.model && (
-        <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-500">
+        <div className="mt-1 flex items-center gap-2 text-[10px] text-t3">
           <span
             className={`px-1.5 py-0.5 rounded-full font-mono ${
               cell.fallback
                 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                : "bg-grid-header text-t2"
             }`}
           >
             {cell.model}

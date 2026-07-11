@@ -544,7 +544,7 @@ export function CitBadge({
               </span>
             </div>
             <div
-              className="text-gray-700 dark:text-gray-300"
+              className="text-t2"
               style={{
                 padding: "8px 11px",
                 overflow: "auto",

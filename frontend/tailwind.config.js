@@ -23,6 +23,21 @@ export default {
           900: "#1e3a8a",
           950: "#172554",
         },
+        // Semantic theming tokens → the CSS vars in index.css (FE11). Usable as
+        // bg-surface / text-t1 / border-edge / bg-zebra etc.; theme-aware via
+        // the .dark class flipping the vars.
+        surface: "var(--surface)",
+        "surface-alt": "var(--surface-alt)",
+        appbg: "var(--bg)",
+        edge: "var(--border)",
+        "edge-light": "var(--border-light)",
+        t1: "var(--text-1)",
+        t2: "var(--text-2)",
+        t3: "var(--text-3)",
+        t4: "var(--text-4)",
+        zebra: "var(--zebra)",
+        "grid-header": "var(--grid-header)",
+        accent: "var(--accent)",
       },
     },
   },

@@ -165,7 +165,7 @@ export default function ColumnConfigPopover({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
-        className="p-0.5 text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 rounded disabled:opacity-30"
+        className="p-0.5 text-t1 hover:text-blue-600 dark:hover:text-blue-400 rounded disabled:opacity-30"
         data-open={open}
         title="Edit label, prompt, and format"
       >
@@ -178,7 +178,7 @@ export default function ColumnConfigPopover({
         createPortal(
         <div
           ref={panelRef}
-          className="fixed z-[9999] rounded-xl border border-gray-300 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+          className="fixed z-[9999] rounded-xl border border-edge bg-surface shadow-2xl"
           style={{
             top: panelPos.top,
             left: panelPos.left,
@@ -188,12 +188,12 @@ export default function ColumnConfigPopover({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="sticky top-0 z-10 mb-1 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
-            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Edit column</div>
+          <div className="sticky top-0 z-10 mb-1 flex items-center justify-between border-b border-edge-light bg-surface px-4 py-3">
+            <div className="text-sm font-semibold text-t1">Edit column</div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+              className="rounded p-1 text-t3 hover:bg-grid-header hover:text-t2"
               aria-label="Close column editor"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -203,7 +203,7 @@ export default function ColumnConfigPopover({
           </div>
 
           <div className="px-4 py-3">
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Label</label>
+          <label className="text-xs font-medium text-t2">Label</label>
           <input
             value={draft.label}
             onChange={(event) => {
@@ -216,12 +216,12 @@ export default function ColumnConfigPopover({
                   : {}),
               });
             }}
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+            className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-blue-400 focus:outline-none"
           />
 
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Format</label>
+              <label className="text-xs font-medium text-t2">Format</label>
               <select
                 value={draft.format}
                 onChange={(event) =>
@@ -230,7 +230,7 @@ export default function ColumnConfigPopover({
                     tags: event.target.value === "tag" ? draft.tags : [],
                   })
                 }
-                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-blue-400 focus:outline-none"
               >
                 {FORMAT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -240,13 +240,13 @@ export default function ColumnConfigPopover({
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Preset</label>
+              <label className="text-xs font-medium text-t2">Preset</label>
               <select
                 value=""
                 onChange={(event) => {
                   if (event.target.value) applyPreset(event.target.value);
                 }}
-                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-blue-400 focus:outline-none"
               >
                 <option value="">Choose...</option>
                 {PE_COLUMN_PRESETS.map((preset) => (
@@ -260,8 +260,8 @@ export default function ColumnConfigPopover({
 
           {draft.format === "tag" && (
             <div className="mt-3">
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Tags</label>
-              <div className="mt-1 flex min-h-[32px] flex-wrap gap-1 rounded-md border border-gray-300 px-2 py-1.5 dark:border-gray-700">
+              <label className="text-xs font-medium text-t2">Tags</label>
+              <div className="mt-1 flex min-h-[32px] flex-wrap gap-1 rounded-md border border-edge px-2 py-1.5">
                 {draft.tags.map((tag, tagIdx) => (
                   <span
                     key={tag}
@@ -283,19 +283,19 @@ export default function ColumnConfigPopover({
                   onKeyDown={handleTagKeyDown}
                   onBlur={commitTag}
                   placeholder={draft.tags.length === 0 ? "Add tag..." : ""}
-                  className="min-w-[70px] flex-1 bg-transparent text-xs text-gray-900 outline-none placeholder:text-gray-500 dark:text-gray-100"
+                  className="min-w-[70px] flex-1 bg-transparent text-xs text-t1 outline-none placeholder:text-t3"
                 />
               </div>
             </div>
           )}
 
           <div className="mt-3 flex items-center justify-between">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Prompt</label>
+            <label className="text-xs font-medium text-t2">Prompt</label>
             <button
               type="button"
               onClick={autoGeneratePrompt}
               disabled={!draft.label.trim()}
-              className="text-xs text-blue-600 hover:text-blue-700 disabled:text-gray-300 dark:text-blue-400"
+              className="text-xs text-blue-600 hover:text-blue-700 disabled:text-t4 dark:text-blue-400"
             >
               Auto-generate
             </button>
@@ -304,11 +304,11 @@ export default function ColumnConfigPopover({
             rows={8}
             value={draft.prompt}
             onChange={(event) => updateDraft({ prompt: event.target.value })}
-            className="mt-1 w-full resize-none rounded-md border border-gray-300 bg-white px-2 py-2 text-xs leading-relaxed text-gray-900 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+            className="mt-1 w-full resize-none rounded-md border border-edge bg-surface px-2 py-2 text-xs leading-relaxed text-t1 focus:border-blue-400 focus:outline-none"
           />
           </div>
 
-          <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+          <div className="sticky bottom-0 flex items-center justify-between border-t border-edge-light bg-surface px-4 py-3">
             <button
               type="button"
               onClick={() => {
