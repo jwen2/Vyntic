@@ -10,6 +10,8 @@
 
 **Decisions required before starting:**
 
+> **RESOLVED 2026-07-10 (Stanley):** D1 → (a) render typed cells directly; D2 → (a) backend tables + routes; D3 → (a) one theming system (CSS vars + Tailwind). All three took the recommended option.
+
 - **D1 (before F3.3):** Brief rendering. (a) **Render `answer_formatted` typed cells directly** (kv/list/prose components) and delete `synthesizeBriefAnswer` + the workstream-era extractors (~1.5k lines); prose-only sections keep a slim markdown path. (b) Keep the adapter and only decompose. **Recommended: (a)** — the adapter is lossy (JSON → fake markdown → regex re-parse) and self-documented as a bridge. Cost: the brief's field-override/diff features must be re-pointed at typed pairs instead of parsed lines.
 - **D2 (before F3.4):** Findings/overrides persistence. (a) **New backend tables + routes** (`deal_findings`, `brief_overrides`) with a one-time client-side import of existing localStorage data; (b) stay client-side. **Recommended: (a)** — this is analyst work-product in an LP diligence tool; localStorage means data loss, no multi-device, no audit trail. Requires backend work (small: two stores, CRUD routes, tests in the existing patterns).
 - **D3 (before F3.5):** Theming target. (a) **CSS variables + Tailwind semantic tokens** (extend the existing `--landing-*` var approach app-wide; delete `ddTheme`/`DD_DARK`/`DD_LIGHT` inline-style objects); (b) keep both systems. **Recommended: (a).** Mechanical but wide — every `style={{ background: c.bg }}` in `dd/` and `workflows/` becomes a class.

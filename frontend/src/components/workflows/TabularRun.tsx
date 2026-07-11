@@ -859,11 +859,12 @@ export default function TabularRun({
                 </tr>
               </thead>
               <tbody>
-                {rowKeys.map((rowKey) => {
+                {rowKeys.map((rowKey, rowIndex) => {
                   const doc = docs.find((d) => d.doc_id === rowKey);
+                  const zebra = rowIndex % 2 === 1;
                   return (
                     <tr key={rowKey}>
-                      <td style={cellBodyStyle(c)}>
+                      <td style={cellBodyStyle(c, zebra)}>
                         <div
                           style={{
                             overflow: "hidden",
@@ -888,6 +889,7 @@ export default function TabularRun({
                               cell={cell}
                               column={col}
                               selected={selectedCellKey === key}
+                              zebra={zebra}
                               onSelect={() => setSelectedCellKey(key)}
                               onRetry={() => handleRetryCell(cell.id)}
                               retrying={retryingCellIds.has(cell.id)}
@@ -898,7 +900,7 @@ export default function TabularRun({
                           );
                         }
                         return (
-                          <td key={col.id} style={cellBodyStyle(c)}>
+                          <td key={col.id} style={cellBodyStyle(c, zebra)}>
                             <PlaceholderCell cell={cell} theme={theme} />
                           </td>
                         );
@@ -958,6 +960,7 @@ function ValueCell({
   cell,
   column,
   selected,
+  zebra,
   onSelect,
   onRetry,
   retrying,
@@ -968,6 +971,7 @@ function ValueCell({
   cell: TabularCell;
   column: WorkflowColumn;
   selected: boolean;
+  zebra: boolean;
   onSelect: () => void;
   onRetry: () => void;
   retrying: boolean;
@@ -984,14 +988,14 @@ function ValueCell({
       onClick={onSelect}
       className="group/cell"
       style={{
-        ...cellBodyStyle(c),
+        ...cellBodyStyle(c, zebra),
         padding: 0,
         fontSize: 11,
         lineHeight: 1.2,
         cursor: "pointer",
         position: "relative",
         verticalAlign: "top",
-        background: selected ? tint(ACCENT, 12) : c.surface,
+        background: selected ? tint(ACCENT, 12) : zebra ? c.zebra : c.surface,
         boxShadow: selected ? `inset 0 0 0 1px ${tint(ACCENT, 55)}` : undefined,
       }}
       title={fullAnswer || (Array.isArray(display) ? display.join("; ") : display)}
@@ -1673,13 +1677,13 @@ function cellHeaderStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
     textTransform: "uppercase",
     letterSpacing: "0.05em",
     textAlign: "left",
-    background: c.surfaceAlt,
+    background: c.gridHeader,
     position: "relative",
     verticalAlign: "top",
   };
 }
 
-function cellBodyStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
+function cellBodyStyle(c: ReturnType<typeof ddTheme>, zebra = false): React.CSSProperties {
   return {
     padding: "8px 10px",
     borderBottom: `1px solid ${c.border}`,
@@ -1687,7 +1691,7 @@ function cellBodyStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
     color: c.t1,
     verticalAlign: "middle",
     height: 38,
-    background: c.surface,
+    background: zebra ? c.zebra : c.surface,
   };
 }
 

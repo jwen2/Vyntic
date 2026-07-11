@@ -23,11 +23,16 @@
   --on-accent: #ffffff;
   /* Violet — the second semantic hue: tabular workflows, derived (vs
      extracted) citations, KV cells. Coordinated with the IC Review badge
-     family. #6d28d9 = 7.1:1 on white (works as fill under white text too). */
-  --violet: #6d28d9;
+     family. #7c3aed = 5.7:1 on white (AA); vivid enough to read as a clear
+     "wrap" color next to the cobalt accent (the deeper #6d28d9 read muted). */
+  --violet: #7c3aed;
   --violet-tint: #f1eafd;
   --violet-tint-border: #c4b0ea;
   --on-violet: #ffffff;
+  /* Shared table striping — a second scanning channel beyond gridlines.
+     Applied via the .dd-zebra class (see rule below). */
+  --table-zebra: #f6f5ef;
+  --table-header: #e5e3d8;
 }
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
@@ -42,6 +47,14 @@
   --violet-tint: rgba(177, 159, 219, 0.12);
   --violet-tint-border: rgba(177, 159, 219, 0.35);
   --on-violet: #0f0f0f;
+  --table-zebra: #1c1c1c;
+  --table-header: #202020;
+}
+
+/* Zebra striping for any data table — opt in with class="dd-zebra". Cells
+   keep their own text colors; only the even body-row fill is set here. */
+.dd-zebra tbody tr:nth-child(even) td {
+  background: var(--table-zebra);
 }
 
 html {
