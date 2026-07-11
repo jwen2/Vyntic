@@ -29,3 +29,9 @@ def test_normal_arithmetic_still_works():
 def test_if_formula_still_works():
     values = {"Revenue": 100}
     assert _eval_formula('=IF([Revenue] > 50, "big", "small")', values) == "big"
+
+
+def test_if_condition_supports_arithmetic_expressions():
+    values = {"DPI": 0.7, "RVPI": 1.1, "TVPI": 1.8}
+    formula = '=IF([DPI]+[RVPI]-[TVPI]>0.05,"mismatch","ties")'
+    assert _eval_formula(formula, values) == "ties"

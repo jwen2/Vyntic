@@ -567,8 +567,13 @@ def _eval_condition(expr: str, values: dict[str, Any]) -> bool:
     match = re.match(r"(.+?)\s*(>=|<=|=|==|!=|>|<)\s*(.+)", expr)
     if not match:
         return bool(_resolve_value(expr, values))
-    left = _resolve_value(match.group(1), values)
-    right = _resolve_value(match.group(3), values)
+    # Conditions may compare arithmetic expressions (for example
+    # ``[DPI]+[RVPI]-[TVPI]>0.05``), not just scalar references. Resolve the
+    # arithmetic first so comparisons are numeric instead of lexicographic.
+    left_arithmetic = _eval_arithmetic(match.group(1), values)
+    right_arithmetic = _eval_arithmetic(match.group(3), values)
+    left = left_arithmetic if left_arithmetic is not None else _resolve_value(match.group(1), values)
+    right = right_arithmetic if right_arithmetic is not None else _resolve_value(match.group(3), values)
     op = match.group(2)
     left_num = _to_number(left)
     right_num = _to_number(right)

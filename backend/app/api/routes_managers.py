@@ -84,7 +84,17 @@ def delete_manager(manager_id: str, current_user: UserRow = Depends(get_current_
 def list_manager_funds(manager_id: str, current_user: UserRow = Depends(get_current_user)):
     if not manager_store.get_manager(manager_id):
         raise HTTPException(status_code=404, detail=f"Manager '{manager_id}' not found")
-    return [d for d in deal_store.list_deals() if d.manager_id == manager_id]
+    funds = [d for d in deal_store.list_deals() if d.manager_id == manager_id]
+    if current_user.is_admin:
+        return funds
+    visible: list[Deal] = []
+    for fund in funds:
+        try:
+            verify_deal_access(current_user, fund.deal_id)
+            visible.append(fund)
+        except HTTPException:
+            continue
+    return visible
 
 
 @router.get("/{manager_id}/documents", response_model=list[DocumentMetadata])

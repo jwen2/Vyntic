@@ -6,10 +6,11 @@ Phase 2 will add run/cell stores.
 import json
 import uuid
 from datetime import datetime
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 from app.database import (
     SessionLocal,
+    DealRow,
     WorkflowRow,
     WorkflowStageRow,
     WorkflowColumnRow,
@@ -36,6 +37,7 @@ def _row_to_workflow(row: WorkflowRow) -> Workflow:
     return Workflow(
         id=row.id,
         deal_id=row.deal_id,
+        entity_type=row.entity_type or "deal",
         name=row.name,
         description=row.description or "",
         type=row.type,
@@ -81,9 +83,19 @@ def list_workflows(deal_id: str) -> list[Workflow]:
     plus deal-scoped custom workflows."""
     db = SessionLocal()
     try:
+        deal = db.query(DealRow).filter(DealRow.deal_id == deal_id).first()
+        entity_type = (deal.entity_type if deal else None) or "deal"
         rows = (
             db.query(WorkflowRow)
-            .filter(or_(WorkflowRow.deal_id.is_(None), WorkflowRow.deal_id == deal_id))
+            .filter(
+                or_(
+                    and_(
+                        WorkflowRow.deal_id.is_(None),
+                        WorkflowRow.entity_type == entity_type,
+                    ),
+                    WorkflowRow.deal_id == deal_id,
+                )
+            )
             .all()
         )
         return [_row_to_workflow(r) for r in rows]
@@ -116,6 +128,7 @@ def create_workflow(
         row = WorkflowRow(
             id=wf_id,
             deal_id=deal_id,
+            entity_type=data.entity_type,
             name=data.name,
             description=data.description,
             type=data.type,
@@ -241,6 +254,7 @@ def clone_workflow(
         return None
     payload = WorkflowCreate(
         name=new_name or f"{source.name} (Copy)",
+        entity_type=source.entity_type,
         description=source.description,
         type=source.type,
         row_source=source.row_source,
