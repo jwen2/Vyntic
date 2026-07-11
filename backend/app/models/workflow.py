@@ -93,6 +93,7 @@ class WorkflowVariableInput(BaseModel):
 class Workflow(BaseModel):
     id: str
     deal_id: str | None
+    entity_type: str = "deal"
     name: str
     description: str = ""
     type: WorkflowType
@@ -110,6 +111,7 @@ class Workflow(BaseModel):
 
 class WorkflowCreate(BaseModel):
     name: str
+    entity_type: str = "deal"
     description: str = ""
     type: WorkflowType
     row_source: RowSource = "one_doc_per_row"

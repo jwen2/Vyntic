@@ -15,7 +15,7 @@ from app.models.workflow import (
     WorkflowCreate,
     WorkflowUpdate,
 )
-from app.services import workflow_store
+from app.services import deal_store, workflow_store
 
 
 class WorkflowColumnPatch(BaseModel):
@@ -42,9 +42,12 @@ def create_deal_workflow(
 ):
     """Create a deal-scoped custom workflow."""
     require_deal_access(current_user, deal_id)
+    deal = deal_store.get_deal(deal_id)
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
     return workflow_store.create_workflow(
         deal_id=deal_id,
-        data=data,
+        data=data.model_copy(update={"entity_type": deal.entity_type}),
         created_by=current_user.id,
         is_builtin=False,
     )
@@ -152,6 +155,9 @@ def clone_deal_workflow(
     if not source:
         raise HTTPException(status_code=404, detail="Source workflow not found")
     if source.deal_id is not None and source.deal_id != deal_id:
+        raise HTTPException(status_code=404, detail="Source workflow not visible to this deal")
+    deal = deal_store.get_deal(deal_id)
+    if not deal or source.entity_type != deal.entity_type:
         raise HTTPException(status_code=404, detail="Source workflow not visible to this deal")
     cloned = workflow_store.clone_workflow(
         source_workflow_id=workflow_id,

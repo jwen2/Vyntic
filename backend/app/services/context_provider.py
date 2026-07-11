@@ -52,7 +52,7 @@ def _full_text_to_chunks(full_text_md: str, filename: str, doc_id: str) -> list[
 
 
 def _pages_to_chunks_from_null() -> list[dict]:
-    """Placeholder for null full_text_md. ChromaDB fallback removed for MVP."""
+    """Compatibility helper retained for callers that need an empty value."""
     return []
 
 
@@ -115,8 +115,9 @@ async def load_doc_context(deal_id: str, doc_id: str, question: str) -> list[dic
     if not row:
         return []
     if not row.full_text_md:
-        logger.warning("full_text_md is null for doc %s — no context available", doc_id)
-        return _pages_to_chunks_from_null()
+        logger.warning("full_text_md is null for doc %s — using legacy RAG fallback", doc_id)
+        from app.services.vector_store import query_document
+        return await query_document(row.deal_id, row.doc_id, question)
     return _full_text_to_chunks(row.full_text_md, row.filename, row.doc_id)
 
 
@@ -143,15 +144,25 @@ async def load_deal_context(deal_id: str, question: str) -> list[dict]:
         return []
 
     chunks = []
+    legacy_doc_ids_by_deal: dict[str, set[str]] = {}
     total_chars = 0
     for row in rows:
         if row.full_text_md:
             doc_chunks = _full_text_to_chunks(row.full_text_md, row.filename, row.doc_id)
         else:
-            logger.warning("full_text_md is null for doc %s in deal %s", row.doc_id, deal_id)
-            doc_chunks = _pages_to_chunks_from_null()
+            logger.warning("full_text_md is null for doc %s in deal %s — using legacy RAG fallback", row.doc_id, deal_id)
+            legacy_doc_ids_by_deal.setdefault(row.deal_id, set()).add(row.doc_id)
+            doc_chunks = []
         chunks.extend(doc_chunks)
         total_chars += sum(len(c["content"]) for c in doc_chunks)
+
+    if legacy_doc_ids_by_deal:
+        from app.services.vector_store import query_deal
+        for owner_deal_id, doc_ids in legacy_doc_ids_by_deal.items():
+            legacy_chunks = await query_deal(owner_deal_id, question)
+            selected = [chunk for chunk in legacy_chunks if chunk.get("doc_id") in doc_ids]
+            chunks.extend(selected)
+            total_chars += sum(len(c["content"]) for c in selected)
 
     global last_context_truncated
     last_context_truncated = False
@@ -208,4 +219,7 @@ def get_doc_page_chunks(deal_id: str, doc_id: str) -> list[dict]:
 
     if row and row.full_text_md:
         return _full_text_to_chunks(row.full_text_md, row.filename, row.doc_id)
+    if row:
+        from app.services.vector_store import get_document_chunks
+        return get_document_chunks(row.deal_id, row.doc_id)
     return []

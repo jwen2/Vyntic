@@ -18,6 +18,7 @@ from app.models.workflow import (
     WorkflowColumnInput,
 )
 from app.services import workflow_store
+from app.services.workflow_seed_lp import LP_BUILTIN_TEMPLATES
 
 logger = logging.getLogger(__name__)
 
@@ -719,7 +720,7 @@ BUILTIN_TEMPLATES: list[tuple[str, WorkflowCreate]] = [
     ("builtin_legal_dd", LEGAL_DD),
     ("builtin_risk_scorecard", RISK_SCORECARD),
     ("builtin_proactive_scan", PROACTIVE_SCAN),
-]
+] + LP_BUILTIN_TEMPLATES
 
 
 def _reconcile_builtin_columns(db, workflow_row: WorkflowRow, source: WorkflowCreate, builtin_id: str) -> None:
@@ -764,6 +765,9 @@ def _reconcile_builtin_columns(db, workflow_row: WorkflowRow, source: WorkflowCr
     if workflow_row.output_format != source.output_format:
         workflow_row.output_format = source.output_format
         changed.append("output_format")
+    if workflow_row.entity_type != source.entity_type:
+        workflow_row.entity_type = source.entity_type
+        changed.append("entity_type")
     if changed:
         db.commit()
         logger.info("Reconciled built-in %s: %s", builtin_id, "; ".join(changed))

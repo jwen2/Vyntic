@@ -172,6 +172,46 @@ def list_documents(deal_id: str) -> list[DocumentMetadata]:
         db.close()
 
 
+def list_documents_missing_full_text(deal_id: str | None = None) -> list[DocumentMetadata]:
+    """Legacy documents that predate full-context ingestion.
+
+    The returned metadata deliberately excludes the text blob itself. Callers
+    use the stable doc_id + filename to reparse the preserved original file.
+    """
+    db = SessionLocal()
+    try:
+        query = db.query(DocumentRow).filter(
+            (DocumentRow.full_text_md.is_(None)) | (DocumentRow.full_text_md == "")
+        )
+        if deal_id is not None:
+            query = query.filter(DocumentRow.deal_id == deal_id)
+        return [_doc_row_to_metadata(row) for row in query.order_by(DocumentRow.deal_id, DocumentRow.filename).all()]
+    finally:
+        db.close()
+
+
+def save_document_full_text(
+    doc_id: str,
+    full_text_md: str,
+    parse_tier: int,
+    page_count: int,
+) -> bool:
+    """Backfill parsed text without replacing the document's stable identity."""
+    db = SessionLocal()
+    try:
+        row = db.query(DocumentRow).filter(DocumentRow.doc_id == doc_id).first()
+        if not row:
+            return False
+        row.full_text_md = full_text_md
+        row.parse_tier = parse_tier
+        if page_count > 0:
+            row.page_count = page_count
+        db.commit()
+        return True
+    finally:
+        db.close()
+
+
 def list_manager_documents(manager_id: str) -> list[DocumentMetadata]:
     """All manager-scoped documents across the manager's funds."""
     db = SessionLocal()

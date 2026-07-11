@@ -13,6 +13,8 @@ interface TopBarProps {
   dealBreakers: number;
   documentCount: number;
   onOpenDocuments: () => void;
+  onOpenPosition?: () => void;
+  onOpenManager?: () => void;
   onBack: () => void;
   onOpenSidebar?: () => void;
   onToggleTheme: () => void;
@@ -26,6 +28,8 @@ export default function TopBar({
   dealBreakers,
   documentCount,
   onOpenDocuments,
+  onOpenPosition,
+  onOpenManager,
   onBack,
   onOpenSidebar,
   onToggleTheme,
@@ -162,6 +166,28 @@ export default function TopBar({
           <span>{documentCount} docs</span>
         </button>
 
+        {deal.entity_type === "fund" && onOpenPosition && (
+          <button
+            type="button"
+            title="View LP position"
+            onClick={onOpenPosition}
+            className="flex items-center"
+            style={{
+              gap: 7,
+              padding: "9px 12px",
+              background: c.accentTint,
+              color: c.accentStrong,
+              border: `1px solid ${c.accentTintBorder}`,
+              borderRadius: 999,
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            Position
+          </button>
+        )}
+
         <IconButton
           title={theme === "dark" ? "Light mode" : "Dark mode"}
           onClick={onToggleTheme}
@@ -183,7 +209,7 @@ export default function TopBar({
       <div className="mt-3 flex flex-col gap-3 sm:mt-4 sm:flex-row sm:items-end sm:justify-between">
         <div style={{ minWidth: 0 }}>
           <div
-            className="font-mono-plex"
+            className="font-mono-plex flex items-center gap-1"
             style={{
               color: c.t3,
               fontSize: 10,
@@ -191,11 +217,9 @@ export default function TopBar({
               textTransform: "uppercase",
             }}
           >
-            {deal.entity_type === "fund"
-              ? deal.manager_name
-                ? `${deal.manager_name} › Fund`
-                : "Active fund"
-              : "Active deal"}
+            {deal.entity_type === "fund" && deal.manager_name && onOpenManager ? (
+              <><button type="button" onClick={onOpenManager} style={{ background: "none", border: "none", padding: 0, color: "inherit", cursor: "pointer", textTransform: "inherit", letterSpacing: "inherit" }}>{deal.manager_name}</button><span>› Fund</span></>
+            ) : deal.entity_type === "fund" ? "Active fund" : "Active deal"}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1

@@ -177,6 +177,18 @@ export async function listManagers(): Promise<Manager[]> {
   return request<Manager[]>("/managers");
 }
 
+export async function getManager(managerId: string): Promise<Manager> {
+  return request<Manager>(`/managers/${encodeURIComponent(managerId)}`);
+}
+
+export async function listManagerFunds(managerId: string): Promise<Deal[]> {
+  return request<Deal[]>(`/managers/${encodeURIComponent(managerId)}/funds`);
+}
+
+export async function listManagerDocuments(managerId: string): Promise<DocumentMetadata[]> {
+  return request<DocumentMetadata[]>(`/managers/${encodeURIComponent(managerId)}/documents`);
+}
+
 export async function createManager(
   manager_id: string,
   name: string,
@@ -185,6 +197,30 @@ export async function createManager(
   return request<Manager>("/managers", {
     method: "POST",
     body: JSON.stringify({ manager_id, name, description }),
+  });
+}
+
+export interface Position {
+  deal_id: string;
+  commitment_amount: number | null;
+  currency: "USD" | "EUR" | "GBP";
+  called_amount: number | null;
+  distributed_amount: number | null;
+  nav: number | null;
+  as_of: string | null;
+  status: "active" | "pending" | "exited";
+}
+
+export type PositionUpsert = Partial<Omit<Position, "deal_id">>;
+
+export async function getPosition(dealId: string): Promise<Position> {
+  return request<Position>(`/deals/${encodeURIComponent(dealId)}/position`);
+}
+
+export async function upsertPosition(dealId: string, data: PositionUpsert): Promise<Position> {
+  return request<Position>(`/deals/${encodeURIComponent(dealId)}/position`, {
+    method: "PUT",
+    body: JSON.stringify(data),
   });
 }
 
@@ -689,4 +725,3 @@ export async function getDocumentViewToken(
   );
   return data.token;
 }
-

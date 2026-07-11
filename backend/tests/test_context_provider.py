@@ -84,16 +84,22 @@ def test_load_doc_context_returns_empty_when_doc_not_found(monkeypatch):
     assert result == []
 
 
-def test_load_doc_context_returns_empty_when_full_text_md_null(monkeypatch):
+def test_load_doc_context_uses_legacy_rag_when_full_text_md_null(monkeypatch):
     monkeypatch.setattr("app.services.context_provider.settings.full_context_mode", True)
     row = _make_doc_row("doc_1", "report.pdf", None)
     db_mock = MagicMock()
     db_mock.query.return_value.filter.return_value.first.return_value = row
 
-    with patch("app.services.context_provider.SessionLocal", return_value=db_mock):
+    async def fake_query_document(deal_id, doc_id, question):
+        assert (deal_id, doc_id, question) == ("deal_1", "doc_1", "question")
+        return [{"content": "Legacy content", "doc_id": doc_id}]
+
+    with patch("app.services.context_provider.SessionLocal", return_value=db_mock), patch(
+        "app.services.vector_store.query_document", fake_query_document
+    ):
         result = asyncio.run(load_doc_context("deal_1", "doc_1", "question"))
 
-    assert result == []
+    assert result == [{"content": "Legacy content", "doc_id": "doc_1"}]
 
 
 def test_load_deal_context_concatenates_all_docs(monkeypatch):
@@ -115,6 +121,32 @@ def test_load_deal_context_concatenates_all_docs(monkeypatch):
     assert source_files == {"cim.pdf", "mgmt.pdf"}
 
 
+def test_load_deal_context_combines_full_text_and_legacy_rag(monkeypatch):
+    monkeypatch.setattr("app.services.context_provider.settings.full_context_mode", True)
+    rows = [
+        _make_doc_row("doc_1", "cim.pdf", "## Page 1\n\nRevenue was $10m."),
+        _make_doc_row("doc_2", "legacy.pdf", None),
+    ]
+    db_mock = MagicMock()
+    db_mock.query.return_value.filter.return_value.all.return_value = rows
+    db_mock.query.return_value.filter.return_value.first.return_value = None
+
+    async def fake_query_deal(deal_id, question):
+        assert deal_id == "deal_1"
+        return [
+            {"content": "Ignore full-text duplicate", "doc_id": "doc_1"},
+            {"content": "Legacy finding", "doc_id": "doc_2", "source_file": "legacy.pdf"},
+        ]
+
+    with patch("app.services.context_provider.SessionLocal", return_value=db_mock), patch(
+        "app.services.vector_store.query_deal", fake_query_deal
+    ):
+        result = asyncio.run(load_deal_context("deal_1", "question"))
+
+    assert [chunk["doc_id"] for chunk in result] == ["doc_1", "doc_2"]
+    assert result[1]["content"] == "Legacy finding"
+
+
 def test_get_doc_page_chunks_returns_chunks_from_full_text(monkeypatch):
     monkeypatch.setattr("app.services.context_provider.settings.full_context_mode", True)
     row = _make_doc_row("doc_1", "report.pdf", "## Page 3\n\nSome content.")
@@ -126,3 +158,18 @@ def test_get_doc_page_chunks_returns_chunks_from_full_text(monkeypatch):
 
     assert len(chunks) == 1
     assert chunks[0]["page"] == 3
+
+
+def test_get_doc_page_chunks_uses_legacy_vectors_when_full_text_null(monkeypatch):
+    monkeypatch.setattr("app.services.context_provider.settings.full_context_mode", True)
+    row = _make_doc_row("doc_1", "report.pdf", None)
+    db_mock = MagicMock()
+    db_mock.query.return_value.filter.return_value.first.return_value = row
+
+    with patch("app.services.context_provider.SessionLocal", return_value=db_mock), patch(
+        "app.services.vector_store.get_document_chunks",
+        return_value=[{"content": "Legacy page", "page": 4}],
+    ):
+        chunks = get_doc_page_chunks("deal_1", "doc_1")
+
+    assert chunks == [{"content": "Legacy page", "page": 4}]

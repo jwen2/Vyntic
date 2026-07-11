@@ -96,6 +96,16 @@ class TestManagerRoutes:
         assert r.status_code == 200
         assert [d["doc_id"] for d in r.json()] == ["doc_ddq"]
 
+    def test_manager_funds_are_filtered_by_access(self, analyst_client, analyst_user):
+        _make_manager()
+        _make_fund("fund_iv", "hillpath")
+        _make_fund("fund_v", "hillpath")
+        grant_deal_access(analyst_user.id, "fund_iv", role="analyst")
+
+        response = analyst_client.get("/managers/hillpath/funds")
+        assert response.status_code == 200
+        assert [fund["deal_id"] for fund in response.json()] == ["fund_iv"]
+
 
 # ── Fund creation + stage validation ──
 

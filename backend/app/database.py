@@ -226,6 +226,7 @@ class WorkflowRow(Base):
     id = Column(String, primary_key=True, index=True)  # uuid4 hex
     # NULL deal_id = built-in template, visible across all deals.
     deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=True, index=True)
+    entity_type = Column(String, default="deal", index=True)  # "deal" | "fund"
     name = Column(String, nullable=False)
     description = Column(Text, default="")
     type = Column(String, nullable=False)  # "assistant" | "tabular"
@@ -418,6 +419,9 @@ def _ensure_schema_migrations():
             ("doc_category", "TEXT DEFAULT 'other'"),
             ("period", "TEXT"),
             ("scope", "TEXT DEFAULT 'entity'"),
+        ],
+        "workflows": [
+            ("entity_type", "TEXT DEFAULT 'deal'"),
         ],
     }
     inspector = inspect(engine)

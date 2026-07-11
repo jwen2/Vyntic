@@ -1,10 +1,11 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Deal, UploadProgress, User } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
 import DealListItem from "./DealListItem";
 
 /** Group funds under their manager; plain deals form a trailing group. */
-function groupByManager(deals: Deal[]): { label: string | null; deals: Deal[] }[] {
+function groupByManager(deals: Deal[]): { label: string | null; managerId: string | null; deals: Deal[] }[] {
   const managerGroups = new Map<string, { label: string; deals: Deal[] }>();
   const plainDeals: Deal[] = [];
   const orphanFunds: Deal[] = [];
@@ -27,13 +28,13 @@ function groupByManager(deals: Deal[]): { label: string | null; deals: Deal[] }[
     }
   }
 
-  const groups: { label: string | null; deals: Deal[] }[] = [...managerGroups.values()].sort(
-    (a, b) => a.label.localeCompare(b.label)
-  );
-  if (orphanFunds.length > 0) groups.push({ label: "Unassigned funds", deals: orphanFunds });
+  const groups: { label: string | null; managerId: string | null; deals: Deal[] }[] = [...managerGroups.entries()]
+    .map(([managerId, group]) => ({ ...group, managerId }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  if (orphanFunds.length > 0) groups.push({ label: "Unassigned funds", managerId: null, deals: orphanFunds });
   // Plain deals render without a group header unless funds exist alongside them.
   if (plainDeals.length > 0) {
-    groups.push({ label: groups.length > 0 ? "Deals" : null, deals: plainDeals });
+    groups.push({ label: groups.length > 0 ? "Deals" : null, managerId: null, deals: plainDeals });
   }
   return groups;
 }
@@ -75,6 +76,7 @@ export default function HomeSidebar({
   onClose,
 }: Props) {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const isDark = theme === "dark";
   const groups = useMemo(() => groupByManager(filteredDeals), [filteredDeals]);
   const surface = isDark ? "#151515" : "#f8f8f4";
@@ -239,18 +241,29 @@ export default function HomeSidebar({
           groups.map((group, groupIndex) => (
             <div key={`${group.label ?? "__ungrouped__"}-${groupIndex}`}>
               {group.label && (
-                <div
+                <button
+                  type="button"
+                  onClick={group.managerId ? () => {
+                    navigate(`/manager/${encodeURIComponent(group.managerId!)}`);
+                    onClose?.();
+                  } : undefined}
                   className="font-mono-plex px-2 uppercase"
                   style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    border: "none",
+                    background: "transparent",
                     fontSize: 10,
                     letterSpacing: "0.16em",
                     color: muted,
                     marginTop: groupIndex === 0 ? 4 : 16,
                     marginBottom: 8,
+                    cursor: group.managerId ? "pointer" : "default",
                   }}
                 >
-                  {group.label}
-                </div>
+                  {group.label}{group.managerId ? "  →" : ""}
+                </button>
               )}
               {group.deals.map((deal) => (
                 <DealListItem

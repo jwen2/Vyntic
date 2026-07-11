@@ -11,6 +11,7 @@ const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const LoginPage = lazy(() => import("@/pages/LoginPage"));
 const HomePage = lazy(() => import("@/pages/HomePage"));
 const DealWorkspacePage = lazy(() => import("@/pages/DealWorkspacePage"));
+const ManagerPage = lazy(() => import("@/pages/ManagerPage"));
 
 function RouteFallback() {
   return (
@@ -62,6 +63,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <DealWorkspacePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/manager/:managerId"
+                  element={
+                    <ProtectedRoute>
+                      <ManagerPage />
                     </ProtectedRoute>
                   }
                 />
