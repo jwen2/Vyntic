@@ -11,10 +11,16 @@ Ordered by the assessment's tiers. Tiers 0–1 are concrete code on the current 
 | # | Plan | Tier | Findings | Depends on | Status |
 |---|---|---|---|---|---|
 | 1 | `2026-07-02-tier0-security-hotfixes.md` | 0 — before any exposure | S1, S3, R1-guard, S9-CORS | — | **done (PR #91)** — moved to `docs/finished/` |
-| 2 | `2026-07-02-auth-access-control-audit.md` | 1 — before paid pilot | S1-cross, S4, S5, S6, S9-XSS | Plan 1 | not started |
+| 2 | `2026-07-02-auth-access-control-audit.md` | 1 — before paid pilot | S1-cross, S4, S5, S6, S9-XSS | Plan 1 | **done (PR #95)** |
 | 3 | `2026-07-02-durable-ingestion-parsing.md` | 1 — before paid pilot | R4, R5 | — | **done (PR #91)** — moved to `docs/finished/` |
 | 4 | `2026-07-02-postgres-multitenancy.md` | 2 — before multi-tenant | R2, S2, R6, S7, S8 | **tenancy decision (D1)** | blocked on decisions |
 | 5 | `2026-07-02-horizontal-scaling-context-cascade.md` | 2 — before multi-tenant | R3, R1-full | Plan 4 | blocked on Plan 4 |
+
+## LP product repositioning
+
+| # | Plan | Scope | Depends on | Status |
+|---|---|---|---|---|
+| LP1 | `2026-07-08-lp-template-packs-and-object-model-frontend.md` | 7 LP built-in templates + workflow entity-scoping; Manager page + Position panel | PR #94 (merged) | **not started** — fully-specced handoff, self-contained context |
 
 ## Frontend quality (audit 2026-07-07)
 
