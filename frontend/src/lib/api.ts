@@ -380,6 +380,43 @@ export async function updateDeal(
   });
 }
 
+// ── Brief work-product: findings + field overrides (server-backed, F3.4) ──
+// Shape-agnostic on purpose: the Finding type + override map are owned by the
+// dd/ components. Callers cast the blobs to their concrete types.
+
+export type BriefOverrideStore = Record<string, Record<string, string>>;
+
+export async function getDealFindings<T = unknown>(deal_id: string): Promise<T[]> {
+  const res = await request<{ findings: T[] }>(`/deals/${encodeURIComponent(deal_id)}/findings`);
+  return res.findings;
+}
+
+export async function putDealFindings<T = unknown>(deal_id: string, findings: T[]): Promise<T[]> {
+  const res = await request<{ findings: T[] }>(`/deals/${encodeURIComponent(deal_id)}/findings`, {
+    method: "PUT",
+    body: JSON.stringify({ findings }),
+  });
+  return res.findings;
+}
+
+export async function getBriefOverrides(deal_id: string): Promise<BriefOverrideStore> {
+  const res = await request<{ overrides: BriefOverrideStore }>(
+    `/deals/${encodeURIComponent(deal_id)}/brief-overrides`
+  );
+  return res.overrides;
+}
+
+export async function putBriefOverrides(
+  deal_id: string,
+  overrides: BriefOverrideStore
+): Promise<BriefOverrideStore> {
+  const res = await request<{ overrides: BriefOverrideStore }>(
+    `/deals/${encodeURIComponent(deal_id)}/brief-overrides`,
+    { method: "PUT", body: JSON.stringify({ overrides }) }
+  );
+  return res.overrides;
+}
+
 export interface DocumentMetadata {
   doc_id: string;
   deal_id: string;

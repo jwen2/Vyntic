@@ -22,7 +22,8 @@ from app.models.deal import (
 )
 from app.models.document import DocumentMetadata
 from app.models.manager import Position, PositionUpsert
-from app.services import audit_store, deal_store, manager_store
+from app.models.brief import FindingsPayload, OverridesPayload
+from app.services import audit_store, deal_store, finding_store, manager_store
 from app.database import UserRow
 from app.auth import (
     create_scoped_token,
@@ -165,6 +166,53 @@ def upsert_position(
     if deal.entity_type != "fund":
         raise HTTPException(status_code=422, detail="Positions only apply to funds")
     return manager_store.upsert_position(deal_id, data)
+
+
+# ── Brief work-product: findings + field overrides (Plan F3.4, D2) ──
+#
+# Analyst work-product that used to live in the browser's localStorage. Both
+# read and write require deal access (RBAC parity with documents) — not admin,
+# since analysts own these edits. The blobs are opaque; the frontend owns the
+# Finding shape and the override map.
+
+@router.get("/{deal_id}/findings", response_model=FindingsPayload)
+def get_deal_findings(deal_id: str, current_user: UserRow = Depends(get_current_user)):
+    require_deal_access(current_user, deal_id)
+    if not deal_store.get_deal(deal_id):
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    return FindingsPayload(findings=finding_store.get_findings(deal_id))
+
+
+@router.put("/{deal_id}/findings", response_model=FindingsPayload)
+def put_deal_findings(
+    deal_id: str,
+    data: FindingsPayload,
+    current_user: UserRow = Depends(get_current_user),
+):
+    require_deal_access(current_user, deal_id)
+    if not deal_store.get_deal(deal_id):
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    return FindingsPayload(findings=finding_store.put_findings(deal_id, data.findings))
+
+
+@router.get("/{deal_id}/brief-overrides", response_model=OverridesPayload)
+def get_deal_brief_overrides(deal_id: str, current_user: UserRow = Depends(get_current_user)):
+    require_deal_access(current_user, deal_id)
+    if not deal_store.get_deal(deal_id):
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    return OverridesPayload(overrides=finding_store.get_overrides(deal_id))
+
+
+@router.put("/{deal_id}/brief-overrides", response_model=OverridesPayload)
+def put_deal_brief_overrides(
+    deal_id: str,
+    data: OverridesPayload,
+    current_user: UserRow = Depends(get_current_user),
+):
+    require_deal_access(current_user, deal_id)
+    if not deal_store.get_deal(deal_id):
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    return OverridesPayload(overrides=finding_store.put_overrides(deal_id, data.overrides))
 
 
 @router.get("/{deal_id}/documents", response_model=list[DocumentMetadata])

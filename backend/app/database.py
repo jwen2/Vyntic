@@ -387,6 +387,30 @@ class AssistantStageOutputRow(Base):
     run = relationship("WorkflowRunRow", back_populates="stage_outputs")
 
 
+# ── Brief work-product (Plan F3.4, D2) ──
+#
+# Findings (analyst validate/reject + notes) and brief field overrides were
+# client-side localStorage. They're analyst work-product, so they live here now:
+# one JSON blob per deal, matching how the client reads/writes the whole
+# collection. The blobs are opaque to the backend — the Finding shape stays
+# frontend-owned. Both CASCADE-delete with the deal.
+
+class DealFindingRow(Base):
+    __tablename__ = "deal_findings"
+
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), primary_key=True)
+    findings_json = Column(Text, default="[]")  # JSON list of Finding dicts (frontend-owned shape)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class BriefOverrideRow(Base):
+    __tablename__ = "brief_overrides"
+
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), primary_key=True)
+    overrides_json = Column(Text, default="{}")  # JSON {panelKey: {label: value}}
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 def init_db():
     """Create all tables if they don't exist."""
     Base.metadata.create_all(bind=engine)

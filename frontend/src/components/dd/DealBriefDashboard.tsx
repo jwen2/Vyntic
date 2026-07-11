@@ -1,7 +1,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { Citation } from "@/lib/api";
-import { listDocuments } from "@/lib/api";
+import { listDocuments, getBriefOverrides, putBriefOverrides } from "@/lib/api";
 import {
   listRuns,
   startWorkflowRun,
@@ -422,14 +422,42 @@ export default function DealBriefDashboard({
 
   const [overrides, setOverrides] = useState<OverrideStore>({});
 
+  // Load overrides from the server; migrate localStorage up once if empty.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem(OVERRIDE_KEY_PREFIX + dealId);
-      setOverrides(raw ? JSON.parse(raw) : {});
-    } catch {
-      setOverrides({});
-    }
+    let active = true;
+    const readLocal = (): OverrideStore => {
+      try {
+        const raw = localStorage.getItem(OVERRIDE_KEY_PREFIX + dealId);
+        return raw ? (JSON.parse(raw) as OverrideStore) : {};
+      } catch {
+        return {};
+      }
+    };
+    (async () => {
+      try {
+        const server = await getBriefOverrides(dealId);
+        if (!active) return;
+        if (Object.keys(server).length > 0) {
+          setOverrides(server);
+          return;
+        }
+        const local = readLocal();
+        if (Object.keys(local).length > 0) {
+          setOverrides(local);
+          try {
+            await putBriefOverrides(dealId, local);
+            if (active) localStorage.removeItem(OVERRIDE_KEY_PREFIX + dealId);
+          } catch {}
+        } else {
+          setOverrides({});
+        }
+      } catch {
+        if (active) setOverrides(readLocal());
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [dealId]);
 
   const setOverride = useCallback(
@@ -445,12 +473,8 @@ export default function DealBriefDashboard({
         const next: OverrideStore = { ...prev };
         if (Object.keys(panel).length > 0) next[panelKey] = panel;
         else delete next[panelKey];
-        try {
-          if (typeof window !== "undefined") {
-            if (Object.keys(next).length > 0) localStorage.setItem(OVERRIDE_KEY_PREFIX + dealId, JSON.stringify(next));
-            else localStorage.removeItem(OVERRIDE_KEY_PREFIX + dealId);
-          }
-        } catch {}
+        // Best-effort server persistence (last-write-wins).
+        void putBriefOverrides(dealId, next).catch(() => {});
         return next;
       });
     },
