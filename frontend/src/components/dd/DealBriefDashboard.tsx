@@ -22,6 +22,12 @@ import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 // kept verbatim when the Workstreams tab was retired.
 interface QuestionResult {
   answer: string;
+  /**
+   * The cell's typed `answer_formatted`. KV panels (snapshot/transaction) read
+   * `pairs` and the list panel (next actions) reads `items` directly from here;
+   * prose panels fall back to `answer`.
+   */
+  formatted?: TabularCell["answer_formatted"];
   citations: (Citation | null)[];
   status: "pending" | "loading" | "complete" | "error";
   model?: string;
@@ -70,66 +76,28 @@ interface Props {
 }
 
 /**
- * Synthesize a markdown-shape `answer` from the cell's structured
- * `answer_formatted`. The brief's ~1.5k lines of parsers (extractFields,
- * extractMetrics, extractFinancialTables, extractThesisSections,
- * extractActionItems) were written against the workstream-era prose output —
- * line-based "Field: Value", bullet lists, narrative prose. The new typed-cell
- * pipeline instructs the LLM to return JSON for kv/list shapes, which the
- * parsers can't read. This adapter rebuilds the markdown form the parsers
- * expect so the brief renders correctly without rewriting the parsers.
- *
- * Prose cells fall through to `cell.answer` (the raw streamed text) since the
- * prose extractor already handles that.
+ * The prose panels (financial highlights, investment thesis) parse the cell's
+ * free-form text via extractMetrics / extractFinancialTables /
+ * extractThesisSections. Prefer the typed `body`, then `summary`, then the raw
+ * streamed answer. KV and list panels don't use this — they read the cell's
+ * typed `answer_formatted` directly (see pairsToFields / deriveActions), so the
+ * old JSON→fake-markdown→regex round-trip is gone.
  */
-function synthesizeBriefAnswer(cell: TabularCell): string {
+function briefProse(cell: TabularCell): string {
   const raw = cell.answer || "";
   const formatted = cell.answer_formatted;
-  if (formatted == null || typeof formatted !== "object") return raw;
-
-  // KV cells (Deal snapshot, Proposed transaction):
-  //   { pairs: [{ key, value, unit? }] } -> "Key: Value\nKey: Value"
-  const pairs = (formatted as { pairs?: Array<{ key?: string; value?: string | number; unit?: string | null }> }).pairs;
-  if (Array.isArray(pairs)) {
-    const lines = pairs
-      .map((p) => {
-        const key = (p?.key ?? "").trim();
-        const value = p?.value;
-        if (!key || value == null || value === "") return null;
-        const unit = (p?.unit ?? "").trim();
-        return `${key}: ${value}${unit ? ` ${unit}` : ""}`;
-      })
-      .filter((s): s is string => Boolean(s));
-    return lines.length > 0 ? lines.join("\n") : raw;
+  if (formatted && typeof formatted === "object" && !Array.isArray(formatted)) {
+    const prose = formatted as { summary?: string; body?: string };
+    if (typeof prose.body === "string" && prose.body.trim()) return prose.body;
+    if (typeof prose.summary === "string" && prose.summary.trim()) return prose.summary;
   }
-
-  // List cells (Analyst next actions, Hidden financial risks, etc.):
-  //   { items: [{ text }], ordered } -> "- text\n- text"
-  const items = (formatted as { items?: Array<{ text?: string } | string>; ordered?: boolean }).items;
-  if (Array.isArray(items)) {
-    const ordered = Boolean((formatted as { ordered?: boolean }).ordered);
-    const lines = items
-      .map((item, i) => {
-        const text = typeof item === "string" ? item : (item?.text ?? "");
-        const trimmed = text.trim();
-        if (!trimmed) return null;
-        return ordered ? `${i + 1}. ${trimmed}` : `- ${trimmed}`;
-      })
-      .filter((s): s is string => Boolean(s));
-    return lines.length > 0 ? lines.join("\n") : raw;
-  }
-
-  // Prose cells: prefer body, then summary, then raw. The brief's extractors
-  // for thesis / financial tables / metrics work on free-form prose.
-  const prose = formatted as { summary?: string; body?: string };
-  if (typeof prose.body === "string" && prose.body.trim()) return prose.body;
-  if (typeof prose.summary === "string" && prose.summary.trim()) return prose.summary;
   return raw;
 }
 
 function cellToQuestionResult(cell: TabularCell): QuestionResult {
   return {
-    answer: synthesizeBriefAnswer(cell),
+    answer: briefProse(cell),
+    formatted: cell.answer_formatted,
     citations: cell.citations || [],
     status:
       cell.status === "complete"
@@ -496,12 +464,12 @@ export default function DealBriefDashboard({
   const nextActionsResult = resultByLabel(scanWorkstream, scanResults, NEXT_ACTIONS_LABEL);
 
   const snapshotFields = mergeOverrides(
-    extractFields(snapshotResult?.answer, SNAPSHOT_FIELDS),
+    pairsToFields(snapshotResult?.formatted, SNAPSHOT_FIELDS),
     overrides.snapshot,
     SNAPSHOT_FIELDS
   );
   const transactionFields = mergeOverrides(
-    extractFields(transactionResult?.answer, TRANSACTION_FIELDS),
+    pairsToFields(transactionResult?.formatted, TRANSACTION_FIELDS),
     overrides.transaction,
     TRANSACTION_FIELDS
   );
@@ -572,16 +540,16 @@ export default function DealBriefDashboard({
     if (!hasAnyCompleted || isLoading) return;
     if (!scanWorkstream) return;
     const newSnapshotFields = mergeOverrides(
-      extractFields(
-        scanResults[scanWorkstream.templates.find((t) => t.label === DEAL_SNAPSHOT_LABEL)?.query || ""]?.answer,
+      pairsToFields(
+        scanResults[scanWorkstream.templates.find((t) => t.label === DEAL_SNAPSHOT_LABEL)?.query || ""]?.formatted,
         SNAPSHOT_FIELDS,
       ),
       overrides.snapshot,
       SNAPSHOT_FIELDS,
     );
     const newTransactionFields = mergeOverrides(
-      extractFields(
-        scanResults[scanWorkstream.templates.find((t) => t.label === PROPOSED_TRANSACTION_LABEL)?.query || ""]?.answer,
+      pairsToFields(
+        scanResults[scanWorkstream.templates.find((t) => t.label === PROPOSED_TRANSACTION_LABEL)?.query || ""]?.formatted,
         TRANSACTION_FIELDS,
       ),
       overrides.transaction,
@@ -605,7 +573,7 @@ export default function DealBriefDashboard({
   const metrics = extractMetrics(financialResult?.answer);
   const financialTables = extractFinancialTables(financialResult?.answer);
   const thesisSections = extractThesisSections(thesisResult?.answer);
-  const nextActions = extractActionItems(nextActionsResult?.answer, findings);
+  const nextActions = deriveActions(nextActionsResult?.formatted, nextActionsResult?.answer, findings);
   const topFindings = findings.slice().sort(compareFindingSeverity).slice(0, 4);
   const gapCount = findings.filter(isGapFinding).length;
   const inconsistencyCount = findings.filter(isInconsistencyFinding).length;
@@ -2048,34 +2016,39 @@ function cleanText(text = ""): string {
     .trim();
 }
 
-function extractFields(answer: string | undefined, preferredLabels: string[]): BriefField[] {
-  if (!answer) return [];
-  const cleaned = answer.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/\*\*/g, "").trim();
-  if (!cleaned) return [];
-  const normalizedText = insertFieldBreaks(cleaned, preferredLabels);
+/**
+ * Build the snapshot/transaction fields straight from the KV cell's typed
+ * `answer_formatted.pairs`. Only keys in `preferredLabels` are surfaced (same
+ * whitelist the old prose regex enforced); values are title-cased and
+ * unit-joined. Returns [] when the cell has no typed pairs (old runs) so the
+ * panel falls back to rendering `answer` as markdown.
+ */
+function pairsToFields(formatted: QuestionResult["formatted"], preferredLabels: string[]): BriefField[] {
+  if (!formatted || typeof formatted !== "object" || Array.isArray(formatted)) return [];
+  const pairs = (formatted as { pairs?: Array<{ key?: string; value?: string | number; unit?: string | null }> }).pairs;
+  if (!Array.isArray(pairs)) return [];
+  const allow = new Set(preferredLabels.map((l) => l.toLowerCase()));
   const fields: BriefField[] = [];
   const seen = new Set<string>();
-  const labelPattern = preferredLabels.map(escapeRegExp).join("|");
-  const regex = new RegExp(`(?:^|\\n)\\s*(?:[-*]\\s*)?(${labelPattern})\\s*[:-]\\s*([^\\n]+)`, "gi");
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(normalizedText)) !== null) {
-    const rawLabel = match[1];
-    const label = titleCase(rawLabel);
-    const rawValue = match[2];
-    const sourceIdx = extractFirstSourceIdx(rawValue);
-    const value = normalizeValue(rawValue.replace(/\[Source\s+\d+\]/gi, ""));
-    if (!value || seen.has(label.toLowerCase())) continue;
+  for (const pair of pairs) {
+    const key = (pair?.key ?? "").trim();
+    if (!key || !allow.has(key.toLowerCase())) continue;
+    const label = titleCase(key);
+    if (seen.has(label.toLowerCase())) continue;
+    const rawValue = pair?.value;
+    if (rawValue == null || rawValue === "") continue;
+    const unit = (pair?.unit ?? "").trim();
+    // The LLM sometimes tucks the "[Source N]" marker into `unit`, so build the
+    // combined string first, then pull the source index and strip the marker —
+    // mirroring the old synthesize(value+unit) → extractFields behavior.
+    const combined = `${rawValue}${unit ? ` ${unit}` : ""}`;
+    const sourceIdx = extractFirstSourceIdx(combined);
+    const value = normalizeValue(combined.replace(/\[Source\s+\d+\]/gi, ""));
+    if (!value) continue;
     seen.add(label.toLowerCase());
     fields.push({ label, value, sourceIdx });
   }
   return fields.slice(0, 7);
-}
-
-function insertFieldBreaks(text: string, preferredLabels: string[]): string {
-  const labelPattern = preferredLabels.map(escapeRegExp).join("|");
-  return text
-    .replace(new RegExp(`;\\s*(?=(?:${labelPattern})\\s*:)`, "gi"), "\n")
-    .replace(new RegExp(`([^\\n])\\s+(?=(?:${labelPattern})\\s*:)`, "gi"), "$1\n");
 }
 
 function extractMetrics(answer: string | undefined): Metric[] {
@@ -2361,8 +2334,27 @@ function extractThesisSections(answer: string | undefined): ThesisSections {
   return sections;
 }
 
-function extractActionItems(answer: string | undefined, findings: Finding[]): ThesisBullet[] {
-  const explicit = extractBulletsWithSources(answer).slice(0, 5);
+function deriveActions(
+  formatted: QuestionResult["formatted"],
+  answer: string | undefined,
+  findings: Finding[]
+): ThesisBullet[] {
+  // Prefer the list cell's typed items; fall back to bullet-parsing the raw
+  // answer for old runs whose cells have no answer_formatted.
+  let explicit: ThesisBullet[] = [];
+  if (formatted && typeof formatted === "object" && !Array.isArray(formatted)) {
+    const items = (formatted as { items?: Array<{ text?: string } | string> }).items;
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        const rawText = typeof item === "string" ? item : item?.text ?? "";
+        const sourceIdx = extractFirstSourceIdx(rawText);
+        const text = rawText.replace(/\[Source\s+\d+\]/gi, "").replace(/\s+/g, " ").trim();
+        if (text && !/^not\s+found$/i.test(text)) explicit.push({ text, sourceIdx });
+      }
+    }
+  }
+  if (explicit.length === 0) explicit = extractBulletsWithSources(answer);
+  explicit = explicit.slice(0, 5);
   if (explicit.length > 0) return explicit;
 
   const fallbacks: ThesisBullet[] = [];
