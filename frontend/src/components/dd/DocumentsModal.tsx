@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DocumentMetadata } from "@/lib/api";
 import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { ACCENT, ddTheme, tint } from "./types";
 
 // The 14 doc categories collapse into three color families so a document's
@@ -110,6 +111,10 @@ export default function DocumentsModal({
     [dealId, onDocumentUpdated],
   );
 
+  // role/focus-trap/restore via the shared hook; the guarded Escape below stays
+  // (it must clear an inner confirm before closing the modal).
+  const dialogRef = useDialogA11y<HTMLDivElement>();
+
   // Close on Escape (only when no inline confirm is open).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -156,6 +161,11 @@ export default function DocumentsModal({
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Documents"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",

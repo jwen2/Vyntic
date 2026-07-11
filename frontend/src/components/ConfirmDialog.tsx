@@ -1,4 +1,5 @@
 import { useTheme } from "@/components/ThemeProvider";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import LandingButton from "@/components/landing/ui/LandingButton";
 import LandingEyebrow from "@/components/landing/ui/LandingEyebrow";
 import LandingHeading from "@/components/landing/ui/LandingHeading";
@@ -24,9 +25,17 @@ export default function ConfirmDialog({
 }: Props) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const dialogRef = useDialogA11y<HTMLDivElement>(onCancel);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 outline-none"
+    >
       <LandingPanel
         className="w-full max-w-md"
         variant={isDark ? "inverse" : "default"}

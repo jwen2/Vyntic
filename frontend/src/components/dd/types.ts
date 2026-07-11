@@ -82,22 +82,25 @@ export function tint(color: string, alphaPct: number): string {
   return `color-mix(in srgb, ${color} ${alphaPct}%, transparent)`;
 }
 
-// Border and t3 values are contrast-checked: borders ≥ ~1.8:1 against their
-// surface, t3 ≥ 4.5:1 (WCAG AA for the small uppercase labels it colors).
-export const DD_DARK = {
-  bg: "#0f0f0f",
-  surface: "#171717",
-  surfaceAlt: "#111111",
-  border: "#424242",
-  borderLight: "#2e2e2e",
-  t1: "#f5f5f5",
-  t2: "rgba(255,255,255,0.68)",
-  t3: "rgba(255,255,255,0.55)",
-  t4: "#303030",
+// Semantic theming tokens as CSS-variable references — the single source of
+// truth now lives in index.css (`:root` for light, `.dark` for dark; values
+// contrast-checked there). This collapses the old dual DD_LIGHT/DD_DARK maps
+// (FE11): the tokens are theme-independent var() refs that flip via the .dark
+// class, so consumers no longer branch on `theme` for color.
+const DD_TOKENS = {
+  bg: "var(--bg)",
+  surface: "var(--surface)",
+  surfaceAlt: "var(--surface-alt)",
+  border: "var(--border)",
+  borderLight: "var(--border-light)",
+  t1: "var(--text-1)",
+  t2: "var(--text-2)",
+  t3: "var(--text-3)",
+  t4: "var(--text-4)",
   // Data-grid separation: zebra = alternating body row; gridHeader = the
   // column-header fill (a second scanning channel beyond the 1px gridline).
-  zebra: "#1c1c1c",
-  gridHeader: "#202020",
+  zebra: "var(--zebra)",
+  gridHeader: "var(--grid-header)",
   accent: "var(--accent)",
   accentStrong: "var(--accent-strong)",
   accentTint: "var(--accent-tint)",
@@ -105,25 +108,18 @@ export const DD_DARK = {
   onAccent: "var(--on-accent)",
 };
 
-export const DD_LIGHT = {
-  bg: "var(--landing-bg)",
-  surface: "var(--landing-surface)",
-  surfaceAlt: "var(--landing-surface-alt)",
-  border: "var(--landing-border)",
-  borderLight: "#d2d2c5",
-  t1: "var(--landing-text)",
-  t2: "var(--landing-muted)",
-  t3: "#6e6e66",
-  t4: "#c8c8bd",
-  zebra: "#f6f5ef",
-  gridHeader: "#e5e3d8",
-  accent: "var(--accent)",
-  accentStrong: "var(--accent-strong)",
-  accentTint: "var(--accent-tint)",
-  accentTintBorder: "var(--accent-tint-border)",
-  onAccent: "var(--on-accent)",
-};
+/** @deprecated The light/dark split moved to CSS vars — this is now identical
+ * to DD_DARK and to what ddTheme() returns. Kept as an alias for any lingering
+ * importers. */
+export const DD_LIGHT = DD_TOKENS;
+/** @deprecated see DD_LIGHT. */
+export const DD_DARK = DD_TOKENS;
 
-export function ddTheme(theme: "light" | "dark") {
-  return theme === "dark" ? DD_DARK : DD_LIGHT;
+/**
+ * Returns the semantic token map (CSS-var refs). The `theme` argument no longer
+ * affects the result — colors flip via the `.dark` class — but the signature is
+ * kept so the ~96 existing `ddTheme(theme)` call sites need no change.
+ */
+export function ddTheme(_theme?: "light" | "dark") {
+  return DD_TOKENS;
 }

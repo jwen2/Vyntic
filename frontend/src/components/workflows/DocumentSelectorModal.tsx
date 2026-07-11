@@ -1,6 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ddTheme } from "@/components/dd/types";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { listDocuments, type DocumentMetadata } from "@/lib/api";
 import type { RowSource } from "@/lib/workflows";
 import { ACCENT, VIOLET } from "./theme";
@@ -35,6 +36,7 @@ export default function DocumentSelectorModal({
   onCancel,
 }: DocumentSelectorModalProps) {
   const c = ddTheme(theme);
+  const dialogRef = useDialogA11y<HTMLDivElement>(onCancel);
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected));
   const [loading, setLoading] = useState(true);
@@ -112,6 +114,11 @@ export default function DocumentSelectorModal({
       onClick={onCancel}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Select documents"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: c.surface,
