@@ -20,7 +20,7 @@ Ordered by the assessment's tiers. Tiers 0–1 are concrete code on the current 
 
 | # | Plan | Scope | Depends on | Status |
 |---|---|---|---|---|
-| LP1 | `2026-07-08-lp-template-packs-and-object-model-frontend.md` | 7 LP built-in templates + workflow entity-scoping; Manager page + Position panel | PR #94 (merged) | **done on `feat/lp-template-packs`** — 21 entity-scoped built-ins, Manager page, Position panel; demo fixtures deferred |
+| LP1 | `2026-07-08-lp-template-packs-and-object-model-frontend.md` | 7 LP built-in templates + workflow entity-scoping; Manager page + Position panel | PR #94 (merged) | **done (PR #102)** — 21 entity-scoped built-ins, Manager page, Position panel; demo fixtures deferred |
 
 ## Frontend quality (audit 2026-07-07)
 
