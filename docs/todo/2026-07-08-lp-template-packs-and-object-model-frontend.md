@@ -1,6 +1,6 @@
 # LP Template Packs + Object-Model Frontend Completion
 
-**Status:** complete (2026-07-11 on `feat/lp-template-packs`; demo fixtures A4 deferred)
+**Status:** complete (2026-07-11 on `feat/lp-template-packs`; Hillpath Fund IV fixtures added, second demo fund deferred)
 **Author of spec:** Claude (session 2026-07-08), handed off mid-implementation. All code facts below were verified against the working tree at `8f6bb45` on 2026-07-08.
 
 ---
@@ -113,8 +113,8 @@ Mirror `CIM_TO_MEMO`'s stage structure (seed line ~26). Stages, checkpoints on 1
 ### Task A3 — seed tests
 Extend the existing seed test (find it: `grep -rn "seed_builtin" backend/tests/`) or add `test_lp_templates.py`: total builtin count = 21; each LP id present with `entity_type="fund"`; reconciliation idempotent (run `seed_builtin_workflows()` twice, no dupes); track-record derived column has `is_derived` and formula ≤200 chars without `**`; formula unit test for the tie-out (`_eval_formula` with sample values → "Ties out" / "Mismatch…").
 
-### Task A4 (stretch, skip if time-boxed) — demo fixtures
-Seed a demo manager ("Hillpath Capital") + 2 funds in `backend/app/seed.py` behind the existing `SEED_SAMPLE_DATA` flag, with 2–3 small fixture docs in `sample_data/` (public ILPA DDQ template PDF is freely downloadable; synthetic track-record xlsx). Do NOT block the PR on this.
+### Task A4 (partially complete) — demo fixtures
+Seeded the synthetic Hillpath Capital manager and Hillpath Fund IV in `backend/app/seed.py` behind the existing `SEED_SAMPLE_DATA` flag, with a DDQ/PPM PDF, LPA/side-letter PDF, and formula-driven track-record workbook in `sample_data/`. The fixture intentionally includes cross-document inconsistencies and missing values so LP workflows have realistic QA cases. A second demo fund remains deferred because it is not needed to exercise the LP templates.
 
 ---
 
