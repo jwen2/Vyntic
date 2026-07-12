@@ -1,9 +1,13 @@
 
 import type React from "react";
 import { ddTheme } from "@/components/dd/types";
+import AnswerText from "@/components/dd/AnswerText";
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "../theme";
+import { demoteHeadings } from "../tabular-run/format";
+
+function noopCit() {}
 
 type Theme = "light" | "dark";
 export type CellDensity = "compact" | "comfortable";
@@ -55,6 +59,9 @@ export default function CellRenderer({
   }
   if (shape === "kv") {
     return <KVCell value={kvValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
+  }
+  if (shape === "markdown") {
+    return <MarkdownCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   return <ProseCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
 }
@@ -157,6 +164,61 @@ function ProseCell({
           ))}
         </div>
       )}
+      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
+    </div>
+  );
+}
+
+/**
+ * "markdown"-format cells (LP DDQ-style multi-section answers: headings,
+ * bullet lists, inline [Source N] citations). Unlike ProseCell's fallback —
+ * built for short single-sentence answers, where showing only the "first
+ * sentence" is fine — these answers have no length constraint, so we always
+ * render the full body through AnswerText (the app's markdown+citation
+ * renderer, already used for this exact shape of text in RunDetailPanel and
+ * DocMatrixCell) rather than truncate it. Headings are demoted to bold text
+ * (see RunDetailPanel) so they don't render as oversized <h1-6> in a compact
+ * grid cell; density controls how many lines show before clamping — clicking
+ * the cell still opens the full, unclamped text in the Cell Detail panel.
+ */
+function MarkdownCell({
+  value,
+  citations,
+  density,
+  theme,
+  onCitationClick,
+  citationIdPrefix,
+}: {
+  value: { summary: string; body: string; caveats: Array<{ text: string; severity: "info" | "warn" | "risk" }> };
+  citations: (Citation | null)[];
+  density: CellDensity;
+  theme: Theme;
+  onCitationClick?: (citation: Citation, id: string) => void;
+  citationIdPrefix?: string;
+}) {
+  const c = ddTheme(theme);
+  const text = value.body || value.summary;
+  if (!text) return <EmptyCell reason="Out of scope" theme={theme} />;
+  return (
+    <div style={cellShell(c)}>
+      <div
+        style={{
+          fontSize: 11.5,
+          color: c.t1,
+          lineHeight: 1.45,
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: density === "compact" ? 2 : 6,
+          overflow: "hidden",
+        }}
+      >
+        <AnswerText
+          text={demoteHeadings(text)}
+          citations={citations}
+          activeCitId={null}
+          onCit={onCitationClick ?? noopCit}
+        />
+      </div>
       <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
@@ -315,13 +377,20 @@ function cellShell(c: ReturnType<typeof ddTheme>): React.CSSProperties {
   };
 }
 
-function normalizeFormat(format: WorkflowColumn["format"]): "metric" | "date" | "bool" | "enum" | "prose" | "list" | "kv" {
+function normalizeFormat(format: WorkflowColumn["format"]): "metric" | "date" | "bool" | "enum" | "prose" | "list" | "kv" | "markdown" {
   if (format === "metric" || format === "number" || format === "percentage" || format === "monetary_amount" || format === "currency") return "metric";
   if (format === "bool" || format === "yes_no") return "bool";
   if (format === "enum" || format === "tag") return "enum";
   if (format === "list" || format === "bulleted_list") return "list";
   if (format === "kv") return "kv";
   if (format === "date") return "date";
+  // "markdown" columns are unconstrained (backend's parse_answer has no
+  // branch for this format, so answer_formatted is always null) — they carry
+  // real multi-section markdown (headings, bullet lists, inline [Source N]
+  // citations) and need actual markdown rendering, not the generic prose
+  // fallback's "first sentence" truncation (that's built for short,
+  // single-sentence answers and would silently drop most of the content).
+  if (format === "markdown") return "markdown";
   return "prose";
 }
 
