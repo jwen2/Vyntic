@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Deal, UploadProgress, User } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
 import DealListItem from "./DealListItem";
+
+const HOW_IT_WORKS_DISMISSED_KEY = "vyntic_how_it_works_dismissed";
 
 /** Group funds under their manager; plain deals form a trailing group. */
 function groupByManager(deals: Deal[]): { label: string | null; managerId: string | null; deals: Deal[] }[] {
@@ -79,6 +81,16 @@ export default function HomeSidebar({
   const navigate = useNavigate();
   const isDark = theme === "dark";
   const groups = useMemo(() => groupByManager(filteredDeals), [filteredDeals]);
+  const [howItWorksDismissed, setHowItWorksDismissed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(HOW_IT_WORKS_DISMISSED_KEY) === "1";
+  });
+  const dismissHowItWorks = useCallback(() => {
+    setHowItWorksDismissed(true);
+    try {
+      window.localStorage.setItem(HOW_IT_WORKS_DISMISSED_KEY, "1");
+    } catch {}
+  }, []);
   const surface = isDark ? "#151515" : "#f8f8f4";
   const surfaceAlt = isDark ? "#101010" : "#ffffff";
   const border = isDark ? "#262626" : "var(--landing-border)";
@@ -294,39 +306,57 @@ export default function HomeSidebar({
         )}
       </div>
 
-      <div
-        className="border-t px-4 py-4"
-        style={{
-          borderTopColor: border,
-          background: surfaceAlt,
-        }}
-      >
+      {!howItWorksDismissed && (
         <div
-          className="font-mono-plex"
+          className="border-t px-4 py-4"
           style={{
-            fontSize: 10,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: muted,
+            borderTopColor: border,
+            background: surfaceAlt,
           }}
         >
-          How it works
+          <div className="flex items-start justify-between gap-2">
+            <div
+              className="font-mono-plex"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: muted,
+              }}
+            >
+              How it works
+            </div>
+            <button
+              type="button"
+              onClick={dismissHowItWorks}
+              aria-label="Dismiss how it works"
+              title="Dismiss"
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border text-sm leading-none"
+              style={{
+                borderColor: border,
+                color: muted,
+                background: surface,
+              }}
+            >
+              ×
+            </button>
+          </div>
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: "12px 0 0",
+              fontSize: 12,
+              color: muted,
+              lineHeight: 1.65,
+            }}
+          >
+            <li>Each deal stays isolated in its own document namespace.</li>
+            <li>Questions fan out across uploaded documents.</li>
+            <li>Citations keep answers reviewable before committee use.</li>
+          </ul>
         </div>
-        <ul
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: "12px 0 0",
-            fontSize: 12,
-            color: muted,
-            lineHeight: 1.65,
-          }}
-        >
-          <li>Each deal stays isolated in its own document namespace.</li>
-          <li>Questions fan out across uploaded documents.</li>
-          <li>Citations keep answers reviewable before committee use.</li>
-        </ul>
-      </div>
+      )}
     </aside>
   );
 }
