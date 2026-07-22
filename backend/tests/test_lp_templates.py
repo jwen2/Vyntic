@@ -27,20 +27,42 @@ def _create_fund():
     )
 
 
-def test_seed_is_idempotent_and_has_21_entity_typed_builtins():
+def test_seed_is_idempotent_and_has_22_entity_typed_builtins():
     seed_builtin_workflows()
     seed_builtin_workflows()
 
     db = SessionLocal()
     try:
         rows = db.query(WorkflowRow).filter(WorkflowRow.is_builtin.is_(True)).all()
-        assert len(rows) == 21
+        assert len(rows) == 22
+        assert "builtin_lp_fund_brief" in LP_IDS  # Fund Brief is an LP builtin
         lp_rows = {row.id: row for row in rows if row.id in LP_IDS}
         assert set(lp_rows) == LP_IDS
         assert all(row.entity_type == "fund" for row in lp_rows.values())
         assert all(row.entity_type == "deal" for row in rows if row.id not in LP_IDS)
     finally:
         db.close()
+
+
+def test_builtin_entity_mismatch_is_404(client, sample_deal):
+    """A fund cannot resolve/run the buyout Proactive Scan, and a plain deal
+    cannot resolve the Fund Brief (A3 guard)."""
+    _create_fund()
+    seed_builtin_workflows()
+
+    # Fund workspace: buyout brief hidden; fund brief visible.
+    assert client.get("/deals/northstar_v/workflows/builtin_proactive_scan").status_code == 404
+    assert client.get("/deals/northstar_v/workflows/builtin_lp_fund_brief").status_code == 200
+    # Plain deal: the reverse.
+    assert client.get("/deals/test_deal/workflows/builtin_lp_fund_brief").status_code == 404
+    assert client.get("/deals/test_deal/workflows/builtin_proactive_scan").status_code == 200
+
+    # Run creation is guarded too.
+    run = client.post(
+        "/deals/northstar_v/workflows/builtin_proactive_scan/runs",
+        json={"document_ids": ["x"], "synthesis_questions": []},
+    )
+    assert run.status_code == 404
 
 
 def test_workspace_lists_only_matching_builtins_and_keeps_customs(client, sample_deal):

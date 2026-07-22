@@ -86,6 +86,12 @@ class PositionRow(Base):
     deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), primary_key=True)
     commitment_amount = Column(Float, nullable=True)
     currency = Column(String, default="USD")
+    # Opening balances = the called/distributed totals from BEFORE Vyntic began
+    # processing notices for this fund. The queue of confirmed capital-call /
+    # distribution notices adds on top (called = opening_called + Σ notices), so
+    # a mid-life commitment ties out without back-loading years of history.
+    opening_called = Column(Float, nullable=True)
+    opening_distributed = Column(Float, nullable=True)
     called_amount = Column(Float, nullable=True)
     distributed_amount = Column(Float, nullable=True)
     nav = Column(Float, nullable=True)
@@ -509,6 +515,10 @@ def _ensure_schema_migrations():
         ],
         "workflows": [
             ("entity_type", "TEXT DEFAULT 'deal'"),
+        ],
+        "positions": [
+            ("opening_called", "REAL"),
+            ("opening_distributed", "REAL"),
         ],
     }
     inspector = inspect(engine)

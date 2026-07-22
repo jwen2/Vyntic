@@ -204,11 +204,14 @@ export interface Position {
   deal_id: string;
   commitment_amount: number | null;
   currency: "USD" | "EUR" | "GBP";
+  opening_called: number | null;
+  opening_distributed: number | null;
   called_amount: number | null;
   distributed_amount: number | null;
   nav: number | null;
   as_of: string | null;
   status: "active" | "pending" | "exited";
+  has_notices: boolean;
 }
 
 export type PositionUpsert = Partial<Omit<Position, "deal_id">>;

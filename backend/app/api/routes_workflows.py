@@ -66,6 +66,13 @@ def get_deal_workflow(
     # A workflow is visible if it's a built-in (deal_id None) or owned by this deal.
     if workflow.deal_id is not None and workflow.deal_id != deal_id:
         raise HTTPException(status_code=404, detail="Workflow not found in this deal")
+    # Built-ins are entity-typed — a fund's brief must not resolve the buyout
+    # Proactive Scan and vice versa.
+    if workflow.deal_id is None:
+        deal = deal_store.get_deal(deal_id)
+        wf_entity = getattr(workflow, "entity_type", "deal") or "deal"
+        if deal is not None and wf_entity != deal.entity_type:
+            raise HTTPException(status_code=404, detail="Workflow not available in this workspace")
     return workflow
 
 

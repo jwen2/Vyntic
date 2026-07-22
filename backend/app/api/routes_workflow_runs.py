@@ -37,7 +37,7 @@ from app.models.workflow_run import (
     WorkflowRun,
     WorkflowRunCreate,
 )
-from app.services import workflow_run_store, workflow_store
+from app.services import deal_store, workflow_run_store, workflow_store
 from app.services.workflow_exports import (
     build_assistant_docx,
     build_tabular_xlsx,
@@ -54,6 +54,24 @@ from app.services.workflow_run_executor import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["workflow-runs"])
+
+
+def _require_entity_match(workflow, deal_id: str) -> None:
+    """Built-in templates are entity-typed (deal vs fund). Refuse to run a
+    builtin whose entity_type doesn't match the workspace — prevents the buyout
+    Proactive Scan running on a fund (and vice versa). Custom workflows are
+    deal-scoped, so this only gates builtins."""
+    if getattr(workflow, "deal_id", None) is not None:
+        return  # custom workflow, already deal-scoped
+    deal = deal_store.get_deal(deal_id)
+    if deal is None:
+        raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
+    wf_entity = getattr(workflow, "entity_type", "deal") or "deal"
+    if wf_entity != deal.entity_type:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Workflow '{workflow.id}' is not available in a '{deal.entity_type}' workspace",
+        )
 
 # Mounted WITHOUT the app-wide get_current_user dependency (main.py): the run
 # stream authenticates via ?token= because EventSource cannot set an
@@ -80,6 +98,7 @@ async def create_run(
         raise HTTPException(status_code=404, detail="Workflow not found")
     if workflow.deal_id is not None and workflow.deal_id != deal_id:
         raise HTTPException(status_code=404, detail="Workflow not visible to this deal")
+    _require_entity_match(workflow, deal_id)
     if not payload.document_ids:
         raise HTTPException(status_code=400, detail="At least one document_id is required")
 

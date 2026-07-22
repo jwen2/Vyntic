@@ -81,11 +81,14 @@ def update(deal_id: str, notice_id: str, data: CallNoticeUpdate) -> CallNotice |
 
 
 def recompute_position_totals(deal_id: str) -> None:
-    """Recompute called/distributed on the PositionRow from confirmed notices.
+    """Recompute called/distributed on the PositionRow from the opening balance
+    plus the confirmed-notice queue.
 
-    Idempotent and self-healing: called = sum of confirmed/paid call amounts,
-    distributed = sum of confirmed/paid distribution amounts. Only touches a
-    position that already exists (positions are created via the position API).
+    called = (opening_called or 0) + Σ confirmed/paid call amounts, and likewise
+    for distributions. The queue only drives the total when an opening balance is
+    set OR at least one notice exists; otherwise the directly-entered
+    called/distributed values are left untouched (legacy funds not using the
+    queue stay fully editable). Idempotent and self-healing.
     """
     db = SessionLocal()
     try:
@@ -100,10 +103,13 @@ def recompute_position_totals(deal_id: str) -> None:
             )
             .all()
         )
-        called = sum(r.amount or 0 for r in rows if r.kind == "call")
-        distributed = sum(r.amount or 0 for r in rows if r.kind == "distribution")
-        position.called_amount = called or None
-        position.distributed_amount = distributed or None
+        call_sum = sum(r.amount or 0 for r in rows if r.kind == "call")
+        dist_sum = sum(r.amount or 0 for r in rows if r.kind == "distribution")
+        # Unconditional: when this runs, the opening balance + queue are the
+        # source of truth for the totals (callers only invoke it in that case —
+        # a notice change, or an upsert that touched an opening balance).
+        position.called_amount = ((position.opening_called or 0) + call_sum) or None
+        position.distributed_amount = ((position.opening_distributed or 0) + dist_sum) or None
         db.commit()
     finally:
         db.close()
