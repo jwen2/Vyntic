@@ -15,6 +15,7 @@ from app.rate_limit import limiter
 
 from app.api.routes_deals import router as deals_router, view_router as deals_view_router
 from app.api.routes_managers import router as managers_router
+from app.api.routes_monitoring import router as monitoring_router, portfolio_router
 from app.api.routes_ingest import router as ingest_router
 from app.api.routes_query import router as query_router
 from app.api.routes_matrix import router as matrix_router
@@ -74,6 +75,8 @@ app.include_router(audit_router, dependencies=AUTHENTICATED)
 app.include_router(deals_router, dependencies=AUTHENTICATED)
 app.include_router(deals_view_router)
 app.include_router(managers_router, dependencies=AUTHENTICATED)
+app.include_router(monitoring_router, dependencies=AUTHENTICATED)
+app.include_router(portfolio_router, dependencies=AUTHENTICATED)
 app.include_router(ingest_router, dependencies=AUTHENTICATED)
 app.include_router(query_router, dependencies=AUTHENTICATED)
 app.include_router(matrix_router, dependencies=AUTHENTICATED)

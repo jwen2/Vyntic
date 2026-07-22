@@ -21,6 +21,7 @@ Ordered by the assessment's tiers. Tiers 0–1 are concrete code on the current 
 | # | Plan | Scope | Depends on | Status |
 |---|---|---|---|---|
 | LP1 | `2026-07-08-lp-template-packs-and-object-model-frontend.md` | 7 LP built-in templates + workflow entity-scoping; Manager page + Position panel | PR #94 (merged) | **done (PR #102)** — 21 entity-scoped built-ins, Manager page, Position panel, Hillpath Fund IV fixtures; second demo fund deferred |
+| LP2 | `2026-07-11-lp-monitoring-wedge.md` | Capital-call queue + side-letter compliance tracker (LLM-suggests/analyst-confirms) + portfolio dashboard | LP1 | **implemented** on `feat/lp-monitoring-wedge`; auto-ingestion + notifications + QoQ deltas deferred |
 
 ## Frontend quality (audit 2026-07-07)
 

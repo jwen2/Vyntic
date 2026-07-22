@@ -96,6 +96,69 @@ class PositionRow(Base):
     deal = relationship("DealRow", back_populates="position")
 
 
+class CallNoticeRow(Base):
+    """A processed capital-call or distribution notice for a fund. The queue of
+    these rows is the source of truth for the fund's called/distributed totals
+    (the position roll-up recomputes from confirmed rows, never blind-increments)."""
+    __tablename__ = "call_notices"
+
+    id = Column(String, primary_key=True, index=True)
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    doc_id = Column(String, ForeignKey("documents.doc_id", ondelete="SET NULL"), nullable=True)
+    kind = Column(String, default="call")  # "call" | "distribution"
+    amount = Column(Float, nullable=True)
+    currency = Column(String, default="USD")
+    due_date = Column(String, nullable=True)  # ISO "2026-08-14" (pay/record date for distributions)
+    period = Column(String, nullable=True)  # "2026-Q3"
+    purpose = Column(Text, default="")
+    status = Column(String, default="pending", index=True)  # pending|confirmed|paid|dismissed
+    outstanding_before = Column(Float, nullable=True)  # unfunded implied at notice time
+    citations_json = Column(Text, default="[]")
+    extracted_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SideLetterObligationRow(Base):
+    """One obligation extracted from a fund's side letter. Verified each quarter
+    against the reporting package via SideLetterCheckRow."""
+    __tablename__ = "side_letter_obligations"
+
+    id = Column(String, primary_key=True, index=True)
+    deal_id = Column(String, ForeignKey("deals.deal_id", ondelete="CASCADE"), nullable=False, index=True)
+    doc_id = Column(String, ForeignKey("documents.doc_id", ondelete="SET NULL"), nullable=True)
+    category = Column(String, default="other")  # fee|mfn|coinvest|reporting|transfer|excuse|regulatory|other
+    text = Column(Text, default="")
+    section_ref = Column(String, default="")
+    cadence = Column(String, default="ongoing")  # "ongoing" | "one_time"
+    verify_hint = Column(Text, default="")  # "what to check each quarter"
+    citations_json = Column(Text, default="[]")
+    status = Column(String, default="active")  # "active" | "waived" | "archived"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    checks = relationship("SideLetterCheckRow", back_populates="obligation", cascade="all, delete-orphan")
+
+
+class SideLetterCheckRow(Base):
+    """One verification of one obligation against one reporting period. Created
+    as a proposal (confirmed_at NULL) by the LLM; an analyst confirms/overrides.
+    The model's original proposal is retained in llm_verdict when overridden."""
+    __tablename__ = "side_letter_checks"
+
+    id = Column(String, primary_key=True, index=True)
+    obligation_id = Column(String, ForeignKey("side_letter_obligations.id", ondelete="CASCADE"), nullable=False, index=True)
+    period = Column(String, nullable=False)  # "2026-Q2"
+    verdict = Column(String, default="unclear")  # compliant|breach|unclear
+    llm_verdict = Column(String, nullable=True)  # model's original proposal
+    rationale = Column(Text, default="")
+    citations_json = Column(Text, default="[]")
+    confirmed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    confirmed_at = Column(DateTime, nullable=True)  # NULL = proposed, awaiting confirmation
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    obligation = relationship("SideLetterObligationRow", back_populates="checks")
+
+
 class DocumentRow(Base):
     __tablename__ = "documents"
 

@@ -20,6 +20,7 @@ import WorkflowsView from "@/components/workflows/WorkflowsView";
 import DealBriefDashboard from "@/components/dd/DealBriefDashboard";
 import DocumentsModal from "@/components/dd/DocumentsModal";
 import PositionModal from "@/components/dd/PositionModal";
+import MonitoringPanel from "@/components/dd/MonitoringPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFindings } from "@/components/dd/useFindings";
 import { ACCENT, ddTheme } from "@/components/dd/types";
@@ -38,7 +39,12 @@ function loadModeFromLocal(dealId: string): DealWorkspaceMode {
     //     closest surviving sibling)
     if (parsed.mode === "assistant") return "agent";
     if (parsed.mode === "workstreams") return "brief";
-    if (parsed.mode === "agent" || parsed.mode === "workflows" || parsed.mode === "brief") {
+    if (
+      parsed.mode === "agent" ||
+      parsed.mode === "workflows" ||
+      parsed.mode === "brief" ||
+      parsed.mode === "monitoring"
+    ) {
       return parsed.mode;
     }
     return "agent";
@@ -339,6 +345,17 @@ export default function DealWorkspacePage() {
                   theme={theme}
                   onCit={handleCit}
                   onFindingsExtracted={syncScanFindings}
+                />
+              </ErrorBoundary>
+            </div>
+          ) : mode === "monitoring" ? (
+            <div style={{ flex: 1, width: "100%", minWidth: 0, overflow: "auto" }}>
+              <ErrorBoundary>
+                <MonitoringPanel
+                  dealId={dealId}
+                  dealName={deal.name}
+                  isAdmin={Boolean(user?.is_admin)}
+                  theme={theme}
                 />
               </ErrorBoundary>
             </div>
