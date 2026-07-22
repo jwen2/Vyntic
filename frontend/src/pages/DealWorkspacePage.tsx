@@ -343,6 +343,7 @@ export default function DealWorkspacePage() {
                 <DealBriefDashboard
                   dealId={dealId}
                   theme={theme}
+                  entityType={deal.entity_type}
                   onCit={handleCit}
                   onFindingsExtracted={syncScanFindings}
                 />

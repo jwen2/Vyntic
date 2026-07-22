@@ -82,6 +82,40 @@ class TestCallNotices:
         # Recompute drops the dismissed notice
         assert manager_store.get_position("fund_iv").called_amount is None
 
+    def test_opening_balance_plus_queue(self, client):
+        _fund()
+        # Mid-life commitment: opening balances from the PCAP, then a new call.
+        manager_store.upsert_position("fund_iv", PositionUpsert(
+            commitment_amount=25_000_000, opening_called=18_750_000, opening_distributed=6_200_000,
+        ))
+        pos = manager_store.get_position("fund_iv")
+        assert pos.called_amount == 18_750_000  # opening + 0 notices
+        assert pos.has_notices is False
+
+        r = client.post("/deals/fund_iv/call-notices", json={"kind": "call", "amount": 1_875_000})
+        notice_id = r.json()["id"]
+        pos = manager_store.get_position("fund_iv")
+        assert pos.called_amount == 20_625_000  # opening + notice
+        assert pos.has_notices is True
+
+        client.post("/deals/fund_iv/call-notices", json={"kind": "distribution", "amount": 1_400_000})
+        assert manager_store.get_position("fund_iv").distributed_amount == 7_600_000
+
+        # Dismissing reverts to the opening balance (recompute, not increment)
+        client.patch(f"/deals/fund_iv/call-notices/{notice_id}", json={"status": "dismissed"})
+        assert manager_store.get_position("fund_iv").called_amount == 18_750_000
+
+    def test_legacy_direct_called_without_opening_preserved(self, client):
+        _fund()
+        manager_store.upsert_position("fund_iv", PositionUpsert(
+            commitment_amount=25_000_000, called_amount=10_000_000,
+        ))
+        # No opening, no notices → direct value survives a subsequent unrelated edit
+        manager_store.upsert_position("fund_iv", PositionUpsert(nav=21_000_000))
+        pos = manager_store.get_position("fund_iv")
+        assert pos.called_amount == 10_000_000
+        assert pos.has_notices is False
+
     def test_list_sorted_by_due_date(self, client):
         _fund()
         client.post("/deals/fund_iv/call-notices", json={"kind": "call", "amount": 1, "due_date": "2026-09-01"})

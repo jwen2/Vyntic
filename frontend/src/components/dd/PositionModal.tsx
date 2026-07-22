@@ -6,6 +6,8 @@ import { ddTheme } from "./types";
 type FormState = {
   commitment_amount: string;
   currency: Position["currency"];
+  opening_called: string;
+  opening_distributed: string;
   called_amount: string;
   distributed_amount: string;
   nav: string;
@@ -16,6 +18,8 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   commitment_amount: "",
   currency: "USD",
+  opening_called: "",
+  opening_distributed: "",
   called_amount: "",
   distributed_amount: "",
   nav: "",
@@ -39,6 +43,8 @@ function toForm(position: Position): FormState {
   return {
     commitment_amount: formatNumber(position.commitment_amount),
     currency: position.currency,
+    opening_called: formatNumber(position.opening_called),
+    opening_distributed: formatNumber(position.opening_distributed),
     called_amount: formatNumber(position.called_amount),
     distributed_amount: formatNumber(position.distributed_amount),
     nav: formatNumber(position.nav),
@@ -63,15 +69,27 @@ export default function PositionModal({ dealId, dealName, isAdmin, theme, onClos
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // When notices have been processed (or an opening balance is set), called and
+  // distributed are computed = opening + queued notices, so the raw fields go
+  // read-only and the analyst edits the opening balance instead.
+  const [hasNotices, setHasNotices] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     getPosition(dealId)
-      .then((position) => { if (!cancelled) setForm(toForm(position)); })
+      .then((position) => {
+        if (cancelled) return;
+        setForm(toForm(position));
+        setHasNotices(position.has_notices);
+      })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load position"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [dealId]);
+
+  const openingSet =
+    parseNumber(form.opening_called) != null || parseNumber(form.opening_distributed) != null;
+  const computedTotals = hasNotices || openingSet;
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) { if (event.key === "Escape") onClose(); }
@@ -99,14 +117,19 @@ export default function PositionModal({ dealId, dealName, isAdmin, theme, onClos
       currency: form.currency,
       status: form.status,
     };
-    for (const key of ["commitment_amount", "called_amount", "distributed_amount", "nav"] as const) {
-      const value = parseNumber(form[key]);
-      if (value != null) payload[key] = value;
+    const keys: Array<keyof FormState> = ["commitment_amount", "nav", "opening_called", "opening_distributed"];
+    // Only send raw called/distributed when they're directly editable (no queue
+    // / no opening balance); otherwise the backend recomputes them.
+    if (!computedTotals) keys.push("called_amount", "distributed_amount");
+    for (const key of keys) {
+      const value = parseNumber(form[key] as string);
+      if (value != null) (payload as Record<string, unknown>)[key] = value;
     }
     if (form.as_of.trim()) payload.as_of = form.as_of.trim();
     try {
       const position = await upsertPosition(dealId, payload);
       setForm(toForm(position));
+      setHasNotices(position.has_notices);
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save position");
@@ -130,8 +153,10 @@ export default function PositionModal({ dealId, dealName, isAdmin, theme, onClos
             <div className="grid gap-4 sm:grid-cols-2">
               <MoneyField label="Commitment" value={form.commitment_amount} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, commitment_amount: value }))} />
               <SelectField label="Currency" value={form.currency} disabled={!isAdmin} style={inputStyle} options={["USD", "EUR", "GBP"]} onChange={(value) => setForm((prev) => ({ ...prev, currency: value as Position["currency"] }))} />
-              <MoneyField label="Called" value={form.called_amount} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, called_amount: value }))} />
-              <MoneyField label="Distributed" value={form.distributed_amount} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, distributed_amount: value }))} />
+              <MoneyField label="Opening called" hint="Called before Vyntic notices" value={form.opening_called} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, opening_called: value }))} />
+              <MoneyField label="Opening distributed" hint="Distributed before Vyntic notices" value={form.opening_distributed} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, opening_distributed: value }))} />
+              <MoneyField label="Called" hint={computedTotals ? "Opening + processed notices" : undefined} value={form.called_amount} readOnly={!isAdmin || computedTotals} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, called_amount: value }))} />
+              <MoneyField label="Distributed" hint={computedTotals ? "Opening + processed notices" : undefined} value={form.distributed_amount} readOnly={!isAdmin || computedTotals} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, distributed_amount: value }))} />
               <MoneyField label="NAV" value={form.nav} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, nav: value }))} />
               <TextField label="As-of" placeholder="2026-Q2" value={form.as_of} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, as_of: value }))} />
               <SelectField label="Status" value={form.status} disabled={!isAdmin} style={inputStyle} options={["active", "pending", "exited"]} onChange={(value) => setForm((prev) => ({ ...prev, status: value as Position["status"] }))} />
@@ -149,8 +174,8 @@ export default function PositionModal({ dealId, dealName, isAdmin, theme, onClos
 
 function Label({ children }: { children: React.ReactNode }) { return <span className="font-mono-plex text-[9px] uppercase tracking-[0.12em]">{children}</span>; }
 type FieldStyle = { background: string; borderColor: string; color: string };
-function MoneyField({ label, value, readOnly, style, onChange }: { label: string; value: string; readOnly: boolean; style: FieldStyle; onChange: (value: string) => void }) {
-  return <label className="flex flex-col gap-2" style={{ color: style.color }}><Label>{label}</Label><input inputMode="decimal" value={value} readOnly={readOnly} onFocus={(event) => { if (!readOnly) onChange(event.currentTarget.value.replace(/,/g, "")); }} onBlur={(event) => { const parsed = parseNumber(event.currentTarget.value); onChange(parsed == null ? event.currentTarget.value : formatNumber(parsed)); }} onChange={(event) => onChange(event.target.value)} className="rounded-xl border px-3 py-2.5 text-sm outline-none read-only:opacity-70" style={style} /></label>;
+function MoneyField({ label, value, readOnly, style, onChange, hint }: { label: string; value: string; readOnly: boolean; style: FieldStyle; onChange: (value: string) => void; hint?: string }) {
+  return <label className="flex flex-col gap-2" style={{ color: style.color }}><Label>{label}</Label><input inputMode="decimal" value={value} readOnly={readOnly} onFocus={(event) => { if (!readOnly) onChange(event.currentTarget.value.replace(/,/g, "")); }} onBlur={(event) => { const parsed = parseNumber(event.currentTarget.value); onChange(parsed == null ? event.currentTarget.value : formatNumber(parsed)); }} onChange={(event) => onChange(event.target.value)} className="rounded-xl border px-3 py-2.5 text-sm outline-none read-only:opacity-70" style={style} />{hint ? <span className="text-[10px]" style={{ color: style.color, opacity: 0.55 }}>{hint}</span> : null}</label>;
 }
 function TextField({ label, value, placeholder, readOnly, style, onChange }: { label: string; value: string; placeholder: string; readOnly: boolean; style: FieldStyle; onChange: (value: string) => void }) { return <label className="flex flex-col gap-2" style={{ color: style.color }}><Label>{label}</Label><input value={value} placeholder={placeholder} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} className="rounded-xl border px-3 py-2.5 text-sm outline-none read-only:opacity-70" style={style} /></label>; }
 function SelectField({ label, value, options, disabled, style, onChange }: { label: string; value: string; options: string[]; disabled: boolean; style: FieldStyle; onChange: (value: string) => void }) { return <label className="flex flex-col gap-2" style={{ color: style.color }}><Label>{label}</Label><select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} className="rounded-xl border px-3 py-2.5 text-sm outline-none disabled:opacity-70" style={style}>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>; }

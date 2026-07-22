@@ -180,8 +180,139 @@ LP_COMMITMENT_MEMO = WorkflowCreate(
 )
 
 
+# ── Fund Brief (drives the Brief tab for fund workspaces) ──
+# Column labels intentionally mirror the buyout Proactive Scan panel labels
+# ("Investment thesis", "Analyst next actions") and its finding labels so the
+# Brief dashboard's parsers/renderers are reused unchanged. The thesis prompt
+# keeps the exact heading strings the dashboard regex-matches.
+LP_FUND_BRIEF = WorkflowCreate(
+    name="Fund Brief",
+    description="One-screen LP summary: manager, terms, track record, and the flags an IC will ask about",
+    entity_type="fund",
+    type="tabular",
+    row_source="multi_doc_synthesis",
+    output_format="excel",
+    columns=[
+        WorkflowColumnInput(
+            order_index=1, label="Fund snapshot", format="kv",
+            prompt=(
+                "Create a FUND SNAPSHOT from the pitchbook, PPM, and DDQ. Use this exact field "
+                "format, one field per line, and write \"Not found\" when the documents do not "
+                "support a field:\nManager: [GP firm]\nFund: [fund name and number]\nVintage: "
+                "[year]\nStrategy: [strategy, sector, geography focus]\nTarget size: [target fund "
+                "size]\nHard cap: [hard cap if disclosed]\nGeography: [operating footprint]\nRaise "
+                "stage: [first close / interim / final close / open]. Include [Source N] citations "
+                "for the most important fields."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=2, label="Terms at a glance", format="kv",
+            prompt=(
+                "Extract the FUND TERMS from the PPM and LPA. Use this exact field format, one field "
+                "per line, and write \"Not found\" when unsupported:\nManagement fee: [rate and basis, "
+                "with any step-down]\nCarried interest: [percent]\nPreferred return: [hurdle]\n"
+                "Waterfall: [European/whole-fund or American/deal-by-deal]\nGP commitment: [percent]\n"
+                "Fee offset: [percent of transaction/monitoring fees offset]\nKey person: [named key "
+                "persons and the trigger]\nTerm: [fund term and extensions]. Include [Source N] citations."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=3, label="Key performance data", format="markdown",
+            prompt=(
+                "Extract the manager's TRACK RECORD into a markdown table titled \"Track Record\" with "
+                "columns: Fund, Vintage, Fund Size, Net IRR, TVPI, DPI, RVPI. Add one row per prior fund "
+                "from the track record, pitchbook, or PPM. Immediately after the table, add a short "
+                "\"Reconciliation\" note that checks each fund for DPI + RVPI = TVPI and names any fund "
+                "where they do not tie (a common presentation red flag). Include [Source N] citations in "
+                "the row labels or note. Write \"Not found\" in cells the documents do not support; do not "
+                "invent figures."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=4, label="Investment thesis", format="prose",
+            prompt=(
+                "Synthesize the LP INVESTMENT CASE for backing this manager, grounded only in the "
+                "documents. Use these exact section headings on their own lines, each followed by 3–5 "
+                "short bullets starting with \"- \", one sentence each, with [Source N] citations where "
+                "supported:\nThesis: [why back this manager and fund now — edge, market position, "
+                "consistency]\nValue creation levers: [how the GP drives returns — operational playbook, "
+                "buy-and-build, pricing, sector angle]\nExit considerations: [realization outlook and "
+                "liquidity — DPI trajectory, exit environment, duration]\nRisks to thesis: [key risks — "
+                "succession, size creep, concentration, cyclicality, terms]\nIf a section has no support, "
+                "write a single \"- Not found\" bullet under it. Do not invent claims."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=5, label="Analyst next actions", format="list",
+            prompt=(
+                "Propose the top 5 NEXT DILIGENCE ACTIONS for the LP analyst: documents to request, "
+                "numbers to reconcile, references to call, terms to negotiate, and ODD items to close. "
+                "Each action is one sentence; cite the source or gap that motivated it with [Source N] "
+                "where possible."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=6, label="Track record red flags", format="list",
+            prompt=(
+                "Scan the track record and performance materials for RED FLAGS: TVPI that does not equal "
+                "DPI + RVPI, cherry-picked or partial fund subsets, gross-versus-net presentation gaps, "
+                "recycled capital inflating multiples, missing or excluded funds, and unrealized marks "
+                "carrying the headline. List each with its severity and a [Source N] citation."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=7, label="Off-market or LP-unfavorable terms", format="list",
+            prompt=(
+                "Identify FUND TERMS that are OFF-MARKET or LP-UNFAVORABLE versus ILPA norms: fee offsets "
+                "below 100%, no-fault removal thresholds above a simple majority, low GP commitment, high "
+                "organizational-expense caps, deal-by-deal carry without a clawback escrow, aggressive "
+                "recycling, and weak key-person or LPAC provisions. List each with the specific term and a "
+                "[Source N] citation."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=8, label="Team & key-person risks", format="list",
+            prompt=(
+                "Scan for TEAM AND KEY-PERSON RISKS: partner departures (including cases where one document "
+                "still lists a departed person as active while another discloses the departure), succession "
+                "gaps, thin bench, and whether named key persons remain active. List each with a [Source N] "
+                "citation."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=9, label="Operational & compliance exposure", format="list",
+            prompt=(
+                "Scan the Form ADV, ODD materials, valuation policy, and audited financials for OPERATIONAL "
+                "AND COMPLIANCE EXPOSURE: regulatory disclosures or deficiency letters, affiliated service "
+                "providers or brokers receiving fees, valuation-governance gaps (GP self-marking Level 3 "
+                "with only infrequent third-party review), and cybersecurity or business-continuity "
+                "weaknesses. List each with a [Source N] citation."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=10, label="Data room gaps & omissions", format="list",
+            prompt=(
+                "Identify what is CONSPICUOUSLY ABSENT for LP diligence: missing DDQ sections, no audited "
+                "financials, no valuation policy, unprovided references, or unanswered questions the "
+                "materials raise. List each gap and why it matters."
+            ),
+        ),
+        WorkflowColumnInput(
+            order_index=11, label="Cross-document inconsistencies", format="list",
+            prompt=(
+                "Cross-reference the DDQ, PPM, LPA, pitchbook, and track record. Identify CONTRADICTIONS: "
+                "fees or terms described differently across documents, performance figures that do not match, "
+                "team or headcount claims that conflict, and any narrative in one document undermined by "
+                "another. List each inconsistency with the conflicting sources and [Source N] citations."
+            ),
+        ),
+    ],
+)
+
+
 LP_BUILTIN_TEMPLATES: list[tuple[str, WorkflowCreate]] = [
     ("builtin_lp_ddq_scan", LP_DDQ_SCAN),
+    ("builtin_lp_fund_brief", LP_FUND_BRIEF),
     ("builtin_lp_track_record", LP_TRACK_RECORD),
     ("builtin_lp_fund_terms", LP_FUND_TERMS),
     ("builtin_lp_odd_screen", LP_ODD_SCREEN),

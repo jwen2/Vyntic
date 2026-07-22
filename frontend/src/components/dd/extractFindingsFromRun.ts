@@ -27,12 +27,20 @@ import type { Finding, FindingSeverity } from "./types";
 // Other columns (Deal snapshot, Proposed transaction, Investment thesis, etc.)
 // are structured fields, not findings — skip them.
 const FINDING_COLUMN_LABELS = new Set([
+  // Buyout Proactive Scan finding columns
   "Hidden financial risks",
   "Buried contractual & legal risks",
   "Operational vulnerabilities",
   "Data room gaps & omissions",
   "Cross-document inconsistencies",
   "Regulatory & compliance exposure",
+  // LP Fund Brief finding columns (builtin_lp_fund_brief)
+  "Track record red flags",
+  "Off-market or LP-unfavorable terms",
+  "Team & key-person risks",
+  "Operational & compliance exposure",
+  "Data room gaps & omissions",
+  "Cross-document inconsistencies",
 ]);
 
 function shortDocName(filename: string): string {

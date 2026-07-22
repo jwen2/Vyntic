@@ -96,6 +96,21 @@ export default function DocumentsModal({
     [dealId, onDocumentUpdated],
   );
 
+  const handlePeriodChange = useCallback(
+    async (doc: DocumentMetadata, rawPeriod: string) => {
+      const period = rawPeriod.trim();
+      if ((doc.period ?? "") === period) return;  // no-op on unchanged blur
+      setError(null);
+      try {
+        const updated = await updateDocumentMetadata(dealId, doc.doc_id, { period });
+        onDocumentUpdated?.(updated);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update document");
+      }
+    },
+    [dealId, onDocumentUpdated],
+  );
+
   const handleScopeToggle = useCallback(
     async (doc: DocumentMetadata) => {
       setError(null);
@@ -317,6 +332,28 @@ export default function DocumentsModal({
                   </select>
                     );
                   })()}
+                  <input
+                    defaultValue={doc.period ?? ""}
+                    key={`period-${doc.doc_id}-${doc.period ?? ""}`}
+                    placeholder="Period"
+                    aria-label={`Reporting period for ${doc.filename}`}
+                    title="Reporting period, e.g. 2026-Q2 — used to match side-letter verification and monitoring"
+                    onBlur={(e) => handlePeriodChange(doc, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    }}
+                    style={{
+                      flexShrink: 0,
+                      width: 78,
+                      padding: "4px 6px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: c.surface,
+                      color: c.t2,
+                      border: `1px solid ${c.border}`,
+                      borderRadius: 6,
+                    }}
+                  />
                   {confirming ? (
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <button

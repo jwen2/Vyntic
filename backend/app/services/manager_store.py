@@ -122,17 +122,25 @@ def upsert_position(deal_id: str, data: PositionUpsert) -> Position:
             row = PositionRow(deal_id=deal_id)
             db.add(row)
         for field in (
-            "commitment_amount", "currency", "called_amount",
-            "distributed_amount", "nav", "as_of", "status",
+            "commitment_amount", "currency", "opening_called", "opening_distributed",
+            "called_amount", "distributed_amount", "nav", "as_of", "status",
         ):
             value = getattr(data, field)
             if value is not None:
                 setattr(row, field, value)
         db.commit()
-        db.refresh(row)
-        return _row_to_position(row)
     finally:
         db.close()
+    # Only recompute when an opening balance was touched — then the queue + the
+    # new opening drive called/distributed. Plain edits (commitment, nav, or a
+    # direct called/distributed on a fund not using the queue) are left as-is so
+    # legacy direct entry keeps working.
+    if data.opening_called is not None or data.opening_distributed is not None:
+        from app.services.call_notice_store import recompute_position_totals
+        recompute_position_totals(deal_id)
+    result = get_position(deal_id)
+    assert result is not None  # just upserted
+    return result
 
 
 def _row_to_manager(row: ManagerRow, fund_count: int) -> Manager:
@@ -146,13 +154,30 @@ def _row_to_manager(row: ManagerRow, fund_count: int) -> Manager:
 
 
 def _row_to_position(row: PositionRow) -> Position:
+    from app.database import CallNoticeRow
+    db = SessionLocal()
+    try:
+        has_notices = (
+            db.query(CallNoticeRow)
+            .filter(
+                CallNoticeRow.deal_id == row.deal_id,
+                CallNoticeRow.status.in_(("confirmed", "paid")),
+            )
+            .first()
+            is not None
+        )
+    finally:
+        db.close()
     return Position(
         deal_id=row.deal_id,
         commitment_amount=row.commitment_amount,
         currency=row.currency or "USD",
+        opening_called=row.opening_called,
+        opening_distributed=row.opening_distributed,
         called_amount=row.called_amount,
         distributed_amount=row.distributed_amount,
         nav=row.nav,
         as_of=row.as_of,
         status=row.status or "active",
+        has_notices=has_notices,
     )

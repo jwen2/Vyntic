@@ -66,6 +66,9 @@ interface BriefDiffSnapshot {
 interface Props {
   dealId: string;
   theme: "light" | "dark";
+  /** Drives which brief runs and how its panels are labelled. Defaults to the
+   * buyout Deal Brief; "fund" workspaces get the LP Fund Brief. */
+  entityType?: "deal" | "fund";
   /** Optional — opens a citation in the doc viewer. */
   onCit?: (citation: Citation, id: string) => void;
   /**
@@ -142,18 +145,21 @@ function workflowToScanShim(workflow: Workflow | null): BriefWorkstreamShim | nu
  * in the legacy QuestionResult shape so the brief's parsing/rendering code
  * (~1.5k lines below) can stay untouched.
  */
-function useProactiveScanRun(dealId: string) {
+function useProactiveScanRun(dealId: string, workflowId: string) {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [run, setRun] = useState<WorkflowRun | null>(null);
   const [scanResults, setScanResults] = useState<Record<string, QuestionResult>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch the workflow definition once on mount (or dealId change) so we know
-  // the column layout the brief expects.
+  // Fetch the workflow definition once on mount (or dealId/workflow change) so
+  // we know the column layout the brief expects.
   useEffect(() => {
     let active = true;
-    getWorkflow(dealId, PROACTIVE_SCAN_WORKFLOW_ID)
+    setWorkflow(null);
+    setRun(null);
+    setScanResults({});
+    getWorkflow(dealId, workflowId)
       .then((wf) => {
         if (active) setWorkflow(wf);
       })
@@ -163,7 +169,7 @@ function useProactiveScanRun(dealId: string) {
     return () => {
       active = false;
     };
-  }, [dealId]);
+  }, [dealId, workflowId]);
 
   // Fetch the latest run on dealId change. We take the most recent non-aborted
   // run — pending/running/complete are all worth surfacing (the SSE
@@ -171,7 +177,7 @@ function useProactiveScanRun(dealId: string) {
   // in). Only "cancelled" and "error" are skipped.
   useEffect(() => {
     let active = true;
-    listRuns(dealId, PROACTIVE_SCAN_WORKFLOW_ID)
+    listRuns(dealId, workflowId)
       .then((runs) => {
         if (!active) return;
         const sorted = [...runs].sort((a, b) =>
@@ -192,7 +198,7 @@ function useProactiveScanRun(dealId: string) {
     return () => {
       active = false;
     };
-  }, [dealId, workflow]);
+  }, [dealId, workflowId, workflow]);
 
   // SSE subscription keyed by runId (not the full run object). Using the id
   // avoids reconnect churn: each "snapshot" event calls setRun(event.run)
@@ -232,7 +238,7 @@ function useProactiveScanRun(dealId: string) {
       }
       const newRun = await startWorkflowRun(
         dealId,
-        PROACTIVE_SCAN_WORKFLOW_ID,
+        workflowId,
         docs.map((d) => d.doc_id),
         [],
       );
@@ -251,7 +257,7 @@ function useProactiveScanRun(dealId: string) {
     } finally {
       setRefreshing(false);
     }
-  }, [dealId, workflow]);
+  }, [dealId, workflowId, workflow]);
 
   // Extract structured findings from the latest run's cells. Pure derived
   // state — recomputes whenever the run changes. The brief's findings panel
@@ -353,6 +359,76 @@ const TRANSACTION_FIELDS = [
   "Timing",
 ];
 
+const FUND_SNAPSHOT_FIELDS = [
+  "Manager",
+  "Fund",
+  "Vintage",
+  "Strategy",
+  "Target size",
+  "Hard cap",
+  "Geography",
+  "Raise stage",
+];
+
+const FUND_TERMS_FIELDS = [
+  "Management fee",
+  "Carried interest",
+  "Preferred return",
+  "Waterfall",
+  "GP commitment",
+  "Fee offset",
+  "Key person",
+  "Term",
+];
+
+// Entity-aware brief configuration. The buyout Deal Brief and the LP Fund Brief
+// share the same dashboard machinery; only the workflow id, the two kv panels'
+// column-labels / field-lists / titles, the financial-highlights column label,
+// and the copy differ. `snapshotLabel`/`transactionLabel`/`financialLabel` must
+// equal the seed column labels exactly (resultByLabel matches on label).
+interface BriefEntityConfig {
+  workflowId: string;
+  runLabel: string;
+  snapshotLabel: string;
+  snapshotTitle: string;
+  snapshotFields: string[];
+  transactionLabel: string;
+  transactionTitle: string;
+  transactionDiffLabel: string;
+  transactionFields: string[];
+  financialLabel: string;
+  financialTabLabel: string;
+}
+
+const BRIEF_CONFIG: Record<"deal" | "fund", BriefEntityConfig> = {
+  deal: {
+    workflowId: PROACTIVE_SCAN_WORKFLOW_ID,
+    runLabel: "Deal Brief",
+    snapshotLabel: DEAL_SNAPSHOT_LABEL,
+    snapshotTitle: "What is the deal?",
+    snapshotFields: SNAPSHOT_FIELDS,
+    transactionLabel: PROPOSED_TRANSACTION_LABEL,
+    transactionTitle: "What is being proposed?",
+    transactionDiffLabel: "Proposed Transaction",
+    transactionFields: TRANSACTION_FIELDS,
+    financialLabel: FINANCIAL_HIGHLIGHTS_LABEL,
+    financialTabLabel: "Annual",
+  },
+  fund: {
+    workflowId: "builtin_lp_fund_brief",
+    runLabel: "Fund Brief",
+    snapshotLabel: "Fund snapshot",
+    snapshotTitle: "About the fund",
+    snapshotFields: FUND_SNAPSHOT_FIELDS,
+    transactionLabel: "Terms at a glance",
+    transactionTitle: "Terms at a glance",
+    transactionDiffLabel: "Terms",
+    transactionFields: FUND_TERMS_FIELDS,
+    financialLabel: "Key performance data",
+    financialTabLabel: "Track record",
+  },
+};
+
 const METRIC_KEYWORDS = [
   "Revenue",
   "ARR",
@@ -378,10 +454,12 @@ const VALUE_PATTERN = /(?:[$€£]\s?\d[\d,.]*(?:\s?(?:m|mm|bn|k))?|\d+(?:\.\d+)
 export default function DealBriefDashboard({
   dealId,
   theme,
+  entityType = "deal",
   onCit,
   onFindingsExtracted,
 }: Props) {
   const c = ddTheme(theme);
+  const brief = BRIEF_CONFIG[entityType];
   // Findings are auto-extracted from the latest completed Proactive Scan run.
   // useProactiveScanRun returns them; we expose them locally for the brief's
   // own findings panel and re-emit via onFindingsExtracted so the parent's
@@ -399,7 +477,7 @@ export default function DealBriefDashboard({
     refresh: kickOffRun,
     refreshing,
     error: runError,
-  } = useProactiveScanRun(dealId);
+  } = useProactiveScanRun(dealId, brief.workflowId);
 
   // Push extracted findings up to the parent (which owns useFindings) so the
   // deal-breaker pill in TopBar reflects current data. Only fires once per
@@ -481,21 +559,21 @@ export default function DealBriefDashboard({
     [dealId]
   );
 
-  const snapshotResult = resultByLabel(scanWorkstream, scanResults, DEAL_SNAPSHOT_LABEL);
-  const transactionResult = resultByLabel(scanWorkstream, scanResults, PROPOSED_TRANSACTION_LABEL);
-  const financialResult = resultByLabel(scanWorkstream, scanResults, FINANCIAL_HIGHLIGHTS_LABEL);
+  const snapshotResult = resultByLabel(scanWorkstream, scanResults, brief.snapshotLabel);
+  const transactionResult = resultByLabel(scanWorkstream, scanResults, brief.transactionLabel);
+  const financialResult = resultByLabel(scanWorkstream, scanResults, brief.financialLabel);
   const thesisResult = resultByLabel(scanWorkstream, scanResults, INVESTMENT_THESIS_LABEL);
   const nextActionsResult = resultByLabel(scanWorkstream, scanResults, NEXT_ACTIONS_LABEL);
 
   const snapshotFields = mergeOverrides(
-    pairsToFields(snapshotResult?.formatted, SNAPSHOT_FIELDS),
+    pairsToFields(snapshotResult?.formatted, brief.snapshotFields),
     overrides.snapshot,
-    SNAPSHOT_FIELDS
+    brief.snapshotFields
   );
   const transactionFields = mergeOverrides(
-    pairsToFields(transactionResult?.formatted, TRANSACTION_FIELDS),
+    pairsToFields(transactionResult?.formatted, brief.transactionFields),
     overrides.transaction,
-    TRANSACTION_FIELDS
+    brief.transactionFields
   );
 
   const lastScanAt = useMemo(() => {
@@ -565,23 +643,23 @@ export default function DealBriefDashboard({
     if (!scanWorkstream) return;
     const newSnapshotFields = mergeOverrides(
       pairsToFields(
-        scanResults[scanWorkstream.templates.find((t) => t.label === DEAL_SNAPSHOT_LABEL)?.query || ""]?.formatted,
-        SNAPSHOT_FIELDS,
+        scanResults[scanWorkstream.templates.find((t) => t.label === brief.snapshotLabel)?.query || ""]?.formatted,
+        brief.snapshotFields,
       ),
       overrides.snapshot,
-      SNAPSHOT_FIELDS,
+      brief.snapshotFields,
     );
     const newTransactionFields = mergeOverrides(
       pairsToFields(
-        scanResults[scanWorkstream.templates.find((t) => t.label === PROPOSED_TRANSACTION_LABEL)?.query || ""]?.formatted,
-        TRANSACTION_FIELDS,
+        scanResults[scanWorkstream.templates.find((t) => t.label === brief.transactionLabel)?.query || ""]?.formatted,
+        brief.transactionFields,
       ),
       overrides.transaction,
-      TRANSACTION_FIELDS,
+      brief.transactionFields,
     );
     const changes = [
-      ...diffPanel("snapshot", "Deal Snapshot", before.snapshot, newSnapshotFields),
-      ...diffPanel("transaction", "Proposed Transaction", before.transaction, newTransactionFields),
+      ...diffPanel("snapshot", brief.snapshotLabel, before.snapshot, newSnapshotFields),
+      ...diffPanel("transaction", brief.transactionDiffLabel, before.transaction, newTransactionFields),
     ];
     const next: BriefDiffSnapshot = { changes, at: Date.now(), previousAt: before.previousAt };
     persistDiff(next);
@@ -649,7 +727,7 @@ export default function DealBriefDashboard({
             <div style={{ maxWidth: 760 }}>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 style={{ margin: 0, fontSize: 30, lineHeight: 1.05, fontWeight: 600, color: c.t1 }}>
-                  Deal Brief
+                  {brief.runLabel}
                 </h2>
                 <StatusPill completed={completed} total={total} loading={isLoading || rerunning} theme={theme} />
                 {lastScanAt && <FreshnessPill at={lastScanAt} theme={theme} />}
@@ -701,7 +779,7 @@ export default function DealBriefDashboard({
                   cursor: "pointer",
                 }}
               >
-                {scanStarted ? "Run again" : "Run deal brief"}
+                {scanStarted ? "Run again" : `Run ${brief.runLabel.toLowerCase()}`}
               </button>
             </div>
           </div>
@@ -769,12 +847,12 @@ export default function DealBriefDashboard({
         )}
 
         {!scanStarted ? (
-          <EmptyBrief theme={theme} onOpenProactiveScan={onOpenProactiveScan} />
+          <EmptyBrief theme={theme} onOpenProactiveScan={onOpenProactiveScan} config={brief} />
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
               <BriefPanel
-                title="What is the deal?"
+                title={brief.snapshotTitle}
                 panelKey="snapshot"
                 fields={snapshotFields}
                 citations={snapshotResult?.citations || []}
@@ -784,7 +862,7 @@ export default function DealBriefDashboard({
                 onOverride={setOverride}
               />
               <BriefPanel
-                title="What is being proposed?"
+                title={brief.transactionTitle}
                 panelKey="transaction"
                 fields={transactionFields}
                 citations={transactionResult?.citations || []}
@@ -800,6 +878,8 @@ export default function DealBriefDashboard({
               tables={financialTables}
               fallback={financialResult?.answer}
               theme={theme}
+              primaryTabLabel={brief.financialTabLabel}
+              panelTitle={entityType === "fund" ? "Key performance data" : undefined}
             />
 
             <ThesisPanel
@@ -876,8 +956,12 @@ function BriefStatCard({
   );
 }
 
-function EmptyBrief({ theme, onOpenProactiveScan }: { theme: "light" | "dark"; onOpenProactiveScan: () => void }) {
+function EmptyBrief({ theme, onOpenProactiveScan, config }: { theme: "light" | "dark"; onOpenProactiveScan: () => void; config: BriefEntityConfig }) {
   const c = ddTheme(theme);
+  const isFund = config.workflowId === "builtin_lp_fund_brief";
+  const blurb = isFund
+    ? "Run the fund brief to extract the fund snapshot, terms vs. market, track record, key risks, and analyst next steps from the manager's documents."
+    : "Run the proactive scan to extract target profile, transaction terms, financial highlights, key risks, and analyst next steps from the current VDR.";
   return (
     <div
       style={{
@@ -901,9 +985,9 @@ function EmptyBrief({ theme, onOpenProactiveScan }: { theme: "light" | "dark"; o
 
       <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div style={{ maxWidth: 700 }}>
-          <div style={{ fontSize: 28, lineHeight: 1.05, fontWeight: 600, color: c.t1 }}>No deal brief yet</div>
+          <div style={{ fontSize: 28, lineHeight: 1.05, fontWeight: 600, color: c.t1 }}>No {config.runLabel.toLowerCase()} yet</div>
           <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7, color: c.t2 }}>
-            Run the proactive scan to extract target profile, transaction terms, financial highlights, key risks, and analyst next steps from the current VDR.
+            {blurb}
           </div>
         </div>
 
@@ -921,7 +1005,7 @@ function EmptyBrief({ theme, onOpenProactiveScan }: { theme: "light" | "dark"; o
             whiteSpace: "nowrap",
           }}
         >
-          Run deal brief
+          Run {config.runLabel.toLowerCase()}
         </button>
       </div>
     </div>
@@ -1138,11 +1222,15 @@ function FinancialPanel({
   tables,
   fallback,
   theme,
+  primaryTabLabel = "Annual",
+  panelTitle,
 }: {
   metrics: Metric[];
   tables: FinancialTable[];
   fallback?: string;
   theme: "light" | "dark";
+  primaryTabLabel?: string;
+  panelTitle?: string;
 }) {
   const c = ddTheme(theme);
   const fallbackItems = metrics.length === 0 ? extractBullets(fallback).slice(0, 4) : [];
@@ -1189,12 +1277,12 @@ function FinancialPanel({
             letterSpacing: "0.12em",
           }}
         >
-          Key financial data
+          {panelTitle ?? "Key financial data"}
         </div>
         <div style={{ flex: 1 }} />
         <SegmentedTabs
           options={[
-            { id: "annual", label: "Annual", disabled: !annualTable },
+            { id: "annual", label: primaryTabLabel, disabled: !annualTable },
             { id: "quarterly", label: "Quarterly", disabled: !quarterlyTable },
             { id: "metrics", label: "Metrics", disabled: metrics.length === 0 && fallbackItems.length === 0 },
           ]}

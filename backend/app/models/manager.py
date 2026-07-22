@@ -29,17 +29,24 @@ class Position(BaseModel):
     deal_id: str
     commitment_amount: float | None = None
     currency: str = "USD"
+    opening_called: float | None = None
+    opening_distributed: float | None = None
     called_amount: float | None = None
     distributed_amount: float | None = None
     nav: float | None = None
     as_of: str | None = None
     status: str = "active"
+    # True when at least one confirmed/paid notice exists — the UI then renders
+    # called/distributed as computed (opening + notices) rather than editable.
+    has_notices: bool = False
 
 
 class PositionUpsert(BaseModel):
     """Partial upsert — only provided fields are changed."""
     commitment_amount: float | None = None
     currency: str | None = None
+    opening_called: float | None = None
+    opening_distributed: float | None = None
     called_amount: float | None = None
     distributed_amount: float | None = None
     nav: float | None = None
