@@ -224,6 +224,160 @@ export async function upsertPosition(dealId: string, data: PositionUpsert): Prom
   });
 }
 
+// ── Monitoring: capital-call queue + side-letter tracker ──
+
+export interface CallNotice {
+  id: string;
+  deal_id: string;
+  doc_id: string | null;
+  kind: "call" | "distribution";
+  amount: number | null;
+  currency: string;
+  due_date: string | null;
+  period: string | null;
+  purpose: string;
+  status: "pending" | "confirmed" | "paid" | "dismissed";
+  outstanding_before: number | null;
+  citations: (Citation | null)[];
+}
+
+export type CallNoticeDraft = Omit<CallNotice, "id" | "deal_id" | "status">;
+
+export interface PortfolioCallNotice extends CallNotice {
+  fund_name: string;
+  manager_id: string | null;
+  manager_name: string | null;
+}
+
+export interface PortfolioPosition {
+  deal_id: string;
+  fund_name: string;
+  manager_id: string | null;
+  manager_name: string | null;
+  commitment_amount: number | null;
+  called_amount: number | null;
+  distributed_amount: number | null;
+  nav: number | null;
+  unfunded: number | null;
+  currency: string;
+  as_of: string | null;
+}
+
+export interface SideLetterCheck {
+  id: string;
+  obligation_id: string;
+  period: string;
+  verdict: "compliant" | "breach" | "unclear";
+  llm_verdict: "compliant" | "breach" | "unclear" | null;
+  rationale: string;
+  citations: (Citation | null)[];
+  confirmed: boolean;
+}
+
+export interface ObligationDraft {
+  category: string;
+  text: string;
+  section_ref: string;
+  cadence: "ongoing" | "one_time";
+  verify_hint: string;
+  citations: (Citation | null)[];
+}
+
+export interface Obligation extends ObligationDraft {
+  id: string;
+  deal_id: string;
+  doc_id: string | null;
+  status: string;
+  latest_check: SideLetterCheck | null;
+}
+
+export interface PortfolioObligation extends Obligation {
+  fund_name: string;
+  manager_id: string | null;
+  manager_name: string | null;
+}
+
+export async function extractCallNotice(dealId: string, docId: string): Promise<CallNoticeDraft> {
+  return request<CallNoticeDraft>(`/deals/${encodeURIComponent(dealId)}/call-notices/extract`, {
+    method: "POST",
+    body: JSON.stringify({ doc_id: docId }),
+  });
+}
+
+export async function createCallNotice(dealId: string, draft: CallNoticeDraft): Promise<CallNotice> {
+  return request<CallNotice>(`/deals/${encodeURIComponent(dealId)}/call-notices`, {
+    method: "POST",
+    body: JSON.stringify(draft),
+  });
+}
+
+export async function listCallNotices(dealId: string): Promise<CallNotice[]> {
+  return request<CallNotice[]>(`/deals/${encodeURIComponent(dealId)}/call-notices`);
+}
+
+export async function updateCallNotice(
+  dealId: string,
+  noticeId: string,
+  data: Partial<Pick<CallNotice, "status" | "amount" | "due_date" | "purpose" | "kind">>
+): Promise<CallNotice> {
+  return request<CallNotice>(
+    `/deals/${encodeURIComponent(dealId)}/call-notices/${encodeURIComponent(noticeId)}`,
+    { method: "PATCH", body: JSON.stringify(data) }
+  );
+}
+
+export async function extractObligations(dealId: string, docId: string): Promise<ObligationDraft[]> {
+  return request<ObligationDraft[]>(`/deals/${encodeURIComponent(dealId)}/side-letters/extract`, {
+    method: "POST",
+    body: JSON.stringify({ doc_id: docId }),
+  });
+}
+
+export async function createObligations(
+  dealId: string,
+  docId: string | null,
+  obligations: ObligationDraft[]
+): Promise<Obligation[]> {
+  return request<Obligation[]>(`/deals/${encodeURIComponent(dealId)}/side-letters/obligations`, {
+    method: "POST",
+    body: JSON.stringify({ doc_id: docId, obligations }),
+  });
+}
+
+export async function listObligations(dealId: string): Promise<Obligation[]> {
+  return request<Obligation[]>(`/deals/${encodeURIComponent(dealId)}/side-letters/obligations`);
+}
+
+export async function verifySideLetters(dealId: string, period: string): Promise<SideLetterCheck[]> {
+  return request<SideLetterCheck[]>(`/deals/${encodeURIComponent(dealId)}/side-letters/verify`, {
+    method: "POST",
+    body: JSON.stringify({ period }),
+  });
+}
+
+export async function confirmCheck(
+  dealId: string,
+  checkId: string,
+  data: { verdict?: string; rationale?: string }
+): Promise<SideLetterCheck> {
+  return request<SideLetterCheck>(
+    `/deals/${encodeURIComponent(dealId)}/side-letters/checks/${encodeURIComponent(checkId)}`,
+    { method: "PATCH", body: JSON.stringify(data) }
+  );
+}
+
+export async function getPortfolioCallNotices(): Promise<PortfolioCallNotice[]> {
+  return request<PortfolioCallNotice[]>(`/portfolio/call-notices`);
+}
+
+export async function getPortfolioPositions(): Promise<PortfolioPosition[]> {
+  return request<PortfolioPosition[]>(`/portfolio/positions`);
+}
+
+export async function getPortfolioCompliance(): Promise<PortfolioObligation[]> {
+  return request<PortfolioObligation[]>(`/portfolio/compliance`);
+}
+
 export interface Citation {
   source_file: string;
   page: number;

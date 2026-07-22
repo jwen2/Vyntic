@@ -4,7 +4,7 @@ import type { Deal } from "@/lib/api";
 import { stageBadge } from "@/lib/stageBadges";
 import { ACCENT, ddTheme } from "./types";
 
-export type DealWorkspaceMode = "agent" | "workflows" | "brief";
+export type DealWorkspaceMode = "agent" | "workflows" | "brief" | "monitoring";
 
 interface TopBarProps {
   deal: Deal;
@@ -300,7 +300,7 @@ export default function TopBar({
               </div>
             )}
           </div>
-          <ModeSegmentedControl mode={mode} onMode={onMode} theme={theme} />
+          <ModeSegmentedControl mode={mode} onMode={onMode} theme={theme} entityType={deal.entity_type} />
         </div>
       </div>
     </div>
@@ -311,10 +311,12 @@ function ModeSegmentedControl({
   mode,
   onMode,
   theme,
+  entityType,
 }: {
   mode: DealWorkspaceMode;
   onMode: (mode: DealWorkspaceMode) => void;
   theme: "light" | "dark";
+  entityType: Deal["entity_type"];
 }) {
   const c = ddTheme(theme);
   const items: Array<{ key: DealWorkspaceMode; label: string; icon: React.ReactNode }> = [
@@ -366,6 +368,29 @@ function ModeSegmentedControl({
         </svg>
       ),
     },
+    // Monitoring is the post-commitment surface — funds only.
+    ...(entityType === "fund"
+      ? [
+          {
+            key: "monitoring" as DealWorkspaceMode,
+            label: "Monitoring",
+            icon: (
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+              </svg>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (

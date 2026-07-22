@@ -8,6 +8,7 @@ interface Props {
   onToggleTheme: () => void;
   onAddDeal?: () => void;
   onOpenDeals?: () => void;
+  onOpenPortfolio?: () => void;
   onLogout: () => void;
 }
 
@@ -19,6 +20,7 @@ export default function HomeTopBar({
   onToggleTheme,
   onAddDeal,
   onOpenDeals,
+  onOpenPortfolio,
   onLogout,
 }: Props) {
   const isDark = theme === "dark";
@@ -171,6 +173,26 @@ export default function HomeTopBar({
           </svg>
         )}
       </IconButton>
+
+      {onOpenPortfolio && (
+        <button
+          onClick={onOpenPortfolio}
+          className="font-mono-plex hidden text-[10px] uppercase tracking-[0.18em] sm:block"
+          style={{
+            padding: "8px 14px",
+            background: chip,
+            color: text,
+            border: `1px solid ${chipBorder}`,
+            borderRadius: 999,
+            fontSize: 10,
+            fontWeight: 600,
+            cursor: "pointer",
+            marginLeft: 4,
+          }}
+        >
+          Portfolio
+        </button>
+      )}
 
       {onAddDeal && (
         <button

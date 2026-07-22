@@ -182,6 +182,7 @@ export default function HomePage() {
         onToggleTheme={toggleTheme}
         onAddDeal={user?.is_admin ? () => setShowAddDeal(true) : undefined}
         onOpenDeals={() => setMobileDealsOpen(true)}
+        onOpenPortfolio={() => navigate("/portfolio")}
         onLogout={handleLogout}
       />
 
