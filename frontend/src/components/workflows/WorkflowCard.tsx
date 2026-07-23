@@ -32,18 +32,11 @@ export default function WorkflowCard({
   const runLabel = workflow.type === "assistant" ? "Run memo" : "Run extraction";
 
   const meta = [
-    {
-      label: workflow.type === "assistant" ? "Stages" : "Columns",
-      value: String(workflow.type === "assistant" ? workflow.stages.length : workflow.columns.length),
-    },
-    {
-      label: "Scope",
-      value: workflow.row_source === "multi_doc_synthesis" ? "Multi-doc" : "One-doc",
-    },
-    {
-      label: "Updated",
-      value: formatRelativeShort(workflow.updated_at),
-    },
+    workflow.type === "assistant"
+      ? `${workflow.stages.length} stage${workflow.stages.length === 1 ? "" : "s"}`
+      : `${workflow.columns.length} column${workflow.columns.length === 1 ? "" : "s"}`,
+    workflow.row_source === "multi_doc_synthesis" ? "Multi-doc" : "One-doc",
+    `Updated ${formatRelativeShort(workflow.updated_at)}`,
   ];
 
   return (
@@ -51,31 +44,33 @@ export default function WorkflowCard({
       style={{
         background: c.surface,
         border: `1px solid ${c.border}`,
-        borderRadius: 24,
-        padding: 18,
+        borderRadius: 12,
+        padding: 15,
         display: "flex",
         flexDirection: "column",
-        gap: 14,
-        minHeight: 272,
+        gap: 11,
         boxShadow: isDark
-          ? "0 14px 30px rgba(0,0,0,0.42)"
-          : "0 10px 26px rgba(17,17,17,0.11), 0 1px 2px rgba(17,17,17,0.05)",
+          ? "0 8px 24px rgba(0,0,0,0.35)"
+          : "0 6px 18px rgba(17,17,17,0.06)",
       }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3" style={{ minWidth: 0 }}>
           <div
+            className="font-mono-plex"
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 14,
-              background: workflow.type === "assistant" ? ACCENT : VIOLET,
-              color: workflow.type === "assistant" ? "var(--on-accent)" : "var(--on-violet)",
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              background: tint(typeColor, 13),
+              color: typeColor,
+              border: `1px solid ${tint(typeColor, 28)}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 13,
+              fontSize: 10,
               fontWeight: 700,
+              letterSpacing: "0.02em",
               flexShrink: 0,
             }}
           >
@@ -116,70 +111,66 @@ export default function WorkflowCard({
       </p>
 
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 8,
-        }}
+        className="font-mono-plex"
+        style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 10.5, letterSpacing: "0.03em", color: c.t3 }}
       >
-        {meta.map((item) => (
-          <div
-            key={item.label}
-            style={{
-              padding: "10px 10px",
-              borderRadius: 16,
-              background: c.surfaceAlt,
-              border: `1px solid ${c.border}`,
-              minWidth: 0,
-            }}
-          >
-            <div
-              className="font-mono-plex"
-              style={{
-                fontSize: 9,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                color: c.t3,
-              }}
-            >
-              {item.label}
-            </div>
-            <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: c.t1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {item.value}
-            </div>
-          </div>
+        {meta.map((m, i) => (
+          <span key={m} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            {i > 0 && <span style={{ opacity: 0.55 }}>·</span>}
+            <span>{m}</span>
+          </span>
         ))}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "auto" }}>
         <button
           type="button"
           onClick={onRun}
           disabled={!onRun}
+          onMouseEnter={(e) => {
+            if (!onRun) return;
+            e.currentTarget.style.background = ACCENT;
+            e.currentTarget.style.color = "var(--on-accent)";
+            e.currentTarget.style.borderColor = "transparent";
+          }}
+          onMouseLeave={(e) => {
+            if (!onRun) return;
+            e.currentTarget.style.background = "var(--accent-tint)";
+            e.currentTarget.style.color = ACCENT;
+            e.currentTarget.style.borderColor = "var(--accent-tint-border)";
+          }}
           style={{
-            width: "100%",
-            padding: "12px 14px",
-            background: onRun ? ACCENT : c.surfaceAlt,
-            color: onRun ? "white" : c.t3,
-            border: "none",
-            borderRadius: 999,
-            fontSize: 13,
+            flex: 1,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            padding: "8px 12px",
+            background: onRun ? "var(--accent-tint)" : c.surfaceAlt,
+            color: onRun ? ACCENT : c.t3,
+            border: `1px solid ${onRun ? "var(--accent-tint-border)" : c.border}`,
+            borderRadius: 9,
+            fontSize: 12.5,
             fontWeight: 600,
             cursor: onRun ? "pointer" : "not-allowed",
+            transition: "background .12s, color .12s, border-color .12s",
           }}
         >
           {runLabel}
+          {onRun && (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          )}
         </button>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {primaryAction.onClick && (
-            <CardButton label={primaryAction.label} onClick={primaryAction.onClick} theme={theme} />
-          )}
-          {onHistory && <CardButton label="History" onClick={onHistory} theme={theme} />}
-          {onDelete && !workflow.is_builtin && (
-            <CardButton label="Delete" onClick={onDelete} theme={theme} danger />
-          )}
-        </div>
+        {primaryAction.onClick && (
+          <CardButton label={primaryAction.label} onClick={primaryAction.onClick} theme={theme} />
+        )}
+        {onHistory && <CardButton label="History" onClick={onHistory} theme={theme} />}
+        {onDelete && !workflow.is_builtin && (
+          <CardButton label="Delete" onClick={onDelete} theme={theme} danger />
+        )}
       </div>
     </article>
   );
@@ -204,8 +195,8 @@ function WorkflowBadge({
         fontWeight: 600,
         letterSpacing: "0.08em",
         textTransform: "uppercase",
-        padding: "4px 8px",
-        borderRadius: 999,
+        padding: "3px 7px",
+        borderRadius: 5,
         color,
         background,
         border: `1px solid ${border}`,
@@ -235,14 +226,15 @@ function CardButton({
       type="button"
       onClick={onClick}
       style={{
-        padding: "9px 12px",
+        padding: "8px 11px",
         background: c.surfaceAlt,
         color: fg,
         border: `1px solid ${danger ? "#f5c7b3" : c.border}`,
-        borderRadius: 999,
+        borderRadius: 8,
         fontSize: 12,
         fontWeight: 600,
         cursor: "pointer",
+        whiteSpace: "nowrap",
       }}
     >
       {label}

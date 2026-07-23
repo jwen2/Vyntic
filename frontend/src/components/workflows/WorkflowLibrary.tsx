@@ -62,14 +62,14 @@ export default function WorkflowLibrary({
       <div style={{ maxWidth: 1320, margin: "0 auto", padding: "24px 16px 40px" }}>
         <div
           style={{
-            padding: "20px",
-            borderRadius: 28,
+            padding: "18px 20px",
+            borderRadius: 16,
             border: `1px solid ${c.border}`,
             background: c.surface,
             boxShadow: isDark
-              ? "0 16px 34px rgba(0,0,0,0.4)"
-              : "0 12px 30px rgba(17,17,17,0.10), 0 1px 2px rgba(17,17,17,0.05)",
-            marginBottom: 20,
+              ? "0 10px 30px rgba(0,0,0,0.35)"
+              : "0 8px 24px rgba(17,17,17,0.06)",
+            marginBottom: 16,
           }}
         >
           <div
@@ -86,12 +86,28 @@ export default function WorkflowLibrary({
 
           <div className="mt-3 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div style={{ maxWidth: 720 }}>
-              <h2 style={{ margin: 0, fontSize: 30, lineHeight: 1.05, fontWeight: 600, color: c.t1 }}>
+              <h2 style={{ margin: 0, fontSize: 20, lineHeight: 1.2, fontWeight: 600, color: c.t1 }}>
                 Templates that turn diligence into repeatable output
               </h2>
-              <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.7, color: c.t2 }}>
-                Start from built-ins for common deal work, then clone or create custom workflows for your own memo, extraction, and synthesis patterns.
+              <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.6, color: c.t2 }}>
+                Start from built-ins, then clone or create custom workflows for your own memo, extraction, and synthesis patterns.
               </p>
+              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 12.5, color: c.t2 }}>
+                {([
+                  [builtIns.length + customs.length, "workflows"],
+                  [workflows.filter((workflow) => workflow.is_builtin).length, "built-in"],
+                  [customCount, "custom"],
+                  [assistantCount, "assistant"],
+                  [tabularCount, "tabular"],
+                ] as [number, string][]).map(([n, l], i) => (
+                  <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    {i > 0 && <span style={{ color: c.t3 }}>·</span>}
+                    <span>
+                      <span style={{ color: c.accent, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{n}</span> {l}
+                    </span>
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div style={{ position: "relative", width: "100%", maxWidth: 460 }}>
@@ -124,10 +140,10 @@ export default function WorkflowLibrary({
                     placeholder="Search workflows"
                     style={{
                       width: "100%",
-                      padding: "11px 14px 11px 38px",
+                      padding: "9px 12px 9px 36px",
                       background: c.surfaceAlt,
                       border: `1px solid ${c.border}`,
-                      borderRadius: 999,
+                      borderRadius: 9,
                       color: c.t1,
                       fontSize: 13,
                       outline: "none",
@@ -140,11 +156,11 @@ export default function WorkflowLibrary({
                   type="button"
                   onClick={() => setShowNewMenu((value) => !value)}
                   style={{
-                    padding: "11px 16px",
+                    padding: "9px 14px",
                     background: ACCENT,
                     color: "var(--on-accent)",
                     border: "none",
-                    borderRadius: 999,
+                    borderRadius: 9,
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -164,7 +180,7 @@ export default function WorkflowLibrary({
                     width: "min(320px, 100%)",
                     background: c.surface,
                     border: `1px solid ${c.border}`,
-                    borderRadius: 20,
+                    borderRadius: 12,
                     boxShadow: isDark ? "0 24px 44px rgba(0,0,0,0.32)" : "0 24px 44px rgba(17,17,17,0.08)",
                     zIndex: 10,
                     padding: 8,
@@ -195,45 +211,6 @@ export default function WorkflowLibrary({
             </div>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: 10,
-              marginTop: 18,
-            }}
-          >
-            <MetricTile
-              theme={theme}
-              label="Visible"
-              value={builtIns.length + customs.length}
-              detail={query.trim() ? "Matching current search" : "Ready to use"}
-            />
-            <MetricTile
-              theme={theme}
-              label="Built-in"
-              value={workflows.filter((workflow) => workflow.is_builtin).length}
-              detail="Curated starting points"
-            />
-            <MetricTile
-              theme={theme}
-              label="Custom"
-              value={customCount}
-              detail="Team-owned workflows"
-            />
-            <MetricTile
-              theme={theme}
-              label="Assistant"
-              value={assistantCount}
-              detail="Narrative synthesis"
-            />
-            <MetricTile
-              theme={theme}
-              label="Tabular"
-              value={tabularCount}
-              detail="Structured extraction"
-            />
-          </div>
         </div>
 
         <Section
@@ -372,45 +349,6 @@ function Section({
   );
 }
 
-function MetricTile({
-  label,
-  value,
-  detail,
-  theme,
-}: {
-  label: string;
-  value: number;
-  detail: string;
-  theme: Theme;
-}) {
-  const c = ddTheme(theme);
-
-  return (
-    <div
-      style={{
-        padding: "12px 14px",
-        borderRadius: 20,
-        border: `1px solid ${c.border}`,
-        background: c.surfaceAlt,
-      }}
-    >
-      <div
-        className="font-mono-plex"
-        style={{
-          fontSize: 9,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          color: c.t3,
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ marginTop: 6, fontSize: 24, lineHeight: 1, fontWeight: 600, color: c.accent }}>{value}</div>
-      <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5, color: c.t2 }}>{detail}</div>
-    </div>
-  );
-}
-
 function EmptyState({
   title,
   text,
@@ -429,7 +367,7 @@ function EmptyState({
       style={{
         background: c.surface,
         border: `1px dashed ${c.border}`,
-        borderRadius: 24,
+        borderRadius: 12,
         padding: "30px 18px",
         textAlign: "center",
       }}
@@ -455,11 +393,11 @@ function QuickCreateButton({
       type="button"
       onClick={onClick}
       style={{
-        padding: "10px 14px",
+        padding: "9px 14px",
         background: accent,
         color: accent === ACCENT ? "var(--on-accent)" : "var(--on-violet)",
         border: "none",
-        borderRadius: 999,
+        borderRadius: 9,
         fontSize: 12,
         fontWeight: 600,
         cursor: "pointer",
@@ -495,7 +433,7 @@ function NewMenuButton({
         padding: "12px 12px",
         background: "transparent",
         border: "none",
-        borderRadius: 16,
+        borderRadius: 10,
         cursor: "pointer",
         color: c.t1,
       }}

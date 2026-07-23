@@ -58,40 +58,46 @@ export function SummaryCards({
   runId: string;
 }) {
   const c = ddTheme(theme);
-  const cards = [
-    { label: "Documents", value: String(documents) },
-    { label: "Cells Extracted", value: `${completeCells}/${totalCells}` },
-    { label: "High Risk", value: String(highRiskCount), color: highRiskCount > 0 ? RED : c.t1 },
-    { label: "Run Time", value: elapsedLabel || "0s" },
-    { label: "Run ID", value: runId.slice(0, 8), mono: true },
+  // Quiet inline metadata rather than a row of boxed tiles — the run's numbers
+  // are context, not the point of the screen.
+  const items: { value: string; label: string; color?: string; mono?: boolean }[] = [
+    { value: String(documents), label: `document${documents === 1 ? "" : "s"}` },
+    { value: `${completeCells}/${totalCells}`, label: "cells" },
+    { value: String(highRiskCount), label: "high risk", color: highRiskCount > 0 ? RED : undefined },
+    { value: elapsedLabel || "0s", label: "elapsed" },
+    { value: runId.slice(0, 8), label: "run id", mono: true },
   ];
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          style={{
-            minWidth: 104,
-            padding: "8px 12px",
-            background: c.surface,
-            border: `1px solid ${c.border}`,
-            borderRadius: 8,
-          }}
-        >
-          <div style={{ fontSize: 9, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, fontWeight: 700 }}>
-            {card.label}
-          </div>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: card.color || c.t1,
-              fontFamily: card.mono ? "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)" : "inherit",
-            }}
-          >
-            {card.value}
-          </div>
-        </div>
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 14,
+        fontSize: 12.5,
+        color: c.t3,
+      }}
+    >
+      {items.map((item, i) => (
+        <span key={item.label} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {i > 0 && <span style={{ opacity: 0.55 }}>·</span>}
+          <span>
+            <span
+              style={{
+                color: item.color || c.t1,
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
+                fontFamily: item.mono
+                  ? "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
+                  : "inherit",
+              }}
+            >
+              {item.value}
+            </span>{" "}
+            {item.label}
+          </span>
+        </span>
       ))}
     </div>
   );

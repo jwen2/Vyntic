@@ -163,12 +163,12 @@ function RunStatusPill({ status, theme }: { status: RunStatus; theme: Theme }) {
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        padding: "3px 9px",
+        padding: "4px 9px",
         background: cfg.bg,
         color: cfg.color,
         fontSize: 11,
         fontWeight: 600,
-        borderRadius: 99,
+        borderRadius: 7,
       }}
     >
       <span
