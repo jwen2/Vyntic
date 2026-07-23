@@ -28,14 +28,14 @@ const DEAL_PROMPTS = [
   "Find cross-document inconsistencies across the CIM, QoE, financials, legal documents, and operations materials. Highlight metric mismatches, contradictory claims, and missing evidence.",
 ];
 
-// LP fund investigations (entity_type="fund") — what an allocator diligencing a
-// manager wants, grounded in the DDQ / PPM / LPA / track record / side letter.
+// LP fund investigations (entity_type="fund"): what an allocator diligencing a
+// manager wants, grounded in the DDQ, PPM, LPA, track record, and side letter.
 const FUND_PROMPTS = [
-  "Scan the DDQ, PPM, and pitchbook for evasive answers and inconsistencies. Flag anything the GP glosses over on team, track record, fees, or conflicts of interest.",
-  "Rebuild the track record and check every fund for TVPI = DPI + RVPI. Flag inflated or cherry-picked multiples, gross-vs-net presentation gaps, recycled capital, and unrealized marks carrying the headline.",
-  "Extract the fund terms from the PPM and LPA and flag anything off-market versus ILPA norms — management fee and offsets, carried interest and waterfall, GP commitment, key-person, and no-fault removal.",
-  "Assess team and key-person risk: partner departures, succession gaps, and whether every named key person is still active across all documents (flag any document that lists a departed person as active).",
-  "Review operational and compliance exposure from the Form ADV, ODD materials, and valuation policy — affiliated service providers receiving fees, regulatory or litigation history, and valuation-governance gaps.",
+  "Scan the DDQ, PPM, and pitchbook for evasive answers and contradictions on team, track record, fees, and conflicts.",
+  "Rebuild the track record and check each fund for TVPI = DPI + RVPI. Flag inflated or cherry-picked multiples.",
+  "Extract the fund terms and flag anything off-market vs. ILPA: fees, waterfall, GP commitment, key-person, removal.",
+  "Assess team and key-person risk: departures, succession gaps, and whether named key persons are still active.",
+  "Review ODD and compliance exposure: affiliated service providers, regulatory history, and valuation governance.",
 ];
 
 function messageId(prefix: string) {
@@ -495,8 +495,8 @@ function InitialAssistantState({
   const scanTitle = isFund ? "Run Fund Brief" : "Run Proactive Scan";
   const scanSubtitle = isFund
     ? (totalPages > 0
-        ? `Summarize the manager across all ${totalPages} pages — terms, track record, and the flags an IC will ask about`
-        : "Summarize the manager — terms, track record, and the flags an IC will ask about")
+        ? `Summarize the manager across all ${totalPages} pages: terms, track record, and the flags an IC will ask about`
+        : "Summarize the manager: terms, track record, and the flags an IC will ask about")
     : (totalPages > 0
         ? `Sweep all ${totalPages} pages to find hidden risks, buried clauses, and data room gaps`
         : "Sweep the deal room to find hidden risks, buried clauses, and data room gaps");
@@ -592,17 +592,28 @@ function InitialAssistantState({
               type="button"
               disabled={loading}
               onClick={() => onPrompt(prompt)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = c.t2;
+                e.currentTarget.style.borderColor = c.t3;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = c.t3;
+                e.currentTarget.style.borderColor = c.border;
+              }}
               style={{
                 textAlign: "left",
                 padding: "12px 13px",
                 borderRadius: 16,
                 border: `1px solid ${c.border}`,
                 background: c.surface,
-                color: c.t1,
+                // Muted at rest so the suggestions recede; they lift toward the
+                // primary text colour on hover to signal they're clickable.
+                color: c.t3,
                 fontSize: 12,
-                fontWeight: 600,
+                fontWeight: 500,
                 lineHeight: 1.45,
                 cursor: loading ? "default" : "pointer",
+                transition: "color .12s, border-color .12s",
               }}
             >
               {prompt}
