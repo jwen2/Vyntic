@@ -19,12 +19,23 @@ type ChatMessage = {
   documents?: string[];
 };
 
-const ASSISTANT_PROMPTS = [
+// Buyout deal investigations (entity_type="deal").
+const DEAL_PROMPTS = [
   "Find all red flags and deal-breakers across every document in this deal room. Focus on anything that could affect valuation or close probability.",
   "Cross-validate all revenue and EBITDA figures across the CIM, QoE report, and financial statements. Flag any discrepancies and explain their implications.",
   "Perform a deep scan of the Legal DD document. Identify all litigation exposure, IP risks, regulatory concerns, and undisclosed liabilities.",
   "Identify concentration risks across customers, suppliers, and key employees. Quantify exposure and highlight renewal, retention, or continuity risks.",
   "Find cross-document inconsistencies across the CIM, QoE, financials, legal documents, and operations materials. Highlight metric mismatches, contradictory claims, and missing evidence.",
+];
+
+// LP fund investigations (entity_type="fund") — what an allocator diligencing a
+// manager wants, grounded in the DDQ / PPM / LPA / track record / side letter.
+const FUND_PROMPTS = [
+  "Scan the DDQ, PPM, and pitchbook for evasive answers and inconsistencies. Flag anything the GP glosses over on team, track record, fees, or conflicts of interest.",
+  "Rebuild the track record and check every fund for TVPI = DPI + RVPI. Flag inflated or cherry-picked multiples, gross-vs-net presentation gaps, recycled capital, and unrealized marks carrying the headline.",
+  "Extract the fund terms from the PPM and LPA and flag anything off-market versus ILPA norms — management fee and offsets, carried interest and waterfall, GP commitment, key-person, and no-fault removal.",
+  "Assess team and key-person risk: partner departures, succession gaps, and whether every named key person is still active across all documents (flag any document that lists a departed person as active).",
+  "Review operational and compliance exposure from the Form ADV, ODD materials, and valuation policy — affiliated service providers receiving fees, regulatory or litigation history, and valuation-governance gaps.",
 ];
 
 function messageId(prefix: string) {
@@ -309,7 +320,8 @@ export default function DealAssistantPanel({
               docCount={documents.length}
               totalPages={documents.reduce((sum, doc) => sum + (doc.page_count || 0), 0)}
               loading={false}
-              prompts={ASSISTANT_PROMPTS}
+              prompts={deal.entity_type === "fund" ? FUND_PROMPTS : DEAL_PROMPTS}
+              isFund={deal.entity_type === "fund"}
               onPrompt={submit}
               onProactiveScan={onProactiveScan}
               theme={theme}
@@ -463,6 +475,7 @@ function InitialAssistantState({
   totalPages,
   loading,
   prompts,
+  isFund,
   onPrompt,
   onProactiveScan,
   theme,
@@ -472,12 +485,21 @@ function InitialAssistantState({
   totalPages: number;
   loading: boolean;
   prompts: string[];
+  isFund: boolean;
   onPrompt: (prompt: string) => void;
   onProactiveScan?: () => void;
   theme: "light" | "dark";
 }) {
   const c = ddTheme(theme);
   const isDark = theme === "dark";
+  const scanTitle = isFund ? "Run Fund Brief" : "Run Proactive Scan";
+  const scanSubtitle = isFund
+    ? (totalPages > 0
+        ? `Summarize the manager across all ${totalPages} pages — terms, track record, and the flags an IC will ask about`
+        : "Summarize the manager — terms, track record, and the flags an IC will ask about")
+    : (totalPages > 0
+        ? `Sweep all ${totalPages} pages to find hidden risks, buried clauses, and data room gaps`
+        : "Sweep the deal room to find hidden risks, buried clauses, and data room gaps");
   return (
     <div style={{ minHeight: "calc(100vh - 280px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 640, textAlign: "center" }}>
@@ -547,11 +569,9 @@ function InitialAssistantState({
               fontSize: 18, flexShrink: 0,
             }}>🔍</span>
             <span style={{ flex: 1 }}>
-              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: c.t1 }}>Run Proactive Scan</span>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: c.t1 }}>{scanTitle}</span>
               <span style={{ display: "block", fontSize: 12, color: c.t2, marginTop: 1 }}>
-                {totalPages > 0
-                  ? `Sweep all ${totalPages} pages to find hidden risks, buried clauses, and data room gaps`
-                  : "Sweep the deal room to find hidden risks, buried clauses, and data room gaps"}
+                {scanSubtitle}
               </span>
             </span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.t3} strokeWidth="2"><path d="M5 3l14 9-14 9V3z" /></svg>
