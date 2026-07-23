@@ -190,13 +190,13 @@ export default function DealWorkspacePage() {
     void queryClient.invalidateQueries({ queryKey: ["deal", dealId, "conversations"] });
   }, [dealId, queryClient]);
 
-  // The Agent tab still exposes a "Run Proactive Scan" CTA on its empty state.
-  // It now jumps to the Workflows tab (the new home of the Proactive Scan
-  // built-in template). Future polish could auto-kick-off a run.
+  // The Agent tab exposes a deep-scan CTA on its empty state. Funds jump to the
+  // Brief tab (home of the LP Fund Brief); deals jump to Workflows (home of the
+  // buyout Proactive Scan template).
   const handleProactiveScan = useCallback(() => {
-    setMode("workflows");
+    setMode(deal?.entity_type === "fund" ? "brief" : "workflows");
     setActiveCit(null);
-  }, []);
+  }, [deal?.entity_type]);
 
   if (!dealIdParam) return null;
 

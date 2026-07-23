@@ -19,7 +19,8 @@ type ChatMessage = {
   documents?: string[];
 };
 
-const ASSISTANT_PROMPTS = [
+// Buyout deal investigations (entity_type="deal").
+const DEAL_PROMPTS = [
   "Find all red flags and deal-breakers across every document in this deal room. Focus on anything that could affect valuation or close probability.",
   "Cross-validate all revenue and EBITDA figures across the CIM, QoE report, and financial statements. Flag any discrepancies and explain their implications.",
   "Perform a deep scan of the Legal DD document. Identify all litigation exposure, IP risks, regulatory concerns, and undisclosed liabilities.",
@@ -27,37 +28,84 @@ const ASSISTANT_PROMPTS = [
   "Find cross-document inconsistencies across the CIM, QoE, financials, legal documents, and operations materials. Highlight metric mismatches, contradictory claims, and missing evidence.",
 ];
 
-// Suggested-research cards: a scannable title + blurb over each full prompt.
-const PROMPT_CARDS: { title: string; blurb: string; chips: string[]; prompt: string }[] = [
+// Suggested-research cards per entity type: a scannable title + blurb over each prompt.
+type PromptCard = { title: string; blurb: string; chips: string[]; prompt: string };
+
+// Buyout deal cards (entity_type="deal").
+const DEAL_CARDS: PromptCard[] = [
   {
     title: "Surface red flags",
     blurb: "Sweep every document for anything that could hit valuation or close probability.",
     chips: ["All documents"],
-    prompt: ASSISTANT_PROMPTS[0],
+    prompt: DEAL_PROMPTS[0],
   },
   {
     title: "Cross-validate the financials",
     blurb: "Reconcile revenue and EBITDA across the CIM, QoE, and statements; flag every discrepancy.",
     chips: ["CIM", "QoE", "Financials"],
-    prompt: ASSISTANT_PROMPTS[1],
+    prompt: DEAL_PROMPTS[1],
   },
   {
     title: "Scan legal exposure",
     blurb: "Litigation, IP risk, regulatory concerns, and undisclosed liabilities in the Legal DD.",
     chips: ["Legal DD"],
-    prompt: ASSISTANT_PROMPTS[2],
+    prompt: DEAL_PROMPTS[2],
   },
   {
     title: "Map concentration risk",
     blurb: "Quantify customer, supplier, and key-employee exposure and continuity risk.",
     chips: ["All documents"],
-    prompt: ASSISTANT_PROMPTS[3],
+    prompt: DEAL_PROMPTS[3],
   },
   {
     title: "Find cross-document inconsistencies",
     blurb: "Metric mismatches and contradictory claims across every document in the room.",
     chips: ["All documents"],
-    prompt: ASSISTANT_PROMPTS[4],
+    prompt: DEAL_PROMPTS[4],
+  },
+];
+
+// LP fund investigations (entity_type="fund"): grounded in the DDQ, PPM, LPA,
+// track record, and side letter.
+const FUND_PROMPTS = [
+  "Scan the DDQ, PPM, and pitchbook for evasive answers and contradictions on team, track record, fees, and conflicts.",
+  "Rebuild the track record and check each fund for TVPI = DPI + RVPI. Flag inflated or cherry-picked multiples.",
+  "Extract the fund terms and flag anything off-market vs. ILPA: fees, waterfall, GP commitment, key-person, removal.",
+  "Assess team and key-person risk: departures, succession gaps, and whether named key persons are still active.",
+  "Review ODD and compliance exposure: affiliated service providers, regulatory history, and valuation governance.",
+];
+
+// LP fund cards.
+const FUND_CARDS: PromptCard[] = [
+  {
+    title: "Probe the DDQ & PPM",
+    blurb: "Scan for evasive answers and contradictions on team, track record, fees, and conflicts.",
+    chips: ["DDQ", "PPM", "Pitchbook"],
+    prompt: FUND_PROMPTS[0],
+  },
+  {
+    title: "Verify the track record",
+    blurb: "Rebuild returns and check TVPI = DPI + RVPI; flag inflated or cherry-picked multiples.",
+    chips: ["Track record"],
+    prompt: FUND_PROMPTS[1],
+  },
+  {
+    title: "Check terms vs. ILPA",
+    blurb: "Fees, waterfall, GP commitment, key-person, and removal — flag anything off-market.",
+    chips: ["LPA", "Side letter"],
+    prompt: FUND_PROMPTS[2],
+  },
+  {
+    title: "Assess key-person risk",
+    blurb: "Departures, succession gaps, and whether named key persons are still active.",
+    chips: ["All documents"],
+    prompt: FUND_PROMPTS[3],
+  },
+  {
+    title: "Review ODD & compliance",
+    blurb: "Affiliated service providers, regulatory history, and valuation governance.",
+    chips: ["ODD"],
+    prompt: FUND_PROMPTS[4],
   },
 ];
 
@@ -516,6 +564,7 @@ export default function DealAssistantPanel({
             <InitialAssistantState
               docCount={documents.length}
               loading={false}
+              isFund={deal.entity_type === "fund"}
               onPrompt={submit}
               onProactiveScan={onProactiveScan}
               theme={theme}
@@ -560,6 +609,7 @@ export default function DealAssistantPanel({
 function InitialAssistantState({
   docCount,
   loading,
+  isFund,
   onPrompt,
   onProactiveScan,
   theme,
@@ -567,6 +617,7 @@ function InitialAssistantState({
 }: {
   docCount: number;
   loading: boolean;
+  isFund: boolean;
   onPrompt: (prompt: string) => void;
   onProactiveScan?: () => void;
   theme: "light" | "dark";
@@ -574,6 +625,8 @@ function InitialAssistantState({
 }) {
   const c = ddTheme(theme);
   const isDark = theme === "dark";
+  const scanTitle = isFund ? "Run Fund Brief" : "Run Proactive Scan";
+  const cards = isFund ? FUND_CARDS : DEAL_CARDS;
   return (
     <div style={{ minHeight: "calc(100vh - 280px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 640, textAlign: "center" }}>
@@ -603,7 +656,7 @@ function InitialAssistantState({
           Try asking Vyntic to…
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, opacity: loading ? 0.55 : 1 }}>
-          {PROMPT_CARDS.map((card) => (
+          {cards.map((card) => (
             <button
               key={card.title}
               type="button"
@@ -682,7 +735,7 @@ function InitialAssistantState({
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3.5 6h17M6.5 12h11M10 18h4" />
               </svg>
-              Run Proactive Scan
+              {scanTitle}
             </button>
           </div>
         )}
