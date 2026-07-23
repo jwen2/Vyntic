@@ -165,6 +165,7 @@ export default function HomePage() {
   const surfaceAlt = isDark ? "#111111" : "#f8f8f4";
   const text = isDark ? "#f5f5f5" : "var(--landing-text)";
   const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+  const skeletonTone = isDark ? "#242424" : "#ebe9e2";
 
   return (
     <div
@@ -266,13 +267,13 @@ export default function HomePage() {
           {selectedDeal ? (
             <div style={{ minHeight: "100%" }}>
               <div
-                className="mb-4 rounded-[1.75rem] border p-4 sm:p-5"
+                className="mb-4 rounded-[1.5rem] border px-5 py-4"
                 style={{
                   background: surface,
                   borderColor: border,
                 }}
               >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div style={{ minWidth: 0 }}>
                     <div
                       className="font-mono-plex"
@@ -286,18 +287,37 @@ export default function HomePage() {
                     >
                       Document matrix
                     </div>
-                    <div
-                      style={{
-                        fontSize: 26,
-                        fontWeight: 600,
-                        color: text,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={selectedDeal.name}
-                    >
-                      {selectedDeal.name}
+                    <div className="flex items-baseline gap-2.5" style={{ minWidth: 0 }}>
+                      <span
+                        style={{
+                          minWidth: 0,
+                          fontSize: 24,
+                          fontWeight: 600,
+                          color: text,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={selectedDeal.name}
+                      >
+                        {selectedDeal.name}
+                      </span>
+                      <span
+                        className="font-mono-plex"
+                        style={{
+                          flexShrink: 0,
+                          fontSize: 11,
+                          letterSpacing: "0.06em",
+                          color: muted,
+                          padding: "3px 8px",
+                          borderRadius: 7,
+                          background: "var(--accent-tint)",
+                          border: "1px solid var(--accent-tint-border)",
+                        }}
+                        title="Workspace ID"
+                      >
+                        {selectedDeal.deal_id}
+                      </span>
                     </div>
                     <div style={{ marginTop: 6, fontSize: 14, color: muted }}>
                       {documentsLoading
@@ -306,77 +326,59 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div
-                      className="rounded-full border px-3 py-2"
-                      style={{
-                        borderColor: "var(--accent-tint-border)",
-                        background: "var(--accent-tint)",
-                      }}
-                    >
-                      <div
-                        className="font-mono-plex"
-                        style={{
-                          fontSize: 9,
-                          letterSpacing: "0.12em",
-                          textTransform: "uppercase",
-                          color: muted,
-                        }}
-                      >
-                        Selected deal
-                      </div>
-                      <div style={{ marginTop: 3, fontSize: 13, fontWeight: 600, color: text }}>
-                        {selectedDeal.deal_id}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="rounded-full border px-4 py-3 text-sm lg:hidden"
-                      style={{
-                        borderColor: border,
-                        background: surfaceAlt,
-                        color: text,
-                      }}
-                      onClick={() => setMobileDealsOpen(true)}
-                    >
-                      Switch deal
-                    </button>
-
-                    <div
-                      className="hidden rounded-full border px-4 py-3 text-sm lg:block"
-                      style={{
-                        borderColor: border,
-                        background: surfaceAlt,
-                        color: muted,
-                      }}
-                    >
-                      Select a deal on the left to swap matrices.
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    className="self-start rounded-full border px-4 py-3 text-sm lg:hidden"
+                    style={{
+                      borderColor: border,
+                      background: surfaceAlt,
+                      color: text,
+                    }}
+                    onClick={() => setMobileDealsOpen(true)}
+                  >
+                    Switch deal
+                  </button>
                 </div>
               </div>
 
               {documentsLoading ? (
                 <div
-                  style={{
-                    height: 280,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: muted,
-                  }}
+                  className="rounded-[1.25rem] border p-4"
+                  style={{ background: surface, borderColor: border }}
                 >
-                  <div
-                    className="animate-spin"
-                    style={{
-                      width: 26,
-                      height: 26,
-                      border: `3px solid ${border}`,
-                      borderTopColor: "transparent",
-                      borderRadius: "50%",
-                    }}
-                  />
+                  <div className="animate-pulse">
+                    <div
+                      style={{
+                        height: 44,
+                        borderRadius: 12,
+                        background: skeletonTone,
+                        marginBottom: 14,
+                      }}
+                    />
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 9,
+                              background: skeletonTone,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <div
+                            style={{
+                              height: 12,
+                              borderRadius: 6,
+                              background: skeletonTone,
+                              width: `${58 - i * 7}%`,
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <DocMatrixPanel

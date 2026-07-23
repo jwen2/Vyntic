@@ -117,9 +117,25 @@ export default function HomeSidebar({
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 color: muted,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
               Active pipeline
+              <span
+                aria-hidden
+                style={{
+                  width: 3,
+                  height: 3,
+                  borderRadius: "50%",
+                  background: muted,
+                  opacity: 0.6,
+                }}
+              />
+              <span>
+                <span style={{ color: "var(--accent)", fontWeight: 700 }}>{deals.length}</span> deals
+              </span>
             </div>
             <div style={{ marginTop: 6, fontSize: 22, fontWeight: 600, color: text }}>
               Deals
@@ -146,29 +162,6 @@ export default function HomeSidebar({
           )}
         </div>
 
-        <div className="mt-4 flex items-center gap-2">
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: 999,
-              border: `1px solid ${border}`,
-              background: surfaceAlt,
-            }}
-          >
-            <div
-              className="font-mono-plex"
-              style={{
-                fontSize: 9,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                color: muted,
-              }}
-            >
-              Total
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)" }}>{deals.length}</div>
-          </div>
-        </div>
       </div>
 
       <div className="border-b px-4 py-4" style={{ borderBottomColor: border }}>

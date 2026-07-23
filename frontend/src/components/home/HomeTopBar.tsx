@@ -89,22 +89,25 @@ export default function HomeTopBar({
         </div>
       </div>
 
-      <span style={{ color: muted, fontSize: 13 }}>›</span>
-      <span style={{ color: muted, fontSize: 13, fontWeight: 500 }}>
-        Deals
-      </span>
-
       <div style={{ flex: 1 }} />
 
-      <div className="hidden items-center gap-2 sm:flex">
-        <StatPill label="Deals" value={dealCount} muted={muted} chip={chip} chipBorder={chipBorder} />
-        <StatPill
-          label="Documents"
-          value={documentTotal}
-          muted={muted}
-          chip={chip}
-          chipBorder={chipBorder}
-        />
+      <div
+        className="hidden items-baseline gap-2 sm:flex"
+        style={{ fontSize: 13, color: muted }}
+      >
+        <span>
+          <span style={{ color: "var(--accent)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+            {dealCount}
+          </span>{" "}
+          deals
+        </span>
+        <span style={{ opacity: 0.5 }}>·</span>
+        <span>
+          <span style={{ color: "var(--accent)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+            {documentTotal}
+          </span>{" "}
+          docs
+        </span>
       </div>
 
       {user && (
@@ -267,41 +270,3 @@ function IconButton({
   );
 }
 
-function StatPill({
-  label,
-  value,
-  muted,
-  chip,
-  chipBorder,
-}: {
-  label: string;
-  value: number;
-  muted: string;
-  chip: string;
-  chipBorder: string;
-}) {
-  return (
-    <div
-      style={{
-        padding: "7px 12px",
-        background: chip,
-        borderRadius: 999,
-        border: `1px solid ${chipBorder}`,
-      }}
-    >
-      <div
-        className="font-mono-plex"
-        style={{
-          fontSize: 9,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          color: muted,
-        }}
-      >
-        {label}
-      </div>
-      {/* Accent numeral: #1d4ed8 ≥ 6.5:1 on the light chip, #8ab4ff ≥ 8.4:1 on the dark one. */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>{value}</div>
-    </div>
-  );
-}

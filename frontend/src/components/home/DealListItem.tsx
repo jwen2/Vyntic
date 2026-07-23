@@ -151,10 +151,16 @@ export default function DealListItem({
       onDragLeave={readOnly ? undefined : handleDragLeave}
       onDragOver={readOnly ? undefined : handleDragOver}
       onDrop={readOnly ? undefined : handleDrop}
-      className="mb-3 rounded-[1.35rem] border p-4 transition-colors"
+      className="mb-3 rounded-[1.35rem] border p-4 transition-all"
       style={{
         background: cardBackground,
         borderColor: cardBorder,
+        boxShadow:
+          hovered && !selected && !dragging
+            ? isDark
+              ? "0 6px 20px rgba(0,0,0,0.45)"
+              : "0 6px 18px rgba(0,0,0,0.07)"
+            : "none",
       }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -220,6 +226,34 @@ export default function DealListItem({
               }}
             >
               Analyze
+            </button>
+          )}
+          {!readOnly && hovered && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex h-8 w-8 items-center justify-center rounded-full border"
+              style={{
+                borderColor: selected ? "var(--accent-tint-border)" : border,
+                background: surfaceAlt,
+                color: cardMuted,
+                cursor: "pointer",
+              }}
+              aria-label={`Upload documents to ${deal.name}`}
+              title="Upload documents"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 15V3M7 8l5-5 5 5M5 21h14" />
+              </svg>
             </button>
           )}
           {!readOnly && hovered && (
@@ -449,33 +483,19 @@ export default function DealListItem({
         </div>
       )}
 
-      {!readOnly && !dragging && (
-        <>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-4 w-full rounded-2xl border border-dashed px-4 py-3 text-sm"
-            style={{
-              background: "transparent",
-              color: cardMuted,
-              borderColor: selected ? "var(--accent-tint-border)" : border,
-            }}
-          >
-            Drop files here or click to upload
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.xlsx,.xls"
-            multiple
-            onChange={(e) => {
-              const files = Array.from(e.target.files || []);
-              if (files.length > 0) onUploadFiles(deal.deal_id, files);
-              e.target.value = "";
-            }}
-            style={{ display: "none" }}
-          />
-        </>
+      {!readOnly && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.xlsx,.xls"
+          multiple
+          onChange={(e) => {
+            const files = Array.from(e.target.files || []);
+            if (files.length > 0) onUploadFiles(deal.deal_id, files);
+            e.target.value = "";
+          }}
+          style={{ display: "none" }}
+        />
       )}
     </div>
   );
