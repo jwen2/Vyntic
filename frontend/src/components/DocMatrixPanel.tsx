@@ -142,14 +142,14 @@ export default function DocMatrixPanel({
         </svg>
         <p className="text-sm font-medium">No documents uploaded yet</p>
         <p className="text-xs mt-1">
-          Upload documents using the button above
+          Upload documents to build the matrix.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2 p-4">
+    <div className="space-y-2">
       <DocMatrixToolbar
         documentCount={documents.length}
         queryCount={matrix.queries.length}

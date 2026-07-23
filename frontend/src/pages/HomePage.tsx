@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDeals } from "@/hooks/useDeals";
 import AddDealDialog from "@/components/AddDealDialog";
@@ -21,6 +21,7 @@ import CitationPanel from "@/components/dd/CitationPanel";
 export default function HomePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const selectedUploadInputRef = useRef<HTMLInputElement>(null);
 
   const {
     deals,
@@ -73,6 +74,9 @@ export default function HomePage() {
     () => deals.find((deal) => deal.deal_id === selectedDealId) ?? null,
     [deals, selectedDealId]
   );
+  const selectedUploadProgress = selectedDealId
+    ? uploadProgressByDeal[selectedDealId]
+    : undefined;
 
   useEffect(() => {
     if (deals.length === 0) {
@@ -209,13 +213,7 @@ export default function HomePage() {
             search={dealSearch}
             onSearch={setDealSearch}
             onSelectDeal={(deal) => setSelectedDealId(deal.deal_id)}
-            onInvestigateDeal={
-              agenticEnabled
-                ? (deal) => navigate(`/deal/${deal.deal_id}`)
-                : undefined
-            }
             onDeleteDeal={setConfirmDeleteDeal}
-            onUploadFiles={handleUploadFiles}
             onUpdateDeal={editDeal}
             uploading={dealsLoading}
             uploadProgressByDeal={uploadProgressByDeal}
@@ -225,12 +223,6 @@ export default function HomePage() {
 
         {mobileDealsOpen && (
           <div className="fixed inset-0 z-40 flex lg:hidden">
-            <button
-              type="button"
-              className="flex-1 bg-black/30"
-              onClick={() => setMobileDealsOpen(false)}
-              aria-label="Close deals drawer"
-            />
             <div className="h-full w-[min(86vw,340px)] shadow-2xl">
               <HomeSidebar
                 deals={deals}
@@ -239,13 +231,7 @@ export default function HomePage() {
                 search={dealSearch}
                 onSearch={setDealSearch}
                 onSelectDeal={(deal) => setSelectedDealId(deal.deal_id)}
-                onInvestigateDeal={
-                  agenticEnabled
-                    ? (deal) => navigate(`/deal/${deal.deal_id}`)
-                    : undefined
-                }
                 onDeleteDeal={setConfirmDeleteDeal}
-                onUploadFiles={handleUploadFiles}
                 onUpdateDeal={editDeal}
                 uploading={dealsLoading}
                 uploadProgressByDeal={uploadProgressByDeal}
@@ -253,6 +239,12 @@ export default function HomePage() {
                 onClose={() => setMobileDealsOpen(false)}
               />
             </div>
+            <button
+              type="button"
+              className="flex-1 bg-black/30"
+              onClick={() => setMobileDealsOpen(false)}
+              aria-label="Close deals drawer"
+            />
           </div>
         )}
 
@@ -266,29 +258,29 @@ export default function HomePage() {
           {selectedDeal ? (
             <div style={{ minHeight: "100%" }}>
               <div
-                className="mb-4 rounded-[1.75rem] border p-4 sm:p-5"
+                className="mb-3 rounded-lg border px-3 py-3 sm:px-4"
                 style={{
                   background: surface,
                   borderColor: border,
                 }}
               >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div style={{ minWidth: 0 }}>
                     <div
                       className="font-mono-plex"
                       style={{
                         fontSize: 10,
-                        letterSpacing: "0.18em",
+                        letterSpacing: "0.12em",
                         textTransform: "uppercase",
                         color: muted,
-                        marginBottom: 8,
+                        marginBottom: 4,
                       }}
                     >
-                      Document matrix
+                      Matrix
                     </div>
                     <div
                       style={{
-                        fontSize: 26,
+                        fontSize: 21,
                         fontWeight: 600,
                         color: text,
                         overflow: "hidden",
@@ -299,40 +291,21 @@ export default function HomePage() {
                     >
                       {selectedDeal.name}
                     </div>
-                    <div style={{ marginTop: 6, fontSize: 14, color: muted }}>
+                    <div style={{ marginTop: 3, fontSize: 13, color: muted }}>
                       {documentsLoading
-                        ? "Loading documents..."
-                        : `${documents.length} document${documents.length !== 1 ? "s" : ""} loaded for review.`}
+                        ? "Loading documents"
+                        : `${documents.length} document${documents.length !== 1 ? "s" : ""}`}
+                      {" · "}
+                      <span className="font-mono-plex" style={{ marginLeft: 8, fontSize: 11 }}>
+                        {selectedDeal.deal_id}
+                      </span>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <div
-                      className="rounded-full border px-3 py-2"
-                      style={{
-                        borderColor: "var(--accent-tint-border)",
-                        background: "var(--accent-tint)",
-                      }}
-                    >
-                      <div
-                        className="font-mono-plex"
-                        style={{
-                          fontSize: 9,
-                          letterSpacing: "0.12em",
-                          textTransform: "uppercase",
-                          color: muted,
-                        }}
-                      >
-                        Selected deal
-                      </div>
-                      <div style={{ marginTop: 3, fontSize: 13, fontWeight: 600, color: text }}>
-                        {selectedDeal.deal_id}
-                      </div>
-                    </div>
-
                     <button
                       type="button"
-                      className="rounded-full border px-4 py-3 text-sm lg:hidden"
+                      className="rounded-lg border px-3 py-2 text-sm lg:hidden"
                       style={{
                         borderColor: border,
                         background: surfaceAlt,
@@ -343,18 +316,112 @@ export default function HomePage() {
                       Switch deal
                     </button>
 
-                    <div
-                      className="hidden rounded-full border px-4 py-3 text-sm lg:block"
-                      style={{
-                        borderColor: border,
-                        background: surfaceAlt,
-                        color: muted,
-                      }}
-                    >
-                      Select a deal on the left to swap matrices.
-                    </div>
+                    {user?.is_admin && (
+                      <>
+                        <button
+                          type="button"
+                          className="rounded-lg border px-3 py-2 text-sm font-medium"
+                          style={{
+                            borderColor: border,
+                            background: surfaceAlt,
+                            color: text,
+                            cursor: "pointer",
+                          }}
+                          onClick={() => selectedUploadInputRef.current?.click()}
+                        >
+                          Upload
+                        </button>
+                        <input
+                          ref={selectedUploadInputRef}
+                          type="file"
+                          accept=".pdf,.xlsx,.xls"
+                          multiple
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            if (selectedDealId && files.length > 0) {
+                              handleUploadFiles(selectedDealId, files);
+                            }
+                            e.target.value = "";
+                          }}
+                          style={{ display: "none" }}
+                        />
+                      </>
+                    )}
+
+                    {agenticEnabled && (
+                      <button
+                        type="button"
+                        className="rounded-lg px-3 py-2 text-sm font-medium"
+                        style={{
+                          border: "none",
+                          background: "var(--accent)",
+                          color: "var(--on-accent)",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => navigate(`/deal/${selectedDeal.deal_id}`)}
+                      >
+                        Analyze
+                      </button>
+                    )}
                   </div>
                 </div>
+                {selectedUploadProgress && (
+                  <div className="mt-3">
+                    <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                      <span
+                        className="font-mono-plex"
+                        style={{
+                          color:
+                            selectedUploadProgress.status === "error"
+                              ? isDark
+                                ? "#f87171"
+                                : "#dc2626"
+                              : muted,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={
+                          selectedUploadProgress.detail ||
+                          selectedUploadProgress.filename ||
+                          ""
+                        }
+                      >
+                        {selectedUploadProgress.stage || "Indexing"}
+                      </span>
+                      <span style={{ color: text, fontWeight: 600 }}>
+                        {selectedUploadProgress.percent}%
+                      </span>
+                    </div>
+                    <div
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={selectedUploadProgress.percent}
+                      style={{
+                        height: 6,
+                        overflow: "hidden",
+                        borderRadius: 999,
+                        background: surfaceAlt,
+                        border: `1px solid ${border}`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${selectedUploadProgress.percent}%`,
+                          height: "100%",
+                          background:
+                            selectedUploadProgress.status === "error"
+                              ? isDark
+                                ? "#f87171"
+                                : "#dc2626"
+                              : "var(--accent)",
+                          transition: "width .25s ease",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {documentsLoading ? (

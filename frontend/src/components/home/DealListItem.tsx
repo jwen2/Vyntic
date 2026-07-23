@@ -1,4 +1,4 @@
-import { useRef, useState, type DragEvent } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
@@ -45,7 +45,6 @@ interface Props {
   onSelect?: () => void;
   onInvestigate?: () => void;
   onDelete: () => void;
-  onUploadFiles: (dealId: string, files: File[]) => void;
   onUpdateDeal: (
     dealId: string,
     data: { stage?: string; tags?: string[] }
@@ -61,7 +60,6 @@ export default function DealListItem({
   onSelect,
   onInvestigate,
   onDelete,
-  onUploadFiles,
   onUpdateDeal,
   uploading,
   uploadProgress,
@@ -70,12 +68,9 @@ export default function DealListItem({
   const navigate = useNavigate();
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const [dragging, setDragging] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [showStageMenu, setShowStageMenu] = useState(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
-  const dragCounter = useRef(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const surface = isDark ? "#151515" : "#ffffff";
   const surfaceAlt = isDark ? "#101010" : "#f8f8f4";
@@ -94,64 +89,20 @@ export default function DealListItem({
       border,
     };
 
-  const cardBackground = dragging
-    ? isDark
-      ? "#1c1c1c"
-      : "#efefe7"
-    : selected
-      ? selectedBg
-      : hovered
-        ? surfaceAlt
-        : surface;
+  const cardBackground = selected
+    ? selectedBg
+    : hovered
+      ? surfaceAlt
+      : surface;
   const cardText = text;
   const cardMuted = muted;
-  const cardBorder = dragging
-    ? isDark
-      ? "#3a3a3a"
-      : "#bdbdb3"
-    : selected
-      ? "var(--accent)"
-      : border;
-
-  const handleDragEnter = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current++;
-    if (e.dataTransfer.types.includes("Files")) setDragging(true);
-  };
-
-  const handleDragLeave = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current--;
-    if (dragCounter.current === 0) setDragging(false);
-  };
-
-  const handleDragOver = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
-    dragCounter.current = 0;
-    const files = Array.from(e.dataTransfer.files).filter(
-      (f) => f.name.endsWith(".pdf") || f.name.endsWith(".xlsx") || f.name.endsWith(".xls")
-    );
-    if (files.length > 0) onUploadFiles(deal.deal_id, files);
-  };
+  const cardBorder = selected ? "var(--accent)" : border;
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onDragEnter={readOnly ? undefined : handleDragEnter}
-      onDragLeave={readOnly ? undefined : handleDragLeave}
-      onDragOver={readOnly ? undefined : handleDragOver}
-      onDrop={readOnly ? undefined : handleDrop}
-      className="mb-3 rounded-[1.35rem] border p-4 transition-colors"
+      className="mb-2 rounded-lg border p-3 transition-colors"
       style={{
         background: cardBackground,
         borderColor: cardBorder,
@@ -212,7 +163,7 @@ export default function DealListItem({
                 e.stopPropagation();
                 onInvestigate();
               }}
-              className="rounded-full border px-3 py-2 text-[10px] font-medium uppercase tracking-[0.12em]"
+              className="rounded-md border px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.08em]"
               style={{
                 borderColor: selected ? "var(--accent)" : border,
                 background: selected ? "var(--accent)" : surfaceAlt,
@@ -242,11 +193,11 @@ export default function DealListItem({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <div style={{ position: "relative" }}>
           {readOnly ? (
             <span
-              className="font-mono-plex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.12em]"
+              className="font-mono-plex rounded-md border px-2 py-1 text-[10px] uppercase tracking-[0.08em]"
               style={{
                 background: stage.bg,
                 color: stage.fg,
@@ -263,7 +214,7 @@ export default function DealListItem({
                   setShowStageMenu((value) => !value);
                   setShowTagMenu(false);
                 }}
-                className="font-mono-plex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.12em]"
+                className="font-mono-plex rounded-md border px-2 py-1 text-[10px] uppercase tracking-[0.08em]"
                 style={{
                   background: stage.bg,
                   color: stage.fg,
@@ -306,7 +257,7 @@ export default function DealListItem({
                         tags: deal.tags.filter((t) => t !== tag),
                       })
               }
-              className="rounded-full border px-3 py-1 text-[11px]"
+              className="rounded-md border px-2 py-1 text-[11px]"
               style={{
                 background: sector ? sector.bg : selected ? "transparent" : surfaceAlt,
                 color: sector ? sector.fg : cardMuted,
@@ -323,7 +274,7 @@ export default function DealListItem({
           );
         })}
 
-        {!readOnly && (
+        {!readOnly && hovered && (
           <div style={{ position: "relative" }}>
             <button
               type="button"
@@ -331,7 +282,7 @@ export default function DealListItem({
                 setShowTagMenu((value) => !value);
                 setShowStageMenu(false);
               }}
-              className="font-mono-plex rounded-full border border-dashed px-3 py-1 text-[10px] uppercase tracking-[0.12em]"
+              className="font-mono-plex rounded-md border border-dashed px-2 py-1 text-[10px] uppercase tracking-[0.08em]"
               style={{
                 background: "transparent",
                 color: cardMuted,
@@ -360,21 +311,8 @@ export default function DealListItem({
         )}
       </div>
 
-      {dragging && (
-        <div
-          className="mt-4 rounded-2xl border border-dashed px-4 py-3 text-center text-sm"
-          style={{
-            borderColor: selected ? "var(--accent-tint-border)" : border,
-            color: cardMuted,
-            background: selected ? "transparent" : surfaceAlt,
-          }}
-        >
-          Drop PDF or Excel files here
-        </div>
-      )}
-
       {(uploading || uploadProgress) && (
-        <div className="mt-4">
+        <div className="mt-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span
               className="font-mono-plex"
@@ -447,35 +385,6 @@ export default function DealListItem({
             </div>
           )}
         </div>
-      )}
-
-      {!readOnly && !dragging && (
-        <>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-4 w-full rounded-2xl border border-dashed px-4 py-3 text-sm"
-            style={{
-              background: "transparent",
-              color: cardMuted,
-              borderColor: selected ? "var(--accent-tint-border)" : border,
-            }}
-          >
-            Drop files here or click to upload
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.xlsx,.xls"
-            multiple
-            onChange={(e) => {
-              const files = Array.from(e.target.files || []);
-              if (files.length > 0) onUploadFiles(deal.deal_id, files);
-              e.target.value = "";
-            }}
-            style={{ display: "none" }}
-          />
-        </>
       )}
     </div>
   );
