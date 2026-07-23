@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDeals } from "@/hooks/useDeals";
 import AddDealDialog from "@/components/AddDealDialog";
@@ -21,6 +21,7 @@ import CitationPanel from "@/components/dd/CitationPanel";
 export default function HomePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const selectedUploadInputRef = useRef<HTMLInputElement>(null);
 
   const {
     deals,
@@ -73,6 +74,9 @@ export default function HomePage() {
     () => deals.find((deal) => deal.deal_id === selectedDealId) ?? null,
     [deals, selectedDealId]
   );
+  const selectedUploadProgress = selectedDealId
+    ? uploadProgressByDeal[selectedDealId]
+    : undefined;
 
   useEffect(() => {
     if (deals.length === 0) {
@@ -165,7 +169,6 @@ export default function HomePage() {
   const surfaceAlt = isDark ? "#111111" : "#f8f8f4";
   const text = isDark ? "#f5f5f5" : "var(--landing-text)";
   const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
-  const skeletonTone = isDark ? "#242424" : "#ebe9e2";
 
   return (
     <div
@@ -210,13 +213,7 @@ export default function HomePage() {
             search={dealSearch}
             onSearch={setDealSearch}
             onSelectDeal={(deal) => setSelectedDealId(deal.deal_id)}
-            onInvestigateDeal={
-              agenticEnabled
-                ? (deal) => navigate(`/deal/${deal.deal_id}`)
-                : undefined
-            }
             onDeleteDeal={setConfirmDeleteDeal}
-            onUploadFiles={handleUploadFiles}
             onUpdateDeal={editDeal}
             uploading={dealsLoading}
             uploadProgressByDeal={uploadProgressByDeal}
@@ -226,12 +223,6 @@ export default function HomePage() {
 
         {mobileDealsOpen && (
           <div className="fixed inset-0 z-40 flex lg:hidden">
-            <button
-              type="button"
-              className="flex-1 bg-black/30"
-              onClick={() => setMobileDealsOpen(false)}
-              aria-label="Close deals drawer"
-            />
             <div className="h-full w-[min(86vw,340px)] shadow-2xl">
               <HomeSidebar
                 deals={deals}
@@ -240,13 +231,7 @@ export default function HomePage() {
                 search={dealSearch}
                 onSearch={setDealSearch}
                 onSelectDeal={(deal) => setSelectedDealId(deal.deal_id)}
-                onInvestigateDeal={
-                  agenticEnabled
-                    ? (deal) => navigate(`/deal/${deal.deal_id}`)
-                    : undefined
-                }
                 onDeleteDeal={setConfirmDeleteDeal}
-                onUploadFiles={handleUploadFiles}
                 onUpdateDeal={editDeal}
                 uploading={dealsLoading}
                 uploadProgressByDeal={uploadProgressByDeal}
@@ -254,6 +239,12 @@ export default function HomePage() {
                 onClose={() => setMobileDealsOpen(false)}
               />
             </div>
+            <button
+              type="button"
+              className="flex-1 bg-black/30"
+              onClick={() => setMobileDealsOpen(false)}
+              aria-label="Close deals drawer"
+            />
           </div>
         )}
 
@@ -267,7 +258,7 @@ export default function HomePage() {
           {selectedDeal ? (
             <div style={{ minHeight: "100%" }}>
               <div
-                className="mb-4 rounded-[1.5rem] border px-5 py-4"
+                className="mb-3 rounded-lg border px-3 py-3 sm:px-4"
                 style={{
                   background: surface,
                   borderColor: border,
@@ -279,106 +270,180 @@ export default function HomePage() {
                       className="font-mono-plex"
                       style={{
                         fontSize: 10,
-                        letterSpacing: "0.18em",
+                        letterSpacing: "0.12em",
                         textTransform: "uppercase",
                         color: muted,
-                        marginBottom: 8,
+                        marginBottom: 4,
                       }}
                     >
-                      Document matrix
+                      Matrix
                     </div>
-                    <div className="flex items-baseline gap-2.5" style={{ minWidth: 0 }}>
-                      <span
+                    <div
+                      style={{
+                        fontSize: 21,
+                        fontWeight: 600,
+                        color: text,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={selectedDeal.name}
+                    >
+                      {selectedDeal.name}
+                    </div>
+                    <div style={{ marginTop: 3, fontSize: 13, color: muted }}>
+                      {documentsLoading
+                        ? "Loading documents"
+                        : `${documents.length} document${documents.length !== 1 ? "s" : ""}`}
+                      {" · "}
+                      <span className="font-mono-plex" style={{ marginLeft: 8, fontSize: 11 }}>
+                        {selectedDeal.deal_id}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border px-3 py-2 text-sm lg:hidden"
+                      style={{
+                        borderColor: border,
+                        background: surfaceAlt,
+                        color: text,
+                      }}
+                      onClick={() => setMobileDealsOpen(true)}
+                    >
+                      Switch deal
+                    </button>
+
+                    {user?.is_admin && (
+                      <>
+                        <button
+                          type="button"
+                          className="rounded-lg border px-3 py-2 text-sm font-medium"
+                          style={{
+                            borderColor: border,
+                            background: surfaceAlt,
+                            color: text,
+                            cursor: "pointer",
+                          }}
+                          onClick={() => selectedUploadInputRef.current?.click()}
+                        >
+                          Upload
+                        </button>
+                        <input
+                          ref={selectedUploadInputRef}
+                          type="file"
+                          accept=".pdf,.xlsx,.xls"
+                          multiple
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            if (selectedDealId && files.length > 0) {
+                              handleUploadFiles(selectedDealId, files);
+                            }
+                            e.target.value = "";
+                          }}
+                          style={{ display: "none" }}
+                        />
+                      </>
+                    )}
+
+                    {agenticEnabled && (
+                      <button
+                        type="button"
+                        className="rounded-lg px-3 py-2 text-sm font-medium"
                         style={{
-                          minWidth: 0,
-                          fontSize: 24,
-                          fontWeight: 600,
-                          color: text,
+                          border: "none",
+                          background: "var(--accent)",
+                          color: "var(--on-accent)",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => navigate(`/deal/${selectedDeal.deal_id}`)}
+                      >
+                        Analyze
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {selectedUploadProgress && (
+                  <div className="mt-3">
+                    <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                      <span
+                        className="font-mono-plex"
+                        style={{
+                          color:
+                            selectedUploadProgress.status === "error"
+                              ? isDark
+                                ? "#f87171"
+                                : "#dc2626"
+                              : muted,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
                         }}
-                        title={selectedDeal.name}
+                        title={
+                          selectedUploadProgress.detail ||
+                          selectedUploadProgress.filename ||
+                          ""
+                        }
                       >
-                        {selectedDeal.name}
+                        {selectedUploadProgress.stage || "Indexing"}
                       </span>
-                      <span
-                        className="font-mono-plex"
-                        style={{
-                          flexShrink: 0,
-                          fontSize: 11,
-                          letterSpacing: "0.06em",
-                          color: muted,
-                          padding: "3px 8px",
-                          borderRadius: 7,
-                          background: "var(--accent-tint)",
-                          border: "1px solid var(--accent-tint-border)",
-                        }}
-                        title="Workspace ID"
-                      >
-                        {selectedDeal.deal_id}
+                      <span style={{ color: text, fontWeight: 600 }}>
+                        {selectedUploadProgress.percent}%
                       </span>
                     </div>
-                    <div style={{ marginTop: 6, fontSize: 14, color: muted }}>
-                      {documentsLoading
-                        ? "Loading documents..."
-                        : `${documents.length} document${documents.length !== 1 ? "s" : ""} loaded for review.`}
+                    <div
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={selectedUploadProgress.percent}
+                      style={{
+                        height: 6,
+                        overflow: "hidden",
+                        borderRadius: 999,
+                        background: surfaceAlt,
+                        border: `1px solid ${border}`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${selectedUploadProgress.percent}%`,
+                          height: "100%",
+                          background:
+                            selectedUploadProgress.status === "error"
+                              ? isDark
+                                ? "#f87171"
+                                : "#dc2626"
+                              : "var(--accent)",
+                          transition: "width .25s ease",
+                        }}
+                      />
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    className="self-start rounded-full border px-4 py-3 text-sm lg:hidden"
-                    style={{
-                      borderColor: border,
-                      background: surfaceAlt,
-                      color: text,
-                    }}
-                    onClick={() => setMobileDealsOpen(true)}
-                  >
-                    Switch deal
-                  </button>
-                </div>
+                )}
               </div>
 
               {documentsLoading ? (
                 <div
-                  className="rounded-[1.25rem] border p-4"
-                  style={{ background: surface, borderColor: border }}
+                  style={{
+                    height: 280,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: muted,
+                  }}
                 >
-                  <div className="animate-pulse">
-                    <div
-                      style={{
-                        height: 44,
-                        borderRadius: 12,
-                        background: skeletonTone,
-                        marginBottom: 14,
-                      }}
-                    />
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <div
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 9,
-                              background: skeletonTone,
-                              flexShrink: 0,
-                            }}
-                          />
-                          <div
-                            style={{
-                              height: 12,
-                              borderRadius: 6,
-                              background: skeletonTone,
-                              width: `${58 - i * 7}%`,
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <div
+                    className="animate-spin"
+                    style={{
+                      width: 26,
+                      height: 26,
+                      border: `3px solid ${border}`,
+                      borderTopColor: "transparent",
+                      borderRadius: "50%",
+                    }}
+                  />
                 </div>
               ) : (
                 <DocMatrixPanel

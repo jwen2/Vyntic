@@ -64,7 +64,7 @@ export default function AddQuestionBar({ onAddQuery, onAddTemplate, loading }: P
   }, [showTemplates]);
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-edge bg-surface px-3 py-2">
+    <div className="flex items-center gap-2 rounded-lg border border-edge bg-surface px-3 py-2">
       <svg
         className="h-4 w-4 flex-shrink-0 text-t3"
         fill="none"

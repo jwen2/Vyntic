@@ -105,6 +105,7 @@ export default function DealAssistantPanel({
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -335,114 +336,170 @@ export default function DealAssistantPanel({
 
   // Single composer, rendered either in the empty-state hero or docked at the
   // bottom during an active chat (only one mounts at a time).
+  const activeSources = selectedDocIds.length === 0 ? documents.length : selectedDocIds.length;
+  const chipBtn = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "6px 11px",
+    borderRadius: 8,
+    border: `1px solid ${c.border}`,
+    background: c.surfaceAlt,
+    color: c.t2,
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: "pointer",
+  } as const;
+
   const renderComposer = () => (
     <>
-      {documents.length > 0 && (
-        <div className="dd-scroll" style={{ display: "flex", gap: 6, overflowX: "auto", padding: "0 2px 8px" }}>
-          {documents.slice(0, 10).map((doc) => {
-            const selected = selectedDocIds.includes(doc.doc_id);
-            return (
-              <button
-                key={doc.doc_id}
-                type="button"
-                title={doc.filename}
-                onClick={() => toggleDocument(doc.doc_id)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "4px 8px",
-                  borderRadius: 99,
-                  border: `1px solid ${selected ? tint(ACCENT, 53) : c.border}`,
-                  background: selected ? (isDark ? "#1f1f1f" : "#f0f0e8") : c.surface,
-                  color: selected ? ACCENT : c.t2,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  whiteSpace: "nowrap",
-                  cursor: "pointer",
-                }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                </svg>
-                {shortDocName(doc.filename)}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div style={{ position: "relative" }}>
+        {sourcesOpen && documents.length > 0 && (
+          <>
+            <button
+              type="button"
+              aria-label="Close sources"
+              onClick={() => setSourcesOpen(false)}
+              style={{ position: "fixed", inset: 0, zIndex: 19, background: "transparent", border: "none", cursor: "default" }}
+            />
+            <div
+              className="dd-scroll"
+              style={{
+                position: "absolute",
+                ...(messages.length === 0
+                  ? { top: "calc(100% + 8px)" }
+                  : { bottom: "calc(100% + 8px)" }),
+                left: 0,
+                width: 300,
+                maxHeight: 280,
+                overflowY: "auto",
+                background: c.surface,
+                border: `1px solid ${c.border}`,
+                borderRadius: 12,
+                boxShadow: isDark ? "0 18px 44px rgba(0,0,0,.4)" : "0 18px 44px rgba(15,23,42,.12)",
+                zIndex: 20,
+                padding: 6,
+                textAlign: "left",
+              }}
+            >
+              <div className="font-mono-plex" style={{ padding: "6px 8px", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: c.t3 }}>
+                Search across
+              </div>
+              {documents.map((doc) => {
+                const on = selectedDocIds.length === 0 || selectedDocIds.includes(doc.doc_id);
+                return (
+                  <button
+                    key={doc.doc_id}
+                    type="button"
+                    onClick={() => toggleDocument(doc.doc_id)}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = c.surfaceAlt)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "8px", borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", textAlign: "left" }}
+                  >
+                    <span style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: `1.5px solid ${on ? ACCENT : c.border}`, background: on ? ACCENT : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                      {on && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--on-accent)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                    <span style={{ fontSize: 12.5, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {shortDocName(doc.filename)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
-      <div style={{
-        background: c.surface,
-        border: `1.5px solid ${c.border}`,
-        borderRadius: 14,
-        boxShadow: isDark ? "0 14px 38px rgba(0,0,0,.22)" : "0 14px 38px rgba(15,23,42,.08)",
-        overflow: "hidden",
-      }}>
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            resizeTextarea();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder={`Ask anything about ${deal.name}…`}
-          rows={1}
+        <div
           style={{
-            width: "100%",
-            minHeight: 52,
-            maxHeight: 180,
-            padding: "15px 16px 10px",
-            resize: "none",
-            outline: "none",
-            border: "none",
-            background: "transparent",
-            color: c.t1,
-            lineHeight: 1.55,
-            fontSize: 14,
-            textAlign: "left",
+            background: c.surface,
+            border: `1.5px solid ${c.border}`,
+            borderRadius: 16,
+            boxShadow: isDark
+              ? "0 12px 32px -20px rgba(0,0,0,.55)"
+              : "0 12px 32px -20px rgba(15,23,42,.12)",
+            overflow: "hidden",
           }}
-        />
-        <div className="flex items-center justify-between" style={{ padding: "8px 10px", borderTop: `1px solid ${c.borderLight}` }}>
-          <span style={{ fontSize: 11, color: c.t3, paddingLeft: 4 }}>
-            Enter to send · Shift+Enter for a new line
-          </span>
-          <button
-            type="button"
-            onClick={() => (isStreaming ? cancel() : submit())}
-            disabled={!isStreaming && !draft.trim()}
-            title={isStreaming ? "Stop" : "Send"}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: "none",
-              background: isStreaming || draft.trim() ? ACCENT : c.border,
-              color: isStreaming || draft.trim() ? "var(--on-accent)" : c.t3,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: isStreaming || draft.trim() ? "pointer" : "default",
+        >
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              resizeTextarea();
             }}
-          >
-            {isStreaming ? (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
-            ) : (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14" />
-                <path d="M13 6l6 6-6 6" />
-              </svg>
-            )}
-          </button>
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder={`Ask anything about ${deal.name}…`}
+            rows={1}
+            style={{
+              width: "100%",
+              minHeight: 52,
+              maxHeight: 180,
+              padding: "15px 16px 10px",
+              resize: "none",
+              outline: "none",
+              border: "none",
+              background: "transparent",
+              color: c.t1,
+              lineHeight: 1.55,
+              fontSize: 15,
+              textAlign: "left",
+            }}
+          />
+          <div className="flex items-center justify-between" style={{ padding: "8px 10px", gap: 8, borderTop: `1px solid ${c.borderLight}` }}>
+            <div className="flex items-center" style={{ gap: 6 }}>
+              {documents.length > 0 && (
+                <button type="button" onClick={() => setSourcesOpen((v) => !v)} style={chipBtn}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Sources · {activeSources}
+                </button>
+              )}
+              {onProactiveScan && (
+                <button type="button" onClick={onProactiveScan} style={chipBtn}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 2v6h6" />
+                  </svg>
+                  Scan a document
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => (isStreaming ? cancel() : submit())}
+              disabled={!isStreaming && !draft.trim()}
+              className="flex items-center justify-center"
+              style={{
+                gap: 7,
+                padding: "7px 22px",
+                borderRadius: 10,
+                border: `1px solid ${isStreaming || draft.trim() ? "transparent" : "var(--accent-tint-border)"}`,
+                background: isStreaming || draft.trim() ? ACCENT : "var(--accent-tint)",
+                color: isStreaming || draft.trim() ? "var(--on-accent)" : "var(--accent)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: isStreaming || draft.trim() ? "pointer" : "default",
+                transition: "background .12s, color .12s, border-color .12s",
+              }}
+            >
+              {isStreaming ? "Stop" : "Ask"}
+              {!isStreaming && (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
       <div style={{ textAlign: "center", fontSize: 11, color: c.t3, paddingTop: 8 }}>
@@ -457,9 +514,7 @@ export default function DealAssistantPanel({
         <div style={{ maxWidth: 820, margin: "0 auto", padding: "34px 24px 150px" }}>
           {messages.length === 0 ? (
             <InitialAssistantState
-              dealName={deal.name}
               docCount={documents.length}
-              totalPages={documents.reduce((sum, doc) => sum + (doc.page_count || 0), 0)}
               loading={false}
               onPrompt={submit}
               onProactiveScan={onProactiveScan}
@@ -503,18 +558,14 @@ export default function DealAssistantPanel({
 }
 
 function InitialAssistantState({
-  dealName,
   docCount,
-  totalPages,
   loading,
   onPrompt,
   onProactiveScan,
   theme,
   composer,
 }: {
-  dealName: string;
   docCount: number;
-  totalPages: number;
   loading: boolean;
   onPrompt: (prompt: string) => void;
   onProactiveScan?: () => void;
@@ -535,77 +586,19 @@ function InitialAssistantState({
         }}>
           {docCount} document{docCount === 1 ? "" : "s"} · isolated deal room
         </div>
-        <div style={{
-          width: 38,
-          height: 38,
-          margin: "0 auto 18px",
-          borderRadius: 10,
-          background: ACCENT,
-          color: "var(--on-accent)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontWeight: 800,
-          fontSize: 15,
-        }}>
-          V
-        </div>
-        <h1 style={{ fontSize: 28, lineHeight: 1.15, fontWeight: 700, letterSpacing: "-0.02em", color: c.t1, marginBottom: 8 }}>
+        <h1 style={{ fontSize: 31, lineHeight: 1.12, fontWeight: 700, letterSpacing: "-0.022em", color: c.t1, marginBottom: 10 }}>
           Begin your diligence
         </h1>
         <p style={{ fontSize: 13.5, color: c.t2, lineHeight: 1.6, marginBottom: 24 }}>
-          Ask anything about {dealName} — every answer is cited to the exact page across
-          {" "}{docCount} document{docCount === 1 ? "" : "s"}.
+          Ask anything — every answer is cited to the exact page across this deal&rsquo;s documents.
         </p>
 
         {composer && <div style={{ marginBottom: 26, textAlign: "left" }}>{composer}</div>}
 
-        {/* Proactive Scan CTA — calmed to a neutral ghost. Only when the parent wires the callback. */}
-        {onProactiveScan && (
-          <button
-            type="button"
-            onClick={onProactiveScan}
-            disabled={loading}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = tint(ACCENT, 42))}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = c.border)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              width: "100%",
-              gap: 12,
-              padding: "13px 15px",
-              background: c.surface,
-              border: `1px solid ${c.border}`,
-              borderRadius: 12,
-              cursor: loading ? "default" : "pointer",
-              marginBottom: 26,
-              textAlign: "left",
-              transition: "border-color .12s",
-            }}
-          >
-            <span style={{
-              width: 34, height: 34, borderRadius: 8,
-              background: c.surfaceAlt,
-              border: `1px solid ${c.border}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 16, flexShrink: 0,
-            }}>🔍</span>
-            <span style={{ flex: 1 }}>
-              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: c.t1 }}>Run Proactive Scan</span>
-              <span style={{ display: "block", fontSize: 12, color: c.t2, marginTop: 1 }}>
-                {totalPages > 0
-                  ? `Sweep all ${totalPages} pages to find hidden risks, buried clauses, and data room gaps`
-                  : "Sweep the deal room to find hidden risks, buried clauses, and data room gaps"}
-              </span>
-            </span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.t3} strokeWidth="2"><path d="M5 3l14 9-14 9V3z" /></svg>
-          </button>
-        )}
-
         <div className="font-mono-plex" style={{
           fontSize: 10, fontWeight: 600, color: c.t3,
           textTransform: "uppercase", letterSpacing: "0.16em",
-          marginBottom: 12, textAlign: "left",
+          marginBottom: 12, textAlign: "center",
         }}>
           Try asking Vyntic to…
         </div>
@@ -663,6 +656,36 @@ function InitialAssistantState({
             </button>
           ))}
         </div>
+
+        {onProactiveScan && (
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 24 }}>
+            <button
+              type="button"
+              onClick={onProactiveScan}
+              disabled={loading}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = tint(ACCENT, 42))}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = c.border)}
+              className="flex items-center"
+              style={{
+                gap: 8,
+                padding: "9px 16px",
+                borderRadius: 10,
+                border: `1px solid ${c.border}`,
+                background: c.surface,
+                color: c.t1,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: loading ? "default" : "pointer",
+                transition: "border-color .12s",
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3.5 6h17M6.5 12h11M10 18h4" />
+              </svg>
+              Run Proactive Scan
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

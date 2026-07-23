@@ -1,10 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Deal, UploadProgress, User } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
 import DealListItem from "./DealListItem";
-
-const HOW_IT_WORKS_DISMISSED_KEY = "vyntic_how_it_works_dismissed";
 
 /** Group funds under their manager; plain deals form a trailing group. */
 function groupByManager(deals: Deal[]): { label: string | null; managerId: string | null; deals: Deal[] }[] {
@@ -50,7 +48,6 @@ interface Props {
   onSelectDeal?: (deal: Deal) => void;
   onInvestigateDeal?: (deal: Deal) => void;
   onDeleteDeal: (deal: Deal) => void;
-  onUploadFiles: (dealId: string, files: File[]) => void;
   onUpdateDeal: (
     dealId: string,
     data: { stage?: string; tags?: string[] }
@@ -70,7 +67,6 @@ export default function HomeSidebar({
   onSelectDeal,
   onInvestigateDeal,
   onDeleteDeal,
-  onUploadFiles,
   onUpdateDeal,
   uploading,
   uploadProgressByDeal = {},
@@ -81,16 +77,6 @@ export default function HomeSidebar({
   const navigate = useNavigate();
   const isDark = theme === "dark";
   const groups = useMemo(() => groupByManager(filteredDeals), [filteredDeals]);
-  const [howItWorksDismissed, setHowItWorksDismissed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(HOW_IT_WORKS_DISMISSED_KEY) === "1";
-  });
-  const dismissHowItWorks = useCallback(() => {
-    setHowItWorksDismissed(true);
-    try {
-      window.localStorage.setItem(HOW_IT_WORKS_DISMISSED_KEY, "1");
-    } catch {}
-  }, []);
   const surface = isDark ? "#151515" : "#f8f8f4";
   const surfaceAlt = isDark ? "#101010" : "#ffffff";
   const border = isDark ? "#262626" : "var(--landing-border)";
@@ -107,7 +93,7 @@ export default function HomeSidebar({
         borderRight: `1px solid ${border}`,
       }}
     >
-      <div className="border-b px-4 py-4" style={{ borderBottomColor: border }}>
+      <div className="border-b px-4 py-3" style={{ borderBottomColor: border }}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <div
@@ -117,31 +103,15 @@ export default function HomeSidebar({
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 color: muted,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
               }}
             >
-              Active pipeline
-              <span
-                aria-hidden
-                style={{
-                  width: 3,
-                  height: 3,
-                  borderRadius: "50%",
-                  background: muted,
-                  opacity: 0.6,
-                }}
-              />
-              <span>
-                <span style={{ color: "var(--accent)", fontWeight: 700 }}>{deals.length}</span> deals
-              </span>
+              Pipeline
             </div>
-            <div style={{ marginTop: 6, fontSize: 22, fontWeight: 600, color: text }}>
+            <div style={{ marginTop: 4, fontSize: 20, fontWeight: 600, color: text }}>
               Deals
             </div>
-            <div style={{ marginTop: 4, fontSize: 13, color: muted }}>
-              Review active opportunities and switch the matrix context quickly.
+            <div style={{ marginTop: 2, fontSize: 12, color: muted }}>
+              {deals.length} total
             </div>
           </div>
 
@@ -149,7 +119,7 @@ export default function HomeSidebar({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-full border lg:hidden"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border lg:hidden"
               style={{
                 borderColor: border,
                 color: text,
@@ -164,7 +134,7 @@ export default function HomeSidebar({
 
       </div>
 
-      <div className="border-b px-4 py-4" style={{ borderBottomColor: border }}>
+      <div className="border-b px-4 py-3" style={{ borderBottomColor: border }}>
         <div style={{ position: "relative" }}>
           <svg
             style={{
@@ -192,7 +162,7 @@ export default function HomeSidebar({
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Search deals"
-            className="w-full rounded-2xl border px-11 py-3 text-sm outline-none"
+            className="w-full rounded-lg border px-10 py-2.5 text-sm outline-none"
             style={{
               background: surfaceAlt,
               borderColor: border,
@@ -225,7 +195,7 @@ export default function HomeSidebar({
       <div className="dd-scroll flex-1 overflow-y-auto px-3 py-3">
         {filteredDeals.length === 0 ? (
           <div
-            className="rounded-[1.5rem] border px-4 py-5 text-center"
+            className="rounded-lg border px-4 py-5 text-center"
             style={{
               borderColor: border,
               background: surfaceAlt,
@@ -287,7 +257,6 @@ export default function HomeSidebar({
                     onInvestigateDeal ? () => onInvestigateDeal(deal) : undefined
                   }
                   onDelete={() => onDeleteDeal(deal)}
-                  onUploadFiles={onUploadFiles}
                   onUpdateDeal={onUpdateDeal}
                   uploading={uploading && Boolean(uploadProgressByDeal[deal.deal_id])}
                   uploadProgress={uploadProgressByDeal[deal.deal_id]}
@@ -298,58 +267,6 @@ export default function HomeSidebar({
           ))
         )}
       </div>
-
-      {!howItWorksDismissed && (
-        <div
-          className="border-t px-4 py-4"
-          style={{
-            borderTopColor: border,
-            background: surfaceAlt,
-          }}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div
-              className="font-mono-plex"
-              style={{
-                fontSize: 10,
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: muted,
-              }}
-            >
-              How it works
-            </div>
-            <button
-              type="button"
-              onClick={dismissHowItWorks}
-              aria-label="Dismiss how it works"
-              title="Dismiss"
-              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border text-sm leading-none"
-              style={{
-                borderColor: border,
-                color: muted,
-                background: surface,
-              }}
-            >
-              ×
-            </button>
-          </div>
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: "12px 0 0",
-              fontSize: 12,
-              color: muted,
-              lineHeight: 1.65,
-            }}
-          >
-            <li>Each deal stays isolated in its own document namespace.</li>
-            <li>Questions fan out across uploaded documents.</li>
-            <li>Citations keep answers reviewable before committee use.</li>
-          </ul>
-        </div>
-      )}
     </aside>
   );
 }

@@ -33,6 +33,12 @@ From `docs/assessments/2026-07-07-frontend-audit.md` (audited on `main` @ `19e6d
 | F2 | `2026-07-07-frontend-data-layer.md` | typed errors, one SSE client, one upload path, TanStack Query (decided), code splitting | FE4, FE8, FE10, FE12 | F1 | **done** — moved to `docs/finished/` |
 | F3 | `2026-07-07-frontend-decomposition-client-state.md` | god-component decomposition, typed-cell rendering (**D1**), findings/overrides → backend (**D2**), theming + a11y (**D3**) | FE5, FE6, FE9, FE11, FE13 | F1, F2; F3.4 coordinates with Plan 2 | not started, 3 decisions in header |
 
+## Workspace UX
+
+| # | Plan | Scope | Depends on | Status |
+|---|---|---|---|---|
+| UX1 | `2026-07-23-recent-activity-workflow-runs.md` | Surface a deal's workflow runs alongside agent chats in the left-rail "Recent" (new `GET /deals/{id}/runs` route + `WorkflowsView` deep-link prop) | — (frontend-led + 1 additive backend route) | not started, 2 decisions in header (D1 grouped-vs-unified, D2 live status) |
+
 ## Suggested order
 1. Resolve **Plan 4 D1 tenancy decision**, then implement **Plan 4** → 2. **Plan 5**.
 Frontend track (parallel): **F1 + F2 done** → **F3** (resolve D1–D3 first; align F3.4 with Plan 2).

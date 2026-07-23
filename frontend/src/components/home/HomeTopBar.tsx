@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { User } from "@/lib/api";
 
 interface Props {
@@ -14,8 +15,6 @@ interface Props {
 
 export default function HomeTopBar({
   user,
-  dealCount,
-  documentTotal,
   theme,
   onToggleTheme,
   onAddDeal,
@@ -23,6 +22,8 @@ export default function HomeTopBar({
   onOpenPortfolio,
   onLogout,
 }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const isDark = theme === "dark";
   const surface = isDark ? "#111111" : "rgba(243,243,238,0.94)";
   const border = isDark ? "#242424" : "var(--landing-border)";
@@ -31,9 +32,20 @@ export default function HomeTopBar({
   const chip = isDark ? "#1a1a1a" : "rgba(255,255,255,0.72)";
   const chipBorder = isDark ? "#2d2d2d" : "var(--landing-border)";
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [menuOpen]);
+
   return (
     <div
-      className="flex flex-shrink-0 items-center gap-2 border-b px-3 py-3 sm:gap-3 sm:px-5"
+      className="flex flex-shrink-0 items-center gap-2 border-b px-3 py-2 sm:gap-3 sm:px-5"
       style={{
         background: surface,
         borderBottomColor: border,
@@ -44,7 +56,7 @@ export default function HomeTopBar({
         <button
           type="button"
           onClick={onOpenDeals}
-          className="flex h-10 w-10 items-center justify-center rounded-full border lg:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border lg:hidden"
           style={{
             borderColor: chipBorder,
             background: chip,
@@ -62,7 +74,7 @@ export default function HomeTopBar({
             width: 34,
             height: 34,
             background: isDark ? "#f5f5f5" : "#111111",
-            borderRadius: 12,
+            borderRadius: 8,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -84,109 +96,28 @@ export default function HomeTopBar({
               textTransform: "uppercase",
             }}
           >
-            App workspace
+            Workspace
           </div>
         </div>
       </div>
 
+      <span style={{ color: muted, fontSize: 13 }}>›</span>
+      <span style={{ color: muted, fontSize: 13, fontWeight: 500 }}>
+        Deals
+      </span>
+
       <div style={{ flex: 1 }} />
-
-      <div
-        className="hidden items-baseline gap-2 sm:flex"
-        style={{ fontSize: 13, color: muted }}
-      >
-        <span>
-          <span style={{ color: "var(--accent)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-            {dealCount}
-          </span>{" "}
-          deals
-        </span>
-        <span style={{ opacity: 0.5 }}>·</span>
-        <span>
-          <span style={{ color: "var(--accent)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-            {documentTotal}
-          </span>{" "}
-          docs
-        </span>
-      </div>
-
-      {user && (
-        <div
-          className="flex items-center gap-1.5"
-          style={{
-            padding: "7px 12px",
-            background: chip,
-            borderRadius: 999,
-            border: `1px solid ${chipBorder}`,
-          }}
-        >
-          <span style={{ fontSize: 11, color: muted }}>
-            {user.full_name || user.email}
-          </span>
-          {user.is_admin && (
-            <span
-              className="font-mono-plex"
-              style={{
-                fontSize: 9,
-                fontWeight: 700,
-                padding: "2px 6px",
-                borderRadius: 999,
-                background: isDark ? "#f5f5f5" : "#111111",
-                color: isDark ? "#111111" : "#ffffff",
-                letterSpacing: "0.12em",
-              }}
-            >
-              ADMIN
-            </span>
-          )}
-        </div>
-      )}
-
-      <IconButton
-        title={theme === "dark" ? "Light mode" : "Dark mode"}
-        onClick={onToggleTheme}
-        theme={theme}
-      >
-        {theme === "dark" ? (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="5" />
-            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-          </svg>
-        ) : (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-        )}
-      </IconButton>
 
       {onOpenPortfolio && (
         <button
           onClick={onOpenPortfolio}
           className="font-mono-plex hidden text-[10px] uppercase tracking-[0.18em] sm:block"
           style={{
-            padding: "8px 14px",
+            padding: "8px 12px",
             background: chip,
             color: text,
             border: `1px solid ${chipBorder}`,
-            borderRadius: 999,
+            borderRadius: 8,
             fontSize: 10,
             fontWeight: 600,
             cursor: "pointer",
@@ -202,10 +133,10 @@ export default function HomeTopBar({
           onClick={onAddDeal}
           className="hidden sm:block"
           style={{
-            padding: "10px 16px",
+            padding: "9px 14px",
             background: "var(--accent)",
             color: "var(--on-accent)",
-            borderRadius: 999,
+            borderRadius: 8,
             fontSize: 12,
             fontWeight: 600,
             border: "none",
@@ -217,56 +148,136 @@ export default function HomeTopBar({
         </button>
       )}
 
-      <button
-        onClick={onLogout}
-        className="font-mono-plex hidden text-[10px] uppercase tracking-[0.18em] sm:block"
-        style={{
-          padding: "6px 10px",
-          background: "transparent",
-          color: muted,
-          fontSize: 10,
-          fontWeight: 500,
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        Sign out
-      </button>
+      <div ref={menuRef} style={{ position: "relative" }}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          className="flex items-center gap-2 border"
+          style={{
+            height: 36,
+            padding: "0 10px",
+            background: chip,
+            borderColor: chipBorder,
+            borderRadius: 8,
+            color: text,
+            cursor: "pointer",
+          }}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600 }}>
+            {user?.full_name || user?.email || "Account"}
+          </span>
+          {user?.is_admin && (
+            <span
+              className="font-mono-plex hidden sm:inline"
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                padding: "2px 5px",
+                borderRadius: 5,
+                background: isDark ? "#f5f5f5" : "#111111",
+                color: isDark ? "#111111" : "#ffffff",
+                letterSpacing: "0.08em",
+              }}
+            >
+              ADMIN
+            </span>
+          )}
+          <span style={{ color: muted, fontSize: 12 }}>▾</span>
+        </button>
+
+        {menuOpen && (
+          <div
+            role="menu"
+            className="border"
+            style={{
+              position: "absolute",
+              top: "calc(100% + 8px)",
+              right: 0,
+              width: 220,
+              padding: 6,
+              background: isDark ? "#151515" : "#ffffff",
+              borderColor: chipBorder,
+              borderRadius: 10,
+              boxShadow: "0 18px 44px rgba(0,0,0,0.14)",
+              zIndex: 60,
+            }}
+          >
+            {user?.email && (
+              <div
+                style={{
+                  padding: "8px 10px 10px",
+                  borderBottom: `1px solid ${chipBorder}`,
+                  marginBottom: 4,
+                }}
+              >
+                <div style={{ color: text, fontSize: 13, fontWeight: 600 }}>
+                  {user.full_name || "Admin"}
+                </div>
+                <div style={{ color: muted, fontSize: 12, marginTop: 2 }}>
+                  {user.email}
+                </div>
+              </div>
+            )}
+            <MenuButton
+              label={theme === "dark" ? "Light mode" : "Dark mode"}
+              text={text}
+              onClick={() => {
+                onToggleTheme();
+                setMenuOpen(false);
+              }}
+            />
+            <MenuButton
+              label="Sign out"
+              text={text}
+              onClick={() => {
+                setMenuOpen(false);
+                onLogout();
+              }}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function IconButton({
-  title,
+function MenuButton({
+  label,
   onClick,
-  theme,
-  children,
+  text,
 }: {
-  title: string;
+  label: string;
   onClick: () => void;
-  theme: "light" | "dark";
-  children: React.ReactNode;
+  text: string;
 }) {
-  const isDark = theme === "dark";
   return (
     <button
-      title={title}
+      type="button"
+      role="menuitem"
       onClick={onClick}
       style={{
-        width: 36,
-        height: 36,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: isDark ? "#1a1a1a" : "rgba(255,255,255,0.72)",
-        color: isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)",
-        border: `1px solid ${isDark ? "#2d2d2d" : "var(--landing-border)"}`,
-        borderRadius: 999,
+        width: "100%",
+        padding: "9px 10px",
+        background: "transparent",
+        color: text,
+        border: "none",
+        borderRadius: 7,
         cursor: "pointer",
+        textAlign: "left",
+        fontSize: 13,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "var(--accent-tint)";
+        e.currentTarget.style.color = text;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = text;
       }}
     >
-      {children}
+      {label}
     </button>
   );
 }
-

@@ -39,7 +39,7 @@ export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate }: 
   return (
     <div className="flex justify-center px-6 py-12 sm:py-16">
       <div className="w-full max-w-xl text-center">
-        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--accent-tint-border)] bg-[var(--accent-tint)] text-[var(--accent)]">
+        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--accent-tint-border)] bg-[var(--accent-tint)] text-[var(--accent)]">
           <svg
             className="h-6 w-6"
             fill="none"
@@ -62,7 +62,7 @@ export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate }: 
         </p>
 
         <div
-          className="mt-6 flex items-center gap-2 rounded-2xl border bg-surface py-2 pl-4 pr-2 text-left"
+          className="mt-6 flex items-center gap-2 rounded-lg border bg-surface py-2 pl-4 pr-2 text-left"
           style={{
             borderColor: "var(--accent-tint-border)",
             boxShadow: "0 4px 18px color-mix(in srgb, var(--accent) 10%, transparent)",
@@ -82,7 +82,7 @@ export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate }: 
             type="button"
             onClick={submit}
             disabled={!value.trim()}
-            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition-opacity disabled:opacity-50"
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-opacity disabled:opacity-50"
             style={{ background: "var(--accent)", color: "var(--on-accent)" }}
           >
             Ask
@@ -107,7 +107,7 @@ export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate }: 
               key={preset.name}
               type="button"
               onClick={() => onAddTemplate(preset.name, preset.prompt, preset.format, preset.tags)}
-              className="rounded-full border border-edge bg-surface px-3.5 py-2 text-sm text-t2 transition-colors hover:border-[var(--accent-tint-border)] hover:bg-[var(--accent-tint)] hover:text-t1"
+              className="rounded-md border border-edge bg-surface px-3.5 py-2 text-sm text-t2 transition-colors hover:border-[var(--accent-tint-border)] hover:bg-[var(--accent-tint)] hover:text-t1"
             >
               {preset.name}
             </button>
