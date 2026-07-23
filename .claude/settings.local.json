@@ -32,7 +32,20 @@
       "Bash(ls Dockerfile)",
       "Bash(ls ../Dockerfile)",
       "Bash(find /Users/szeng/projects/Vyntic -name \"Dockerfile\")",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(sqlite3 data/vyntic.db \".schema users\")",
+      "Bash(.venv/Scripts/python.exe -c \"import pymupdf; print\\(pymupdf.__version__\\)\")",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(curl -s -X POST http://localhost:8000/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@vyntic.com\",\"password\":\"admin\"}')",
+      "Bash(curl *)",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -c ' *)",
+      "Bash(grep -v \"FutureWarning\\\\|google.generativeai\\\\|updates or bug fixes\\\\|README\\\\|deprecated\\\\|^$\\\\|import google\")",
+      "PowerShell(git fetch *)",
+      "PowerShell(git checkout *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(npm i *)",
+      "PowerShell(npm run *)",
+      "PowerShell($b=$false;$f=$false; for\\($i=0;$i -lt 40;$i++\\){ try{ $r=Invoke-WebRequest -UseBasicParsing -Uri \"http://localhost:8801/docs\" -TimeoutSec 2; if\\($r.StatusCode -eq 200\\){$b=$true} }catch{}; try{ $r2=Invoke-WebRequest -UseBasicParsing -Uri \"http://localhost:5199\" -TimeoutSec 2; if\\($r2.StatusCode -eq 200\\){$f=$true} }catch{}; if\\($b -and $f\\){break}; Start-Sleep -Seconds 3 }; Write-Output \"backend=$b frontend=$f\")"
     ]
   }
 }

@@ -1,11 +1,8 @@
 import { forwardRef, memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DocumentMetadata, Citation } from "@/lib/api";
-import { QUERY_TEMPLATES } from "@/lib/queryTemplates";
 import {
-  PE_COLUMN_PRESETS,
   getFormatShort,
-  type ColumnFormat,
   type MatrixColumnConfig,
 } from "@/lib/matrixColumnConfig";
 import DocMatrixCell from "./DocMatrixCell";
@@ -14,7 +11,6 @@ import type { DocResult, SortConfig } from "./useDocMatrix";
 
 const COL_DOC = 240;
 const COL_QUERY = 720;
-const COL_ADD = 360;
 
 // ── File-type chip helpers ──
 
@@ -28,10 +24,13 @@ function fileTypeIcon(filename: string) {
 
 function fileTypeColor(filename: string) {
   const ext = filename.split(".").pop()?.toLowerCase();
-  if (ext === "pdf") return "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400";
-  if (ext === "xlsx" || ext === "xls") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400";
-  if (ext === "csv") return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400";
-  return "bg-grid-header text-t2";
+  // Neutral chip with a restrained colour cue — the loud filled boxes made the
+  // Document column noisy (red chip + red delete competing with the accent).
+  const base = "bg-surface-alt border border-edge ";
+  if (ext === "pdf") return base + "text-red-600 dark:text-red-300";
+  if (ext === "xlsx" || ext === "xls") return base + "text-emerald-600 dark:text-emerald-300";
+  if (ext === "csv") return base + "text-blue-600 dark:text-blue-300";
+  return base + "text-t2";
 }
 
 interface DocMatrixTableProps {
@@ -51,8 +50,6 @@ interface DocMatrixTableProps {
   onSaveColumn: (column: MatrixColumnConfig) => void;
   onRequestDeleteCol: (index: number) => void;
   onReorder: (from: number, to: number) => void;
-  onAddQuery: (text: string) => void;
-  onAddTemplate: (label: string, prompt?: string, format?: ColumnFormat, tags?: string[]) => void;
   onOpenViewer: (doc: DocumentMetadata) => void;
   onRequestDeleteDoc?: (doc: DocumentMetadata) => void;
   deletingDocId: string | null;
@@ -76,8 +73,6 @@ export default function DocMatrixTable({
   onSaveColumn,
   onRequestDeleteCol,
   onReorder,
-  onAddQuery,
-  onAddTemplate,
   onOpenViewer,
   onRequestDeleteDoc,
   deletingDocId,
@@ -85,36 +80,13 @@ export default function DocMatrixTable({
 }: DocMatrixTableProps) {
   const queries = columns.map((column) => column.id);
 
-  const [newQuery, setNewQuery] = useState("");
-  const [showTemplates, setShowTemplates] = useState(false);
   const [dragColIndex, setDragColIndex] = useState<number | null>(null);
   const [dragOverColIndex, setDragOverColIndex] = useState<number | null>(null);
-
-  const templateRef = useRef<HTMLDivElement>(null);
-  const templateBtnRef = useRef<HTMLButtonElement>(null);
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   // Document-column sort menu
   const [openMenu, setOpenMenu] = useState<"doc" | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const handleAddQuery = () => {
-    if (newQuery.trim()) {
-      onAddQuery(newQuery.trim());
-      setNewQuery("");
-    }
-  };
-
-  const handleTemplateSelect = (
-    label: string,
-    prompt?: string,
-    format?: ColumnFormat,
-    tags?: string[]
-  ) => {
-    onAddTemplate(label, prompt, format, tags);
-    setShowTemplates(false);
-  };
 
   const handleColDragStart = (index: number) => setDragColIndex(index);
   const handleColDragOver = (e: React.DragEvent, index: number) => {
@@ -154,34 +126,9 @@ export default function DocMatrixTable({
     return () => document.removeEventListener("mousedown", handler);
   }, [openMenu]);
 
-  // Position and close template dropdown
-  useEffect(() => {
-    if (!showTemplates) return;
-    if (templateBtnRef.current) {
-      const rect = templateBtnRef.current.getBoundingClientRect();
-      setDropdownPos({
-        top: rect.bottom + 4,
-        left: Math.max(8, rect.right - 384),
-      });
-    }
-    const handler = (e: MouseEvent) => {
-      if (
-        templateRef.current &&
-        !templateRef.current.contains(e.target as Node) &&
-        templateBtnRef.current &&
-        !templateBtnRef.current.contains(e.target as Node)
-      ) {
-        setShowTemplates(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showTemplates]);
-
   const tableMinWidth =
     getColWidth("doc", COL_DOC) +
-    queries.reduce((sum, q) => sum + getColWidth(q, COL_QUERY), 0) +
-    COL_ADD;
+    queries.reduce((sum, q) => sum + getColWidth(q, COL_QUERY), 0);
   const tableWidth = queries.length === 0 ? "100%" : `max(100%, ${tableMinWidth}px)`;
 
   return (
@@ -205,7 +152,7 @@ export default function DocMatrixTable({
             <tr>
               {/* Document column header with Excel-like dropdown — sticky top + left (corner) */}
               <th
-                className={`p-3 text-left font-semibold text-t2 border-r border-b border-edge sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-surface-alt transition-colors ${sortConfig?.col === "doc" ? "bg-blue-50 dark:bg-blue-950/40" : "bg-grid-header"}`}
+                className={`p-3 text-left font-semibold text-t2 border-r border-edge border-b border-b-edge sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-surface-alt transition-colors shadow-[8px_0_16px_-12px_rgba(0,0,0,0.28)] ${sortConfig?.col === "doc" ? "bg-blue-50 dark:bg-blue-950/40" : "bg-grid-header"}`}
                 onClick={(e) => openColMenu(e.currentTarget)}
               >
                 <DocColumnHeaderLabel label="Document" sortConfig={sortConfig} />
@@ -225,7 +172,7 @@ export default function DocMatrixTable({
                     onDragOver={(e) => handleColDragOver(e, i)}
                     onDrop={() => handleColDrop(i)}
                     onDragEnd={handleColDragEnd}
-                    className={`p-3 text-left font-medium text-t2 border-r border-b border-edge sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
+                    className={`p-3 text-left font-medium text-t2 border-b border-b-edge sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
                       dragColIndex === i ? "opacity-50" : ""
                     } ${
                       dragOverColIndex === i && dragColIndex !== i
@@ -263,124 +210,8 @@ export default function DocMatrixTable({
                   </th>
                 );
               })}
-              {/* Add query column — sticky top */}
-              <th className="p-3 border-r border-b border-edge sticky top-0 z-20 bg-grid-header">
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    value={newQuery}
-                    onChange={(e) => setNewQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddQuery()}
-                    placeholder="Ask a question..."
-                    className="flex-1 px-3 py-1.5 text-sm border border-edge rounded-md bg-surface text-t1 placeholder:text-t3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                    disabled={loading}
-                  />
-                  <button
-                    onClick={handleAddQuery}
-                    disabled={loading || !newQuery.trim()}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    +
-                  </button>
-                  <div>
-                    <button
-                      ref={templateBtnRef}
-                      onClick={() => setShowTemplates(!showTemplates)}
-                      disabled={loading}
-                      className="px-2 py-1.5 text-t3 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-md transition-colors disabled:opacity-50"
-                      title="Question templates"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"
-                        />
-                      </svg>
-                    </button>
-
-                    {/* Template dropdown — portaled to body */}
-                    {showTemplates &&
-                      createPortal(
-                        <div
-                          ref={templateRef}
-                          className="fixed w-96 bg-surface rounded-lg shadow-2xl border border-edge z-[9999] max-h-[480px] overflow-y-auto"
-                          style={{
-                            top: dropdownPos.top,
-                            left: dropdownPos.left,
-                          }}
-                        >
-                          <div className="p-2.5 border-b border-edge-light sticky top-0 bg-surface z-10">
-                            <span className="text-xs font-semibold text-t3 uppercase tracking-wide">
-                              Column Templates
-                            </span>
-                          </div>
-                          <div>
-                            <div className="px-3 py-1.5 text-xs font-semibold text-t2 bg-grid-header flex items-center gap-1.5 sticky top-10 z-[2] border-b border-edge">
-                              <span>PE</span>
-                              Diligence columns
-                            </div>
-                            {PE_COLUMN_PRESETS.map((preset) => (
-                              <button
-                                key={preset.name}
-                                onClick={() =>
-                                  handleTemplateSelect(
-                                    preset.name,
-                                    preset.prompt,
-                                    preset.format,
-                                    preset.tags
-                                  )
-                                }
-                                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors border-b border-edge-light last:border-0"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-t1">
-                                    {preset.name}
-                                  </span>
-                                  <span className="rounded bg-grid-header px-1.5 py-0.5 text-[10px] text-t2">
-                                    {getFormatShort(preset.format)}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-t3 mt-0.5 leading-relaxed">
-                                  {preset.prompt}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                          {QUERY_TEMPLATES.map((cat) => (
-                            <div key={cat.name}>
-                              <div className="px-3 py-1.5 text-xs font-semibold text-t2 bg-grid-header flex items-center gap-1.5 sticky top-10 z-[2] border-b border-edge">
-                                <span>{cat.icon}</span>
-                                {cat.name}
-                              </div>
-                              {cat.templates.map((t) => (
-                                <button
-                                  key={t.label}
-                                  onClick={() => handleTemplateSelect(t.label, t.query)}
-                                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors border-b border-edge-light last:border-0"
-                                >
-                                  <div className="text-sm font-medium text-t1">
-                                    {t.label}
-                                  </div>
-                                  <div className="text-xs text-t3 mt-0.5 leading-relaxed">
-                                    {t.query}
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          ))}
-                        </div>,
-                        document.body
-                      )}
-                  </div>
-                </div>
-              </th>
+              {/* Spacer column — the add-question composer now lives above the grid */}
+              <th className="border-b border-b-edge sticky top-0 z-20 bg-grid-header" aria-hidden />
             </tr>
           </thead>
           <tbody>
@@ -454,9 +285,9 @@ function DocMatrixRowImpl({
   showDeleteDoc: boolean;
 }) {
   return (
-    <tr className="hover:bg-surface-alt transition-colors">
+    <tr className="group transition-colors">
       {/* Document name cell (sticky left) */}
-      <td className="p-3 font-medium border-r border-b border-edge sticky left-0 z-10 bg-surface">
+      <td className="p-3 font-medium border-r border-r-edge border-b border-b-edge-light sticky left-0 z-10 bg-surface transition-colors group-hover:bg-[var(--accent-tint)] shadow-[8px_0_16px_-12px_rgba(0,0,0,0.22)]">
         <div className="flex items-center gap-2.5">
           <span
             className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${fileTypeColor(
@@ -487,7 +318,9 @@ function DocMatrixRowImpl({
                 event.stopPropagation();
                 onRequestDeleteDoc?.(doc);
               }}
-              className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded border border-red-100 bg-red-50 text-red-600 transition-colors hover:bg-red-100 hover:border-red-200 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40"
+              className={`h-7 w-7 shrink-0 inline-flex items-center justify-center rounded border border-transparent bg-transparent text-t3 transition-all hover:border-edge hover:bg-surface hover:text-red-600 disabled:opacity-50 dark:hover:text-red-300 ${
+                isDeleting ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              }`}
             >
               {isDeleting ? (
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -517,7 +350,7 @@ function DocMatrixRowImpl({
         />
       ))}
       {/* Empty cell under add-query column */}
-      <td className="border-r border-b border-edge" />
+      <td className="border-b border-b-edge-light transition-colors group-hover:bg-[var(--accent-tint)]" />
     </tr>
   );
 }

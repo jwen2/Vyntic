@@ -81,7 +81,7 @@ function DocMatrixCellImpl({
 
   if (!cell || cell.status === "idle") {
     return (
-      <td className="p-3 text-t3 text-sm border-r border-b border-edge">
+      <td className="p-3 text-t3 text-sm border-b border-b-edge-light transition-colors group-hover:bg-[var(--accent-tint)]">
         &mdash;
       </td>
     );
@@ -90,9 +90,9 @@ function DocMatrixCellImpl({
   // Loading with no content yet
   if (cell.status === "loading" && cleanAnswer.length === 0) {
     return (
-      <td className="p-3 border-r border-b border-edge">
+      <td className="p-3 border-b border-b-edge-light transition-colors group-hover:bg-[var(--accent-tint)]">
         <div className="flex items-center gap-2">
-          <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+          <div className="animate-spin h-4 w-4 border-2 border-[var(--accent)] border-t-transparent rounded-full" />
           <span className="text-xs text-t3">Analyzing...</span>
         </div>
       </td>
@@ -103,7 +103,7 @@ function DocMatrixCellImpl({
   if (cell.status === "loading" && cleanAnswer.length > 0) {
     if (!cleanAnswer) {
       return (
-        <td className="p-3 border-r border-b border-edge text-sm align-top max-w-xs">
+        <td className="p-3 border-b border-b-edge-light text-sm align-top max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
           <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <div className="animate-pulse text-xs">Reasoning...</div>
           </div>
@@ -111,7 +111,7 @@ function DocMatrixCellImpl({
       );
     }
     return (
-      <td className="p-3 border-r border-b border-edge text-sm align-top max-w-xs">
+      <td className="p-3 border-b border-b-edge-light text-sm align-top max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
         <div className="max-w-none text-t1 line-clamp-6">
           <AnswerText
             text={cleanAnswer}
@@ -120,7 +120,7 @@ function DocMatrixCellImpl({
             onCit={onCitationClick}
           />
         </div>
-        <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
+        <span className="inline-block w-2 h-4 bg-[var(--accent)] animate-pulse rounded-sm ml-0.5 align-text-bottom" />
       </td>
     );
   }
@@ -128,7 +128,7 @@ function DocMatrixCellImpl({
   // Error
   if (cell.status === "error") {
     return (
-      <td className="p-3 border-r border-b border-edge bg-red-50 dark:bg-red-950/30 text-sm align-top group">
+      <td className="p-3 border-b border-b-edge-light bg-red-50 dark:bg-red-950/30 text-sm align-top group">
         <div className="flex items-start justify-between gap-2">
           <div className="text-red-700 dark:text-red-400 flex-1 min-w-0">
             {cell.answer}
@@ -149,10 +149,10 @@ function DocMatrixCellImpl({
   // Complete
   const clampClass = expanded ? "" : "line-clamp-4";
   return (
-    <td className="p-3 border-r border-b border-edge text-sm max-w-xs align-top group relative">
+    <td className="p-3 border-b border-b-edge-light text-sm max-w-xs align-top group relative transition-colors group-hover:bg-[var(--accent-tint)]">
       <button
         onClick={onRetry}
-        className="absolute top-1.5 right-1.5 z-[1] inline-flex items-center justify-center w-6 h-6 rounded text-t3 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-1.5 right-1.5 z-[1] inline-flex items-center justify-center w-6 h-6 rounded text-t3 hover:text-[var(--accent)] hover:bg-[var(--accent-tint)] opacity-0 group-hover:opacity-100 transition-opacity"
         title="Re-run this question for this document"
         aria-label="Retry this cell"
       >
@@ -184,10 +184,7 @@ function DocMatrixCellImpl({
       )}
 
       {nonNullCitations.length > 0 && (
-        <div className="mt-2 flex items-center gap-1.5 flex-wrap border-t border-edge-light pt-2">
-          <span className="text-[10px] font-medium text-t3">
-            Sources
-          </span>
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
           {nonNullCitations.map((citation, index) => {
             const id = citationId(citation, index);
             return (
@@ -208,16 +205,16 @@ function DocMatrixCellImpl({
         <div className="mt-1.5">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="text-[10px] text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+            className="text-[10px] text-[var(--accent)] px-1.5 py-0.5 rounded hover:bg-[var(--accent-tint)] transition-colors"
           >
             {expanded ? "Show less" : "Show more"}
           </button>
         </div>
       )}
 
-      {/* Model info */}
+      {/* Model info — dev metadata, revealed on row hover only */}
       {cell.model && (
-        <div className="mt-1 flex items-center gap-2 text-[10px] text-t3">
+        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-t3 opacity-0 transition-opacity group-hover:opacity-100">
           <span
             className={`px-1.5 py-0.5 rounded-full font-mono ${
               cell.fallback

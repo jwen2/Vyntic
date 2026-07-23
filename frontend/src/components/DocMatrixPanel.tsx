@@ -5,6 +5,8 @@ import ConfirmDialog from "./ConfirmDialog";
 import { useDocMatrix } from "./docmatrix/useDocMatrix";
 import DocMatrixToolbar from "./docmatrix/DocMatrixToolbar";
 import DocMatrixTable from "./docmatrix/DocMatrixTable";
+import MatrixAskHero from "./docmatrix/MatrixAskHero";
+import AddQuestionBar from "./docmatrix/AddQuestionBar";
 
 interface ViewerState {
   dealId: string;
@@ -150,40 +152,54 @@ export default function DocMatrixPanel({
 
   return (
     <div className="space-y-2 p-4">
-      <DocMatrixToolbar
-        documentCount={documents.length}
-        queryCount={matrix.queries.length}
-        filteredCount={filteredDocuments.length}
-        gridSearch={gridSearch}
-        gridSearchOpen={gridSearchOpen}
-        onSearchChange={setGridSearch}
-        onToggleSearch={toggleGridSearch}
-      />
+      {columns.length === 0 ? (
+        <MatrixAskHero
+          documents={documents}
+          onAddQuery={matrix.addQuery}
+          onAddTemplate={matrix.addTemplateColumn}
+        />
+      ) : (
+        <>
+          <DocMatrixToolbar
+            documentCount={documents.length}
+            queryCount={matrix.queries.length}
+            filteredCount={filteredDocuments.length}
+            gridSearch={gridSearch}
+            gridSearchOpen={gridSearchOpen}
+            onSearchChange={setGridSearch}
+            onToggleSearch={toggleGridSearch}
+          />
 
-      <DocMatrixTable
-        columns={columns}
-        documents={filteredDocuments}
-        cells={cells}
-        loading={matrix.loading}
-        dealId={dealId}
-        activeCitationId={activeCitationId}
-        getColWidth={matrix.getColWidth}
-        resizingKey={matrix.resizingKey}
-        onColResize={matrix.startColResize}
-        sortConfig={sortConfig}
-        onSort={matrix.setSortConfig}
-        onCitationClick={handleCitationClick}
-        onRetry={matrix.retryCell}
-        onSaveColumn={matrix.saveColumn}
-        onRequestDeleteCol={setConfirmDeleteCol}
-        onReorder={matrix.reorderQueries}
-        onAddQuery={matrix.addQuery}
-        onAddTemplate={matrix.addTemplateColumn}
-        onOpenViewer={handleOpenViewer}
-        onRequestDeleteDoc={onDeleteDocument ? handleRequestDeleteDoc : undefined}
-        deletingDocId={deletingDocId}
-        showDeleteDoc={!!onDeleteDocument}
-      />
+          <AddQuestionBar
+            onAddQuery={matrix.addQuery}
+            onAddTemplate={matrix.addTemplateColumn}
+            loading={matrix.loading}
+          />
+
+          <DocMatrixTable
+            columns={columns}
+            documents={filteredDocuments}
+            cells={cells}
+            loading={matrix.loading}
+            dealId={dealId}
+            activeCitationId={activeCitationId}
+            getColWidth={matrix.getColWidth}
+            resizingKey={matrix.resizingKey}
+            onColResize={matrix.startColResize}
+            sortConfig={sortConfig}
+            onSort={matrix.setSortConfig}
+            onCitationClick={handleCitationClick}
+            onRetry={matrix.retryCell}
+            onSaveColumn={matrix.saveColumn}
+            onRequestDeleteCol={setConfirmDeleteCol}
+            onReorder={matrix.reorderQueries}
+            onOpenViewer={handleOpenViewer}
+            onRequestDeleteDoc={onDeleteDocument ? handleRequestDeleteDoc : undefined}
+            deletingDocId={deletingDocId}
+            showDeleteDoc={!!onDeleteDocument}
+          />
+        </>
+      )}
 
       {/* Document Viewer slide-over panel */}
       {viewerState && (

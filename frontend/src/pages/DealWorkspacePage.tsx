@@ -226,29 +226,58 @@ export default function DealWorkspacePage() {
     );
   }
 
+  const rail = (onClose?: () => void) => (
+    <LeftSidebar
+      deal={deal}
+      mode={mode}
+      onMode={onClose ? (m) => { handleMode(m); onClose(); } : handleMode}
+      onOpenDocuments={() => { setDocumentsModalOpen(true); onClose?.(); }}
+      onBack={() => navigate("/app")}
+      assistantHistory={assistantHistory}
+      assistantHistoryLoaded={assistantHistoryLoaded}
+      activeAssistantEntryId={selectedAssistantEntryId}
+      theme={theme}
+      onNewAssistantChat={() => { handleNewAssistantChat(); onClose?.(); }}
+      onSelectAssistantHistory={(entry) => { handleSelectAssistantHistory(entry); onClose?.(); }}
+      onClose={onClose}
+    />
+  );
+
   return (
     <div
-      className="flex h-screen flex-col overflow-hidden"
+      className="flex h-screen overflow-hidden"
       style={{
         fontFamily: "'IBM Plex Sans', sans-serif",
         background: c.bg,
         color: c.t1,
       }}
     >
-      <TopBar
-        deal={deal}
-        mode={mode}
-        onMode={handleMode}
-        dealBreakers={dealBreakers}
-        documentCount={documents.length}
-        onOpenDocuments={() => setDocumentsModalOpen(true)}
-        onOpenPosition={deal.entity_type === "fund" ? () => setPositionModalOpen(true) : undefined}
-        onOpenManager={deal.manager_id ? () => navigate(`/manager/${encodeURIComponent(deal.manager_id!)}`) : undefined}
-        onBack={() => navigate("/app")}
-        onOpenSidebar={() => setMobileSidebarOpen(true)}
-        onToggleTheme={toggleTheme}
-        theme={theme}
-      />
+      <div className="hidden lg:block">{rail()}</div>
+
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-40 flex lg:hidden">
+          <div className="h-full w-[min(88vw,300px)] shadow-2xl">
+            {rail(() => setMobileSidebarOpen(false))}
+          </div>
+          <button
+            type="button"
+            className="flex-1 bg-black/35"
+            onClick={() => setMobileSidebarOpen(false)}
+            aria-label="Close menu"
+          />
+        </div>
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <TopBar
+          deal={deal}
+          dealBreakers={dealBreakers}
+          onOpenPosition={deal.entity_type === "fund" ? () => setPositionModalOpen(true) : undefined}
+          onOpenManager={deal.manager_id ? () => navigate(`/manager/${encodeURIComponent(deal.manager_id!)}`) : undefined}
+          onOpenSidebar={() => setMobileSidebarOpen(true)}
+          onToggleTheme={toggleTheme}
+          theme={theme}
+        />
 
       {(documentsQuery.error || conversationsQuery.error) && (
         <div
@@ -294,44 +323,6 @@ export default function DealWorkspacePage() {
       )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {mode === "agent" && (
-          <div className="hidden lg:block">
-            <LeftSidebar
-              assistantHistory={assistantHistory}
-              assistantHistoryLoaded={assistantHistoryLoaded}
-              activeAssistantEntryId={selectedAssistantEntryId}
-              theme={theme}
-              onNewAssistantChat={handleNewAssistantChat}
-              onSelectAssistantHistory={handleSelectAssistantHistory}
-            />
-          </div>
-        )}
-
-        {mode === "agent" && mobileSidebarOpen && (
-          <div className="fixed inset-0 z-40 flex lg:hidden">
-            <button
-              type="button"
-              className="flex-1 bg-black/35"
-              onClick={() => setMobileSidebarOpen(false)}
-              aria-label="Close chat history"
-            />
-            <div className="h-full w-[min(88vw,340px)] shadow-2xl">
-              <LeftSidebar
-                assistantHistory={assistantHistory}
-                assistantHistoryLoaded={assistantHistoryLoaded}
-                activeAssistantEntryId={selectedAssistantEntryId}
-                theme={theme}
-                onNewAssistantChat={handleNewAssistantChat}
-                onSelectAssistantHistory={(entry) => {
-                  handleSelectAssistantHistory(entry);
-                  setMobileSidebarOpen(false);
-                }}
-                onClose={() => setMobileSidebarOpen(false)}
-              />
-            </div>
-          </div>
-        )}
-
         <main className="flex min-w-0 flex-1 overflow-hidden" style={{ background: c.bg }}>
           {mode === "workflows" ? (
             <ErrorBoundary>
@@ -378,6 +369,7 @@ export default function DealWorkspacePage() {
             </div>
           )}
         </main>
+      </div>
       </div>
 
       {viewerState && (

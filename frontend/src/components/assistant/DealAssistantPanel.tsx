@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Citation, ConversationEntry, Deal, DocumentMetadata } from "@/lib/api";
 import {
   saveConversation,
@@ -28,14 +28,85 @@ const DEAL_PROMPTS = [
   "Find cross-document inconsistencies across the CIM, QoE, financials, legal documents, and operations materials. Highlight metric mismatches, contradictory claims, and missing evidence.",
 ];
 
-// LP fund investigations (entity_type="fund"): what an allocator diligencing a
-// manager wants, grounded in the DDQ, PPM, LPA, track record, and side letter.
+// Suggested-research cards per entity type: a scannable title + blurb over each prompt.
+type PromptCard = { title: string; blurb: string; chips: string[]; prompt: string };
+
+// Buyout deal cards (entity_type="deal").
+const DEAL_CARDS: PromptCard[] = [
+  {
+    title: "Surface red flags",
+    blurb: "Sweep every document for anything that could hit valuation or close probability.",
+    chips: ["All documents"],
+    prompt: DEAL_PROMPTS[0],
+  },
+  {
+    title: "Cross-validate the financials",
+    blurb: "Reconcile revenue and EBITDA across the CIM, QoE, and statements; flag every discrepancy.",
+    chips: ["CIM", "QoE", "Financials"],
+    prompt: DEAL_PROMPTS[1],
+  },
+  {
+    title: "Scan legal exposure",
+    blurb: "Litigation, IP risk, regulatory concerns, and undisclosed liabilities in the Legal DD.",
+    chips: ["Legal DD"],
+    prompt: DEAL_PROMPTS[2],
+  },
+  {
+    title: "Map concentration risk",
+    blurb: "Quantify customer, supplier, and key-employee exposure and continuity risk.",
+    chips: ["All documents"],
+    prompt: DEAL_PROMPTS[3],
+  },
+  {
+    title: "Find cross-document inconsistencies",
+    blurb: "Metric mismatches and contradictory claims across every document in the room.",
+    chips: ["All documents"],
+    prompt: DEAL_PROMPTS[4],
+  },
+];
+
+// LP fund investigations (entity_type="fund"): grounded in the DDQ, PPM, LPA,
+// track record, and side letter.
 const FUND_PROMPTS = [
   "Scan the DDQ, PPM, and pitchbook for evasive answers and contradictions on team, track record, fees, and conflicts.",
   "Rebuild the track record and check each fund for TVPI = DPI + RVPI. Flag inflated or cherry-picked multiples.",
   "Extract the fund terms and flag anything off-market vs. ILPA: fees, waterfall, GP commitment, key-person, removal.",
   "Assess team and key-person risk: departures, succession gaps, and whether named key persons are still active.",
   "Review ODD and compliance exposure: affiliated service providers, regulatory history, and valuation governance.",
+];
+
+// LP fund cards.
+const FUND_CARDS: PromptCard[] = [
+  {
+    title: "Probe the DDQ & PPM",
+    blurb: "Scan for evasive answers and contradictions on team, track record, fees, and conflicts.",
+    chips: ["DDQ", "PPM", "Pitchbook"],
+    prompt: FUND_PROMPTS[0],
+  },
+  {
+    title: "Verify the track record",
+    blurb: "Rebuild returns and check TVPI = DPI + RVPI; flag inflated or cherry-picked multiples.",
+    chips: ["Track record"],
+    prompt: FUND_PROMPTS[1],
+  },
+  {
+    title: "Check terms vs. ILPA",
+    blurb: "Fees, waterfall, GP commitment, key-person, and removal — flag anything off-market.",
+    chips: ["LPA", "Side letter"],
+    prompt: FUND_PROMPTS[2],
+  },
+  {
+    title: "Assess key-person risk",
+    blurb: "Departures, succession gaps, and whether named key persons are still active.",
+    chips: ["All documents"],
+    prompt: FUND_PROMPTS[3],
+  },
+  {
+    title: "Review ODD & compliance",
+    blurb: "Affiliated service providers, regulatory history, and valuation governance.",
+    chips: ["ODD"],
+    prompt: FUND_PROMPTS[4],
+  },
 ];
 
 function messageId(prefix: string) {
@@ -82,6 +153,7 @@ export default function DealAssistantPanel({
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -310,21 +382,193 @@ export default function DealAssistantPanel({
     submit(text);
   }, [pendingPrompt, pendingPromptSignal, submit]);
 
+  // Single composer, rendered either in the empty-state hero or docked at the
+  // bottom during an active chat (only one mounts at a time).
+  const activeSources = selectedDocIds.length === 0 ? documents.length : selectedDocIds.length;
+  const chipBtn = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "6px 11px",
+    borderRadius: 8,
+    border: `1px solid ${c.border}`,
+    background: c.surfaceAlt,
+    color: c.t2,
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: "pointer",
+  } as const;
+
+  const renderComposer = () => (
+    <>
+      <div style={{ position: "relative" }}>
+        {sourcesOpen && documents.length > 0 && (
+          <>
+            <button
+              type="button"
+              aria-label="Close sources"
+              onClick={() => setSourcesOpen(false)}
+              style={{ position: "fixed", inset: 0, zIndex: 19, background: "transparent", border: "none", cursor: "default" }}
+            />
+            <div
+              className="dd-scroll"
+              style={{
+                position: "absolute",
+                ...(messages.length === 0
+                  ? { top: "calc(100% + 8px)" }
+                  : { bottom: "calc(100% + 8px)" }),
+                left: 0,
+                width: 300,
+                maxHeight: 280,
+                overflowY: "auto",
+                background: c.surface,
+                border: `1px solid ${c.border}`,
+                borderRadius: 12,
+                boxShadow: isDark ? "0 18px 44px rgba(0,0,0,.4)" : "0 18px 44px rgba(15,23,42,.12)",
+                zIndex: 20,
+                padding: 6,
+                textAlign: "left",
+              }}
+            >
+              <div className="font-mono-plex" style={{ padding: "6px 8px", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: c.t3 }}>
+                Search across
+              </div>
+              {documents.map((doc) => {
+                const on = selectedDocIds.length === 0 || selectedDocIds.includes(doc.doc_id);
+                return (
+                  <button
+                    key={doc.doc_id}
+                    type="button"
+                    onClick={() => toggleDocument(doc.doc_id)}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = c.surfaceAlt)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "8px", borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", textAlign: "left" }}
+                  >
+                    <span style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: `1.5px solid ${on ? ACCENT : c.border}`, background: on ? ACCENT : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                      {on && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--on-accent)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                    <span style={{ fontSize: 12.5, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {shortDocName(doc.filename)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        <div
+          style={{
+            background: c.surface,
+            border: `1.5px solid ${c.border}`,
+            borderRadius: 16,
+            boxShadow: isDark
+              ? "0 12px 32px -20px rgba(0,0,0,.55)"
+              : "0 12px 32px -20px rgba(15,23,42,.12)",
+            overflow: "hidden",
+          }}
+        >
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              resizeTextarea();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder={`Ask anything about ${deal.name}…`}
+            rows={1}
+            style={{
+              width: "100%",
+              minHeight: 52,
+              maxHeight: 180,
+              padding: "15px 16px 10px",
+              resize: "none",
+              outline: "none",
+              border: "none",
+              background: "transparent",
+              color: c.t1,
+              lineHeight: 1.55,
+              fontSize: 15,
+              textAlign: "left",
+            }}
+          />
+          <div className="flex items-center justify-between" style={{ padding: "8px 10px", gap: 8, borderTop: `1px solid ${c.borderLight}` }}>
+            <div className="flex items-center" style={{ gap: 6 }}>
+              {documents.length > 0 && (
+                <button type="button" onClick={() => setSourcesOpen((v) => !v)} style={chipBtn}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Sources · {activeSources}
+                </button>
+              )}
+              {onProactiveScan && (
+                <button type="button" onClick={onProactiveScan} style={chipBtn}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 2v6h6" />
+                  </svg>
+                  Scan a document
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => (isStreaming ? cancel() : submit())}
+              disabled={!isStreaming && !draft.trim()}
+              className="flex items-center justify-center"
+              style={{
+                gap: 7,
+                padding: "7px 22px",
+                borderRadius: 10,
+                border: `1px solid ${isStreaming || draft.trim() ? "transparent" : "var(--accent-tint-border)"}`,
+                background: isStreaming || draft.trim() ? ACCENT : "var(--accent-tint)",
+                color: isStreaming || draft.trim() ? "var(--on-accent)" : "var(--accent)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: isStreaming || draft.trim() ? "pointer" : "default",
+                transition: "background .12s, color .12s, border-color .12s",
+              }}
+            >
+              {isStreaming ? "Stop" : "Ask"}
+              {!isStreaming && (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div style={{ textAlign: "center", fontSize: 11, color: c.t3, paddingTop: 8 }}>
+        AI can make mistakes. Verify cited source documents.
+      </div>
+    </>
+  );
+
   return (
     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: c.bg }}>
       <div className="dd-scroll" style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ maxWidth: 820, margin: "0 auto", padding: "34px 24px 150px" }}>
           {messages.length === 0 ? (
             <InitialAssistantState
-              dealName={deal.name}
               docCount={documents.length}
-              totalPages={documents.reduce((sum, doc) => sum + (doc.page_count || 0), 0)}
               loading={false}
-              prompts={deal.entity_type === "fund" ? FUND_PROMPTS : DEAL_PROMPTS}
               isFund={deal.entity_type === "fund"}
               onPrompt={submit}
               onProactiveScan={onProactiveScan}
               theme={theme}
+              composer={renderComposer()}
             />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
@@ -347,279 +591,154 @@ export default function DealAssistantPanel({
         </div>
       </div>
 
-      <div style={{
-        flexShrink: 0,
-        padding: "0 24px 18px",
-        background: `linear-gradient(to top, ${c.bg} 78%, ${isDark ? "rgba(15,15,15,0)" : "rgba(243,243,238,0)"})`,
-      }}>
-        <div style={{ maxWidth: 820, margin: "0 auto" }}>
-          {documents.length > 0 && (
-            <div className="dd-scroll" style={{ display: "flex", gap: 6, overflowX: "auto", padding: "0 2px 8px" }}>
-              {documents.slice(0, 10).map((doc) => {
-                const selected = selectedDocIds.includes(doc.doc_id);
-                return (
-                  <button
-                    key={doc.doc_id}
-                    type="button"
-                    title={doc.filename}
-                    onClick={() => toggleDocument(doc.doc_id)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      padding: "4px 8px",
-                      borderRadius: 99,
-                      border: `1px solid ${selected ? tint(ACCENT, 53) : c.border}`,
-                      background: selected ? (isDark ? "#1f1f1f" : "#f0f0e8") : c.surface,
-                      color: selected ? ACCENT : c.t2,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <path d="M14 2v6h6" />
-                    </svg>
-                    {shortDocName(doc.filename)}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          <div style={{
-            background: c.surface,
-            border: `1.5px solid ${c.border}`,
-            borderRadius: 14,
-            boxShadow: isDark ? "0 14px 38px rgba(0,0,0,.22)" : "0 14px 38px rgba(15,23,42,.08)",
-            overflow: "hidden",
-          }}>
-            <textarea
-              ref={textareaRef}
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                resizeTextarea();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  submit();
-                }
-              }}
-              placeholder="Ask about the deal room..."
-              rows={1}
-              style={{
-                width: "100%",
-                minHeight: 52,
-                maxHeight: 180,
-                padding: "15px 16px 10px",
-                resize: "none",
-                outline: "none",
-                border: "none",
-                background: "transparent",
-                color: c.t1,
-                lineHeight: 1.55,
-                fontSize: 14,
-              }}
-            />
-            <div className="flex items-center justify-between" style={{ padding: "8px 10px", borderTop: `1px solid ${c.borderLight}` }}>
-              <span style={{ fontSize: 11, color: c.t3, paddingLeft: 4 }}>
-                Enter to send · Shift+Enter for a new line
-              </span>
-              <button
-                type="button"
-                onClick={() => (isStreaming ? cancel() : submit())}
-                disabled={!isStreaming && !draft.trim()}
-                title={isStreaming ? "Stop" : "Send"}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  border: "none",
-                  background: isStreaming || draft.trim() ? ACCENT : c.border,
-                  color: isStreaming || draft.trim() ? "var(--on-accent)" : c.t3,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: isStreaming || draft.trim() ? "pointer" : "default",
-                }}
-              >
-                {isStreaming ? (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                  </svg>
-                ) : (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14" />
-                    <path d="M13 6l6 6-6 6" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-          <div style={{ textAlign: "center", fontSize: 11, color: c.t3, paddingTop: 8 }}>
-            AI can make mistakes. Verify cited source documents.
+      {messages.length > 0 && (
+        <div style={{
+          flexShrink: 0,
+          padding: "0 24px 18px",
+          background: `linear-gradient(to top, ${c.bg} 78%, ${isDark ? "rgba(15,15,15,0)" : "rgba(243,243,238,0)"})`,
+        }}>
+          <div style={{ maxWidth: 820, margin: "0 auto" }}>
+            {renderComposer()}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 function InitialAssistantState({
-  dealName,
   docCount,
-  totalPages,
   loading,
-  prompts,
   isFund,
   onPrompt,
   onProactiveScan,
   theme,
+  composer,
 }: {
-  dealName: string;
   docCount: number;
-  totalPages: number;
   loading: boolean;
-  prompts: string[];
   isFund: boolean;
   onPrompt: (prompt: string) => void;
   onProactiveScan?: () => void;
   theme: "light" | "dark";
+  composer?: ReactNode;
 }) {
   const c = ddTheme(theme);
   const isDark = theme === "dark";
   const scanTitle = isFund ? "Run Fund Brief" : "Run Proactive Scan";
-  const scanSubtitle = isFund
-    ? (totalPages > 0
-        ? `Summarize the manager across all ${totalPages} pages: terms, track record, and the flags an IC will ask about`
-        : "Summarize the manager: terms, track record, and the flags an IC will ask about")
-    : (totalPages > 0
-        ? `Sweep all ${totalPages} pages to find hidden risks, buried clauses, and data room gaps`
-        : "Sweep the deal room to find hidden risks, buried clauses, and data room gaps");
+  const cards = isFund ? FUND_CARDS : DEAL_CARDS;
   return (
     <div style={{ minHeight: "calc(100vh - 280px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 640, textAlign: "center" }}>
-        {/* Status pill — ported from AgentIdleState 2026-05-11 */}
-        <div style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 7,
-          padding: "4px 12px",
-          background: c.surface,
-          border: `1px solid ${c.border}`,
-          borderRadius: 99,
-          marginBottom: 18,
+        <div className="font-mono-plex" style={{
+          fontSize: 10,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: c.t3,
+          marginBottom: 16,
         }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
-          <span style={{ fontSize: 12, color: c.t2, fontWeight: 500 }}>Agent ready · {dealName}</span>
+          {docCount} document{docCount === 1 ? "" : "s"} · isolated deal room
         </div>
-        <div style={{
-          width: 38,
-          height: 38,
-          margin: "0 auto 18px",
-          borderRadius: 10,
-          background: ACCENT,
-          color: "var(--on-accent)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontWeight: 800,
-          fontSize: 15,
-        }}>
-          V
-        </div>
-        <h1 style={{ fontSize: 25, lineHeight: 1.2, fontWeight: 700, color: c.t1, marginBottom: 7 }}>
-          Ask Vyntic about {dealName}
+        <h1 style={{ fontSize: 31, lineHeight: 1.12, fontWeight: 700, letterSpacing: "-0.022em", color: c.t1, marginBottom: 10 }}>
+          Begin your diligence
         </h1>
-        <p style={{ fontSize: 13, color: c.t2, lineHeight: 1.6, marginBottom: 24 }}>
-          Chat across {docCount} document{docCount === 1 ? "" : "s"} with cited answers.
+        <p style={{ fontSize: 13.5, color: c.t2, lineHeight: 1.6, marginBottom: 24 }}>
+          Ask anything — every answer is cited to the exact page across this deal&rsquo;s documents.
         </p>
 
-        {/* Proactive Scan CTA — ported from AgentIdleState 2026-05-11. Only when the parent wires the callback. */}
-        {onProactiveScan && (
-          <button
-            type="button"
-            onClick={onProactiveScan}
-            disabled={loading}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#f59e0b")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = isDark ? "#92400e44" : "#fde68a")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              width: "100%",
-              gap: 12,
-              padding: "14px 16px",
-              background: isDark ? "#78350f22" : "#fffbeb",
-              border: `1px solid ${isDark ? "#92400e44" : "#fde68a"}`,
-              borderRadius: 10,
-              cursor: loading ? "default" : "pointer",
-              marginBottom: 20,
-              textAlign: "left",
-              transition: "border-color .12s",
-            }}
-          >
-            <span style={{
-              width: 36, height: 36, borderRadius: 8,
-              background: isDark ? "#78350f44" : "#fef3c7",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, flexShrink: 0,
-            }}>🔍</span>
-            <span style={{ flex: 1 }}>
-              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: c.t1 }}>{scanTitle}</span>
-              <span style={{ display: "block", fontSize: 12, color: c.t2, marginTop: 1 }}>
-                {scanSubtitle}
-              </span>
-            </span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.t3} strokeWidth="2"><path d="M5 3l14 9-14 9V3z" /></svg>
-          </button>
-        )}
+        {composer && <div style={{ marginBottom: 26, textAlign: "left" }}>{composer}</div>}
 
-        <div style={{
-          fontSize: 11, fontWeight: 600, color: c.t3,
-          textTransform: "uppercase", letterSpacing: "0.06em",
-          marginBottom: 10, textAlign: "left",
+        <div className="font-mono-plex" style={{
+          fontSize: 10, fontWeight: 600, color: c.t3,
+          textTransform: "uppercase", letterSpacing: "0.16em",
+          marginBottom: 12, textAlign: "center",
         }}>
-          Suggested investigations
+          Try asking Vyntic to…
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, opacity: loading ? 0.55 : 1 }}>
-          {prompts.map((prompt) => (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, opacity: loading ? 0.55 : 1 }}>
+          {cards.map((card) => (
             <button
-              key={prompt}
+              key={card.title}
               type="button"
               disabled={loading}
-              onClick={() => onPrompt(prompt)}
+              onClick={() => onPrompt(card.prompt)}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = c.t2;
-                e.currentTarget.style.borderColor = c.t3;
+                e.currentTarget.style.borderColor = tint(ACCENT, 42);
+                e.currentTarget.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = c.t3;
                 e.currentTarget.style.borderColor = c.border;
+                e.currentTarget.style.transform = "none";
               }}
               style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 7,
                 textAlign: "left",
-                padding: "12px 13px",
-                borderRadius: 16,
+                padding: "14px 15px",
+                borderRadius: 14,
                 border: `1px solid ${c.border}`,
                 background: c.surface,
-                // Muted at rest so the suggestions recede; they lift toward the
-                // primary text colour on hover to signal they're clickable.
-                color: c.t3,
-                fontSize: 12,
-                fontWeight: 500,
-                lineHeight: 1.45,
                 cursor: loading ? "default" : "pointer",
-                transition: "color .12s, border-color .12s",
+                transition: "border-color .12s, transform .12s",
               }}
             >
-              {prompt}
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: c.t1, lineHeight: 1.3 }}>
+                {card.title}
+              </span>
+              <span style={{ fontSize: 12, color: c.t2, lineHeight: 1.5 }}>
+                {card.blurb}
+              </span>
+              <span style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
+                {card.chips.map((chip) => (
+                  <span
+                    key={chip}
+                    style={{
+                      fontSize: 10.5,
+                      color: c.t3,
+                      background: c.surfaceAlt,
+                      border: `1px solid ${c.border}`,
+                      borderRadius: 6,
+                      padding: "3px 7px",
+                    }}
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </span>
             </button>
           ))}
         </div>
+
+        {onProactiveScan && (
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 24 }}>
+            <button
+              type="button"
+              onClick={onProactiveScan}
+              disabled={loading}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = tint(ACCENT, 42))}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = c.border)}
+              className="flex items-center"
+              style={{
+                gap: 8,
+                padding: "9px 16px",
+                borderRadius: 10,
+                border: `1px solid ${c.border}`,
+                background: c.surface,
+                color: c.t1,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: loading ? "default" : "pointer",
+                transition: "border-color .12s",
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3.5 6h17M6.5 12h11M10 18h4" />
+              </svg>
+              {scanTitle}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
