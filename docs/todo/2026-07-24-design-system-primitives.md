@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 pilot done (1 of ~23 file-groups), rest awaiting a go/no-go; DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (2 of ~23 file-groups converted: `tabular-run/`, `cells/` — 21 files left, `ddTheme` still referenced in 23); DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -37,6 +37,12 @@ Techniques that generalise to the remaining files:
 **Not verified live:** `ColumnEditMenu` renders only for non-builtin workflows and the one cloned tabular workflow has no runs, so reaching it would need a fresh extraction (an LLM API call). Its classes are the same ones proven elsewhere in the directory; `bg-appbg` was confirmed in the built CSS only.
 
 **Also found:** `SectionLabel` is hand-duplicated in **six** files (`tabular-run/parts.tsx`, `MonitoringPanel`, `AssistantEditor`, `AssistantRun`, `MemoOutput`, `TabularEditor`) — a stronger primitive candidate than Card. Worth folding into DS3.
+
+**Group 2 — `workflows/cells/` (`2e3c746`): done.** `CellRenderer.tsx` (10 refs) and `ShapeControls.tsx` (16 refs) — the leaf both `RunCell` and `ColumnEditMenu` were still forwarding `theme` into for the same reason DS1 forwarded props to unconverted children. Converting it let six call sites across four files (`ColumnEditMenu`, `RunCell`/`ValueCell`, `RunTable` incl. `RunRow`'s memo comparator, `TabularEditor`, `CompareView`) drop `theme` entirely, confirming the pilot's "prop cascade" prediction generalizes.
+
+One new technique: a Tailwind color-only utility (`border-edge`) sets `border-color` but not `border-style`/`width` — pairing it with the bare `border` utility is required or no edge renders at all. Confirmed by reading the generated CSS rule, not assumed.
+
+Verified in headless Edge, light + dark, against "QofE Bridge" (metric cells) and "Contract Stack Review" (bool/list/enum/text — the shape variety `tabular-run/` didn't exercise), plus "Contract Stack Review (Copy)"'s editor for `ShapePicker`/`ShapeOptionsInspector`/`CellRenderPreview`. Bool-badge hue and the pre-existing `--text-4` "Out of scope" styling came back pixel-identical to their prior inline-style values. tsc clean, lint unchanged, 76 tests, build green.
 
 ## Progress (2026-07-24)
 
