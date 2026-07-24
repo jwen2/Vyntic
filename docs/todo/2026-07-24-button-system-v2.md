@@ -1,8 +1,21 @@
 # Plan: Button design-system — v2 rollout
 
-**Status:** not started
-**Depends on:** UI1 (`2026-07-23-button-design-system.md`) first tranche merged — the `Button` primitive, `button.css`, and the `--danger*` tokens must exist.
-**Branch (when started):** `feat/button-system-v2`
+**Status:** in progress on `feat/button-design-system` (continued from UI1, same branch).
+**Depends on:** UI1 (`2026-07-23-button-design-system.md`) first tranche — the `Button` primitive, `button.css`, and the `--danger*` tokens (all present on-branch).
+
+## Progress (2026-07-24)
+
+Done + verified (tsc/tests/build green; screenshotted light+dark via `frontend:verify`):
+- **§1 danger unification** — workflow `RED` → `var(--danger)` + plain `#ef4444` error text (commit `714d000`).
+- **§2 deferred buttons** — RunCell / DealListItem / HomeTopBar + new `xs` size (commit `13be449`).
+- **§3 high-traffic** — Brief dashboard (`bb41e40`), Monitoring (`643c4d4`), Documents + Position modals (`780856e`).
+
+Remaining (follow-up):
+- **§2-palette** — deferred red palettes from §1: `SEV_COLOR` severity family, coordinated error-banner palettes (bg+border+text pairs in ManagerPage / PositionModal / DealWorkspacePage / HomePage banners, `Banner` in MonitoringPanel), chart/traffic-light reds (DealBriefDashboard bars, FlagItem, DocumentDetailView). Need danger bg/border/text tokens, not just `--danger`.
+- **§3 editors** — TabularEditor (~8), AssistantEditor (~7).
+- **§3 pages** — HomePage, ManagerPage, PortfolioPage (~11).
+- **§3 docmatrix/** — Tailwind tree (~20), blocked on the spike below.
+- AddDealDialog is intentionally **out of scope** — landing design system (`LandingButton`), not the app `Button`.
 
 ## Context
 
