@@ -1,0 +1,115 @@
+/* Shared <Modal> primitive — one overlay + panel for every dialog in the app.
+   Every colour resolves from a CSS custom property (see index.css), so dialogs
+   theme automatically with the `.dark` class on <html> and need no `theme`
+   prop — the same contract as <Button> / button.css. */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--modal-scrim);
+  animation: modal-fade-in 0.14s ease-out;
+}
+
+.modal-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /* Panel is the flex column; children supply their own scroll region and any
+     pinned footer, so a footer stays put while a long body scrolls. */
+  max-height: 88vh;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px var(--modal-shadow);
+  outline: none;
+  animation: modal-rise-in 0.16s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* Widths converge the five pre-DS1 sizes (28rem / 32rem / 620px / 42rem / 720px)
+   onto three steps. */
+.modal-panel--sm {
+  max-width: 28rem;
+}
+.modal-panel--md {
+  max-width: 36rem;
+}
+.modal-panel--lg {
+  max-width: 45rem;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.modal-eyebrow {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--text-3);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-1);
+}
+
+.modal-eyebrow + .modal-title {
+  margin-top: 4px;
+}
+
+.modal-description {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-3);
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-panel {
+    animation: none;
+  }
+}

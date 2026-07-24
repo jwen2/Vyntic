@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import "./index.css";
 import "./components/ui/button.css";
+import "./components/ui/modal.css";
 
 // Conservative defaults: server data is considered fresh for 30s (matrix/run
 // results don't change under the user mid-screen), and one retry is enough —
