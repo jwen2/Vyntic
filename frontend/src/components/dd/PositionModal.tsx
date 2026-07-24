@@ -3,6 +3,7 @@ import type React from "react";
 import { getPosition, upsertPosition, type Position } from "@/lib/api";
 import { ddTheme } from "./types";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 
 type FormState = {
   commitment_amount: string;
@@ -140,35 +141,34 @@ export default function PositionModal({ dealId, dealName, isAdmin, theme, onClos
 
   const inputStyle = { background: c.surfaceAlt, borderColor: c.border, color: c.t1 };
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ background: "rgba(15,23,42,.58)" }}>
-      <div onClick={(event) => event.stopPropagation()} className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.5rem] border shadow-2xl" style={{ background: c.surface, borderColor: c.border }} role="dialog" aria-modal="true" aria-label={`Position in ${dealName}`}>
-        <div className="flex items-start justify-between border-b px-5 py-4" style={{ borderColor: c.border }}>
-          <div><div className="font-mono-plex text-[9px] uppercase tracking-[0.16em]" style={{ color: c.t3 }}>LP position</div><h2 className="mt-1 text-lg font-semibold" style={{ color: c.t1 }}>{dealName}</h2><p className="mt-1 text-xs" style={{ color: c.t3 }}>{isAdmin ? "Track commitment and current fund values." : "Read-only position details."}</p></div>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-8 w-8 items-center justify-center rounded-full border text-lg" style={{ borderColor: c.border, background: c.surfaceAlt, color: c.t2 }}>×</button>
-        </div>
+    <Modal
+      onClose={onClose}
+      size="lg"
+      eyebrow="LP position"
+      title={dealName}
+      description={isAdmin ? "Track commitment and current fund values." : "Read-only position details."}
+    >
+      {error && <div className="border-b px-5 py-3 text-sm" style={{ borderColor: "var(--danger-tint-border)", background: "var(--danger-tint)", color: "var(--danger)" }}>{error}</div>}
+      <div className="overflow-y-auto p-5 sm:p-6">
+        {loading ? <div className="flex h-48 items-center justify-center"><div className="dd-spin h-8 w-8 rounded-full border-4" style={{ borderColor: c.border, borderTopColor: c.accent }} /></div> : <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MoneyField label="Commitment" value={form.commitment_amount} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, commitment_amount: value }))} />
+            <SelectField label="Currency" value={form.currency} disabled={!isAdmin} style={inputStyle} options={["USD", "EUR", "GBP"]} onChange={(value) => setForm((prev) => ({ ...prev, currency: value as Position["currency"] }))} />
+            <MoneyField label="Opening called" hint="Called before Vyntic notices" value={form.opening_called} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, opening_called: value }))} />
+            <MoneyField label="Opening distributed" hint="Distributed before Vyntic notices" value={form.opening_distributed} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, opening_distributed: value }))} />
+            <MoneyField label="Called" hint={computedTotals ? "Opening + processed notices" : undefined} value={form.called_amount} readOnly={!isAdmin || computedTotals} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, called_amount: value }))} />
+            <MoneyField label="Distributed" hint={computedTotals ? "Opening + processed notices" : undefined} value={form.distributed_amount} readOnly={!isAdmin || computedTotals} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, distributed_amount: value }))} />
+            <MoneyField label="NAV" value={form.nav} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, nav: value }))} />
+            <TextField label="As-of" placeholder="2026-Q2" value={form.as_of} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, as_of: value }))} />
+            <SelectField label="Status" value={form.status} disabled={!isAdmin} style={inputStyle} options={["active", "pending", "exited"]} onChange={(value) => setForm((prev) => ({ ...prev, status: value as Position["status"] }))} />
+          </div>
 
-        {error && <div className="border-b px-5 py-3 text-sm" style={{ borderColor: "var(--danger-tint-border)", background: "var(--danger-tint)", color: "var(--danger)" }}>{error}</div>}
-        <div className="overflow-y-auto p-5 sm:p-6">
-          {loading ? <div className="flex h-48 items-center justify-center"><div className="dd-spin h-8 w-8 rounded-full border-4" style={{ borderColor: c.border, borderTopColor: c.accent }} /></div> : <>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <MoneyField label="Commitment" value={form.commitment_amount} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, commitment_amount: value }))} />
-              <SelectField label="Currency" value={form.currency} disabled={!isAdmin} style={inputStyle} options={["USD", "EUR", "GBP"]} onChange={(value) => setForm((prev) => ({ ...prev, currency: value as Position["currency"] }))} />
-              <MoneyField label="Opening called" hint="Called before Vyntic notices" value={form.opening_called} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, opening_called: value }))} />
-              <MoneyField label="Opening distributed" hint="Distributed before Vyntic notices" value={form.opening_distributed} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, opening_distributed: value }))} />
-              <MoneyField label="Called" hint={computedTotals ? "Opening + processed notices" : undefined} value={form.called_amount} readOnly={!isAdmin || computedTotals} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, called_amount: value }))} />
-              <MoneyField label="Distributed" hint={computedTotals ? "Opening + processed notices" : undefined} value={form.distributed_amount} readOnly={!isAdmin || computedTotals} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, distributed_amount: value }))} />
-              <MoneyField label="NAV" value={form.nav} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, nav: value }))} />
-              <TextField label="As-of" placeholder="2026-Q2" value={form.as_of} readOnly={!isAdmin} style={inputStyle} onChange={(value) => setForm((prev) => ({ ...prev, as_of: value }))} />
-              <SelectField label="Status" value={form.status} disabled={!isAdmin} style={inputStyle} options={["active", "pending", "exited"]} onChange={(value) => setForm((prev) => ({ ...prev, status: value as Position["status"] }))} />
-            </div>
-
-            {(computed.calledPct || computed.dpi || computed.tvpi) && <div className="mt-6 rounded-[1.25rem] border p-4" style={{ borderColor: c.accentTintBorder, background: c.accentTint }}><div className="font-mono-plex text-[9px] uppercase tracking-[0.14em]" style={{ color: c.t3 }}>Computed from entered values</div><div className="mt-3 grid grid-cols-3 gap-3">{computed.calledPct && <Metric label="Called" value={computed.calledPct} color={c.accentStrong} />}{computed.dpi && <Metric label="DPI" value={`${computed.dpi}x`} color={c.accentStrong} />}{computed.tvpi && <Metric label="TVPI" value={`${computed.tvpi}x`} color={c.accentStrong} />}</div></div>}
-          </>}
-        </div>
-
-        {!loading && <div className="flex items-center justify-between border-t px-5 py-4" style={{ borderColor: c.border }}><span className="text-xs" style={{ color: saved ? c.accentStrong : c.t3 }}>{saved ? "Position saved" : isAdmin ? "Empty fields are left unchanged." : "Ask an admin to update this position."}</span>{isAdmin && <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>{saving ? "Saving…" : "Save position"}</Button>}</div>}
+          {(computed.calledPct || computed.dpi || computed.tvpi) && <div className="mt-6 rounded-[1.25rem] border p-4" style={{ borderColor: c.accentTintBorder, background: c.accentTint }}><div className="font-mono-plex text-[9px] uppercase tracking-[0.14em]" style={{ color: c.t3 }}>Computed from entered values</div><div className="mt-3 grid grid-cols-3 gap-3">{computed.calledPct && <Metric label="Called" value={computed.calledPct} color={c.accentStrong} />}{computed.dpi && <Metric label="DPI" value={`${computed.dpi}x`} color={c.accentStrong} />}{computed.tvpi && <Metric label="TVPI" value={`${computed.tvpi}x`} color={c.accentStrong} />}</div></div>}
+        </>}
       </div>
-    </div>
+
+      {!loading && <div className="flex items-center justify-between border-t px-5 py-4" style={{ borderColor: c.border }}><span className="text-xs" style={{ color: saved ? c.accentStrong : c.t3 }}>{saved ? "Position saved" : isAdmin ? "Empty fields are left unchanged." : "Ask an admin to update this position."}</span>{isAdmin && <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>{saving ? "Saving…" : "Save position"}</Button>}</div>}
+    </Modal>
   );
 }
 

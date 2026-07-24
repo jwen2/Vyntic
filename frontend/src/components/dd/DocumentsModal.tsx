@@ -1,10 +1,10 @@
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { DocumentMetadata, UploadProgress } from "@/lib/api";
 import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
-import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { ACCENT, ddTheme, tint } from "./types";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 
 // The 14 doc categories collapse into three color families so a document's
 // type is scannable at a glance without 14 distinct hues. Reuses the
@@ -137,22 +137,16 @@ export default function DocumentsModal({
     [dealId, onDocumentUpdated],
   );
 
-  // role/focus-trap/restore via the shared hook; the guarded Escape below stays
-  // (it must clear an inner confirm before closing the modal).
-  const dialogRef = useDialogA11y<HTMLDivElement>();
-
-  // Close on Escape (only when no inline confirm is open).
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      if (confirmId) {
-        setConfirmId(null);
-        return;
-      }
-      onClose();
+  // Escape/scrim close is guarded: an open inline confirm is dismissed first,
+  // and only a second request closes the modal. <Modal> routes every close
+  // path (Escape, scrim, close button) through this, so the guard can't be
+  // bypassed the way a separate window-level listener could.
+  const handleRequestClose = useCallback(() => {
+    if (confirmId) {
+      setConfirmId(null);
+      return;
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    onClose();
   }, [confirmId, onClose]);
 
   const handleDelete = useCallback(
@@ -213,75 +207,13 @@ export default function DocumentsModal({
   ) : null;
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15, 23, 42, 0.55)",
-        zIndex: 90,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 12,
-      }}
+    <Modal
+      onClose={handleRequestClose}
+      size="lg"
+      title="Documents"
+      description={`${documents.length} document${documents.length === 1 ? "" : "s"} in this deal`}
+      headerActions={uploadButton}
     >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Documents"
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 720,
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          background: c.surface,
-          border: `1px solid ${c.border}`,
-          borderRadius: 10,
-          boxShadow: isDark ? "0 24px 64px rgba(0,0,0,.5)" : "0 24px 64px rgba(15,23,42,.18)",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{
-          padding: "14px 16px",
-          borderBottom: `1px solid ${c.border}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>Documents</div>
-            <div style={{ fontSize: 11, color: c.t3, marginTop: 2 }}>
-              {documents.length} document{documents.length === 1 ? "" : "s"} in this deal
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {uploadButton}
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              style={{
-                width: 28,
-                height: 28,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "transparent",
-                color: c.t2,
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontSize: 18,
-              }}
-            >
-              ×
-            </button>
-          </div>
-        </div>
 
         {(error || uploadError) && (
           <div style={{
@@ -531,7 +463,6 @@ export default function DocumentsModal({
           Deletion removes the document and all of its indexed chunks. Existing run
           history that references the document stays intact but won&apos;t re-execute.
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

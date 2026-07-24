@@ -2,11 +2,8 @@ import { useEffect, useState } from "react";
 import { useTheme } from "@/components/ThemeProvider";
 import { CreateDealPayload, Manager, listManagers } from "@/lib/api";
 import LandingButton from "@/components/landing/ui/LandingButton";
-import LandingEyebrow from "@/components/landing/ui/LandingEyebrow";
-import LandingHeading from "@/components/landing/ui/LandingHeading";
 import LandingInput from "@/components/landing/ui/LandingInput";
-import LandingPanel from "@/components/landing/ui/LandingPanel";
-import LandingText from "@/components/landing/ui/LandingText";
+import Modal from "@/components/ui/Modal";
 
 const NEW_MANAGER = "__new__";
 
@@ -76,40 +73,25 @@ export default function AddDealDialog({ onAdd, onClose }: Props) {
   }`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
-      <LandingPanel
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto"
-        variant={isDark ? "inverse" : "default"}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <LandingEyebrow className={isDark ? "text-white/55" : ""}>
-              {isFund ? "New fund" : "New deal"}
-            </LandingEyebrow>
-            <LandingHeading className={`mt-4 ${isDark ? "text-white" : ""}`}>
-              {isFund ? "Create a fund workspace." : "Create a deal workspace."}
-            </LandingHeading>
-            <LandingText className="mt-3" tone={isDark ? "inverseMuted" : "muted"}>
-              {isFund
-                ? "Track a manager's fund through diligence, commitment, and monitoring."
-                : "Set the deal identifier, name, and optional context for the new workspace."}
-            </LandingText>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full border text-lg"
-            style={{
-              borderColor: isDark ? "rgba(255,255,255,0.12)" : "var(--landing-border)",
-              color: isDark ? "rgba(255,255,255,0.72)" : "var(--landing-muted)",
-            }}
-            aria-label="Close add deal dialog"
-          >
-            ×
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+    // Only the dialog shell moves onto <Modal> here — this fixes the missing
+    // role/aria-modal/focus-trap (it was the one dialog with no a11y at all).
+    // The form still uses the landing-page inputs; converting those is the
+    // separate landing-system question, out of scope for DS1.
+    <Modal
+      onClose={onClose}
+      size="md"
+      eyebrow={isFund ? "New fund" : "New deal"}
+      title={isFund ? "Create a fund workspace." : "Create a deal workspace."}
+      description={
+        isFund
+          ? "Track a manager's fund through diligence, commitment, and monitoring."
+          : "Set the deal identifier, name, and optional context for the new workspace."
+      }
+      // A form: a stray scrim click must not discard what's been typed.
+      closeOnOverlayClick={false}
+    >
+      <div className="overflow-y-auto px-[18px] py-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <Field label="Workspace type" htmlFor="entityType" dark={isDark}>
             <div className="flex gap-2" id="entityType" role="radiogroup">
               {(["deal", "fund"] as const).map((type) => {
@@ -263,8 +245,8 @@ export default function AddDealDialog({ onAdd, onClose }: Props) {
             </LandingButton>
           </div>
         </form>
-      </LandingPanel>
-    </div>
+      </div>
+    </Modal>
   );
 }
 

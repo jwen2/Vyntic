@@ -1,7 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ddTheme } from "@/components/dd/types";
-import { useDialogA11y } from "@/hooks/useDialogA11y";
+import Modal from "@/components/ui/Modal";
 import { listDocuments, type DocumentMetadata } from "@/lib/api";
 import type { RowSource } from "@/lib/workflows";
 import { ACCENT, VIOLET } from "./theme";
@@ -36,7 +36,6 @@ export default function DocumentSelectorModal({
   onCancel,
 }: DocumentSelectorModalProps) {
   const c = ddTheme(theme);
-  const dialogRef = useDialogA11y<HTMLDivElement>(onCancel);
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected));
   const [loading, setLoading] = useState(true);
@@ -101,50 +100,16 @@ export default function DocumentSelectorModal({
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onCancel}
+    <Modal
+      onClose={onCancel}
+      size="md"
+      title={
+        needsSynthesisRows
+          ? "Select documents and synthesis rows"
+          : "Select documents to run"
+      }
+      description={workflowName}
     >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Select documents"
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: c.surface,
-          border: `1px solid ${c.border}`,
-          borderRadius: 12,
-          width: "min(620px, 92vw)",
-          maxHeight: "82vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
-        }}
-      >
-        <div
-          style={{
-            padding: "16px 20px",
-            borderBottom: `1px solid ${c.border}`,
-          }}
-        >
-          <div style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>
-            {needsSynthesisRows
-              ? "Select documents and synthesis rows"
-              : "Select documents to run"}
-          </div>
-          <div style={{ fontSize: 12, color: c.t2, marginTop: 2 }}>{workflowName}</div>
-        </div>
 
         <div
           style={{
@@ -321,8 +286,7 @@ export default function DocumentSelectorModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
