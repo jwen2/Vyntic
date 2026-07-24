@@ -1,6 +1,42 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2/DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 pilot done (1 of ~23 file-groups), rest awaiting a go/no-go; DS3 not started.
+
+## DS2 audit + pilot (2026-07-24)
+
+**The plan's Step-1 premise was wrong: the sweep is not mechanical.**
+
+*Scale.* "102 call sites" counted `ddTheme(` invocations (105 — roughly one per component). The real edit surface is **775 `c.<field>` references**.
+
+*Shape.* Of 258 inline style objects carrying a token, **only 64 are color-only** — the ones where the planned `style={{background: c.surface}}` → `className="bg-surface"` swap actually applies. The rest mix color with `fontSize`/`padding`/`letterSpacing`, so converting them means rewriting the whole object into utilities. Plus **145** refs inside template literals (`` `1px solid ${c.border}` ``), **79** inside ternaries, and **9** imperative `e.currentTarget.style.X = c.field` hover writes that have no className path at all without moving to CSS `:hover`. That is the "684 inline→class churn" F3.5 deferred.
+
+*Value.* `ddTheme()` already returns `var()` refs, so **the colorway is already a single edit in `index.css`** — F3.5's collapse of `DD_LIGHT`/`DD_DARK` achieved this plan's stated goal. DS2 buys deletion of a redundant second path, not theming capability. Weigh the remaining ~690 hand edits against that.
+
+*DS3-first was considered and rejected:* only ~13 sites are the bordered/rounded/padded Card shape, so a Card primitive would not absorb a meaningful share of the sweep.
+
+**Field → class table** (Step 1's deliverable). 12 of 16 map cleanly; 4 have no alias and would need adding to `tailwind.config.js` before any file that uses them is converted:
+
+| field | class | | field | class |
+|---|---|---|---|---|
+| `bg` | `bg-appbg` | | `zebra` | `bg-zebra` |
+| `surface` | `bg-surface` | | `gridHeader` | `bg-grid-header` |
+| `surfaceAlt` | `bg-surface-alt` | | `accent` | `accent` |
+| `border` | `border-edge` | | `accentStrong` | **missing** |
+| `borderLight` | `border-edge-light` | | `accentTint` | **missing** |
+| `t1`–`t4` | `text-t1`–`text-t4` | | `accentTintBorder` | **missing** |
+| | | | `onAccent` | **missing** |
+
+**Pilot — `workflows/tabular-run/` (`deeae24`): done.** 82 refs across 8 files, 191 lines net removed, zero `ddTheme` left in the directory. Verified in headless Edge light + dark against a completed tabular run; every token flips correctly. tsc clean, lint unchanged (2 pre-existing errors), 76 tests, build green.
+
+Techniques that generalise to the remaining files:
+- **`styles.ts` CSSProperties factories → exported class strings.** Base constants must omit `position` (and padding/background where a consumer overrides them): competing utilities in one class string resolve by **stylesheet order, not string order**, and this project has no `tailwind-merge`. Compose non-overlapping sets instead of relying on override order.
+- **Side-specific border colors** (`border-b-edge-light` + `border-r-edge` on one cell) are required wherever the original set two different border colors — a blanket `border-edge` flattens it. Confirmed generated in the built CSS.
+- **Status hues stay inline.** AMBER/GREEN/RED and `tint(ACCENT, n)` color-mix washes have no token; move only the neutral fallback to a class and let `undefined` fall through to it. Where a lookup map is mostly hues (`RunStatusPill`), keep the whole map inline referencing `var(--text-2)` directly rather than splitting one component across two styling paths.
+- **Prop cascade is the real win.** Six components dropped their `theme` prop entirely once their last `ddTheme` reference went. Components forwarding `theme` to not-yet-converted children must keep it, so convert leaf-first where possible.
+
+**Not verified live:** `ColumnEditMenu` renders only for non-builtin workflows and the one cloned tabular workflow has no runs, so reaching it would need a fresh extraction (an LLM API call). Its classes are the same ones proven elsewhere in the directory; `bg-appbg` was confirmed in the built CSS only.
+
+**Also found:** `SectionLabel` is hand-duplicated in **six** files (`tabular-run/parts.tsx`, `MonitoringPanel`, `AssistantEditor`, `AssistantRun`, `MemoOutput`, `TabularEditor`) — a stronger primitive candidate than Card. Worth folding into DS3.
 
 ## Progress (2026-07-24)
 
@@ -63,9 +99,10 @@ Separately, `components/ui/` has exactly one primitive (`Button`/`button.css`). 
 
 **Files:** the ~30 files listed by `grep -rln "ddTheme(" frontend/src`; finally `components/dd/types.ts`.
 
-- [ ] **Step 1:** Confirm the mapping is mechanical: every `ddTheme(theme)` field (`c.surface`, `c.text1`, `c.border`, ...) has a 1:1 Tailwind class already aliased in `tailwind.config.js` (`bg-surface`, `text-t1`, `border-edge`, etc. — extend the alias list in `tailwind.config.js` first if any field is missing one). Write the field→class table in the PR description, same discipline as F3.3's cell-shape inventory.
-- [ ] **Step 2:** Convert file by file, largest call-site count first (`DealBriefDashboard.tsx` has the most). Replace `const c = ddTheme(theme); style={{ background: c.surface }}` with `className="bg-surface"` (merge into existing className strings, don't stack a second `style` prop). Components that only used `theme` for this can drop the `theme` prop/`useTheme()` call entirely once their last `ddTheme` reference is gone — but only if nothing else in the file needs `theme`.
-- [ ] **Step 3:** Once all call sites are converted, delete `ddTheme`, `DD_LIGHT`, `DD_DARK` from `types.ts` (they exist solely for this shim). Grep guard: `grep -rn "ddTheme(\|DD_DARK\|DD_LIGHT" frontend/src` returns nothing. Commit per file-group (e.g. per directory: `dd/`, `workflows/`, `pages/`) rather than one giant commit — `refactor(frontend): ddTheme(theme) call sites → Tailwind token classes` per group, final `refactor(frontend): delete ddTheme/DD_LIGHT/DD_DARK shim`.
+- [x] **Step 1:** ~~Confirm the mapping is mechanical~~ — **done, and it isn't.** See the audit above for the field→class table (4 fields still need aliases in `tailwind.config.js`) and the measured breakdown of why ~75% of sites need whole-object rewrites.
+- [x] **Step 1b (pilot):** Convert `workflows/tabular-run/` to measure real cost per file before committing to the rest. Done in `deeae24` — 8 files, 82 refs, verified light + dark.
+- [ ] **Step 2 — DECISION POINT (Stanley):** with the pilot's real numbers in hand, choose whether to continue the sweep, and how far. If continuing, convert per directory, leaf-first (not largest-first — a component forwarding `theme` to unconverted children can't drop the prop). **`DealBriefDashboard.tsx` (23 calls, 2,502 lines) should be excluded**: it is slated for decomposition under FE5, so restyling it now is wasted work plus merge pain.
+- [ ] **Step 3:** Only once *every* call site is converted, delete `ddTheme`, `DD_LIGHT`, `DD_DARK` from `types.ts`. Grep guard: `grep -rn "ddTheme(\|DD_DARK\|DD_LIGHT" frontend/src` returns nothing. Commit per directory group. Note this step is unreachable while `DealBriefDashboard` is excluded — either it gets converted too, or the shim survives until FE5 lands.
 
 ## Task DS3 — Card/Panel primitive
 
