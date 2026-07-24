@@ -7,21 +7,9 @@ import {
   createDeal as apiCreateDeal,
   createManager as apiCreateManager,
   deleteDeal as apiDeleteDeal,
-  uploadDocument as apiUploadDocument,
-  uploadDocumentsBatch as apiUploadBatch,
   updateDeal as apiUpdateDeal,
-  getUploadProgress,
-  UploadProgress,
 } from "@/lib/api";
-
-function newUploadId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `upload_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-}
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+import { useDocumentUpload } from "@/hooks/useDocumentUpload";
 
 /**
  * Deals server state, cached under ["deals"]. The return shape predates
@@ -33,10 +21,12 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export function useDeals() {
   const queryClient = useQueryClient();
   const [mutationError, setMutationError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgressByDeal, setUploadProgressByDeal] = useState<
-    Record<string, UploadProgress>
-  >({});
+  const {
+    uploadDocs,
+    uploading,
+    uploadProgressByDeal,
+    error: uploadError,
+  } = useDocumentUpload();
 
   const dealsQuery = useQuery({ queryKey: ["deals"], queryFn: listDeals });
 
@@ -117,112 +107,6 @@ export function useDeals() {
     [editDealMutation]
   );
 
-  const uploadDocs = useCallback(
-    async (deal_id: string, files: File[]) => {
-      setUploading(true);
-      setMutationError(null);
-      const uploadId = newUploadId();
-      const label =
-        files.length === 1 ? files[0].name : `${files.length} documents`;
-      const setProgress = (progress: UploadProgress) => {
-        setUploadProgressByDeal((prev) => ({ ...prev, [deal_id]: progress }));
-      };
-      const clearProgressSoon = () => {
-        setTimeout(() => {
-          setUploadProgressByDeal((prev) => {
-            if (prev[deal_id]?.upload_id !== uploadId) return prev;
-            const next = { ...prev };
-            delete next[deal_id];
-            return next;
-          });
-        }, 3000);
-      };
-      // Single source of post-upload progress: this 1s poll loop. The XHR
-      // onUploadProgress callbacks below own the 0-10% upload phase; there is
-      // deliberately no second interval poller racing it (it used to cause
-      // progress flicker from two writers on uploadProgressByDeal).
-      const waitForProcessing = async () => {
-        const deadline = Date.now() + 2 * 60 * 60 * 1000;
-        while (Date.now() < deadline) {
-          try {
-            const progress = await getUploadProgress(deal_id, uploadId);
-            setProgress(progress);
-            if (progress.status === "complete") return;
-            if (progress.status === "error") {
-              throw new Error(progress.detail || "Upload failed");
-            }
-          } catch (err) {
-            if (err instanceof Error && !err.message.includes("Progress not found")) {
-              throw err;
-            }
-          }
-          await delay(1000);
-        }
-        throw new Error("Ingestion is still running after two hours");
-      };
-      try {
-        setProgress({
-          upload_id: uploadId,
-          status: "uploading",
-          stage: "Uploading files",
-          percent: 0,
-          filename: label,
-        });
-        if (files.length === 1) {
-          await apiUploadDocument(deal_id, files[0], {
-            uploadId,
-            onUploadProgress: (percent) =>
-              setProgress({
-                upload_id: uploadId,
-                status: "uploading",
-                stage: percent >= 100 ? "Preparing backend processing" : "Uploading file",
-                percent: Math.round(percent * 0.1),
-                filename: files[0].name,
-                detail:
-                  percent >= 100
-                    ? "The first parsing batch can take a few minutes."
-                    : undefined,
-              }),
-          });
-        } else {
-          await apiUploadBatch(deal_id, files, {
-            uploadId,
-            onUploadProgress: (percent) =>
-              setProgress({
-                upload_id: uploadId,
-                status: "uploading",
-                stage: percent >= 100 ? "Preparing backend processing" : "Uploading files",
-                percent: Math.round(percent * 0.1),
-                filename: label,
-                detail:
-                  percent >= 100
-                    ? "The first parsing batch can take a few minutes."
-                    : undefined,
-              }),
-          });
-        }
-        await waitForProcessing();
-        await invalidateDeals();
-      } catch (err) {
-        setMutationError(
-          err instanceof Error ? err.message : "Failed to upload documents"
-        );
-        setProgress({
-          upload_id: uploadId,
-          status: "error",
-          stage: "Upload failed",
-          percent: 100,
-          filename: label,
-          detail: err instanceof Error ? err.message : "Failed to upload documents",
-        });
-      } finally {
-        clearProgressSoon();
-        setUploading(false);
-      }
-    },
-    [invalidateDeals]
-  );
-
   const refresh = useCallback(() => invalidateDeals(), [invalidateDeals]);
 
   const deals: Deal[] = dealsQuery.data ?? [];
@@ -239,7 +123,7 @@ export function useDeals() {
       addDealMutation.isPending ||
       removeDealMutation.isPending ||
       editDealMutation.isPending,
-    error: mutationError ?? queryError,
+    error: mutationError ?? uploadError ?? queryError,
     addDeal,
     removeDeal,
     uploadDocs,

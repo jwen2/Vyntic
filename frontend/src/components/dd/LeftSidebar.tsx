@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import type { ConversationEntry, Deal } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { ACCENT, ddTheme, tint } from "./types";
@@ -212,6 +212,8 @@ function AssistantHistoryRow({
     <button
       type="button"
       title={title}
+      aria-label={`Open saved chat: ${title}`}
+      aria-current={active ? "true" : undefined}
       onClick={() => onSelect(entry)}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = isDark ? "#1d1d1d" : "#ffffff";

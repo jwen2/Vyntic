@@ -24,6 +24,7 @@ import MonitoringPanel from "@/components/dd/MonitoringPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFindings } from "@/components/dd/useFindings";
 import { ACCENT, ddTheme } from "@/components/dd/types";
+import { useDocumentUpload } from "@/hooks/useDocumentUpload";
 
 const TAB_PREFIX = "vyntic_ws_tab_";
 
@@ -74,12 +75,19 @@ export default function DealWorkspacePage() {
   const isDark = theme === "dark";
 
   const [mode, setMode] = useState<DealWorkspaceMode>("agent");
-  const [selectedAssistantEntryId, setSelectedAssistantEntryId] = useState<string | null>(null);
+  const [selectedAssistantEntry, setSelectedAssistantEntry] = useState<ConversationEntry | null>(null);
+  const [assistantHistoryOpenSignal, setAssistantHistoryOpenSignal] = useState(0);
   const [assistantNewChatSignal, setAssistantNewChatSignal] = useState(0);
   const [activeCit, setActiveCit] = useState<{ c: Citation; id: string } | null>(null);
   const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
   const [positionModalOpen, setPositionModalOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const {
+    uploadDocs,
+    uploading: documentsUploading,
+    uploadProgressByDeal,
+    error: documentUploadError,
+  } = useDocumentUpload();
   // useFindings persists scan-extracted findings to localStorage and drives
   // the deal-breaker pill in TopBar. New findings flow in from the Brief tab
   // via syncScanFindings whenever a Proactive Scan workflow run completes.
@@ -157,7 +165,7 @@ export default function DealWorkspacePage() {
   const dealBreakers = findings.filter((f) => f.sev === "deal-breaker").length;
 
   useEffect(() => {
-    setSelectedAssistantEntryId(null);
+    setSelectedAssistantEntry(null);
     setMobileSidebarOpen(false);
   }, [dealId]);
 
@@ -170,18 +178,22 @@ export default function DealWorkspacePage() {
   const handleNewAssistantChat = useCallback(() => {
     setMode("agent");
     setActiveCit(null);
-    setSelectedAssistantEntryId(null);
+    setSelectedAssistantEntry(null);
     setAssistantNewChatSignal((signal) => signal + 1);
   }, []);
 
   const handleSelectAssistantHistory = useCallback((entry: ConversationEntry) => {
     setMode("agent");
     setActiveCit(null);
-    setSelectedAssistantEntryId(entry.id);
+    setSelectedAssistantEntry(entry);
+    setAssistantHistoryOpenSignal((signal) => signal + 1);
   }, []);
 
   const handleAssistantConversationSaved = useCallback((entry: ConversationEntry) => {
-    setSelectedAssistantEntryId(entry.id);
+    // A completed response is still part of the live thread. Clear the
+    // history-row highlight without sending a new history-open command to the
+    // Agent panel, which would otherwise replace the thread with one Q&A pair.
+    setSelectedAssistantEntry(null);
     // Optimistically prepend to the cache, then let the server confirm.
     queryClient.setQueryData<ConversationEntry[]>(
       ["deal", dealId, "conversations"],
@@ -235,7 +247,7 @@ export default function DealWorkspacePage() {
       onBack={() => navigate("/app")}
       assistantHistory={assistantHistory}
       assistantHistoryLoaded={assistantHistoryLoaded}
-      activeAssistantEntryId={selectedAssistantEntryId}
+      activeAssistantEntryId={selectedAssistantEntry?.id ?? null}
       theme={theme}
       onNewAssistantChat={() => { handleNewAssistantChat(); onClose?.(); }}
       onSelectAssistantHistory={(entry) => { handleSelectAssistantHistory(entry); onClose?.(); }}
@@ -357,7 +369,8 @@ export default function DealWorkspacePage() {
                 <DealAssistantPanel
                   deal={deal}
                   documents={documents}
-                  selectedEntry={assistantHistory.find((entry) => entry.id === selectedAssistantEntryId) || null}
+                  selectedEntry={selectedAssistantEntry}
+                  historyOpenSignal={assistantHistoryOpenSignal}
                   newChatSignal={assistantNewChatSignal}
                   activeCitId={activeCit?.id ?? null}
                   onCit={handleCit}
@@ -388,6 +401,12 @@ export default function DealWorkspacePage() {
           documents={documents}
           theme={theme}
           onClose={() => setDocumentsModalOpen(false)}
+          onUploadDocuments={
+            user?.is_admin ? (files) => uploadDocs(dealId, files) : undefined
+          }
+          uploading={documentsUploading}
+          uploadProgress={uploadProgressByDeal[dealId]}
+          uploadError={documentUploadError}
           onDocumentUpdated={(updated) => {
             queryClient.setQueryData<DocumentMetadata[]>(
               ["deal", dealId, "documents"],

@@ -122,6 +122,7 @@ export default function DealAssistantPanel({
   deal,
   documents,
   selectedEntry,
+  historyOpenSignal,
   newChatSignal,
   activeCitId,
   onCit,
@@ -134,6 +135,7 @@ export default function DealAssistantPanel({
   deal: Deal;
   documents: DocumentMetadata[];
   selectedEntry: ConversationEntry | null;
+  historyOpenSignal: number;
   newChatSignal: number;
   activeCitId: string | null;
   onCit: (citation: Citation, id: string) => void;
@@ -181,10 +183,9 @@ export default function DealAssistantPanel({
     setSelectedDocIds([]);
     setError(null);
     setIsStreaming(false);
-    if (!selectedEntry) {
-      setMessages([]);
-      return;
-    }
+    // Clearing the selected row does not mean "new chat"; it also happens
+    // when a response is saved. Only New chat should clear the live thread.
+    if (!selectedEntry) return;
     setMessages([
       {
         id: `${selectedEntry.id}_user`,
@@ -200,7 +201,7 @@ export default function DealAssistantPanel({
         status: "complete",
       },
     ]);
-  }, [selectedEntry]);
+  }, [historyOpenSignal, selectedEntry]);
 
   useEffect(() => {
     if (!newChatMountedRef.current) {
@@ -624,7 +625,6 @@ function InitialAssistantState({
   composer?: ReactNode;
 }) {
   const c = ddTheme(theme);
-  const isDark = theme === "dark";
   const scanTitle = isFund ? "Run Fund Brief" : "Run Proactive Scan";
   const cards = isFund ? FUND_CARDS : DEAL_CARDS;
   return (

@@ -1,6 +1,6 @@
 
-import { useCallback, useEffect, useState } from "react";
-import type { DocumentMetadata } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { DocumentMetadata, UploadProgress } from "@/lib/api";
 import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { ACCENT, ddTheme, tint } from "./types";
@@ -67,6 +67,11 @@ interface Props {
   onDocumentDeleted: (docId: string) => void;
   /** Fires after a successful metadata change so the parent can refresh state. */
   onDocumentUpdated?: (doc: DocumentMetadata) => void;
+  /** Admin-only upload entry point supplied by the workspace. */
+  onUploadDocuments?: (files: File[]) => Promise<boolean>;
+  uploading?: boolean;
+  uploadProgress?: UploadProgress;
+  uploadError?: string | null;
 }
 
 export default function DocumentsModal({
@@ -76,12 +81,17 @@ export default function DocumentsModal({
   onClose,
   onDocumentDeleted,
   onDocumentUpdated,
+  onUploadDocuments,
+  uploading = false,
+  uploadProgress,
+  uploadError,
 }: Props) {
   const c = ddTheme(theme);
   const isDark = theme === "dark";
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const handleCategoryChange = useCallback(
     async (doc: DocumentMetadata, doc_category: string) => {
@@ -161,6 +171,69 @@ export default function DocumentsModal({
     [dealId, onDocumentDeleted],
   );
 
+  const handleUploadSelection = useCallback(
+    (files: FileList | null) => {
+      const selected = Array.from(files ?? []);
+      if (selected.length > 0) void onUploadDocuments?.(selected);
+    },
+    [onUploadDocuments],
+  );
+
+  const uploadButton = onUploadDocuments ? (
+    <>
+      <button
+        type="button"
+        onClick={() => uploadInputRef.current?.click()}
+        disabled={uploading}
+        style={{
+          height: 32,
+          padding: "0 11px",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          background: ACCENT,
+          color: "var(--on-accent)",
+          border: "none",
+          borderRadius: 7,
+          cursor: uploading ? "wait" : "pointer",
+          fontSize: 11,
+          fontWeight: 700,
+          opacity: uploading ? 0.7 : 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3v12" />
+          <path d="m7 8 5-5 5 5" />
+          <path d="M5 21h14" />
+        </svg>
+        {uploading ? "Uploading" : "Add documents"}
+      </button>
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept=".pdf,.xlsx,.xls"
+        multiple
+        aria-label="Choose documents to upload"
+        onChange={(event) => {
+          handleUploadSelection(event.target.files);
+          event.target.value = "";
+        }}
+        style={{ display: "none" }}
+      />
+    </>
+  ) : null;
+
   return (
     <div
       onClick={onClose}
@@ -172,7 +245,7 @@ export default function DocumentsModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 24,
+        padding: 12,
       }}
     >
       <div
@@ -184,8 +257,8 @@ export default function DocumentsModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
-          maxWidth: 560,
-          maxHeight: "80vh",
+          maxWidth: 720,
+          maxHeight: "90vh",
           display: "flex",
           flexDirection: "column",
           background: c.surface,
@@ -196,7 +269,7 @@ export default function DocumentsModal({
         }}
       >
         <div style={{
-          padding: "16px 20px",
+          padding: "14px 16px",
           borderBottom: `1px solid ${c.border}`,
           display: "flex",
           alignItems: "center",
@@ -208,28 +281,31 @@ export default function DocumentsModal({
               {documents.length} document{documents.length === 1 ? "" : "s"} in this deal
             </div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            style={{
-              width: 28,
-              height: 28,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "transparent",
-              color: c.t2,
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontSize: 18,
-            }}
-          >
-            ×
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {uploadButton}
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                width: 28,
+                height: 28,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "transparent",
+                color: c.t2,
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontSize: 18,
+              }}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
-        {error && (
+        {(error || uploadError) && (
           <div style={{
             padding: "10px 20px",
             background: isDark ? "#7f1d1d22" : "#fff1f2",
@@ -237,14 +313,103 @@ export default function DocumentsModal({
             fontSize: 12,
             borderBottom: `1px solid ${c.border}`,
           }}>
-            {error}
+            {error || uploadError}
           </div>
         )}
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "6px 0" }}>
+        {uploadProgress && (
+          <div
+            style={{
+              padding: "10px 20px 11px",
+              borderBottom: `1px solid ${c.border}`,
+              background: c.surfaceAlt,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                marginBottom: 6,
+                fontSize: 11,
+              }}
+            >
+              <span
+                title={uploadProgress.detail || uploadProgress.filename || ""}
+                style={{
+                  color:
+                    uploadProgress.status === "error"
+                      ? isDark
+                        ? "#fca5a5"
+                        : "#b91c1c"
+                      : c.t2,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {uploadProgress.stage || "Processing documents"}
+                {uploadProgress.filename ? ` · ${uploadProgress.filename}` : ""}
+              </span>
+              <span style={{ color: c.t1, fontWeight: 700, flexShrink: 0 }}>
+                {uploadProgress.percent}%
+              </span>
+            </div>
+            <div
+              role="progressbar"
+              aria-label="Document upload progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={uploadProgress.percent}
+              style={{
+                height: 5,
+                overflow: "hidden",
+                background: c.borderLight,
+                borderRadius: 999,
+              }}
+            >
+              <div
+                style={{
+                  width: `${uploadProgress.percent}%`,
+                  height: "100%",
+                  background:
+                    uploadProgress.status === "error"
+                      ? isDark
+                        ? "#f87171"
+                        : "#dc2626"
+                      : ACCENT,
+                  transition: "width .25s ease",
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "6px 0" }}>
           {documents.length === 0 ? (
-            <div style={{ padding: 24, fontSize: 12, color: c.t3, textAlign: "center" }}>
-              No documents in this deal yet.
+            <div style={{ padding: 28, fontSize: 12, color: c.t3, textAlign: "center" }}>
+              <div>No documents in this deal yet.</div>
+              {onUploadDocuments && (
+                <button
+                  type="button"
+                  onClick={() => uploadInputRef.current?.click()}
+                  disabled={uploading}
+                  style={{
+                    marginTop: 12,
+                    padding: "7px 11px",
+                    background: c.surfaceAlt,
+                    color: c.t1,
+                    border: `1px solid ${c.border}`,
+                    borderRadius: 7,
+                    cursor: uploading ? "wait" : "pointer",
+                    fontSize: 11,
+                    fontWeight: 600,
+                  }}
+                >
+                  Choose documents
+                </button>
+              )}
             </div>
           ) : (
             documents.map((doc) => {
@@ -254,14 +419,15 @@ export default function DocumentsModal({
                 <div
                   key={doc.doc_id}
                   style={{
-                    padding: "10px 20px",
+                    padding: "10px 16px",
                     display: "flex",
                     alignItems: "center",
-                    gap: 12,
+                    flexWrap: "wrap",
+                    gap: 8,
                     borderBottom: `1px solid ${c.borderLight}`,
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ flex: "1 1 160px", minWidth: 0 }}>
                     <div style={{
                       fontSize: 13,
                       fontWeight: 500,
@@ -427,7 +593,7 @@ export default function DocumentsModal({
         </div>
 
         <div style={{
-          padding: "10px 20px",
+          padding: "10px 16px",
           borderTop: `1px solid ${c.border}`,
           fontSize: 11,
           color: c.t3,
