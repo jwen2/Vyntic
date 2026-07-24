@@ -143,8 +143,12 @@ export default function DealWorkspacePage() {
   }, [dealId]);
 
   const handleCit = useCallback((citation: Citation, id: string) => {
-    setActiveCit((prev) => (prev?.id === id ? null : { c: citation, id }));
-  }, []);
+    // A cited-source click opens the document viewer directly — the hover popover
+    // already gives the snippet peek, so the click escalates to verification.
+    // activeCit is kept only as a lightweight "last-opened" highlight on the badge.
+    setActiveCit({ c: citation, id });
+    handleViewDocument(citation);
+  }, [handleViewDocument]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -364,7 +368,7 @@ export default function DealWorkspacePage() {
               </ErrorBoundary>
             </div>
           ) : (
-            <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden", borderRight: activeCit ? `1px solid ${c.border}` : "none" }}>
+            <div style={{ flex: 1, width: "100%", minWidth: 0, display: "flex", overflow: "hidden" }}>
               <ErrorBoundary>
                 <DealAssistantPanel
                   deal={deal}

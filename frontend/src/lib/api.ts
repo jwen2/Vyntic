@@ -1,6 +1,6 @@
 import { sseStream } from "./sse";
 
-const API_BASE = "/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 const TOKEN_KEY = "vyntic_auth_token";
 
 export function getAuthToken(): string | null {
