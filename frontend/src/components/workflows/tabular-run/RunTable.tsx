@@ -5,7 +5,7 @@ import type { TabularCell, WorkflowColumn, Workflow } from "@/lib/workflows";
 import { getFormatShort } from "@/lib/matrixColumnConfig";
 import { ACCENT, RED, VIOLET, tint } from "../theme";
 import type { CellDensity } from "../cells/CellRenderer";
-import { cellBodyStyle, cellHeaderStyle } from "./styles";
+import { cellBodyStyle, cellHeaderStyle, docBodyStyle, docHeaderStyle } from "./styles";
 import ValueCell from "./RunCell";
 import ColumnEditMenu, { type ColumnDraft } from "./ColumnEditMenu";
 import { cellKey, type Theme } from "./useTabularRun";
@@ -82,7 +82,7 @@ export default function RunTable({
       </colgroup>
       <thead>
         <tr>
-          <th style={cellHeaderStyle(c)}>
+          <th style={docHeaderStyle(c)}>
             Document
             <ColResizeHandle
               active={resizingKey === "doc"}
@@ -221,7 +221,7 @@ function RunRowImpl({
   const c = ddTheme(theme);
   return (
     <tr>
-      <td style={cellBodyStyle(c, zebra)}>
+      <td style={docBodyStyle(c, zebra)}>
         <div
           style={{
             overflow: "hidden",

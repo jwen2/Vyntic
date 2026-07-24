@@ -3,7 +3,7 @@ import { ddTheme } from "@/components/dd/types";
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
 import { ACCENT, tint } from "../theme";
-import CellRenderer, { type CellDensity } from "../cells/CellRenderer";
+import CellRenderer, { proseValue, type CellDensity } from "../cells/CellRenderer";
 import { formatCellValue, stripSourceMarkers } from "./format";
 import { RetryIcon } from "./parts";
 import { cellBodyStyle } from "./styles";
@@ -39,7 +39,11 @@ function ValueCellImpl({
 }) {
   const c = ddTheme(theme);
   const display = formatCellValue(cell, column);
-  const fullAnswer = stripSourceMarkers(cell.answer).trim();
+  // Prose-shaped cells carry {summary, body, caveats} — their raw answer is
+  // JSON, so run it through proseValue rather than dumping the blob into the
+  // hover tooltip. Non-prose shapes fall back to the raw answer unchanged.
+  const tooltipProse = proseValue(cell.answer_formatted, stripSourceMarkers(cell.answer || ""));
+  const fullAnswer = (tooltipProse.body || tooltipProse.summary || "").trim();
 
   return (
     <td
