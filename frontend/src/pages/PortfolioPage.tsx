@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
 import { ddTheme } from "@/components/dd/types";
+import Button from "@/components/ui/Button";
 
 // Calendar-day approximation of the wire window (business-day math deferred).
 function daysUntil(iso: string | null): number | null {
@@ -50,13 +51,13 @@ export default function PortfolioPage() {
     <div style={{ minHeight: "100vh", background: c.bg, color: c.t1 }}>
       <header className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: c.border }}>
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/app")} className="rounded-full border px-3 py-1.5 text-sm" style={{ borderColor: c.border, color: c.t2 }}>← Funds</button>
+          <Button variant="secondary" size="sm" onClick={() => navigate("/app")}>← Funds</Button>
           <div>
             <div className="font-mono-plex" style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: c.t3 }}>Portfolio</div>
             <h1 style={{ fontSize: 20, fontWeight: 600 }}>Monitoring across all funds</h1>
           </div>
         </div>
-        <button onClick={toggleTheme} className="rounded-full border px-3 py-1.5 text-sm" style={{ borderColor: c.border, color: c.t2 }}>{theme === "dark" ? "Light" : "Dark"}</button>
+        <Button variant="secondary" size="sm" onClick={toggleTheme}>{theme === "dark" ? "Light" : "Dark"}</Button>
       </header>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px 56px" }}>

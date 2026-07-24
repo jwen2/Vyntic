@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
 import { ddTheme } from "@/components/dd/types";
+import Button from "@/components/ui/Button";
 import { stageBadge } from "@/lib/stageBadges";
 
 export default function ManagerPage() {
@@ -52,7 +53,7 @@ export default function ManagerPage() {
   if (!managerQuery.data) {
     return (
       <div className="flex min-h-screen items-center justify-center px-6" style={{ background: c.bg, color: c.t1 }}>
-        <div className="text-center"><h1 className="text-xl font-semibold">Manager not found</h1><p className="mt-2 text-sm" style={{ color: c.t2 }}>{managerQuery.error instanceof Error ? managerQuery.error.message : "This manager is unavailable."}</p><button className="mt-5 rounded-full px-4 py-2 text-sm font-semibold" style={{ background: c.accent, color: c.onAccent }} onClick={() => navigate("/app")}>All funds</button></div>
+        <div className="text-center"><h1 className="text-xl font-semibold">Manager not found</h1><p className="mt-2 text-sm" style={{ color: c.t2 }}>{managerQuery.error instanceof Error ? managerQuery.error.message : "This manager is unavailable."}</p><Button variant="primary" size="sm" className="mt-5" onClick={() => navigate("/app")}>All funds</Button></div>
       </div>
     );
   }
@@ -62,8 +63,8 @@ export default function ManagerPage() {
     <div className="min-h-screen" style={{ background: c.bg, color: c.t1, fontFamily: "'IBM Plex Sans', sans-serif" }}>
       <header className="border-b px-5 py-4 sm:px-8" style={{ background: c.surface, borderColor: c.border }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <button type="button" onClick={() => navigate("/app")} className="rounded-full border px-4 py-2 text-sm font-semibold" style={{ borderColor: c.border, background: c.surfaceAlt, color: c.t1 }}>← All funds</button>
-          <button type="button" onClick={toggleTheme} aria-label="Toggle theme" className="flex h-9 w-9 items-center justify-center rounded-full border" style={{ borderColor: c.border, background: c.surfaceAlt, color: c.t1 }}>{isDark ? "☀" : "☾"}</button>
+          <Button variant="secondary" size="sm" onClick={() => navigate("/app")}>← All funds</Button>
+          <Button variant="secondary" size="sm" iconOnly aria-label="Toggle theme" onClick={toggleTheme} style={{ fontSize: 15 }}>{isDark ? "☀" : "☾"}</Button>
         </div>
       </header>
 

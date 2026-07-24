@@ -14,6 +14,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import HomeTopBar from "@/components/home/HomeTopBar";
 import HomeSidebar from "@/components/home/HomeSidebar";
+import Button from "@/components/ui/Button";
 import DocMatrixPanel from "@/components/DocMatrixPanel";
 import DocumentViewer from "@/components/DocumentViewer";
 import CitationPanel from "@/components/dd/CitationPanel";
@@ -340,34 +341,21 @@ export default function HomePage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      className="rounded-lg border px-3 py-2 text-sm lg:hidden"
-                      style={{
-                        borderColor: border,
-                        background: surfaceAlt,
-                        color: text,
-                      }}
-                      onClick={() => setMobileDealsOpen(true)}
-                    >
-                      Switch deal
-                    </button>
+                    <div className="lg:hidden">
+                      <Button variant="secondary" size="sm" onClick={() => setMobileDealsOpen(true)}>
+                        Switch deal
+                      </Button>
+                    </div>
 
                     {user?.is_admin && (
                       <>
-                        <button
-                          type="button"
-                          className="rounded-lg border px-3 py-2 text-sm font-medium"
-                          style={{
-                            borderColor: border,
-                            background: surfaceAlt,
-                            color: text,
-                            cursor: "pointer",
-                          }}
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => selectedUploadInputRef.current?.click()}
                         >
                           Upload
-                        </button>
+                        </Button>
                         <input
                           ref={selectedUploadInputRef}
                           type="file"
@@ -386,19 +374,13 @@ export default function HomePage() {
                     )}
 
                     {agenticEnabled && (
-                      <button
-                        type="button"
-                        className="rounded-lg px-3 py-2 text-sm font-medium"
-                        style={{
-                          border: "none",
-                          background: "var(--accent)",
-                          color: "var(--on-accent)",
-                          cursor: "pointer",
-                        }}
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={() => navigate(`/deal/${selectedDeal.deal_id}`)}
                       >
                         Analyze
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
