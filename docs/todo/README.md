@@ -39,6 +39,12 @@ From `docs/assessments/2026-07-07-frontend-audit.md` (audited on `main` @ `19e6d
 |---|---|---|---|---|
 | UX1 | `2026-07-23-recent-activity-workflow-runs.md` | Surface a deal's workflow runs alongside agent chats in the left-rail "Recent" (new `GET /deals/{id}/runs` route + `WorkflowsView` deep-link prop) | — (frontend-led + 1 additive backend route) | not started, 2 decisions in header (D1 grouped-vs-unified, D2 live status) |
 
+## Design system
+
+| # | Plan | Scope | Depends on | Status |
+|---|---|---|---|---|
+| UI1 | `2026-07-23-button-design-system.md` | Shared `<Button>` component (5 variants, 3 sizes, states, hover "flare" motion) from the finalized Claude Design artifact; migrate first tranche (workflows, agent, `/app` shell) of 169 raw `<button>` call sites | PR #111 merged | not started, 3 decisions in header (D1 migration scope, D2 CSS placement, D3 danger tokens) |
+
 ## Suggested order
 1. Resolve **Plan 4 D1 tenancy decision**, then implement **Plan 4** → 2. **Plan 5**.
 Frontend track (parallel): **F1 + F2 done** → **F3** (resolve D1–D3 first; align F3.4 with Plan 2).
