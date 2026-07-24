@@ -11,6 +11,7 @@ import type {
   WorkflowUpdatePayload,
 } from "@/lib/workflows";
 import { ACCENT, AMBER } from "./theme";
+import Button from "@/components/ui/Button";
 
 type Theme = "light" | "dark";
 
@@ -210,20 +211,9 @@ export default function AssistantEditor(props: AssistantEditorProps) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-          <button
-            onClick={onBack}
-            style={{
-              padding: "5px 10px",
-              background: "transparent",
-              border: `1px solid ${c.border}`,
-              borderRadius: 7,
-              color: c.t2,
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
+          <Button variant="secondary" size="sm" onClick={onBack}>
             ← Library
-          </button>
+          </Button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <input
               value={name}
@@ -281,40 +271,14 @@ export default function AssistantEditor(props: AssistantEditorProps) {
             <span style={{ fontSize: 11, color: c.t2 }}>{saveMessage}</span>
           )}
           {!isReadOnly && (
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding: "6px 14px",
-                background: ACCENT,
-                color: "var(--on-accent)",
-                border: "none",
-                borderRadius: 7,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: saving ? "wait" : "pointer",
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
+            <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
               {saving ? "Saving…" : isEdit ? "Save" : "Create"}
-            </button>
+            </Button>
           )}
           {props.mode === "edit" && props.onDelete && !isReadOnly && (
-            <button
-              onClick={() => setConfirmingDelete(true)}
-              style={{
-                padding: "6px 12px",
-                background: "transparent",
-                color: "#ef4444",
-                border: `1px solid ${c.border}`,
-                borderRadius: 7,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
+            <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
               Delete
-            </button>
+            </Button>
           )}
         </div>
       </div>

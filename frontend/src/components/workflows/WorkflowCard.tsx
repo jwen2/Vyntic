@@ -1,6 +1,7 @@
 import { ddTheme } from "@/components/dd/types";
 import type { Workflow } from "@/lib/workflows";
-import { ACCENT, VIOLET, formatRelativeShort, tint, workflowTypeColor } from "./theme";
+import { formatRelativeShort, tint, workflowTypeColor } from "./theme";
+import Button from "@/components/ui/Button";
 
 type Theme = "light" | "dark";
 
@@ -123,53 +124,37 @@ export default function WorkflowCard({
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "auto" }}>
-        <button
-          type="button"
+        <Button
+          variant="tint"
+          size="sm"
           onClick={onRun}
           disabled={!onRun}
-          onMouseEnter={(e) => {
-            if (!onRun) return;
-            e.currentTarget.style.background = ACCENT;
-            e.currentTarget.style.color = "var(--on-accent)";
-            e.currentTarget.style.borderColor = "transparent";
-          }}
-          onMouseLeave={(e) => {
-            if (!onRun) return;
-            e.currentTarget.style.background = "var(--accent-tint)";
-            e.currentTarget.style.color = ACCENT;
-            e.currentTarget.style.borderColor = "var(--accent-tint-border)";
-          }}
-          style={{
-            flex: 1,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            padding: "8px 12px",
-            background: onRun ? "var(--accent-tint)" : c.surfaceAlt,
-            color: onRun ? ACCENT : c.t3,
-            border: `1px solid ${onRun ? "var(--accent-tint-border)" : c.border}`,
-            borderRadius: 9,
-            fontSize: 12.5,
-            fontWeight: 600,
-            cursor: onRun ? "pointer" : "not-allowed",
-            transition: "background .12s, color .12s, border-color .12s",
-          }}
+          style={{ flex: 1 }}
+          iconRight={
+            onRun ? (
+              <svg className="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            ) : undefined
+          }
         >
           {runLabel}
-          {onRun && (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          )}
-        </button>
+        </Button>
 
         {primaryAction.onClick && (
-          <CardButton label={primaryAction.label} onClick={primaryAction.onClick} theme={theme} />
+          <Button variant="secondary" size="sm" onClick={primaryAction.onClick}>
+            {primaryAction.label}
+          </Button>
         )}
-        {onHistory && <CardButton label="History" onClick={onHistory} theme={theme} />}
+        {onHistory && (
+          <Button variant="secondary" size="sm" onClick={onHistory}>
+            History
+          </Button>
+        )}
         {onDelete && !workflow.is_builtin && (
-          <CardButton label="Delete" onClick={onDelete} theme={theme} danger />
+          <Button variant="danger" size="sm" onClick={onDelete}>
+            Delete
+          </Button>
         )}
       </div>
     </article>
@@ -204,40 +189,5 @@ function WorkflowBadge({
     >
       {label}
     </span>
-  );
-}
-
-function CardButton({
-  label,
-  onClick,
-  theme,
-  danger,
-}: {
-  label: string;
-  onClick?: () => void;
-  theme: Theme;
-  danger?: boolean;
-}) {
-  const c = ddTheme(theme);
-  const fg = danger ? "#c2410c" : c.t1;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: "8px 11px",
-        background: c.surfaceAlt,
-        color: fg,
-        border: `1px solid ${danger ? "#f5c7b3" : c.border}`,
-        borderRadius: 8,
-        fontSize: 12,
-        fontWeight: 600,
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {label}
-    </button>
   );
 }

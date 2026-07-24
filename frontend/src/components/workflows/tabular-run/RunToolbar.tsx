@@ -1,7 +1,8 @@
 import { ddTheme } from "@/components/dd/types";
 import type { RunStatus, Workflow, WorkflowRun } from "@/lib/workflows";
-import { ACCENT, AMBER, GREEN, RED, tint } from "../theme";
+import { AMBER, GREEN, RED, tint } from "../theme";
 import type { Theme, WorkflowView } from "./useTabularRun";
+import Button from "@/components/ui/Button";
 
 // The run sub-header: back button, workflow/run title, status pill, view
 // switcher, progress counter, and the cancel/export action.
@@ -53,20 +54,9 @@ export default function RunToolbar({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-        <button
-          onClick={onBack}
-          style={{
-            padding: "5px 10px",
-            background: "transparent",
-            border: `1px solid ${c.border}`,
-            borderRadius: 7,
-            color: c.t2,
-            fontSize: 12,
-            cursor: "pointer",
-          }}
-        >
+        <Button variant="subtle" size="sm" onClick={onBack}>
           ← Library
-        </button>
+        </Button>
         <div style={{ minWidth: 0, overflow: "hidden" }}>
           <div
             style={{
@@ -103,42 +93,24 @@ export default function RunToolbar({
           {completeCells}/{totalCells} cells · {elapsedLabel}
         </span>
         {!isTerminal && (
-          <button
+          <Button
+            variant="danger"
+            size="sm"
+            loading={cancelling}
             onClick={onCancel}
-            disabled={cancelling}
-            style={{
-              padding: "5px 10px",
-              background: "transparent",
-              border: `1px solid ${c.border}`,
-              color: RED,
-              borderRadius: 7,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: cancelling ? "wait" : "pointer",
-              opacity: cancelling ? 0.6 : 1,
-            }}
           >
             {cancelling ? "Cancelling…" : "Cancel"}
-          </button>
+          </Button>
         )}
         {isTerminal && (
-          <button
+          <Button
+            variant="primary"
+            size="sm"
+            loading={exporting}
             onClick={onExport}
-            disabled={exporting}
-            style={{
-              padding: "5px 10px",
-              background: ACCENT,
-              border: "none",
-              color: "var(--on-accent)",
-              borderRadius: 7,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: exporting ? "wait" : "pointer",
-              opacity: exporting ? 0.7 : 1,
-            }}
           >
             {exporting ? "Exporting..." : "Excel"}
-          </button>
+          </Button>
         )}
       </div>
     </div>

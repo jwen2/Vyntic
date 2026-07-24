@@ -3,6 +3,7 @@ import type { ConversationEntry, Deal } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { ACCENT, ddTheme, tint } from "./types";
 import type { DealWorkspaceMode } from "./TopBar";
+import Button from "@/components/ui/Button";
 
 // The deal-workspace rail: brand → New chat → nav → Recent → user. Persistent
 // across all modes; nav drives mode switching (Documents opens the modal).
@@ -105,17 +106,18 @@ export default function LeftSidebar({
 
       {/* New chat + nav */}
       <div className="px-3 pt-3">
-        <button
-          type="button"
+        <Button
+          variant="tint"
+          fullWidth
           onClick={onNewAssistantChat}
-          className="flex w-full items-center justify-center"
-          style={{ gap: 8, padding: "10px 14px", borderRadius: 10, border: "1px solid var(--accent-tint-border)", background: "var(--accent-tint)", color: "var(--accent)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+          iconLeft={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          }
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
           New chat
-        </button>
+        </Button>
 
         <nav className="mt-3 flex flex-col gap-1">
           {navItems.map((item) => (

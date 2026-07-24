@@ -8,6 +8,7 @@ import {
 import AnswerText from "@/components/dd/AnswerText";
 import { useTheme } from "@/components/ThemeProvider";
 import { ACCENT, ddTheme, tint } from "@/components/dd/types";
+import Button from "@/components/ui/Button";
 
 type ChatMessage = {
   id: string;
@@ -386,19 +387,6 @@ export default function DealAssistantPanel({
   // Single composer, rendered either in the empty-state hero or docked at the
   // bottom during an active chat (only one mounts at a time).
   const activeSources = selectedDocIds.length === 0 ? documents.length : selectedDocIds.length;
-  const chipBtn = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "6px 11px",
-    borderRadius: 8,
-    border: `1px solid ${c.border}`,
-    background: c.surfaceAlt,
-    color: c.t2,
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: "pointer",
-  } as const;
 
   const renderComposer = () => (
     <>
@@ -506,48 +494,49 @@ export default function DealAssistantPanel({
           <div className="flex items-center justify-between" style={{ padding: "8px 10px", gap: 8, borderTop: `1px solid ${c.borderLight}` }}>
             <div className="flex items-center" style={{ gap: 6 }}>
               {documents.length > 0 && (
-                <button type="button" onClick={() => setSourcesOpen((v) => !v)} style={chipBtn}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSourcesOpen((v) => !v)}
+                  iconLeft={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  }
+                >
                   Sources · {activeSources}
-                </button>
+                </Button>
               )}
               {onProactiveScan && (
-                <button type="button" onClick={onProactiveScan} style={chipBtn}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <path d="M14 2v6h6" />
-                  </svg>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onProactiveScan}
+                  iconLeft={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <path d="M14 2v6h6" />
+                    </svg>
+                  }
+                >
                   Scan a document
-                </button>
+                </Button>
               )}
             </div>
-            <button
-              type="button"
+            <Button
+              variant="primary"
               onClick={() => (isStreaming ? cancel() : submit())}
               disabled={!isStreaming && !draft.trim()}
-              className="flex items-center justify-center"
-              style={{
-                gap: 7,
-                padding: "7px 22px",
-                borderRadius: 10,
-                border: `1px solid ${isStreaming || draft.trim() ? "transparent" : "var(--accent-tint-border)"}`,
-                background: isStreaming || draft.trim() ? ACCENT : "var(--accent-tint)",
-                color: isStreaming || draft.trim() ? "var(--on-accent)" : "var(--accent)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: isStreaming || draft.trim() ? "pointer" : "default",
-                transition: "background .12s, color .12s, border-color .12s",
-              }}
+              iconRight={
+                !isStreaming ? (
+                  <svg className="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                ) : undefined
+              }
             >
               {isStreaming ? "Stop" : "Ask"}
-              {!isStreaming && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              )}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -584,7 +573,7 @@ export default function DealAssistantPanel({
                 />
               ))}
               {error && (
-                <div style={{ color: "#ef4444", fontSize: 12, paddingLeft: 44 }}>{error}</div>
+                <div style={{ color: "var(--danger)", fontSize: 12, paddingLeft: 44 }}>{error}</div>
               )}
             </div>
           )}
@@ -817,10 +806,10 @@ function ChatBubble({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           background: c.surface,
-          border: `1px solid ${message.status === "error" ? "#fecaca" : c.border}`,
+          border: `1px solid ${message.status === "error" ? "var(--danger-tint-border)" : c.border}`,
           borderRadius: 12,
           padding: "14px 16px",
-          color: message.status === "error" ? "#ef4444" : c.t1,
+          color: message.status === "error" ? "var(--danger)" : c.t1,
           minHeight: 50,
         }}>
           {message.content ? (

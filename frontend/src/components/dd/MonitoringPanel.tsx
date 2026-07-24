@@ -17,6 +17,7 @@ import {
   type ObligationDraft,
 } from "@/lib/api";
 import { ddTheme } from "./types";
+import Button from "@/components/ui/Button";
 
 type Sub = "calls" | "sideletters";
 type Verdict = "compliant" | "breach" | "unclear";
@@ -137,11 +138,9 @@ function CallsSection({ dealId, isAdmin, documents, c }: { dealId: string; isAdm
           ) : (
             <div className="flex flex-wrap gap-2">
               {candidateDocs.map((d) => (
-                <button key={d.doc_id} type="button" disabled={busy} onClick={() => handleExtract(d.doc_id)}
-                  className="rounded-full border px-3 py-2 text-xs disabled:opacity-50"
-                  style={{ borderColor: c.border, background: c.surfaceAlt, color: c.t1 }}>
+                <Button key={d.doc_id} variant="secondary" size="sm" loading={busy} onClick={() => handleExtract(d.doc_id)}>
                   {busy ? "Extracting…" : `Extract from ${d.filename}`}
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -162,8 +161,8 @@ function CallsSection({ dealId, isAdmin, documents, c }: { dealId: string; isAdm
                 </div>
               )}
               <div className="mt-3 flex gap-2">
-                <button type="button" onClick={handleConfirm} disabled={busy} className="rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60" style={{ background: c.accent, color: c.onAccent }}>Confirm & add to queue</button>
-                <button type="button" onClick={() => setDraft(null)} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: c.border, color: c.t2 }}>Discard</button>
+                <Button variant="primary" size="sm" loading={busy} onClick={handleConfirm}>Confirm &amp; add to queue</Button>
+                <Button variant="secondary" size="sm" onClick={() => setDraft(null)}>Discard</Button>
               </div>
             </div>
           )}
@@ -273,10 +272,9 @@ function SideLettersSection({ dealId, isAdmin, documents, c }: { dealId: string;
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
               {slDocs.map((d) => (
-                <button key={d.doc_id} type="button" disabled={busy} onClick={() => handleExtract(d.doc_id)}
-                  className="rounded-full border px-3 py-2 text-xs disabled:opacity-50" style={{ borderColor: c.border, background: c.surfaceAlt, color: c.t1 }}>
+                <Button key={d.doc_id} variant="secondary" size="sm" loading={busy} onClick={() => handleExtract(d.doc_id)}>
                   {busy ? "Working…" : `Extract from ${d.filename}`}
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -289,13 +287,13 @@ function SideLettersSection({ dealId, isAdmin, documents, c }: { dealId: string;
                   <li key={i} className="flex items-start gap-2 text-sm" style={{ color: c.t1 }}>
                     <span className="rounded px-1.5 py-0.5 text-[10px] uppercase" style={{ background: c.surfaceAlt, color: c.t3 }}>{o.category}</span>
                     <span>{o.text}</span>
-                    <button type="button" onClick={() => setDrafts(drafts.filter((_, j) => j !== i))} className="ml-auto text-xs" style={{ color: c.t3 }}>remove</button>
+                    <Button variant="subtle" size="xs" className="ml-auto" onClick={() => setDrafts(drafts.filter((_, j) => j !== i))}>remove</Button>
                   </li>
                 ))}
               </ul>
               <div className="mt-3 flex gap-2">
-                <button type="button" onClick={handleSaveDrafts} disabled={busy || drafts.length === 0} className="rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60" style={{ background: c.accent, color: c.onAccent }}>Save obligations</button>
-                <button type="button" onClick={() => setDrafts(null)} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: c.border, color: c.t2 }}>Cancel</button>
+                <Button variant="primary" size="sm" loading={busy} disabled={drafts.length === 0} onClick={handleSaveDrafts}>Save obligations</Button>
+                <Button variant="secondary" size="sm" onClick={() => setDrafts(null)}>Cancel</Button>
               </div>
             </div>
           )}
@@ -308,9 +306,9 @@ function SideLettersSection({ dealId, isAdmin, documents, c }: { dealId: string;
           {isAdmin && obligations.length > 0 && (
             <div className="flex items-center gap-2">
               <InputMini value={period} placeholder="2026-Q2" onChange={setPeriod} c={c} />
-              <button type="button" onClick={handleVerify} disabled={busy} className="rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-60" style={{ background: c.accent, color: c.onAccent }}>
+              <Button variant="primary" size="sm" loading={busy} onClick={handleVerify}>
                 {busy ? "Verifying…" : "Verify against period"}
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -382,6 +380,6 @@ function InputMini({ value, onChange, placeholder, c }: { value: string; onChang
 function SelectMini({ value, options, onChange, c }: { value: string; options: string[]; onChange: (v: string) => void; c: ReturnType<typeof ddTheme> }) {
   return <select value={value} onChange={(e) => onChange(e.target.value)} className="rounded-lg border px-2.5 py-1.5 text-sm outline-none" style={{ background: c.surfaceAlt, borderColor: c.border, color: c.t1 }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
 }
-function MiniBtn({ children, onClick, c }: { children: React.ReactNode; onClick: () => void; c: ReturnType<typeof ddTheme> }) {
-  return <button type="button" onClick={onClick} className="rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: c.border, background: c.surfaceAlt, color: c.t1 }}>{children}</button>;
+function MiniBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void; c?: ReturnType<typeof ddTheme> }) {
+  return <Button variant="secondary" size="xs" onClick={onClick}>{children}</Button>;
 }

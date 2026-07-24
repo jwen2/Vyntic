@@ -231,7 +231,7 @@ export default function DocumentSelectorModal({
               Loading documents…
             </div>
           ) : error ? (
-            <div style={{ color: "#ef4444", fontSize: 12, textAlign: "center", padding: 24 }}>
+            <div style={{ color: "var(--danger)", fontSize: 12, textAlign: "center", padding: 24 }}>
               {error}
             </div>
           ) : filtered.length === 0 ? (

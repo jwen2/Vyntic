@@ -3,6 +3,7 @@ import { ddTheme } from "@/components/dd/types";
 import type { Workflow, WorkflowType } from "@/lib/workflows";
 import { ACCENT, VIOLET } from "./theme";
 import WorkflowCard from "./WorkflowCard";
+import Button from "@/components/ui/Button";
 
 type Theme = "light" | "dark";
 
@@ -152,23 +153,12 @@ export default function WorkflowLibrary({
                   />
                 </div>
 
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
                   onClick={() => setShowNewMenu((value) => !value)}
-                  style={{
-                    padding: "9px 14px",
-                    background: ACCENT,
-                    color: "var(--on-accent)",
-                    border: "none",
-                    borderRadius: 9,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
                 >
                   New workflow
-                </button>
+                </Button>
               </div>
 
               {showNewMenu && (

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
 import { STAGE_STYLES, DARK_STAGE_STYLES } from "@/lib/stageBadges";
+import Button from "@/components/ui/Button";
 
 // Sector tags carry fixed hues (same contrast targets as the stage chips);
 // hues were picked to stay clear of the stage set so a card row never shows
@@ -200,21 +201,17 @@ export default function DealListItem({
 
         <div className="flex items-center gap-2">
           {onInvestigate && (
-            <button
-              type="button"
+            <Button
+              variant={selected ? "primary" : "secondary"}
+              size="xs"
               onClick={(e) => {
                 e.stopPropagation();
                 onInvestigate();
               }}
-              className="rounded-md border px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.08em]"
-              style={{
-                borderColor: selected ? "var(--accent)" : border,
-                background: selected ? "var(--accent)" : surfaceAlt,
-                color: selected ? "var(--on-accent)" : cardText,
-              }}
+              style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}
             >
               Analyze
-            </button>
+            </Button>
           )}
           {!readOnly && hovered && (
             <button

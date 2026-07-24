@@ -16,6 +16,7 @@ import { getWorkflow } from "@/lib/workflows";
 import { extractFindingsFromRun } from "./extractFindingsFromRun";
 import type { Finding, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
+import Button from "@/components/ui/Button";
 
 // Local shape mirrors the old WorkstreamPanel.QuestionResult — the brief's
 // parsing/rendering code below was written against this interface and was
@@ -748,39 +749,20 @@ export default function DealBriefDashboard({
             <div className="flex flex-wrap items-center gap-2 xl:justify-end">
               {sourceCount > 0 && <SourcePill count={sourceCount} theme={theme} />}
               {scanStarted && (
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleRerun}
-                  disabled={rerunning || refreshing}
+                  disabled={refreshing}
+                  loading={rerunning}
                   title="Re-run the deal brief"
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: rerunning ? c.t3 : c.t1,
-                    background: c.surfaceAlt,
-                    border: `1px solid ${c.border}`,
-                    borderRadius: 999,
-                    padding: "10px 14px",
-                    cursor: rerunning ? "default" : "pointer",
-                  }}
                 >
                   {rerunning ? "Re-running…" : "Refresh scan"}
-                </button>
+                </Button>
               )}
-              <button
-                onClick={onOpenProactiveScan}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "var(--on-accent)",
-                  background: ACCENT,
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "10px 16px",
-                  cursor: "pointer",
-                }}
-              >
+              <Button variant="primary" size="sm" onClick={onOpenProactiveScan}>
                 {scanStarted ? "Run again" : `Run ${brief.runLabel.toLowerCase()}`}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -991,22 +973,9 @@ function EmptyBrief({ theme, onOpenProactiveScan, config }: { theme: "light" | "
           </div>
         </div>
 
-        <button
-          onClick={onOpenProactiveScan}
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--on-accent)",
-            background: ACCENT,
-            border: "none",
-            borderRadius: 999,
-            padding: "11px 16px",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <Button variant="primary" onClick={onOpenProactiveScan}>
           Run {config.runLabel.toLowerCase()}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1932,18 +1901,12 @@ function DiffPanel({
           Changes since {diff.previousAt ? formatRelativeTime(diff.previousAt) : "previous run"}
         </span>
         <span style={{ flex: 1 }} />
-        <button
-          onClick={onClose}
-          style={{ background: "transparent", border: "none", color: c.t3, cursor: "pointer", fontSize: 11 }}
-        >
+        <Button variant="subtle" size="xs" onClick={onClose}>
           Hide
-        </button>
-        <button
-          onClick={onDismiss}
-          style={{ background: "transparent", border: "none", color: c.t3, cursor: "pointer", fontSize: 11 }}
-        >
+        </Button>
+        <Button variant="subtle" size="xs" onClick={onDismiss}>
           Dismiss
-        </button>
+        </Button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 8 }}>
         {diff.changes.map((change, idx) => (

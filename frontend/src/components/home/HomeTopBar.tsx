@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@/lib/api";
+import Button from "@/components/ui/Button";
 
 interface Props {
   user: User | null;
@@ -50,6 +51,11 @@ export default function HomeTopBar({
         background: surface,
         borderBottomColor: border,
         backdropFilter: "blur(16px)",
+        // Raise the top bar's stacking context above the main content so the
+        // account dropdown overlays workspace buttons (which are position:
+        // relative via .btn and would otherwise paint over it).
+        position: "relative",
+        zIndex: 50,
       }}
     >
       {onOpenDeals && (
@@ -109,61 +115,34 @@ export default function HomeTopBar({
       <div style={{ flex: 1 }} />
 
       {onOpenPortfolio && (
-        <button
-          onClick={onOpenPortfolio}
-          className="font-mono-plex hidden text-[10px] uppercase tracking-[0.18em] sm:block"
-          style={{
-            padding: "8px 12px",
-            background: chip,
-            color: text,
-            border: `1px solid ${chipBorder}`,
-            borderRadius: 8,
-            fontSize: 10,
-            fontWeight: 600,
-            cursor: "pointer",
-            marginLeft: 4,
-          }}
-        >
-          Portfolio
-        </button>
+        <div className="hidden sm:block" style={{ marginLeft: 4 }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onOpenPortfolio}
+            className="font-mono-plex"
+            style={{ textTransform: "uppercase", letterSpacing: "0.18em", fontSize: 10 }}
+          >
+            Portfolio
+          </Button>
+        </div>
       )}
 
       {onAddDeal && (
-        <button
-          onClick={onAddDeal}
-          className="hidden sm:block"
-          style={{
-            padding: "9px 14px",
-            background: "var(--accent)",
-            color: "var(--on-accent)",
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 600,
-            border: "none",
-            cursor: "pointer",
-            marginLeft: 4,
-          }}
-        >
-          Add deal
-        </button>
+        <div className="hidden sm:block" style={{ marginLeft: 4 }}>
+          <Button variant="primary" onClick={onAddDeal}>
+            Add deal
+          </Button>
+        </div>
       )}
 
       <div ref={menuRef} style={{ position: "relative" }}>
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex items-center gap-2 border"
-          style={{
-            height: 36,
-            padding: "0 10px",
-            background: chip,
-            borderColor: chipBorder,
-            borderRadius: 8,
-            color: text,
-            cursor: "pointer",
-          }}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
+          style={{ height: 36 }}
         >
           <span style={{ fontSize: 12, fontWeight: 600 }}>
             {user?.full_name || user?.email || "Account"}
@@ -185,7 +164,7 @@ export default function HomeTopBar({
             </span>
           )}
           <span style={{ color: muted, fontSize: 12 }}>▾</span>
-        </button>
+        </Button>
 
         {menuOpen && (
           <div
@@ -223,6 +202,18 @@ export default function HomeTopBar({
             <MenuButton
               label={theme === "dark" ? "Light mode" : "Dark mode"}
               text={text}
+              icon={
+                theme === "dark" ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                  </svg>
+                ) : (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                  </svg>
+                )
+              }
               onClick={() => {
                 onToggleTheme();
                 setMenuOpen(false);
@@ -231,6 +222,13 @@ export default function HomeTopBar({
             <MenuButton
               label="Sign out"
               text={text}
+              icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <path d="M16 17l5-5-5-5" />
+                  <path d="M21 12H9" />
+                </svg>
+              }
               onClick={() => {
                 setMenuOpen(false);
                 onLogout();
@@ -247,10 +245,12 @@ function MenuButton({
   label,
   onClick,
   text,
+  icon,
 }: {
   label: string;
   onClick: () => void;
   text: string;
+  icon?: ReactNode;
 }) {
   return (
     <button
@@ -259,6 +259,9 @@ function MenuButton({
       onClick={onClick}
       style={{
         width: "100%",
+        display: "flex",
+        alignItems: "center",
+        gap: 9,
         padding: "9px 10px",
         background: "transparent",
         color: text,
@@ -277,6 +280,7 @@ function MenuButton({
         e.currentTarget.style.color = text;
       }}
     >
+      {icon}
       {label}
     </button>
   );

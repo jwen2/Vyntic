@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DocumentMetadata } from "@/lib/api";
 import { PE_COLUMN_PRESETS, type ColumnFormat } from "@/lib/matrixColumnConfig";
+import Button from "@/components/ui/Button";
 
 // Small colour cue per file type for the scope chips (muted, not the loud grid chips).
 function extDot(filename: string): string {
@@ -78,27 +79,19 @@ export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate }: 
             className="min-w-0 flex-1 bg-transparent text-[15px] text-t1 placeholder:text-t3 focus:outline-none"
             aria-label="Ask a question across all documents"
           />
-          <button
-            type="button"
+          <Button
+            variant="primary"
             onClick={submit}
             disabled={!value.trim()}
-            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-opacity disabled:opacity-50"
-            style={{ background: "var(--accent)", color: "var(--on-accent)" }}
+            style={{ flexShrink: 0 }}
+            iconRight={
+              <svg className="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            }
           >
             Ask
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2.2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </button>
+          </Button>
         </div>
 
         <div className="mt-4 flex flex-wrap justify-center gap-2">

@@ -4,6 +4,7 @@ import type { DocumentMetadata, UploadProgress } from "@/lib/api";
 import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { ACCENT, ddTheme, tint } from "./types";
+import Button from "@/components/ui/Button";
 
 // The 14 doc categories collapse into three color families so a document's
 // type is scannable at a glance without 14 distinct hues. Reuses the
@@ -181,44 +182,21 @@ export default function DocumentsModal({
 
   const uploadButton = onUploadDocuments ? (
     <>
-      <button
-        type="button"
+      <Button
+        variant="primary"
+        size="sm"
+        loading={uploading}
         onClick={() => uploadInputRef.current?.click()}
-        disabled={uploading}
-        style={{
-          height: 32,
-          padding: "0 11px",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          background: ACCENT,
-          color: "var(--on-accent)",
-          border: "none",
-          borderRadius: 7,
-          cursor: uploading ? "wait" : "pointer",
-          fontSize: 11,
-          fontWeight: 700,
-          opacity: uploading ? 0.7 : 1,
-          whiteSpace: "nowrap",
-        }}
+        iconLeft={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 3v12" />
+            <path d="m7 8 5-5 5 5" />
+            <path d="M5 21h14" />
+          </svg>
+        }
       >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M12 3v12" />
-          <path d="m7 8 5-5 5 5" />
-          <path d="M5 21h14" />
-        </svg>
         {uploading ? "Uploading" : "Add documents"}
-      </button>
+      </Button>
       <input
         ref={uploadInputRef}
         type="file"
@@ -391,24 +369,15 @@ export default function DocumentsModal({
             <div style={{ padding: 28, fontSize: 12, color: c.t3, textAlign: "center" }}>
               <div>No documents in this deal yet.</div>
               {onUploadDocuments && (
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={uploading}
                   onClick={() => uploadInputRef.current?.click()}
-                  disabled={uploading}
-                  style={{
-                    marginTop: 12,
-                    padding: "7px 11px",
-                    background: c.surfaceAlt,
-                    color: c.t1,
-                    border: `1px solid ${c.border}`,
-                    borderRadius: 7,
-                    cursor: uploading ? "wait" : "pointer",
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
+                  style={{ marginTop: 12 }}
                 >
                   Choose documents
-                </button>
+                </Button>
               )}
             </div>
           ) : (
@@ -522,69 +491,34 @@ export default function DocumentsModal({
                   />
                   {confirming ? (
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                      <button
-                        onClick={() => setConfirmId(null)}
-                        disabled={deleting}
-                        style={{
-                          padding: "4px 10px",
-                          background: "transparent",
-                          border: `1px solid ${c.border}`,
-                          borderRadius: 5,
-                          color: c.t2,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          cursor: deleting ? "default" : "pointer",
-                        }}
-                      >
+                      <Button variant="secondary" size="xs" disabled={deleting} onClick={() => setConfirmId(null)}>
                         Cancel
-                      </button>
-                      <button
-                        onClick={() => handleDelete(doc)}
-                        disabled={deleting}
-                        style={{
-                          padding: "4px 10px",
-                          background: isDark ? "#7f1d1d" : "#dc2626",
-                          border: "none",
-                          borderRadius: 5,
-                          color: "white",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: deleting ? "wait" : "pointer",
-                        }}
-                      >
+                      </Button>
+                      <Button variant="danger" size="xs" loading={deleting} onClick={() => handleDelete(doc)}>
                         {deleting ? "Deleting…" : "Confirm delete"}
-                      </button>
+                      </Button>
                     </div>
                   ) : (
-                    <button
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      iconOnly
                       onClick={() => {
                         setError(null);
                         setConfirmId(doc.doc_id);
                       }}
                       aria-label={`Delete ${doc.filename}`}
                       title={`Delete ${doc.filename}`}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: isDark ? "#7f1d1d22" : "#fff1f2",
-                        border: `1px solid ${isDark ? "#7f1d1d55" : "#fecaca"}`,
-                        borderRadius: 6,
-                        color: isDark ? "#fca5a5" : "#dc2626",
-                        cursor: "pointer",
-                        flexShrink: 0,
-                      }}
+                      style={{ flexShrink: 0 }}
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 6h18" />
                         <path d="M8 6V4h8v2" />
                         <path d="M19 6l-1 14H6L5 6" />
                         <path d="M10 11v5" />
                         <path d="M14 11v5" />
                       </svg>
-                    </button>
+                    </Button>
                   )}
                 </div>
               );

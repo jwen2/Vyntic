@@ -6,6 +6,7 @@ import {
   getFormatShort,
   type ColumnFormat,
 } from "@/lib/matrixColumnConfig";
+import Button from "@/components/ui/Button";
 
 interface Props {
   onAddQuery: (text: string) => void;
@@ -86,32 +87,37 @@ export default function AddQuestionBar({ onAddQuery, onAddTemplate, loading }: P
         disabled={loading}
       />
 
-      <button
+      <Button
         ref={templateBtnRef}
-        type="button"
-        onClick={() => setShowTemplates((v) => !v)}
+        variant="secondary"
+        size="sm"
         disabled={loading}
-        className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-edge px-2.5 py-1.5 text-xs font-medium text-t2 transition-colors hover:border-[var(--accent-tint-border)] hover:text-[var(--accent)] disabled:opacity-50"
+        onClick={() => setShowTemplates((v) => !v)}
         title="Question templates"
+        style={{ flexShrink: 0 }}
+        iconLeft={
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+          </svg>
+        }
       >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
-        </svg>
         Templates
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        onClick={handleAddQuery}
+      <Button
+        variant="primary"
+        size="sm"
         disabled={loading || !newQuery.trim()}
-        className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ background: "var(--accent)", color: "var(--on-accent)" }}
+        onClick={handleAddQuery}
+        style={{ flexShrink: 0 }}
+        iconLeft={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        }
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
         Add column
-      </button>
+      </Button>
 
       {showTemplates &&
         createPortal(
