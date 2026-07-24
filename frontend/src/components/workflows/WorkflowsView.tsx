@@ -285,6 +285,8 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           message={`You already have ${pendingClone.copies === 1 ? "a copy" : `${pendingClone.copies} copies`} of this workflow ("${pendingClone.existing.name}"). Open the most recent copy, or make a brand-new one?`}
           confirmLabel="Open existing copy"
           cancelLabel="Make a new copy"
+          // Neither branch is destructive here — this is a plain either/or.
+          confirmVariant="primary"
           onConfirm={() => {
             setScreen({ kind: "editor", workflowId: pendingClone.existing.id });
             setPendingClone(null);

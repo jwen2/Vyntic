@@ -1,16 +1,17 @@
-import { useTheme } from "@/components/ThemeProvider";
-import { useDialogA11y } from "@/hooks/useDialogA11y";
-import LandingButton from "@/components/landing/ui/LandingButton";
-import LandingEyebrow from "@/components/landing/ui/LandingEyebrow";
-import LandingHeading from "@/components/landing/ui/LandingHeading";
-import LandingPanel from "@/components/landing/ui/LandingPanel";
-import LandingText from "@/components/landing/ui/LandingText";
+import Button, { type ButtonVariant } from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 
 interface Props {
   title: string;
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  /**
+   * Defaults to `danger` — most confirms here guard deletes or discard work.
+   * Pass `primary` for benign choices (e.g. "open the existing copy"), which
+   * must not read as destructive.
+   */
+  confirmVariant?: ButtonVariant;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -20,48 +21,35 @@ export default function ConfirmDialog({
   message,
   confirmLabel = "Delete",
   cancelLabel = "Cancel",
+  confirmVariant = "danger",
   onConfirm,
   onCancel,
 }: Props) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const dialogRef = useDialogA11y<HTMLDivElement>(onCancel);
-
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 outline-none"
+    <Modal
+      onClose={onCancel}
+      size="sm"
+      eyebrow="Confirm action"
+      title={title}
+      showClose={false}
+      // A destructive confirm shouldn't be dismissable by a stray scrim click.
+      closeOnOverlayClick={false}
     >
-      <LandingPanel
-        className="w-full max-w-md"
-        variant={isDark ? "inverse" : "default"}
-      >
-        <LandingEyebrow className={isDark ? "text-white/55" : ""}>
-          Confirm action
-        </LandingEyebrow>
-        <LandingHeading className={`mt-4 ${isDark ? "text-white" : ""}`}>
-          {title}
-        </LandingHeading>
-        <LandingText className="mt-4" tone={isDark ? "inverseMuted" : "muted"}>
-          {message}
-        </LandingText>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <LandingButton type="button" variant="ghost" onClick={onCancel} className="w-full sm:w-auto">
+      <div className="px-[18px] py-5">
+        <p className="m-0 text-[13px] leading-relaxed text-t2">{message}</p>
+        {/* Column stretches the buttons to full width on mobile via the default
+            align-items:stretch; on sm+ they size to content. Deliberately not
+            `fullWidth`/`w-full` — button.css loads after Tailwind utilities, so
+            .btn--full would win over any sm:w-auto reset. */}
+        <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:justify-end">
+          <Button variant="secondary" onClick={onCancel}>
             {cancelLabel}
-          </LandingButton>
-          <LandingButton
-            type="button"
-            onClick={onConfirm}
-            className={isDark ? "w-full bg-white text-black hover:bg-white/90 sm:w-auto" : "w-full sm:w-auto"}
-          >
+          </Button>
+          <Button variant={confirmVariant} onClick={onConfirm}>
             {confirmLabel}
-          </LandingButton>
+          </Button>
         </div>
-      </LandingPanel>
-    </div>
+      </div>
+    </Modal>
   );
 }
