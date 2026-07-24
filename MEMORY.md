@@ -42,6 +42,15 @@ Project decision log + session summaries. Read at the start of every session.
 ### Housekeeping
 - Dev servers may still be running from this session: backend `uvicorn :8801`, vite `:5199`.
 
+### Addendum — agent page redesign SHIPPED (same session, continued)
+**Priority #1 below is now DONE** (uncommitted, same `FE-improvements-ui-ux` branch), against mock `c8f3cab0`:
+- `components/assistant/DealAssistantPanel.tsx` — `InitialAssistantState` flat prompt buttons → titled **research cards** (module-level `PROMPT_CARDS`: red flags / cross-validate financials / legal exposure / concentration / cross-doc inconsistencies) with document-scope chips (All documents / CIM·QoE·Financials / Legal DD); "Begin your diligence" hero; status pill → mono eyebrow. **Composer extracted to `renderComposer()`** and rendered **inside the hero** when `messages.length===0` (docked at bottom during a chat — only one mounts, no ref conflict). Proactive Scan calmed amber→neutral ghost.
+- `components/dd/LeftSidebar.tsx` — slimmed 320→264px; dropped the verbose subtitle, the redundant "SAVED" pill (New chat now full-width), and the "Review mode" footer.
+- All `tsc`+`build` green; screenshot-verified both themes (backend has live Gemini). Extraction confirmed working on the restyled matrix earlier.
+- **Remaining agent delta: none material** — the workspace nav (Agent/Workflows/Brief) stays in `dd/TopBar` by design; not relocated into the rail.
+
+**Revised next-session priorities:** #1 (agent redesign) = DONE. Remaining: (a) **#6 scoped token convergence** on the `/app` shell (landing-hex+`isDark?:` → semantic tokens); (b) **commit** this session's UI/UX work (branch `FE-improvements-ui-ux`) + open PR. Everything this session is still uncommitted.
+
 ---
 
 ## Session — 2026-07-09
