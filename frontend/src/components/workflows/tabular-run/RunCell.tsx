@@ -6,7 +6,6 @@ import CellRenderer, { proseValue, type CellDensity } from "../cells/CellRendere
 import { formatCellValue, stripSourceMarkers } from "./format";
 import { RetryIcon } from "./parts";
 import { cellBodyChromeClass } from "./styles";
-import type { Theme } from "./useTabularRun";
 import Button from "@/components/ui/Button";
 
 // A completed-cell <td>. Memoized so a single SSE cell update re-renders one
@@ -21,7 +20,6 @@ function ValueCellImpl({
   onRetry,
   retrying,
   zebra,
-  theme,
   density,
   onCitationClick,
 }: {
@@ -33,7 +31,6 @@ function ValueCellImpl({
   onRetry: (cellId: string) => void;
   retrying: boolean;
   zebra: boolean;
-  theme: Theme;
   density: CellDensity;
   onCitationClick: (citation: Citation, id: string) => void;
 }) {
@@ -61,7 +58,6 @@ function ValueCellImpl({
       <CellRenderer
         cell={cell}
         column={column}
-        theme={theme}
         density={density}
         onCitationClick={onCitationClick}
         citationIdPrefix={`${cell.id}_${column.id}`}

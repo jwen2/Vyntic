@@ -1,6 +1,5 @@
 
 import type React from "react";
-import { ddTheme } from "@/components/dd/types";
 import AnswerText from "@/components/dd/AnswerText";
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
@@ -9,13 +8,11 @@ import { demoteHeadings } from "../tabular-run/format";
 
 function noopCit() {}
 
-type Theme = "light" | "dark";
 export type CellDensity = "compact" | "comfortable";
 
 interface CellRendererProps {
   cell: TabularCell;
   column: WorkflowColumn;
-  theme: Theme;
   density?: CellDensity;
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix?: string;
@@ -26,7 +23,6 @@ type AnyRecord = Record<string, unknown>;
 export default function CellRenderer({
   cell,
   column,
-  theme,
   density = "comfortable",
   onCitationClick,
   citationIdPrefix,
@@ -36,101 +32,113 @@ export default function CellRenderer({
   const shape = normalizeFormat(column.format);
 
   if (cell.status === "error") {
-    return <EmptyCell reason="Error" tone="error" theme={theme} />;
+    return <EmptyCell reason="Error" tone="error" />;
   }
   if (!raw && formatted == null) {
-    return <EmptyCell reason={cell.status === "complete" ? "Out of scope" : "—"} theme={theme} />;
+    return <EmptyCell reason={cell.status === "complete" ? "Out of scope" : "—"} />;
   }
 
   if (shape === "metric") {
-    return <MetricCell value={metricValue(formatted, raw)} citations={cell.citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
+    return <MetricCell value={metricValue(formatted, raw)} citations={cell.citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "date") {
-    return <DateCell value={dateValue(formatted, raw)} citations={cell.citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
+    return <DateCell value={dateValue(formatted, raw)} citations={cell.citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "bool") {
-    return <BoolCell value={boolValue(formatted, raw)} citations={cell.citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
+    return <BoolCell value={boolValue(formatted, raw)} citations={cell.citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "enum") {
-    return <EnumCell value={enumValue(formatted, raw)} citations={cell.citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
+    return <EnumCell value={enumValue(formatted, raw)} citations={cell.citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "list") {
-    return <ListCell value={listValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
+    return <ListCell value={listValue(formatted, raw)} citations={cell.citations} density={density} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "kv") {
-    return <KVCell value={kvValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
+    return <KVCell value={kvValue(formatted, raw)} citations={cell.citations} density={density} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   if (shape === "markdown") {
-    return <MarkdownCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
+    return <MarkdownCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
-  return <ProseCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
+  return <ProseCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
 }
 
 function MetricCell({
   value,
   citations,
-  theme,
   onCitationClick,
   citationIdPrefix,
 }: {
   value: { value: string; unit?: string; period?: string } | null;
   citations: (Citation | null)[];
-  theme: Theme;
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix?: string;
 }) {
-  const c = ddTheme(theme);
-  if (!value || !value.value) return <EmptyCell reason="Out of scope" theme={theme} />;
+  if (!value || !value.value) return <EmptyCell reason="Out of scope" />;
   return (
-    <div style={cellShell(c)}>
+    <div className={cellShellClass}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 4, minWidth: 0 }}>
-        <span style={{ fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)", fontSize: 15, fontWeight: 800, color: c.t1, fontVariantNumeric: "tabular-nums" }}>
+        <span
+          className="text-t1 text-[15px] font-extrabold tabular-nums"
+          style={{ fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)" }}
+        >
           {value.value}
         </span>
-        {value.unit && <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 10, color: c.t3 }}>{value.unit}</span>}
+        {value.unit && (
+          <span className="text-t3 text-[10px]" style={{ fontFamily: "var(--font-mono, monospace)" }}>
+            {value.unit}
+          </span>
+        )}
       </div>
-      {value.period && <div style={{ fontSize: 9.5, color: c.t3 }}>{value.period}</div>}
-      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
+      {value.period && <div className="text-t3 text-[9.5px]">{value.period}</div>}
+      <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
 
-function DateCell({ value, citations, theme, onCitationClick, citationIdPrefix }: { value: string; citations: (Citation | null)[]; theme: Theme; onCitationClick?: (citation: Citation, id: string) => void; citationIdPrefix?: string }) {
-  const c = ddTheme(theme);
-  if (!value) return <EmptyCell reason="Out of scope" theme={theme} />;
+function DateCell({ value, citations, onCitationClick, citationIdPrefix }: { value: string; citations: (Citation | null)[]; onCitationClick?: (citation: Citation, id: string) => void; citationIdPrefix?: string }) {
+  if (!value) return <EmptyCell reason="Out of scope" />;
   return (
-    <div style={cellShell(c)}>
-      <span style={{ alignSelf: "flex-start", fontSize: 10.5, padding: "3px 7px", borderRadius: 5, border: `1px solid ${c.border}`, color: c.t1, fontFamily: "var(--font-mono, monospace)", fontVariantNumeric: "tabular-nums" }}>
+    <div className={cellShellClass}>
+      <span
+        className="self-start text-[10.5px] px-[7px] py-[3px] rounded-[5px] border border-edge text-t1 tabular-nums"
+        style={{ fontFamily: "var(--font-mono, monospace)" }}
+      >
         {formatDateLabel(value)}
       </span>
-      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
+      <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
 
-function BoolCell({ value, citations, theme, onCitationClick, citationIdPrefix }: { value: boolean | null; citations: (Citation | null)[]; theme: Theme; onCitationClick?: (citation: Citation, id: string) => void; citationIdPrefix?: string }) {
-  if (value == null) return <EmptyCell reason="Out of scope" theme={theme} />;
+function BoolCell({ value, citations, onCitationClick, citationIdPrefix }: { value: boolean | null; citations: (Citation | null)[]; onCitationClick?: (citation: Citation, id: string) => void; citationIdPrefix?: string }) {
+  if (value == null) return <EmptyCell reason="Out of scope" />;
   const color = value ? GREEN : RED;
   return (
-    <div style={cellShell(ddTheme(theme))}>
-      <span style={{ alignSelf: "flex-start", padding: "2px 8px", borderRadius: 4, background: tint(color, 18), color, fontSize: 10, fontWeight: 800 }}>
+    <div className={cellShellClass}>
+      <span
+        className="self-start px-2 py-0.5 rounded text-[10px] font-extrabold"
+        // A status hue, not a token — background/text stay inline.
+        style={{ background: tint(color, 18), color }}
+      >
         {value ? "Yes" : "No"}
       </span>
-      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
+      <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
 
-function EnumCell({ value, citations, theme, onCitationClick, citationIdPrefix }: { value: string; citations: (Citation | null)[]; theme: Theme; onCitationClick?: (citation: Citation, id: string) => void; citationIdPrefix?: string }) {
-  const c = ddTheme(theme);
-  if (!value) return <EmptyCell reason="Out of scope" theme={theme} />;
+function EnumCell({ value, citations, onCitationClick, citationIdPrefix }: { value: string; citations: (Citation | null)[]; onCitationClick?: (citation: Citation, id: string) => void; citationIdPrefix?: string }) {
+  if (!value) return <EmptyCell reason="Out of scope" />;
   const tone = /high|risk|aggressive/i.test(value) ? RED : /medium|mixed/i.test(value) ? AMBER : /low|strong/i.test(value) ? GREEN : VIOLET;
   return (
-    <div style={cellShell(c)}>
-      <span style={{ alignSelf: "flex-start", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "2px 8px", borderRadius: 4, background: tint(tone, 18), color: tone, fontSize: 10, fontWeight: 800 }}>
+    <div className={cellShellClass}>
+      <span
+        className="self-start max-w-full overflow-hidden text-ellipsis whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-extrabold"
+        style={{ background: tint(tone, 18), color: tone }}
+      >
         {value}
       </span>
-      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
+      <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
@@ -139,22 +147,26 @@ function ProseCell({
   value,
   citations,
   density,
-  theme,
   onCitationClick,
   citationIdPrefix,
 }: {
   value: { summary: string; body: string; caveats: Array<{ text: string; severity: "info" | "warn" | "risk" }> };
   citations: (Citation | null)[];
   density: CellDensity;
-  theme: Theme;
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix?: string;
 }) {
-  const c = ddTheme(theme);
-  if (!value.summary && !value.body) return <EmptyCell reason="Out of scope" theme={theme} />;
+  if (!value.summary && !value.body) return <EmptyCell reason="Out of scope" />;
   return (
-    <div style={cellShell(c)}>
-      <div style={{ fontSize: 11.5, color: c.t1, lineHeight: 1.45, whiteSpace: density === "compact" ? "nowrap" : "normal", overflow: density === "compact" ? "hidden" : "visible", textOverflow: density === "compact" ? "ellipsis" : undefined }}>
+    <div className={cellShellClass}>
+      <div
+        className="text-t1 text-[11.5px] leading-[1.45]"
+        style={{
+          whiteSpace: density === "compact" ? "nowrap" : "normal",
+          overflow: density === "compact" ? "hidden" : "visible",
+          textOverflow: density === "compact" ? "ellipsis" : undefined,
+        }}
+      >
         {value.summary || value.body}
       </div>
       {value.caveats.length > 0 && (
@@ -164,7 +176,7 @@ function ProseCell({
           ))}
         </div>
       )}
-      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
+      <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
@@ -185,31 +197,25 @@ function MarkdownCell({
   value,
   citations,
   density,
-  theme,
   onCitationClick,
   citationIdPrefix,
 }: {
   value: { summary: string; body: string; caveats: Array<{ text: string; severity: "info" | "warn" | "risk" }> };
   citations: (Citation | null)[];
   density: CellDensity;
-  theme: Theme;
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix?: string;
 }) {
-  const c = ddTheme(theme);
   const text = value.body || value.summary;
-  if (!text) return <EmptyCell reason="Out of scope" theme={theme} />;
+  if (!text) return <EmptyCell reason="Out of scope" />;
   return (
-    <div style={cellShell(c)}>
+    <div className={cellShellClass}>
       <div
+        className="text-t1 text-[11.5px] leading-[1.45] overflow-hidden"
         style={{
-          fontSize: 11.5,
-          color: c.t1,
-          lineHeight: 1.45,
           display: "-webkit-box",
           WebkitBoxOrient: "vertical",
           WebkitLineClamp: density === "compact" ? 2 : 6,
-          overflow: "hidden",
         }}
       >
         <AnswerText
@@ -219,7 +225,7 @@ function MarkdownCell({
           onCit={onCitationClick ?? noopCit}
         />
       </div>
-      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
+      <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
@@ -228,32 +234,29 @@ function ListCell({
   value,
   citations,
   density,
-  theme,
   onCitationClick,
   citationIdPrefix,
 }: {
   value: { items: Array<{ text: string }>; ordered: boolean };
   citations: (Citation | null)[];
   density: CellDensity;
-  theme: Theme;
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix?: string;
 }) {
-  const c = ddTheme(theme);
-  if (value.items.length === 0) return <EmptyCell reason="No items found" theme={theme} />;
+  if (value.items.length === 0) return <EmptyCell reason="No items found" />;
   const visibleItems = density === "compact" ? value.items.slice(0, 1) : value.items.slice(0, 5);
   return (
-    <div style={cellShell(c)}>
-      <div style={{ fontSize: 9.5, color: c.t3, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+    <div className={cellShellClass}>
+      <div className="text-t3 text-[9.5px] font-extrabold uppercase tracking-[0.05em]">
         {value.items.length} item{value.items.length === 1 ? "" : "s"}
       </div>
       {visibleItems.map((item, index) => (
-        <div key={`${item.text}-${index}`} style={{ display: "flex", gap: 6, color: c.t1, fontSize: 11, lineHeight: 1.35 }}>
+        <div key={`${item.text}-${index}`} className="flex gap-1.5 text-t1 text-[11px] leading-[1.35]">
           <span style={{ color: AMBER, flexShrink: 0 }}>{value.ordered ? `${index + 1}.` : "•"}</span>
           <span>{item.text}</span>
         </div>
       ))}
-      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
+      <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
@@ -262,41 +265,43 @@ function KVCell({
   value,
   citations,
   density,
-  theme,
   onCitationClick,
   citationIdPrefix,
 }: {
   value: { pairs: Array<{ key: string; value: string | number; unit?: string }> };
   citations: (Citation | null)[];
   density: CellDensity;
-  theme: Theme;
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix?: string;
 }) {
-  const c = ddTheme(theme);
-  if (value.pairs.length === 0) return <EmptyCell reason="Out of scope" theme={theme} />;
+  if (value.pairs.length === 0) return <EmptyCell reason="Out of scope" />;
   const visiblePairs = value.pairs.slice(0, density === "compact" ? 1 : 6);
   return (
-    <div style={cellShell(c)}>
+    <div className={cellShellClass}>
       {visiblePairs.map((pair, index) => (
         <div key={`${pair.key}-${index}`} style={{ display: "grid", gridTemplateColumns: "minmax(48px, 0.75fr) minmax(64px, 1fr)", gap: 8, alignItems: "baseline", fontSize: 10.5, lineHeight: 1.35 }}>
-          <span style={{ color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pair.key}</span>
-          <span style={{ color: c.t1, textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontVariantNumeric: "tabular-nums" }}>
+          <span className="text-t3 overflow-hidden text-ellipsis whitespace-nowrap">{pair.key}</span>
+          <span className="text-t1 text-right tabular-nums" style={{ fontFamily: "var(--font-mono, monospace)" }}>
             {[pair.value, pair.unit].filter(Boolean).join(" ")}
           </span>
         </div>
       ))}
-      <CitationRow citations={citations} theme={theme} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
+      <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
     </div>
   );
 }
 
-function EmptyCell({ reason, tone, theme }: { reason: string; tone?: "error"; theme: Theme }) {
-  const c = ddTheme(theme);
-  const color = tone === "error" ? RED : c.t4;
+function EmptyCell({ reason, tone }: { reason: string; tone?: "error" }) {
   return (
-    <div style={{ ...cellShell(c), justifyContent: "center", minHeight: 40, background: "rgba(255,255,255,0.012)" }}>
-      <span style={{ alignSelf: "flex-start", color, fontSize: 10, fontStyle: tone === "error" ? "normal" : "italic", padding: "2px 6px", borderRadius: 4 }}>
+    <div
+      className={`${cellShellBase} justify-center min-h-[40px]`}
+      style={{ background: "rgba(255,255,255,0.012)" }}
+    >
+      <span
+        className={`self-start text-[10px] px-1.5 py-0.5 rounded ${tone === "error" ? "" : "text-t4"}`}
+        // The error tone is a status hue, not a token.
+        style={{ color: tone === "error" ? RED : undefined, fontStyle: tone === "error" ? "normal" : "italic" }}
+      >
         {reason}
       </span>
     </div>
@@ -305,16 +310,13 @@ function EmptyCell({ reason, tone, theme }: { reason: string; tone?: "error"; th
 
 function CitationRow({
   citations,
-  theme,
   onCitationClick,
   citationIdPrefix = "cell",
 }: {
   citations: (Citation | null)[];
-  theme: Theme;
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix?: string;
 }) {
-  const c = ddTheme(theme);
   const real = citations.filter((citation): citation is Citation => citation !== null);
   if (real.length === 0) return null;
   return (
@@ -351,7 +353,7 @@ function CitationRow({
           </span>
         );
       })}
-      {real.length > 4 && <span style={{ fontSize: 9, color: c.t3 }}>+{real.length - 4}</span>}
+      {real.length > 4 && <span className="text-t3" style={{ fontSize: 9 }}>+{real.length - 4}</span>}
     </div>
   );
 }
@@ -365,17 +367,12 @@ function CaveatChip({ caveat }: { caveat: { text: string; severity: "info" | "wa
   );
 }
 
-function cellShell(c: ReturnType<typeof ddTheme>): React.CSSProperties {
-  return {
-    minHeight: 42,
-    padding: "8px 10px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-    color: c.t1,
-    overflow: "hidden",
-  };
-}
+// Shared cell-body chrome. `cellShellBase` omits min-height so EmptyCell can
+// use its own (shorter) value without two competing `min-h-*` utilities in
+// one class string — Tailwind utilities win by stylesheet order, not string
+// order, so there is no "last one wins" here.
+const cellShellBase = "px-2.5 py-2 flex flex-col gap-1 text-t1 overflow-hidden";
+const cellShellClass = `${cellShellBase} min-h-[42px]`;
 
 function normalizeFormat(format: WorkflowColumn["format"]): "metric" | "date" | "bool" | "enum" | "prose" | "list" | "kv" | "markdown" {
   if (format === "metric" || format === "number" || format === "percentage" || format === "monetary_amount" || format === "currency") return "metric";

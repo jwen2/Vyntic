@@ -7,7 +7,7 @@ import type { CellDensity } from "../cells/CellRenderer";
 import { cellBodyClass, cellHeaderClass, docBodyClass, docHeaderClass } from "./styles";
 import ValueCell from "./RunCell";
 import ColumnEditMenu, { type ColumnDraft } from "./ColumnEditMenu";
-import { cellKey, type Theme } from "./useTabularRun";
+import { cellKey } from "./useTabularRun";
 
 interface RunTableProps {
   workflow: Workflow;
@@ -15,7 +15,6 @@ interface RunTableProps {
   rowKeys: string[];
   cells: Map<string, TabularCell>;
   docs: DocumentMetadata[];
-  theme: Theme;
   density: CellDensity;
   COL_DOC: number;
   COL_DEFAULT: number;
@@ -40,7 +39,6 @@ export default function RunTable({
   rowKeys,
   cells,
   docs,
-  theme,
   density,
   COL_DOC,
   COL_DEFAULT,
@@ -131,7 +129,6 @@ export default function RunTable({
                 {!workflow.is_builtin && (
                   <ColumnEditMenu
                     column={col}
-                    theme={theme}
                     onSave={async (patch) => {
                       const { promptChanged } = await onSaveColumn(col.id, patch);
                       if (promptChanged) onColumnPromptChanged(col.id, patch.label);
@@ -168,7 +165,6 @@ export default function RunTable({
               zebra={rowIndex % 2 === 1}
               selectedColId={selectedColId}
               retryingCellIds={retryingCellIds}
-              theme={theme}
               density={density}
               onSelectKey={onSelectKey}
               onRetryCell={onRetryCell}
@@ -192,7 +188,6 @@ interface RunRowProps {
   zebra: boolean;
   selectedColId: string | null;
   retryingCellIds: Set<string>;
-  theme: Theme;
   density: CellDensity;
   onSelectKey: (key: string) => void;
   onRetryCell: (cellId: string) => void;
@@ -208,7 +203,6 @@ function RunRowImpl({
   zebra,
   selectedColId,
   retryingCellIds,
-  theme,
   density,
   onSelectKey,
   onRetryCell,
@@ -244,7 +238,6 @@ function RunRowImpl({
               onRetry={onRetryCell}
               retrying={retryingCellIds.has(cell.id)}
               zebra={zebra}
-              theme={theme}
               density={density}
               onCitationClick={onCitationClick}
             />
@@ -269,7 +262,6 @@ const RunRow = memo(RunRowImpl, (prev, next) => {
     prev.zebra !== next.zebra ||
     prev.selectedColId !== next.selectedColId ||
     prev.retryingCellIds !== next.retryingCellIds ||
-    prev.theme !== next.theme ||
     prev.density !== next.density ||
     prev.onSelectKey !== next.onSelectKey ||
     prev.onRetryCell !== next.onRetryCell ||

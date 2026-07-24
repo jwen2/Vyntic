@@ -569,7 +569,6 @@ export default function TabularEditor(props: TabularEditorProps) {
                           tags: format === "enum" ? activeColumn.tags ?? [] : null,
                         })
                       }
-                      theme={theme}
                     />
                     {autoDetectedShape && (
                       <div style={{ fontSize: 10, color: c.t3, marginTop: 7, lineHeight: 1.45 }}>
@@ -611,7 +610,6 @@ export default function TabularEditor(props: TabularEditorProps) {
                           tags,
                         })
                       }
-                      theme={theme}
                     />
                   </Field>
                 )}
@@ -663,7 +661,7 @@ export default function TabularEditor(props: TabularEditorProps) {
           {activeColumn && !activeColumn.is_derived && (
             <div>
               <SectionLabel theme={theme}>Selected cell preview</SectionLabel>
-              <CellRenderPreview column={activeColumn} theme={theme} />
+              <CellRenderPreview column={activeColumn} />
             </div>
           )}
         </div>

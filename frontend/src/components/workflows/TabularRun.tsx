@@ -147,7 +147,6 @@ export default function TabularRun({
                 rowKeys={m.rowKeys}
                 cells={m.cells}
                 docs={m.docs}
-                theme={theme}
                 density={m.density}
                 COL_DOC={m.COL_DOC}
                 COL_DEFAULT={m.COL_DEFAULT}

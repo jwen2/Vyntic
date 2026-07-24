@@ -315,7 +315,6 @@ function CompareCard({
         <CellRenderer
           cell={cell}
           column={column}
-          theme={theme}
           density="comfortable"
           onCitationClick={onCitationClick}
           citationIdPrefix={citationIdPrefix}

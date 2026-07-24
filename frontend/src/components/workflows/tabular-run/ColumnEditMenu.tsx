@@ -14,7 +14,6 @@ import {
   ShapePicker,
   detectShape,
 } from "../cells/ShapeControls";
-import type { Theme } from "./useTabularRun";
 
 export interface ColumnDraft {
   label: string;
@@ -27,11 +26,9 @@ export interface ColumnDraft {
 // and a live cell preview. Portaled to body, positioned off its trigger.
 export default function ColumnEditMenu({
   column,
-  theme,
   onSave,
 }: {
   column: WorkflowColumn;
-  theme: Theme;
   onSave: (patch: ColumnDraft) => Promise<void> | void;
 }) {
   const [open, setOpen] = useState(false);
@@ -233,7 +230,6 @@ export default function ColumnEditMenu({
                         tags: format === "enum" ? draft.tags : [],
                       })
                     }
-                    theme={theme}
                   />
                   {autoDetectedShape && autoDetectedShape.value !== draft.format && (
                     <div className="text-[10px] text-t3 mt-[7px] leading-[1.45]">
@@ -291,7 +287,6 @@ export default function ColumnEditMenu({
                     format={draft.format}
                     tags={draft.tags}
                     onTagsChange={(tags) => updateDraft({ tags })}
-                    theme={theme}
                   />
                 </Field>
               )}
@@ -335,7 +330,6 @@ export default function ColumnEditMenu({
                       is_derived: column.is_derived,
                       formula: column.formula,
                     }}
-                    theme={theme}
                   />
                 </Field>
               </div>
