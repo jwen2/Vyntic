@@ -9,11 +9,12 @@ Done + verified (tsc/tests/build green; screenshotted light+dark via `frontend:v
 - **§1 danger unification** — workflow `RED` → `var(--danger)` + plain `#ef4444` error text (commit `714d000`).
 - **§2 deferred buttons** — RunCell / DealListItem / HomeTopBar + new `xs` size (commit `13be449`).
 - **§3 high-traffic** — Brief dashboard (`bb41e40`), Monitoring (`643c4d4`), Documents + Position modals (`780856e`).
+- **§3 pages + dropdown** — HomePage / ManagerPage / PortfolioPage + account-dropdown icons + top-bar z-index fix (`649e6bd`).
+- **§3 editors** — TabularEditor + AssistantEditor back/save/delete (`…`). TabularEditor's Save stays VIOLET (see below).
 
 Remaining (follow-up):
+- **Violet action variant** — TabularEditor's Save/Create is violet (tabular identity). The cobalt `Button` has no violet variant, so it's left bespoke. Decide whether to add a `variant="violet"` (or `accent` prop) so tabular actions join the system.
 - **§2-palette** — deferred red palettes from §1: `SEV_COLOR` severity family, coordinated error-banner palettes (bg+border+text pairs in ManagerPage / PositionModal / DealWorkspacePage / HomePage banners, `Banner` in MonitoringPanel), chart/traffic-light reds (DealBriefDashboard bars, FlagItem, DocumentDetailView). Need danger bg/border/text tokens, not just `--danger`.
-- **§3 editors** — TabularEditor (~8), AssistantEditor (~7).
-- **§3 pages** — HomePage, ManagerPage, PortfolioPage (~11).
 - **§3 docmatrix/** — Tailwind tree (~20), blocked on the spike below.
 - AddDealDialog is intentionally **out of scope** — landing design system (`LandingButton`), not the app `Button`.
 
