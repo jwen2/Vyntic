@@ -813,9 +813,9 @@ export default function DealBriefDashboard({
             style={{
               padding: "12px 14px",
               borderRadius: 18,
-              border: "1px solid #f0c2bd",
-              background: theme === "dark" ? "#2a1212" : "#fff4f3",
-              color: theme === "dark" ? "#f0b3ad" : "#9a2e23",
+              border: "1px solid var(--danger-tint-border)",
+              background: "var(--danger-tint)",
+              color: "var(--danger)",
               fontSize: 12,
               fontWeight: 600,
             }}
@@ -917,8 +917,8 @@ function BriefStatCard({
       style={{
         padding: "12px 14px",
         borderRadius: 20,
-        border: `1px solid ${isAlert ? (theme === "dark" ? "#4b1919" : "#f0c2bd") : c.border}`,
-        background: isAlert ? (theme === "dark" ? "#2a1212" : "#fff4f3") : c.surfaceAlt,
+        border: `1px solid ${isAlert ? "var(--status-critical-tint-border)" : c.border}`,
+        background: isAlert ? "var(--status-critical-tint)" : c.surfaceAlt,
       }}
     >
       <div
@@ -927,7 +927,7 @@ function BriefStatCard({
           fontSize: 9,
           letterSpacing: "0.12em",
           textTransform: "uppercase",
-          color: isAlert ? (theme === "dark" ? "#f0b3ad" : "#9a2e23") : c.t3,
+          color: isAlert ? "var(--status-critical)" : c.t3,
         }}
       >
         {label}
@@ -1330,7 +1330,7 @@ function FinancialChart({ series, theme }: { series: ChartSeries[]; theme: "ligh
             <div style={{ display: "grid", gridTemplateColumns: `repeat(${item.values.length}, minmax(22px, 1fr))`, gap: 4, alignItems: "end", height: 44 }}>
               {item.values.map((point) => (
                 <div key={`${item.label}-${point.period}`} title={`${item.label} ${point.period}: ${point.display}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 3, minWidth: 0 }}>
-                  <div style={{ width: "100%", minHeight: 3, height: `${Math.max(4, (Math.abs(point.value) / max) * 38)}px`, borderRadius: "3px 3px 0 0", background: point.value < 0 ? "#ef4444" : ACCENT }} />
+                  <div style={{ width: "100%", minHeight: 3, height: `${Math.max(4, (Math.abs(point.value) / max) * 38)}px`, borderRadius: "3px 3px 0 0", background: point.value < 0 ? "var(--status-critical)" : ACCENT }} />
                   <div style={{ fontSize: 8, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{point.period}</div>
                 </div>
               ))}
@@ -1919,7 +1919,7 @@ function DiffPanel({
 
 function DiffRow({ change, theme }: { change: FieldDiff; theme: "light" | "dark" }) {
   const c = ddTheme(theme);
-  const tone = change.kind === "added" ? "#16a34a" : change.kind === "removed" ? "#ef4444" : "#f59e0b";
+  const tone = change.kind === "added" ? "var(--status-good)" : change.kind === "removed" ? "var(--status-critical)" : "var(--status-warning)";
   return (
     <div
       style={{

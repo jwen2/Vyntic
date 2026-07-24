@@ -64,7 +64,6 @@ interface PositionModalProps {
 
 export default function PositionModal({ dealId, dealName, isAdmin, theme, onClose }: PositionModalProps) {
   const c = ddTheme(theme);
-  const isDark = theme === "dark";
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -148,7 +147,7 @@ export default function PositionModal({ dealId, dealName, isAdmin, theme, onClos
           <button type="button" onClick={onClose} aria-label="Close" className="flex h-8 w-8 items-center justify-center rounded-full border text-lg" style={{ borderColor: c.border, background: c.surfaceAlt, color: c.t2 }}>×</button>
         </div>
 
-        {error && <div className="border-b px-5 py-3 text-sm" style={{ borderColor: isDark ? "#4b1919" : "#f0c2bd", background: isDark ? "#2a1212" : "#fff1f2", color: isDark ? "#fca5a5" : "#9a2e23" }}>{error}</div>}
+        {error && <div className="border-b px-5 py-3 text-sm" style={{ borderColor: "var(--danger-tint-border)", background: "var(--danger-tint)", color: "var(--danger)" }}>{error}</div>}
         <div className="overflow-y-auto p-5 sm:p-6">
           {loading ? <div className="flex h-48 items-center justify-center"><div className="dd-spin h-8 w-8 rounded-full border-4" style={{ borderColor: c.border, borderTopColor: c.accent }} /></div> : <>
             <div className="grid gap-4 sm:grid-cols-2">

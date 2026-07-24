@@ -195,9 +195,9 @@ export default function HomePage() {
         <div
           className="border-b px-4 py-3 text-sm font-medium sm:px-5"
           style={{
-            background: isDark ? "#2a1212" : "#fff1f2",
-            borderBottomColor: isDark ? "#4b1919" : "#f0c2bd",
-            color: isDark ? "#fca5a5" : "#9a2e23",
+            background: "var(--danger-tint)",
+            borderBottomColor: "var(--danger-tint-border)",
+            color: "var(--danger)",
             flexShrink: 0,
           }}
         >
@@ -392,9 +392,7 @@ export default function HomePage() {
                         style={{
                           color:
                             selectedUploadProgress.status === "error"
-                              ? isDark
-                                ? "#f87171"
-                                : "#dc2626"
+                              ? "var(--danger)"
                               : muted,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -431,9 +429,7 @@ export default function HomePage() {
                           height: "100%",
                           background:
                             selectedUploadProgress.status === "error"
-                              ? isDark
-                                ? "#f87171"
-                                : "#dc2626"
+                              ? "var(--danger)"
                               : "var(--accent)",
                           transition: "width .25s ease",
                         }}

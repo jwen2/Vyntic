@@ -13,10 +13,11 @@ Done + verified (tsc/tests/build green; screenshotted light+dark via `frontend:v
 - **§3 editors** — TabularEditor + AssistantEditor back/save/delete.
 - **Violet variant** — added `variant="violet"` (primary in the second hue); TabularEditor's Save/Create now uses it. +1 test.
 - **§3 docmatrix/** — spike resolved (`<Button>`'s global `.btn` classes compose inside the Tailwind tree; `button.css` loads after `@tailwind base` so it beats preflight — no wrapper needed). Migrated the action buttons (Ask, Add column, column Save/Delete, doc delete, cell retries).
+- **§2-palette** — full red-token convergence (branch `feat/button-system-v2-palette`, 15 files). Added `--status-good/-warning/-critical` (+ `-tint`/`-tint-border`) for both themes, validated via the dataviz CVD checker. Split by semantics: error/upload/destructive surfaces → `--danger` (burnt-orange ghost/tint treatment matching the `<Button>` danger variant); severity + traffic-light + chart reds → `--status-critical` (a truer red kept distinct from the amber `--status-warning`). Covered `SEV_COLOR`, error banners (ManagerPage/PositionModal/DealWorkspacePage/HomePage/MonitoringPanel/DealBriefDashboard/DocumentsModal/WorkflowsView), deal-breaker card + TopBar risks pill, PortfolioPage urgency/breach + MonitoringPanel breach, and the FlagItem/coverage/chart traffic-lights. Every red hex in `frontend/src` now lives **only** in the `index.css` token block. tsc/build/vitest green; token probe + light/dark screenshots verified.
 
 Remaining (follow-up):
-- **§2-palette** — deferred red palettes from §1: `SEV_COLOR` severity family, coordinated error-banner palettes (bg+border+text pairs in ManagerPage / PositionModal / DealWorkspacePage / HomePage banners, `Banner` in MonitoringPanel), chart/traffic-light reds (DealBriefDashboard bars, FlagItem, DocumentDetailView). Need danger bg/border/text tokens, not just `--danger`.
 - **Long-tail leftovers** — non-action buttons deliberately skipped everywhere (menu items, segmented toggles, on/off switches, inline text links, preset chips, circular modal-close ×'s), plus AddDealDialog (landing `LandingButton` system, out of scope).
+- **Status-scale green/amber arms** (optional) — the good/warning ends of the migrated traffic-lights still hold literal hexes byte-identical to `--status-good`/`--status-warning`; promoting them to the tokens would complete status-token consistency, but is beyond the "reds" scope of this plan.
 
 ## Context
 

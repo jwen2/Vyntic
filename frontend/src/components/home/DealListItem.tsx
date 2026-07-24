@@ -367,9 +367,7 @@ export default function DealListItem({
                 textTransform: "uppercase",
                 color:
                   uploadProgress?.status === "error"
-                    ? isDark
-                      ? "#f87171"
-                      : "#dc2626"
+                    ? "var(--danger)"
                     : cardMuted,
               }}
             >
@@ -401,9 +399,7 @@ export default function DealListItem({
                 borderRadius: 999,
                 background:
                   uploadProgress?.status === "error"
-                    ? isDark
-                      ? "#f87171"
-                      : "#dc2626"
+                    ? "var(--danger)"
                     : "var(--accent)",
                 transition: "width .25s ease",
               }}

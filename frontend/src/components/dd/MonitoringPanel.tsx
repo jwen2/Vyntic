@@ -24,7 +24,7 @@ type Verdict = "compliant" | "breach" | "unclear";
 
 const VERDICT_COLOR: Record<Verdict, { bg: string; fg: string; label: string }> = {
   compliant: { bg: "#dcfce7", fg: "#166534", label: "Compliant" },
-  breach: { bg: "#fee2e2", fg: "#991b1b", label: "Breach" },
+  breach: { bg: "var(--status-critical-tint)", fg: "var(--status-critical)", label: "Breach" },
   unclear: { bg: "#fef9c3", fg: "#854d0e", label: "Unclear" },
 };
 
@@ -369,7 +369,7 @@ function Empty({ children, c }: { children: React.ReactNode; c: ReturnType<typeo
   return <div className="mt-2 rounded-xl border border-dashed p-4 text-sm" style={{ borderColor: c.border, color: c.t3 }}>{children}</div>;
 }
 function Banner({ children, c }: { children: React.ReactNode; c: ReturnType<typeof ddTheme> }) {
-  return <div className="mb-3 rounded-xl px-3 py-2 text-sm" style={{ background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca" }}>{children}</div>;
+  return <div className="mb-3 rounded-xl px-3 py-2 text-sm" style={{ background: "var(--danger-tint)", color: "var(--danger)", border: "1px solid var(--danger-tint-border)" }}>{children}</div>;
 }
 function Field({ label, children, c }: { label: string; children: React.ReactNode; c: ReturnType<typeof ddTheme> }) {
   return <label className="flex flex-col gap-1"><span className="font-mono-plex text-[9px] uppercase tracking-[0.12em]" style={{ color: c.t3 }}>{label}</span>{children}</label>;

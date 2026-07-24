@@ -51,11 +51,11 @@ export const SEV_COLOR: Record<
 > = {
   "deal-breaker": {
     label: "Deal-Breaker",
-    color: "#dc2626",
-    bg: "#fef2f2",
-    border: "#fecaca",
-    dot: "#ef4444",
-    textDark: "#fca5a5",
+    color: "var(--status-critical)",
+    bg: "var(--status-critical-tint)",
+    border: "var(--status-critical-tint-border)",
+    dot: "var(--status-critical)",
+    textDark: "var(--status-critical)",
   },
   material: {
     label: "Material",

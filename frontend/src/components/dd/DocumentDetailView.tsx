@@ -53,7 +53,7 @@ export default function DocumentDetailView({
   );
 
   const pct = doc.pages > 0 ? Math.round((doc.cited / doc.pages) * 100) : 0;
-  const barColor = doc.uncovered ? "#ef4444" : pct > 50 ? "#22c55e" : pct > 0 ? "#f59e0b" : c.border;
+  const barColor = doc.uncovered ? "var(--status-critical)" : pct > 50 ? "var(--status-good)" : pct > 0 ? "var(--status-warning)" : c.border;
 
   function submit() {
     const trimmed = prompt.trim();
@@ -116,7 +116,7 @@ export default function DocumentDetailView({
               <span className="font-mono-dm">{doc.cited} of {doc.pages} pages cited</span>
               <span className="font-mono-dm">{docFindings.length} flag{docFindings.length === 1 ? "" : "s"}</span>
               {doc.uncovered && (
-                <span style={{ color: "#ef4444", fontWeight: 700, letterSpacing: "0.04em" }}>NOT ANALYZED</span>
+                <span style={{ color: "var(--status-critical)", fontWeight: 700, letterSpacing: "0.04em" }}>NOT ANALYZED</span>
               )}
             </div>
           </div>
@@ -289,10 +289,9 @@ function FindingCard({
   onOpenSource: (f: Finding) => void;
 }) {
   const c = ddTheme(theme);
-  const isDark = theme === "dark";
   const meta = SEV_COLOR[finding.sev];
   const isDealBreaker = finding.sev === "deal-breaker";
-  const baseBg = isDealBreaker ? (isDark ? "rgba(127,29,29,.18)" : "#fef2f2") : c.surface;
+  const baseBg = isDealBreaker ? "var(--status-critical-tint)" : c.surface;
 
   return (
     <div
@@ -309,23 +308,23 @@ function FindingCard({
         e.currentTarget.style.borderColor = tint(ACCENT, 40);
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = isDealBreaker ? (isDark ? "#7f1d1d" : "#fecaca") : c.border;
+        e.currentTarget.style.borderColor = isDealBreaker ? "var(--status-critical-tint-border)" : c.border;
       }}
       style={{
         padding: "10px 12px",
         background: baseBg,
-        border: `1px solid ${isDealBreaker ? (isDark ? "#7f1d1d" : "#fecaca") : c.border}`,
+        border: `1px solid ${isDealBreaker ? "var(--status-critical-tint-border)" : c.border}`,
         borderLeft: `3px solid ${meta.dot}`,
         borderRadius: 7,
         cursor: "pointer",
         transition: "border-color .1s",
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 600, color: isDealBreaker ? (isDark ? "#fecaca" : "#991b1b") : c.t1, lineHeight: 1.35, marginBottom: 4 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: isDealBreaker ? "var(--status-critical)" : c.t1, lineHeight: 1.35, marginBottom: 4 }}>
         {finding.title}
       </div>
       {finding.detail && (
-        <div style={{ fontSize: 12, color: isDealBreaker ? (isDark ? "#fca5a5" : "#7f1d1d") : c.t2, lineHeight: 1.45, marginBottom: 6 }}>
+        <div style={{ fontSize: 12, color: isDealBreaker ? "var(--status-critical)" : c.t2, lineHeight: 1.45, marginBottom: 6 }}>
           {finding.detail}
         </div>
       )}
