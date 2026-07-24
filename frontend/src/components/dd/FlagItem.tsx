@@ -17,7 +17,7 @@ export default function FlagItem({ f, active, onSelect, onStatus, onNote }: Prop
   const [noteDraft, setNoteDraft] = useState(f.note || "");
 
   const conf = f.conf ?? 80;
-  const confColor = conf >= 85 ? "#22c55e" : conf >= 65 ? "#f59e0b" : "#ef4444";
+  const confColor = conf >= 85 ? "var(--status-good)" : conf >= 65 ? "var(--status-warning)" : "var(--status-critical)";
 
   const statusBg =
     f.status === "validated"

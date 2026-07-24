@@ -28,6 +28,16 @@
   --danger: #c2410c;
   --danger-tint: color-mix(in srgb, #c2410c 10%, transparent);
   --danger-tint-border: color-mix(in srgb, #c2410c 28%, transparent);
+  /* Status scale — good / warning / critical for traffic-light indicators
+     (finding severity, page coverage, confidence) and diverging chart marks.
+     Distinct from --danger (destructive-action burnt-orange): critical stays a
+     truer red so it reads clearly apart from the amber --status-warning. Always
+     paired with a numeric or text label — never color-alone. */
+  --status-good: #16a34a;
+  --status-warning: #f59e0b;
+  --status-critical: #dc2626;
+  --status-critical-tint: color-mix(in srgb, #dc2626 10%, transparent);
+  --status-critical-tint-border: color-mix(in srgb, #dc2626 28%, transparent);
   /* Violet — the second semantic hue: tabular workflows, derived (vs
      extracted) citations, KV cells. Coordinated with the IC Review badge
      family. #7c3aed = 5.7:1 on white (AA); vivid enough to read as a clear
@@ -70,6 +80,13 @@
   --danger: #e8836a;
   --danger-tint: color-mix(in srgb, #e8836a 14%, transparent);
   --danger-tint-border: color-mix(in srgb, #e8836a 30%, transparent);
+  /* Status scale (dark) — brighter steps for near-black surfaces; same roles as
+     the light values above. */
+  --status-good: #22c55e;
+  --status-warning: #f59e0b;
+  --status-critical: #f87171;
+  --status-critical-tint: color-mix(in srgb, #f87171 16%, transparent);
+  --status-critical-tint-border: color-mix(in srgb, #f87171 32%, transparent);
   /* #b19fdb: 7.6:1 on #171717. Tint/border mirror the accent's alpha idiom. */
   --violet: #b19fdb;
   --violet-tint: rgba(177, 159, 219, 0.12);

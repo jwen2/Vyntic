@@ -119,5 +119,5 @@ function EmptyCard({ text, theme }: { text: string; theme: "light" | "dark" }) {
 
 function ErrorCard({ message, theme }: { message: string; theme: "light" | "dark" }) {
   const isDark = theme === "dark";
-  return <div className="mt-5 rounded-[1.5rem] border px-5 py-4 text-sm" style={{ borderColor: isDark ? "#4b1919" : "#f0c2bd", background: isDark ? "#2a1212" : "#fff1f2", color: isDark ? "#fca5a5" : "#9a2e23" }}>{message}</div>;
+  return <div className="mt-5 rounded-[1.5rem] border px-5 py-4 text-sm" style={{ borderColor: "var(--danger-tint-border)", background: "var(--danger-tint)", color: "var(--danger)" }}>{message}</div>;
 }

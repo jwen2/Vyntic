@@ -21,7 +21,7 @@ function daysUntil(iso: string | null): number | null {
 
 function urgencyColor(days: number | null): { bg: string; fg: string } {
   if (days == null) return { bg: "#e5e7eb", fg: "#374151" };
-  if (days <= 7) return { bg: "#fee2e2", fg: "#991b1b" };
+  if (days <= 7) return { bg: "var(--status-critical-tint)", fg: "var(--status-critical)" };
   if (days <= 14) return { bg: "#fef3c7", fg: "#92400e" };
   return { bg: "#e0f2fe", fg: "#075985" };
 }
@@ -127,7 +127,7 @@ export default function PortfolioPage() {
                   <Td c={c} muted>{o.manager_name ?? "—"}</Td>
                   <Td c={c}>{o.text}</Td>
                   <Td c={c}>{o.latest_check?.period ?? "—"}</Td>
-                  <Td c={c}><span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: o.latest_check?.verdict === "breach" ? "#fee2e2" : "#fef9c3", color: o.latest_check?.verdict === "breach" ? "#991b1b" : "#854d0e" }}>{o.latest_check?.verdict ?? "—"}{o.latest_check?.confirmed ? "" : " (proposed)"}</span></Td>
+                  <Td c={c}><span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: o.latest_check?.verdict === "breach" ? "var(--status-critical-tint)" : "#fef9c3", color: o.latest_check?.verdict === "breach" ? "var(--status-critical)" : "#854d0e" }}>{o.latest_check?.verdict ?? "—"}{o.latest_check?.confirmed ? "" : " (proposed)"}</span></Td>
                 </tr>
               ))}
             </Table>

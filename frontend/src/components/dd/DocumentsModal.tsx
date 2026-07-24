@@ -286,8 +286,8 @@ export default function DocumentsModal({
         {(error || uploadError) && (
           <div style={{
             padding: "10px 20px",
-            background: isDark ? "#7f1d1d22" : "#fff1f2",
-            color: isDark ? "#fca5a5" : "#b91c1c",
+            background: "var(--danger-tint)",
+            color: "var(--danger)",
             fontSize: 12,
             borderBottom: `1px solid ${c.border}`,
           }}>
@@ -318,9 +318,7 @@ export default function DocumentsModal({
                 style={{
                   color:
                     uploadProgress.status === "error"
-                      ? isDark
-                        ? "#fca5a5"
-                        : "#b91c1c"
+                      ? "var(--danger)"
                       : c.t2,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -353,9 +351,7 @@ export default function DocumentsModal({
                   height: "100%",
                   background:
                     uploadProgress.status === "error"
-                      ? isDark
-                        ? "#f87171"
-                        : "#dc2626"
+                      ? "var(--danger)"
                       : ACCENT,
                   transition: "width .25s ease",
                 }}

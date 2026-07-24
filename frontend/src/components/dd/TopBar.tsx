@@ -97,10 +97,10 @@ export default function TopBar({
       {dealBreakers > 0 && (
         <div
           className="hidden items-center sm:flex"
-          style={{ gap: 6, padding: "6px 11px", borderRadius: 8, background: isDark ? "#2a1212" : "#fff4f3", border: `1px solid ${isDark ? "#4b1919" : "#f0c2bd"}` }}
+          style={{ gap: 6, padding: "6px 11px", borderRadius: 8, background: "var(--status-critical-tint)", border: `1px solid var(--status-critical-tint-border)` }}
         >
-          <span className="dd-pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "#d14334" }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? "#f0b3ad" : "#9a2e23" }}>
+          <span className="dd-pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--status-critical)" }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--status-critical)" }}>
             {dealBreakers} risk{dealBreakers === 1 ? "" : "s"}
           </span>
         </div>
