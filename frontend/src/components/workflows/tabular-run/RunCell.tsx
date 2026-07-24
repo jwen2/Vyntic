@@ -8,6 +8,7 @@ import { formatCellValue, stripSourceMarkers } from "./format";
 import { RetryIcon } from "./parts";
 import { cellBodyStyle } from "./styles";
 import type { Theme } from "./useTabularRun";
+import Button from "@/components/ui/Button";
 
 // A completed-cell <td>. Memoized so a single SSE cell update re-renders one
 // cell, not the whole grid — all handler props are stable refs from the hook,
@@ -70,34 +71,21 @@ function ValueCellImpl({
         onCitationClick={onCitationClick}
         citationIdPrefix={`${cell.id}_${column.id}`}
       />
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        size="xs"
+        iconOnly
         onClick={(e) => {
           e.stopPropagation();
           if (!retrying) onRetry(cell.id);
         }}
         className="opacity-0 group-hover/cell:opacity-100 transition-opacity"
-        style={{
-          position: "absolute",
-          top: 3,
-          right: 3,
-          width: 18,
-          height: 18,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 4,
-          border: `1px solid ${c.border}`,
-          background: c.surface,
-          color: retrying ? c.t3 : c.t2,
-          cursor: retrying ? "wait" : "pointer",
-          padding: 0,
-        }}
+        style={{ position: "absolute", top: 3, right: 3 }}
         title="Re-run this cell"
         aria-label="Retry cell"
       >
         <RetryIcon spinning={retrying} />
-      </button>
+      </Button>
     </td>
   );
 }

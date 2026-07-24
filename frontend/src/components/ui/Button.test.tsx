@@ -27,6 +27,17 @@ describe("Button", () => {
     ).toContain("btn--md");
   });
 
+  it("supports the xs size", () => {
+    render(
+      <Button variant="secondary" size="xs">
+        Tag
+      </Button>
+    );
+    expect(
+      screen.getByRole("button", { name: "Tag" }).className
+    ).toContain("btn--xs");
+  });
+
   it("adds btn--icon when iconOnly and btn--full when fullWidth", () => {
     render(
       <Button variant="tint" iconOnly fullWidth title="New chat">

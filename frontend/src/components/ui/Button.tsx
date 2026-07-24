@@ -10,7 +10,7 @@ export type ButtonVariant =
   | "secondary"
   | "subtle"
   | "danger";
-export type ButtonSize = "sm" | "md" | "lg";
+export type ButtonSize = "xs" | "sm" | "md" | "lg";
 
 interface ButtonOwnProps {
   variant: ButtonVariant;

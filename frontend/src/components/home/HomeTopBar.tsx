@@ -110,43 +110,25 @@ export default function HomeTopBar({
       <div style={{ flex: 1 }} />
 
       {onOpenPortfolio && (
-        <button
-          onClick={onOpenPortfolio}
-          className="font-mono-plex hidden text-[10px] uppercase tracking-[0.18em] sm:block"
-          style={{
-            padding: "8px 12px",
-            background: chip,
-            color: text,
-            border: `1px solid ${chipBorder}`,
-            borderRadius: 8,
-            fontSize: 10,
-            fontWeight: 600,
-            cursor: "pointer",
-            marginLeft: 4,
-          }}
-        >
-          Portfolio
-        </button>
+        <div className="hidden sm:block" style={{ marginLeft: 4 }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onOpenPortfolio}
+            className="font-mono-plex"
+            style={{ textTransform: "uppercase", letterSpacing: "0.18em", fontSize: 10 }}
+          >
+            Portfolio
+          </Button>
+        </div>
       )}
 
       {onAddDeal && (
-        <button
-          onClick={onAddDeal}
-          className="hidden sm:block"
-          style={{
-            padding: "9px 14px",
-            background: "var(--accent)",
-            color: "var(--on-accent)",
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 600,
-            border: "none",
-            cursor: "pointer",
-            marginLeft: 4,
-          }}
-        >
-          Add deal
-        </button>
+        <div className="hidden sm:block" style={{ marginLeft: 4 }}>
+          <Button variant="primary" onClick={onAddDeal}>
+            Add deal
+          </Button>
+        </div>
       )}
 
       <div ref={menuRef} style={{ position: "relative" }}>
