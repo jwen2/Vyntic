@@ -10,13 +10,13 @@ Done + verified (tsc/tests/build green; screenshotted light+dark via `frontend:v
 - **§2 deferred buttons** — RunCell / DealListItem / HomeTopBar + new `xs` size (commit `13be449`).
 - **§3 high-traffic** — Brief dashboard (`bb41e40`), Monitoring (`643c4d4`), Documents + Position modals (`780856e`).
 - **§3 pages + dropdown** — HomePage / ManagerPage / PortfolioPage + account-dropdown icons + top-bar z-index fix (`649e6bd`).
-- **§3 editors** — TabularEditor + AssistantEditor back/save/delete (`…`). TabularEditor's Save stays VIOLET (see below).
+- **§3 editors** — TabularEditor + AssistantEditor back/save/delete.
+- **Violet variant** — added `variant="violet"` (primary in the second hue); TabularEditor's Save/Create now uses it. +1 test.
+- **§3 docmatrix/** — spike resolved (`<Button>`'s global `.btn` classes compose inside the Tailwind tree; `button.css` loads after `@tailwind base` so it beats preflight — no wrapper needed). Migrated the action buttons (Ask, Add column, column Save/Delete, doc delete, cell retries).
 
 Remaining (follow-up):
-- **Violet action variant** — TabularEditor's Save/Create is violet (tabular identity). The cobalt `Button` has no violet variant, so it's left bespoke. Decide whether to add a `variant="violet"` (or `accent` prop) so tabular actions join the system.
 - **§2-palette** — deferred red palettes from §1: `SEV_COLOR` severity family, coordinated error-banner palettes (bg+border+text pairs in ManagerPage / PositionModal / DealWorkspacePage / HomePage banners, `Banner` in MonitoringPanel), chart/traffic-light reds (DealBriefDashboard bars, FlagItem, DocumentDetailView). Need danger bg/border/text tokens, not just `--danger`.
-- **§3 docmatrix/** — Tailwind tree (~20), blocked on the spike below.
-- AddDealDialog is intentionally **out of scope** — landing design system (`LandingButton`), not the app `Button`.
+- **Long-tail leftovers** — non-action buttons deliberately skipped everywhere (menu items, segmented toggles, on/off switches, inline text links, preset chips, circular modal-close ×'s), plus AddDealDialog (landing `LandingButton` system, out of scope).
 
 ## Context
 
