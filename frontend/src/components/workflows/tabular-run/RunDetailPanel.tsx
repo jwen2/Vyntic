@@ -3,7 +3,8 @@ import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn, WorkflowRun } from "@/lib/workflows";
 import AnswerText from "@/components/dd/AnswerText";
 import CitationSnippet from "@/components/dd/CitationSnippet";
-import { ACCENT, VIOLET, tint } from "../theme";
+import { ACCENT, AMBER, RED, VIOLET, tint } from "../theme";
+import { proseValue } from "../cells/CellRenderer";
 import { SectionLabel, RetryIcon } from "./parts";
 import { demoteHeadings, formatRunDate } from "./format";
 import type { Theme } from "./useTabularRun";
@@ -35,7 +36,22 @@ export default function RunDetailPanel({
 }) {
   const c = ddTheme(theme);
   const citations = selectedCell?.citations ?? [];
-  const answer = selectedCell ? demoteHeadings(selectedCell.answer).trim() : "";
+  // Prose-shaped columns carry a structured {summary, body, caveats} payload,
+  // so their raw `answer` is a JSON blob. Render the parsed body (and surface
+  // the caveats) instead of dumping the JSON into the panel. Falls back to
+  // parsing `answer` itself when the formatted field isn't populated.
+  const rawAnswer = selectedCell?.answer ?? "";
+  let shaped: unknown = selectedCell?.answer_formatted;
+  if (!isProseShaped(shaped) && rawAnswer.trim().startsWith("{")) {
+    try {
+      shaped = JSON.parse(rawAnswer);
+    } catch {
+      /* not JSON — fall through to the raw answer */
+    }
+  }
+  const prose = isProseShaped(shaped) ? proseValue(shaped, rawAnswer) : null;
+  const answer = demoteHeadings(prose ? prose.body || prose.summary : rawAnswer).trim();
+  const caveats = prose?.caveats ?? [];
   return (
     <aside
       style={{
@@ -95,6 +111,7 @@ export default function RunDetailPanel({
           column={selectedColumn}
           rowLabel={selectedRowLabel}
           answer={answer}
+          caveats={caveats}
           citations={citations}
           activeCitId={activeCitId}
           onCitationClick={onCitationClick}
@@ -133,12 +150,20 @@ export default function RunDetailPanel({
   );
 }
 
+/** True when a value looks like the prose shape ({summary, body, caveats}). */
+function isProseShaped(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const obj = value as Record<string, unknown>;
+  return "summary" in obj || "body" in obj;
+}
+
 function CellSourcesPanel({
   theme,
   cell,
   column,
   rowLabel,
   answer,
+  caveats,
   citations,
   activeCitId,
   onCitationClick,
@@ -148,6 +173,7 @@ function CellSourcesPanel({
   column: WorkflowColumn | null;
   rowLabel: string;
   answer: string;
+  caveats: Array<{ text: string; severity: "info" | "warn" | "risk" }>;
   citations: (Citation | null)[];
   activeCitId: string | null;
   onCitationClick: (citation: Citation, id: string) => void;
@@ -186,6 +212,43 @@ function CellSourcesPanel({
           <span style={{ color: c.t3 }}>No answer captured for this cell yet.</span>
         )}
       </div>
+      {caveats.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {caveats.map((caveat, index) => {
+            const color =
+              caveat.severity === "risk" ? RED : caveat.severity === "warn" ? AMBER : ACCENT;
+            return (
+              <div
+                key={`${caveat.severity}_${index}`}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 7,
+                  padding: "6px 9px",
+                  borderRadius: 7,
+                  background: tint(color, 10),
+                  border: `1px solid ${tint(color, 26)}`,
+                  fontSize: 11.5,
+                  lineHeight: 1.5,
+                  color: c.t2,
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: color,
+                    flexShrink: 0,
+                    marginTop: 5,
+                  }}
+                />
+                <span>{caveat.text}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {nonNullCitations.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>
