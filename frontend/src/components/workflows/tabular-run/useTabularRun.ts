@@ -16,7 +16,8 @@ import {
 } from "@/lib/workflows";
 import type { ColumnFormat } from "@/lib/matrixColumnConfig";
 import type { CellDensity } from "@/components/workflows/cells/CellRenderer";
-import { stripSourceMarkers } from "./format";
+import { formatCellValue, stripSourceMarkers } from "./format";
+import { proseValue } from "../cells/CellRenderer";
 
 export type Theme = "light" | "dark";
 export type WorkflowView = "compact" | "comfortable" | "compare";
@@ -385,14 +386,37 @@ export function useTabularRun({
     if (workflow.row_source !== "one_doc_per_row") return selectedCell.row_key;
     return docs.find((doc) => doc.doc_id === selectedCell.row_key)?.filename ?? selectedCell.row_key.slice(0, 8);
   }, [selectedCell, workflow.row_source, docs]);
+  // "High risk" is counted from real signals, not a regex over the whole
+  // answer: prose shapes carry explicit caveat severities, while scalar/enum
+  // shapes (a High/Medium/Low rating) are matched on their *formatted* value.
+  // The old `/\bhigh\b/` over `cell.answer` scanned prose JSON blobs and fired
+  // on incidental words like "high-growth" while ignoring risk caveats.
   const highRiskCount = useMemo(() => {
     let count = 0;
     cells.forEach((cell) => {
-      const text = stripSourceMarkers(cell.answer || "").trim();
-      if (cell.status === "complete" && /\bhigh\b/i.test(text)) count += 1;
+      if (cell.status !== "complete") return;
+      const raw = stripSourceMarkers(cell.answer || "").trim();
+      const formatted = cell.answer_formatted;
+      const isProse =
+        !!formatted &&
+        typeof formatted === "object" &&
+        !Array.isArray(formatted) &&
+        ("summary" in (formatted as Record<string, unknown>) ||
+          "body" in (formatted as Record<string, unknown>));
+      if (isProse) {
+        if (proseValue(formatted, raw).caveats.some((caveat) => caveat.severity === "risk")) {
+          count += 1;
+        }
+        return;
+      }
+      const column = runColumns.find((col) => col.id === cell.column_id);
+      if (!column) return;
+      const display = formatCellValue(cell, column);
+      const text = Array.isArray(display) ? display.join(" ") : display;
+      if (/\bhigh\b/i.test(text)) count += 1;
     });
     return count;
-  }, [cells]);
+  }, [cells, runColumns]);
 
   useEffect(() => {
     if (selectedCellKey && cells.has(selectedCellKey)) return;
