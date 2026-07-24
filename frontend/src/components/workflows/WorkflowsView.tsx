@@ -550,7 +550,7 @@ function RunHistoryModal({
         {loading ? (
           <div style={{ color: c.t2, fontSize: 12 }}>Loading runs...</div>
         ) : error ? (
-          <div style={{ color: "#ef4444", fontSize: 12 }}>{error}</div>
+          <div style={{ color: "var(--danger)", fontSize: 12 }}>{error}</div>
         ) : runs.length === 0 ? (
           <div style={{ color: c.t3, fontSize: 12 }}>No runs yet.</div>
         ) : (
@@ -590,7 +590,7 @@ function RunHistoryModal({
 
 function statusColor(status: WorkflowRun["status"]): string {
   if (status === "complete") return "#22c55e";
-  if (status === "error" || status === "cancelled") return "#ef4444";
+  if (status === "error" || status === "cancelled") return "var(--danger)";
   if (status === "checkpoint") return "#f59e0b";
   return ACCENT;
 }

@@ -573,7 +573,7 @@ export default function DealAssistantPanel({
                 />
               ))}
               {error && (
-                <div style={{ color: "#ef4444", fontSize: 12, paddingLeft: 44 }}>{error}</div>
+                <div style={{ color: "var(--danger)", fontSize: 12, paddingLeft: 44 }}>{error}</div>
               )}
             </div>
           )}
@@ -806,10 +806,10 @@ function ChatBubble({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           background: c.surface,
-          border: `1px solid ${message.status === "error" ? "#fecaca" : c.border}`,
+          border: `1px solid ${message.status === "error" ? "var(--danger-tint-border)" : c.border}`,
           borderRadius: 12,
           padding: "14px 16px",
-          color: message.status === "error" ? "#ef4444" : c.t1,
+          color: message.status === "error" ? "var(--danger)" : c.t1,
           minHeight: 50,
         }}>
           {message.content ? (

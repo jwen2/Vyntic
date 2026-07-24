@@ -305,7 +305,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
               style={{
                 padding: "6px 12px",
                 background: "transparent",
-                color: "#ef4444",
+                color: "var(--danger)",
                 border: `1px solid ${c.border}`,
                 borderRadius: 7,
                 fontSize: 12,

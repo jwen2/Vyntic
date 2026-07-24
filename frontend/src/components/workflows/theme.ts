@@ -12,7 +12,12 @@ export const VIOLET = "var(--violet)";
 export const ACCENT = "var(--accent)";
 export const AMBER = "#f59e0b";
 export const GREEN = "#22c55e";
-export const RED = "#ef4444";
+// RED resolves to the shared --danger token (burnt-orange in light, soft coral
+// in dark) so workflow error/risk surfaces share one red with the danger
+// <Button>. tint(RED, n) still works: tint() uses color-mix, which accepts
+// var() strings. Solid fills that overlay light text must use --danger-tint +
+// --danger (a light-coral fill can't carry white text in dark mode).
+export const RED = "var(--danger)";
 
 export { tint } from "@/components/dd/types";
 
