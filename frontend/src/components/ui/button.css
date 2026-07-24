@@ -105,6 +105,33 @@
   opacity: 0.8;
 }
 
+/* violet — a `primary` in the second semantic hue, for tabular-workflow actions
+   (tabular = violet). Same flare, swapped tokens. */
+.btn--violet {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--violet) 90%, white) 0%,
+    var(--violet) 100%
+  );
+  color: var(--on-violet);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(15, 23, 42, 0.16);
+}
+.btn--violet:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 6px 16px -8px color-mix(in srgb, var(--violet) 60%, transparent),
+    0 2px 4px rgba(15, 23, 42, 0.12);
+}
+.btn--violet:focus-visible {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--violet-tint-border);
+}
+.btn--violet:disabled {
+  background: var(--violet-tint);
+  color: var(--violet);
+  border-color: var(--violet-tint-border);
+  opacity: 0.8;
+}
+
 .btn--tint {
   background: var(--accent-tint);
   color: var(--accent);

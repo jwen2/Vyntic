@@ -327,23 +327,9 @@ export default function TabularEditor(props: TabularEditorProps) {
             </span>
           )}
           {!isReadOnly && (
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding: "6px 14px",
-                background: VIOLET,
-                color: "var(--on-violet)",
-                border: "none",
-                borderRadius: 7,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: saving ? "wait" : "pointer",
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
+            <Button variant="violet" size="sm" loading={saving} onClick={handleSave}>
               {saving ? "Saving…" : isEdit ? "Save" : "Create"}
-            </button>
+            </Button>
           )}
           {props.mode === "edit" && props.onDelete && !isReadOnly && (
             <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>

@@ -27,6 +27,13 @@ describe("Button", () => {
     ).toContain("btn--md");
   });
 
+  it("supports the violet variant", () => {
+    render(<Button variant="violet">Create</Button>);
+    expect(
+      screen.getByRole("button", { name: "Create" }).className
+    ).toContain("btn--violet");
+  });
+
   it("supports the xs size", () => {
     render(
       <Button variant="secondary" size="xs">
