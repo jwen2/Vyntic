@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ddTheme } from "@/components/dd/types";
 import type { WorkflowColumn } from "@/lib/workflows";
 import {
   PE_COLUMN_PRESETS,
@@ -35,7 +34,6 @@ export default function ColumnEditMenu({
   theme: Theme;
   onSave: (patch: ColumnDraft) => Promise<void> | void;
 }) {
-  const c = ddTheme(theme);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<ColumnDraft>({
@@ -135,7 +133,7 @@ export default function ColumnEditMenu({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="opacity-50 group-hover/header:opacity-100 transition-opacity"
+        className="opacity-50 group-hover/header:opacity-100 transition-opacity text-t2"
         style={{
           flexShrink: 0,
           width: 18,
@@ -146,7 +144,6 @@ export default function ColumnEditMenu({
           borderRadius: 4,
           border: "none",
           background: "transparent",
-          color: c.t2,
           cursor: "pointer",
           padding: 0,
         }}
@@ -166,6 +163,7 @@ export default function ColumnEditMenu({
           <div
             ref={panelRef}
             onClick={(e) => e.stopPropagation()}
+            className="bg-surface border border-edge text-t1"
             style={{
               position: "fixed",
               top: pos.top,
@@ -173,25 +171,21 @@ export default function ColumnEditMenu({
               width: "min(460px, calc(100vw - 32px))",
               maxHeight: pos.maxHeight,
               overflowY: "auto",
-              background: c.surface,
-              border: `1px solid ${c.border}`,
               borderRadius: 12,
               boxShadow: "0 16px 40px rgba(15,23,42,0.25)",
               zIndex: 9999,
-              color: c.t1,
               fontSize: 12,
             }}
           >
             <div
+              className="border-b border-b-edge bg-surface"
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "12px 16px",
-                borderBottom: `1px solid ${c.border}`,
                 position: "sticky",
                 top: 0,
-                background: c.surface,
                 zIndex: 1,
               }}
             >
@@ -199,10 +193,10 @@ export default function ColumnEditMenu({
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close"
+                className="text-t2"
                 style={{
                   border: "none",
                   background: "transparent",
-                  color: c.t2,
                   cursor: "pointer",
                   fontSize: 16,
                   lineHeight: 1,
@@ -212,7 +206,7 @@ export default function ColumnEditMenu({
               </button>
             </div>
             <div style={{ padding: 16 }}>
-              <Field label="Label" theme={theme}>
+              <Field label="Label">
                 <input
                   value={draft.label}
                   onChange={(e) => {
@@ -225,12 +219,12 @@ export default function ColumnEditMenu({
                         : {}),
                     });
                   }}
-                  style={inputStyle(c)}
+                  className={inputClass}
                 />
               </Field>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginTop: 12 }}>
-                <Field label="Answer shape" theme={theme}>
+                <Field label="Answer shape">
                   <ShapePicker
                     value={draft.format}
                     onChange={(format) =>
@@ -242,7 +236,7 @@ export default function ColumnEditMenu({
                     theme={theme}
                   />
                   {autoDetectedShape && autoDetectedShape.value !== draft.format && (
-                    <div style={{ fontSize: 10, color: c.t3, marginTop: 7, lineHeight: 1.45 }}>
+                    <div className="text-[10px] text-t3 mt-[7px] leading-[1.45]">
                       Suggested:{" "}
                       <button
                         type="button"
@@ -264,7 +258,7 @@ export default function ColumnEditMenu({
                     </div>
                   )}
                 </Field>
-                <Field label="Preset" theme={theme}>
+                <Field label="Preset">
                   <select
                     value=""
                     onChange={(e) => {
@@ -279,7 +273,7 @@ export default function ColumnEditMenu({
                         tags: preset.tags || [],
                       });
                     }}
-                    style={inputStyle(c)}
+                    className={inputClass}
                   >
                     <option value="">Choose…</option>
                     {PE_COLUMN_PRESETS.map((preset) => (
@@ -292,7 +286,7 @@ export default function ColumnEditMenu({
               </div>
 
               {(draft.format === "tag" || draft.format === "enum") && (
-                <Field label="Shape options" theme={theme} style={{ marginTop: 12 }}>
+                <Field label="Shape options" style={{ marginTop: 12 }}>
                   <ShapeOptionsInspector
                     format={draft.format}
                     tags={draft.tags}
@@ -303,7 +297,7 @@ export default function ColumnEditMenu({
               )}
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                <span className="text-[10px] font-semibold text-t3 uppercase tracking-[0.06em]">
                   Prompt
                 </span>
                 <button
@@ -325,16 +319,11 @@ export default function ColumnEditMenu({
                 rows={8}
                 value={draft.prompt}
                 onChange={(e) => updateDraft({ prompt: e.target.value })}
-                style={{
-                  ...inputStyle(c),
-                  marginTop: 4,
-                  resize: "none",
-                  lineHeight: 1.55,
-                  fontFamily: "inherit",
-                }}
+                className={`${inputClass} mt-1 resize-none leading-[1.55]`}
+                style={{ fontFamily: "inherit" }}
               />
               <div style={{ marginTop: 12 }}>
-                <Field label="Cell preview" theme={theme}>
+                <Field label="Cell preview">
                   <CellRenderPreview
                     column={{
                       id: column.id,
@@ -352,25 +341,23 @@ export default function ColumnEditMenu({
               </div>
             </div>
             <div
+              className="border-t border-t-edge bg-surface"
               style={{
                 display: "flex",
                 justifyContent: "flex-end",
                 gap: 8,
                 padding: "12px 16px",
-                borderTop: `1px solid ${c.border}`,
                 position: "sticky",
                 bottom: 0,
-                background: c.surface,
               }}
             >
               <button
                 onClick={() => setOpen(false)}
+                className="border border-edge text-t2"
                 style={{
                   padding: "6px 12px",
-                  border: `1px solid ${c.border}`,
                   borderRadius: 7,
                   background: "transparent",
-                  color: c.t2,
                   fontSize: 12,
                   cursor: "pointer",
                 }}
@@ -404,28 +391,16 @@ export default function ColumnEditMenu({
 
 function Field({
   label,
-  theme,
   children,
   style,
 }: {
   label: string;
-  theme: Theme;
   children: React.ReactNode;
   style?: React.CSSProperties;
 }) {
-  const c = ddTheme(theme);
   return (
     <label style={{ display: "block", ...style }}>
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: c.t3,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          marginBottom: 4,
-        }}
-      >
+      <div className="text-[10px] font-semibold text-t3 uppercase tracking-[0.06em] mb-1">
         {label}
       </div>
       {children}
@@ -433,15 +408,6 @@ function Field({
   );
 }
 
-function inputStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
-  return {
-    width: "100%",
-    padding: "6px 8px",
-    border: `1px solid ${c.border}`,
-    borderRadius: 6,
-    background: c.bg,
-    color: c.t1,
-    fontSize: 12,
-    outline: "none",
-  };
-}
+/** Shared text-input chrome for this menu's fields. */
+const inputClass =
+  "w-full px-2 py-1.5 border border-edge rounded-md bg-appbg text-t1 text-xs outline-none";

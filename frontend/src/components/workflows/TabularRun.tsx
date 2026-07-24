@@ -86,7 +86,6 @@ export default function TabularRun({
       <RunToolbar
         workflow={m.workflow}
         run={m.run}
-        theme={theme}
         view={m.view}
         onView={m.setView}
         documentCount={m.documentIds.length}
@@ -112,7 +111,6 @@ export default function TabularRun({
         }}
       >
         <RunSidebar
-          theme={theme}
           documentIds={m.documentIds}
           docs={m.docs}
           runColumns={m.runColumns}
@@ -124,7 +122,6 @@ export default function TabularRun({
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
             <SummaryCards
-              theme={theme}
               documents={m.documentIds.length}
               completeCells={m.completeCells}
               totalCells={m.totalCells}
@@ -172,7 +169,6 @@ export default function TabularRun({
         </div>
 
         <RunDetailPanel
-          theme={theme}
           run={m.run}
           runHistory={m.runHistory}
           selectedCell={m.selectedCell}

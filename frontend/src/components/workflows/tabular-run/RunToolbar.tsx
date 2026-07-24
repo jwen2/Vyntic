@@ -1,7 +1,6 @@
-import { ddTheme } from "@/components/dd/types";
 import type { RunStatus, Workflow, WorkflowRun } from "@/lib/workflows";
 import { AMBER, GREEN, RED, tint } from "../theme";
-import type { Theme, WorkflowView } from "./useTabularRun";
+import type { WorkflowView } from "./useTabularRun";
 import Button from "@/components/ui/Button";
 
 // The run sub-header: back button, workflow/run title, status pill, view
@@ -9,7 +8,6 @@ import Button from "@/components/ui/Button";
 export default function RunToolbar({
   workflow,
   run,
-  theme,
   view,
   onView,
   documentCount,
@@ -26,7 +24,6 @@ export default function RunToolbar({
 }: {
   workflow: Workflow;
   run: WorkflowRun | null;
-  theme: Theme;
   view: WorkflowView;
   onView: (view: WorkflowView) => void;
   documentCount: number;
@@ -41,54 +38,31 @@ export default function RunToolbar({
   onCancel: () => void;
   onExport: () => void;
 }) {
-  const c = ddTheme(theme);
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "12px 24px",
-        borderBottom: `1px solid ${c.border}`,
-        gap: 12,
-      }}
-    >
+    <div className="flex items-center justify-between gap-3 px-6 py-3 border-b border-b-edge">
       <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
         <Button variant="subtle" size="sm" onClick={onBack}>
           ← Library
         </Button>
         <div style={{ minWidth: 0, overflow: "hidden" }}>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: c.t1,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
+          <div className="text-[13px] font-semibold text-t1 whitespace-nowrap overflow-hidden text-ellipsis">
             {workflow.name}
-            <span style={{ color: c.t3, fontWeight: 400, marginLeft: 6 }}>
+            <span className="text-t3 font-normal ml-1.5">
               › Run #{run?.run_number ?? "…"}
             </span>
           </div>
-          <div style={{ fontSize: 11, color: c.t3, marginTop: 1 }}>
+          <div className="text-[11px] text-t3 mt-px">
             {documentCount} doc{documentCount === 1 ? "" : "s"} ·{" "}
             {columnCount} col{columnCount === 1 ? "" : "s"}
           </div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <RunStatusPill status={run?.status ?? "pending"} theme={theme} />
-        <ViewSwitcher value={view} onChange={onView} theme={theme} />
+        <RunStatusPill status={run?.status ?? "pending"} />
+        <ViewSwitcher value={view} onChange={onView} />
         <span
-          style={{
-            fontSize: 11,
-            color: c.t2,
-            fontFamily: "'DM Mono', monospace",
-            whiteSpace: "nowrap",
-          }}
+          className="text-[11px] text-t2 whitespace-nowrap"
+          style={{ fontFamily: "'DM Mono', monospace" }}
         >
           {completeCells}/{totalCells} cells · {elapsedLabel}
         </span>
@@ -117,15 +91,23 @@ export default function RunToolbar({
   );
 }
 
-function RunStatusPill({ status, theme }: { status: RunStatus; theme: Theme }) {
-  const c = ddTheme(theme);
+function RunStatusPill({ status }: { status: RunStatus }) {
+  // The pill's colors are data, not markup: four of the six statuses are status
+  // hues (AMBER/GREEN/RED washes) with no Tailwind token, so the two neutral
+  // rows reference the CSS vars directly rather than splitting this map into a
+  // class path and a style path.
   const map: Record<RunStatus, { color: string; bg: string; label: string; pulse: boolean }> = {
-    pending: { color: c.t2, bg: c.surfaceAlt, label: "Pending", pulse: false },
+    pending: { color: "var(--text-2)", bg: "var(--surface-alt)", label: "Pending", pulse: false },
     running: { color: AMBER, bg: tint(AMBER, 15), label: "Running", pulse: true },
     // checkpoint is unreachable for tabular runs but required by RunStatus.
     checkpoint: { color: AMBER, bg: tint(AMBER, 15), label: "Checkpoint", pulse: true },
     complete: { color: GREEN, bg: tint(GREEN, 15), label: "Complete", pulse: false },
-    cancelled: { color: c.t3, bg: c.surfaceAlt, label: "Cancelled", pulse: false },
+    cancelled: {
+      color: "var(--text-3)",
+      bg: "var(--surface-alt)",
+      label: "Cancelled",
+      pulse: false,
+    },
     error: { color: RED, bg: tint(RED, 15), label: "Error", pulse: false },
   };
   const cfg = map[status];
@@ -155,13 +137,10 @@ function RunStatusPill({ status, theme }: { status: RunStatus; theme: Theme }) {
 function ViewSwitcher({
   value,
   onChange,
-  theme,
 }: {
   value: WorkflowView;
   onChange: (value: WorkflowView) => void;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   const options: Array<{ value: WorkflowView; label: string; title: string }> = [
     { value: "compact", label: "Compact", title: "Dense rows for scanning many docs" },
     { value: "comfortable", label: "Comfortable", title: "Default — summary + caveats per cell" },
@@ -171,15 +150,7 @@ function ViewSwitcher({
     <div
       role="radiogroup"
       aria-label="Workflow view"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 2,
-        padding: 2,
-        borderRadius: 7,
-        border: `1px solid ${c.border}`,
-        background: c.surfaceAlt,
-      }}
+      className="flex items-center gap-0.5 p-0.5 rounded-[7px] border border-edge bg-surface-alt"
     >
       {options.map((option) => {
         const active = option.value === value;
@@ -191,16 +162,9 @@ function ViewSwitcher({
             aria-checked={active}
             title={option.title}
             onClick={() => onChange(option.value)}
-            style={{
-              border: "none",
-              borderRadius: 5,
-              background: active ? c.surface : "transparent",
-              color: active ? c.t1 : c.t3,
-              padding: "3px 8px",
-              fontSize: 10,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
+            className={`border-none rounded-[5px] px-2 py-[3px] text-[10px] font-bold cursor-pointer ${
+              active ? "bg-surface text-t1" : "bg-transparent text-t3"
+            }`}
           >
             {option.label}
           </button>
