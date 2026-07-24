@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { User } from "@/lib/api";
+import Button from "@/components/ui/Button";
 
 interface Props {
   user: User | null;
@@ -149,21 +150,12 @@ export default function HomeTopBar({
       )}
 
       <div ref={menuRef} style={{ position: "relative" }}>
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex items-center gap-2 border"
-          style={{
-            height: 36,
-            padding: "0 10px",
-            background: chip,
-            borderColor: chipBorder,
-            borderRadius: 8,
-            color: text,
-            cursor: "pointer",
-          }}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
+          style={{ height: 36 }}
         >
           <span style={{ fontSize: 12, fontWeight: 600 }}>
             {user?.full_name || user?.email || "Account"}
@@ -185,7 +177,7 @@ export default function HomeTopBar({
             </span>
           )}
           <span style={{ color: muted, fontSize: 12 }}>▾</span>
-        </button>
+        </Button>
 
         {menuOpen && (
           <div

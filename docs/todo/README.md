@@ -43,7 +43,8 @@ From `docs/assessments/2026-07-07-frontend-audit.md` (audited on `main` @ `19e6d
 
 | # | Plan | Scope | Depends on | Status |
 |---|---|---|---|---|
-| UI1 | `2026-07-23-button-design-system.md` | Shared `<Button>` component (5 variants, 3 sizes, states, hover "flare" motion) from the finalized Claude Design artifact; migrate first tranche (workflows, agent, `/app` shell) of 169 raw `<button>` call sites | PR #111 merged | not started, 3 decisions in header (D1 migration scope, D2 CSS placement, D3 danger tokens) |
+| UI1 | `2026-07-23-button-design-system.md` | Shared `<Button>` component (5 variants, 3 sizes, states, hover "flare" motion) from the finalized Claude Design artifact; migrate first tranche (workflows, agent, `/app` shell) of 169 raw `<button>` call sites | PR #111 merged | **in progress** on `feat/button-design-system` — component + `button.css` + `--danger` tokens (D2 dedicated file, D3 = artifact burnt-orange `#c2410c`) + 10 tests; tranche-1 migrations done (WorkflowCard/Library, RunToolbar, DealAssistantPanel, LeftSidebar, HomeTopBar account trigger). Poor-fit buttons (RunCell, DealListItem, HomeTopBar Add-deal) deferred → UI2 |
+| UI2 | `2026-07-24-button-system-v2.md` | Finish button rollout: unify app on one red (migrate `#ef4444` pills onto `--danger`), resolve deferred poor-fit buttons, migrate remaining ~140 call sites (incl. docmatrix Tailwind tree) | UI1 first tranche | not started |
 
 ## Suggested order
 1. Resolve **Plan 4 D1 tenancy decision**, then implement **Plan 4** → 2. **Plan 5**.

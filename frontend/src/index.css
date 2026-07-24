@@ -21,6 +21,13 @@
   --accent-tint: #e7edfb;
   --accent-tint-border: #b6c6ee;
   --on-accent: #ffffff;
+  /* Danger — the destructive semantic hue for the shared <Button> (danger
+     variant) and, over time, red status pills/badges. Burnt-orange from the
+     finalized button-system artifact; reads as destructive without the bright
+     #ef4444 alarm. Dark equivalent is a soft coral (below). */
+  --danger: #c2410c;
+  --danger-tint: color-mix(in srgb, #c2410c 10%, transparent);
+  --danger-tint-border: color-mix(in srgb, #c2410c 28%, transparent);
   /* Violet — the second semantic hue: tabular workflows, derived (vs
      extracted) citations, KV cells. Coordinated with the IC Review badge
      family. #7c3aed = 5.7:1 on white (AA); vivid enough to read as a clear
@@ -58,6 +65,11 @@
   --accent-tint: rgba(138, 180, 255, 0.12);
   --accent-tint-border: rgba(138, 180, 255, 0.35);
   --on-accent: #0f0f0f;
+  /* Soft coral danger for dark — matches the artifact; easier on the eyes than
+     a saturated red on near-black. */
+  --danger: #e8836a;
+  --danger-tint: color-mix(in srgb, #e8836a 14%, transparent);
+  --danger-tint-border: color-mix(in srgb, #e8836a 30%, transparent);
   /* #b19fdb: 7.6:1 on #171717. Tint/border mirror the accent's alpha idiom. */
   --violet: #b19fdb;
   --violet-tint: rgba(177, 159, 219, 0.12);
