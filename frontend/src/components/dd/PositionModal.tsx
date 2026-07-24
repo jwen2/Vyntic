@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { getPosition, upsertPosition, type Position } from "@/lib/api";
 import { ddTheme } from "./types";
+import Button from "@/components/ui/Button";
 
 type FormState = {
   commitment_amount: string;
@@ -166,7 +167,7 @@ export default function PositionModal({ dealId, dealName, isAdmin, theme, onClos
           </>}
         </div>
 
-        {!loading && <div className="flex items-center justify-between border-t px-5 py-4" style={{ borderColor: c.border }}><span className="text-xs" style={{ color: saved ? c.accentStrong : c.t3 }}>{saved ? "Position saved" : isAdmin ? "Empty fields are left unchanged." : "Ask an admin to update this position."}</span>{isAdmin && <button type="button" onClick={handleSave} disabled={saving} className="rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-60" style={{ background: c.accent, color: c.onAccent }}>{saving ? "Saving…" : "Save position"}</button>}</div>}
+        {!loading && <div className="flex items-center justify-between border-t px-5 py-4" style={{ borderColor: c.border }}><span className="text-xs" style={{ color: saved ? c.accentStrong : c.t3 }}>{saved ? "Position saved" : isAdmin ? "Empty fields are left unchanged." : "Ask an admin to update this position."}</span>{isAdmin && <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>{saving ? "Saving…" : "Save position"}</Button>}</div>}
       </div>
     </div>
   );
