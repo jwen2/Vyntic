@@ -31,7 +31,7 @@ From `docs/assessments/2026-07-07-frontend-audit.md` (audited on `main` @ `19e6d
 |---|---|---|---|---|---|
 | F1 | `2026-07-07-frontend-guardrails.md` | ESLint + hooks-rule fix, error boundaries, dead-code deletion, Vitest | FE1–FE3, FE7, FE13-part | — | **done** — moved to `docs/finished/` |
 | F2 | `2026-07-07-frontend-data-layer.md` | typed errors, one SSE client, one upload path, TanStack Query (decided), code splitting | FE4, FE8, FE10, FE12 | F1 | **done** — moved to `docs/finished/` |
-| F3 | `2026-07-07-frontend-decomposition-client-state.md` | god-component decomposition, typed-cell rendering (**D1**), findings/overrides → backend (**D2**), theming + a11y (**D3**) | FE5, FE6, FE9, FE11, FE13 | F1, F2; F3.4 coordinates with Plan 2 | not started, 3 decisions in header |
+| F3 | `2026-07-07-frontend-decomposition-client-state.md` | god-component decomposition, typed-cell rendering (**D1**), findings/overrides → backend (**D2**), theming + a11y (**D3**) | FE5, FE6, FE9, FE11, FE13 | F1, F2; F3.4 coordinates with Plan 2 | **done (PR #101)** — `DocMatrixPanel`/`TabularRun` decomposed, brief KV/list cells typed, findings/overrides server-side, semantic CSS-var tokens landed. `ddTheme()` kept as a compat shim (102 call sites) rather than deleted — see DS2. `DealBriefDashboard` decomposition (FE5) still deferred |
 
 ## Workspace UX
 
@@ -44,7 +44,8 @@ From `docs/assessments/2026-07-07-frontend-audit.md` (audited on `main` @ `19e6d
 | # | Plan | Scope | Depends on | Status |
 |---|---|---|---|---|
 | UI1 | `2026-07-23-button-design-system.md` | Shared `<Button>` component (5 variants, 3 sizes, states, hover "flare" motion) from the finalized Claude Design artifact; migrate first tranche (workflows, agent, `/app` shell) of 169 raw `<button>` call sites | PR #111 merged | **in progress** on `feat/button-design-system` — component + `button.css` + `--danger` tokens (D2 dedicated file, D3 = artifact burnt-orange `#c2410c`) + 10 tests; tranche-1 migrations done (WorkflowCard/Library, RunToolbar, DealAssistantPanel, LeftSidebar, HomeTopBar account trigger). Poor-fit buttons (RunCell, DealListItem, HomeTopBar Add-deal) deferred → UI2 |
-| UI2 | `2026-07-24-button-system-v2.md` | Finish button rollout: unify app on one red (migrate `#ef4444` pills onto `--danger`), resolve deferred poor-fit buttons, migrate remaining ~140 call sites (incl. docmatrix Tailwind tree) | UI1 first tranche | not started |
+| UI2 | `2026-07-24-button-system-v2.md` | Finish button rollout: unify app on one red (migrate `#ef4444` pills onto `--danger`), resolve deferred poor-fit buttons, migrate remaining ~140 call sites (incl. docmatrix Tailwind tree) | UI1 first tranche | **done** — §1–§3 + palette convergence merged (PR #114); long-tail non-action buttons + status-scale green/amber tokens optionally remain |
+| DS | `2026-07-24-design-system-primitives.md` | Modal primitive (`components/ui/`) → `ddTheme(theme)` retirement (102 call sites) → Card/Panel primitive | UI1/UI2 pattern, F3.5 tokens | not started |
 
 ## Suggested order
 1. Resolve **Plan 4 D1 tenancy decision**, then implement **Plan 4** → 2. **Plan 5**.
