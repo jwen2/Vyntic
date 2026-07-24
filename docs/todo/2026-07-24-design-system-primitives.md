@@ -1,6 +1,39 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2/DS3 not started.
+
+## Progress (2026-07-24)
+
+**DS1 — Modal primitive: done.** `components/ui/Modal.tsx` + `modal.css` (10 tests), five dialogs migrated, 123 net lines removed. tsc / lint (no new errors) / 76 tests / build all green.
+
+Found during the migration, beyond the planned markup de-duplication:
+- **Real a11y gaps, now closed.** The audit assumed `useDialogA11y` was applied uniformly. It wasn't: `PositionModal` had `role`/`aria-modal` but **no focus trap**, and `AddDealDialog` had **no `role`, no `aria-modal`, and no trap at all**. Both get the shared behaviour by construction now.
+- **`DocumentsModal`'s guarded Escape** (dismiss an inner confirm before closing the modal) was a window-level listener that only covered the keyboard — a scrim click bypassed it. It now routes through the `onClose` handed to `<Modal>`, so every close path honours the guard.
+- **`ConfirmDialog` gained a `confirmVariant` prop** instead of a hardcoded red confirm: 7 of its 8 call sites guard a delete/discard, but `WorkflowsView`'s "Open existing copy" is a plain either/or that would have been mis-signalled as destructive.
+- **Token convergence:** four different scrims and four z-indexes (50/90/1000/9999) collapsed into `--modal-scrim` / `--modal-shadow` / `--z-modal`; five panel widths onto three size steps.
+
+**`DocumentViewer` — deliberately not migrated.** It is a *drawer*, not a dialog: full-height right-side slide-in (`w-[94vw]`, `max-w-[1400px]`, `animate-slide-in-right`) with body-scroll-lock and a global Escape handler it needs because the embedded cross-origin iframe swallows keydowns. `<Modal>`'s centered, `max-height: 88vh`, `max-width: 45rem` panel is the wrong shape. If a second drawer ever appears, a sibling `Drawer` primitive should share the scrim + `useDialogA11y` with `Modal` — one component serving both would need to fork on nearly every style.
+
+Grep guard passes: remaining `fixed inset-0` hits are `DocumentViewer` (above) and the mobile nav sidebars in `DealWorkspacePage`/`HomePage` (`lg:hidden` sidebar rail + scrim — navigation, not dialogs).
+
+**Verified in-app** (`frontend:verify`, headless Edge, light + dark) — all five dialogs driven for real, each screenshotted and DOM-probed:
+
+| Dialog | size | probe |
+|---|---|---|
+| AddDealDialog | md | on `.modal-panel`, `aria-modal`, named, portaled to `<body>` |
+| DocumentsModal | lg | header actions (upload) render; inline confirm still guards close |
+| PositionModal | lg | eyebrow/title/description header correct |
+| DocumentSelectorModal | md | gains a close × it never had |
+| ConfirmDialog | sm | `btn--danger` → `#c2410c` light / `#e8836a` dark; `btn--primary` on the benign clone path |
+
+Tokens flip correctly with the theme: panel `#fff` → `#171717`, scrim `rgba(15,23,42,.55)` → `rgba(0,0,0,.62)`, `z-index` 1000 everywhere.
+
+**One pre-existing bug found, deliberately not fixed** (out of scope; belongs to the landing-system conversion): in dark mode `AddDealDialog`'s footer "Cancel" is `LandingButton variant="ghost"`, which computes `color: rgb(17,17,17)` — near-black text on a dark panel, effectively invisible. Verified byte-identical on `main` (`git checkout main` + same probe), so DS1 neither caused nor worsened it. The "Create deal" button is likewise a white landing pill rather than the app's accent. Both disappear when that form moves off the landing inputs.
+
+Pre-existing lint errors left untouched (present on the branch point, unrelated to this work): `MonitoringPanel.tsx:371` unused `c`, `ManagerPage.tsx:121` unused `isDark`.
+
+---
+
 **Depends on:** UI1/UI2 (`components/ui/Button.tsx` + `button.css` establish the pattern to follow — no `theme` prop, pure CSS-var classes); F3.5 (semantic tokens in `index.css`, Tailwind color aliases in `tailwind.config.js`, the `ddTheme()` shim it left in place).
 
 **Goal:** Stop hand-rolling markup/colors per file. Extend the one real shared component that exists today (`Button`) with a small set of app-wide primitives, so a future colorway change is a token edit, not a grep-and-replace across 30 files.
@@ -13,16 +46,18 @@ What F3.5 did *not* finish: `ddTheme(theme)` in `components/dd/types.ts` is a de
 
 Separately, `components/ui/` has exactly one primitive (`Button`/`button.css`). Everything else is bespoke: 6 modal-ish components (`ConfirmDialog`, `dd/DocumentsModal`, `dd/PositionModal`, `workflows/DocumentSelectorModal`, `AddDealDialog`, `DocumentViewer`) each hand-roll their own overlay (`fixed inset-0 z-50 flex items-center justify-center bg-black/35`) and panel chrome — though the actual a11y logic (focus trap, Escape, initial focus, focus restore) is *already* de-duplicated in the shared `hooks/useDialogA11y.ts` hook (FE13). `ConfirmDialog` additionally borrows the **landing page's** separate mini design system (`components/landing/ui/LandingPanel` etc.) with manual `isDark ? "inverse" : "default"` patches, instead of the app's own surface/text tokens — a second design system bleeding across a boundary it wasn't built for.
 
-**Decision (Stanley, 2026-07-24):** Modal is hand-rolled (`components/ui/Modal.tsx` + `modal.css`), reusing `useDialogA11y` unchanged — not a Radix adoption. No new frontend dependency; matches `Button`'s existing pattern. API is a single `title` prop + free `children` (no `Modal.Header`/`Body`/`Footer` subcomponents) — the 6 current modals vary too much in body shape to force a shared internal layout; `title` is the one genuinely common structural piece.
+**Decision (Stanley, 2026-07-24):** Modal is hand-rolled (`components/ui/Modal.tsx` + `modal.css`), reusing `useDialogA11y` unchanged — not a Radix adoption. No new frontend dependency; matches `Button`'s existing pattern. API is flat props + free `children` (no `Modal.Header`/`Body`/`Footer` subcomponents) — the 6 current modals vary too much in body shape to force a shared internal layout.
+
+*Refined during DS1 Step 1:* the header is `eyebrow` / `title` / `description` / `headerActions`, not `title` alone. Reading all five headers first showed they share exactly one shape — eyebrow?, title, description? on the left; extra actions? + close on the right — with 2 of 5 using the eyebrow and 4 of 5 the description. These stay flat optional props (the "minimal set the real call sites need"), so the no-subcomponents decision is unchanged.
 
 ## Task DS1 — Modal primitive
 
 **Files:** create `frontend/src/components/ui/Modal.tsx`, `frontend/src/components/ui/modal.css`; modify `ConfirmDialog.tsx`, `dd/DocumentsModal.tsx`, `dd/PositionModal.tsx`, `workflows/DocumentSelectorModal.tsx`, `AddDealDialog.tsx` (evaluate `DocumentViewer.tsx` — may be a poor fit, a full-screen surface rather than a dialog; defer if so, same as UI1 deferred poor-fit buttons).
 
-- [ ] **Step 1:** Build `Modal`: props `{ title?: string; onClose: () => void; size?: "sm" | "md" | "lg"; labelledBy?: string; children: ReactNode }`. Renders via `createPortal(..., document.body)` (matches the portal pattern `ColumnConfigPopover`/`AddQuestionBar`/`DocMatrixTable` already use for floating UI). Overlay + panel use `bg-surface` / `border-edge` tokens, not `ddTheme`. Attaches `useDialogA11y(onClose)`'s ref, `role="dialog"`, `aria-modal="true"`, `aria-label`/`aria-labelledby`. Optional header row: `title` text + a `Button variant="subtle" iconOnly` close ×.
-- [ ] **Step 2:** Migrate `ConfirmDialog` first (simplest body) — also drop its `LandingPanel`/`isDark` patch entirely, moving onto `Modal` + the app's own tokens. Parity: title/message render, Cancel/Confirm work, Escape/Tab-trap/focus-restore unchanged (regression against `useDialogA11y`, not new a11y work).
-- [ ] **Step 3:** Migrate the remaining modals one at a time (`DocumentsModal`, `PositionModal`, `DocumentSelectorModal`, `AddDealDialog`), each its own commit. For each: confirm `useDialogA11y` wiring moves cleanly onto `Modal`'s ref, verify no visual regression in light+dark via `frontend:verify` screenshots.
-- [ ] **Step 4:** Evaluate `DocumentViewer` — migrate if it fits the dialog shape, otherwise document why it's deferred (mirrors UI1's deferred-buttons note). Grep guard: `grep -rE "fixed inset-0.*z-50" frontend/src` should only match inside `Modal.tsx` (plus `DocumentViewer` if intentionally deferred). Commit — `feat(frontend): shared Modal primitive; migrate dialog components`
+- [x] **Step 1:** Build `Modal`: props `{ title?: string; onClose: () => void; size?: "sm" | "md" | "lg"; labelledBy?: string; children: ReactNode }`. Renders via `createPortal(..., document.body)` (matches the portal pattern `ColumnConfigPopover`/`AddQuestionBar`/`DocMatrixTable` already use for floating UI). Overlay + panel use `bg-surface` / `border-edge` tokens, not `ddTheme`. Attaches `useDialogA11y(onClose)`'s ref, `role="dialog"`, `aria-modal="true"`, `aria-label`/`aria-labelledby`. Optional header row: `title` text + a `Button variant="subtle" iconOnly` close ×.
+- [x] **Step 2:** Migrate `ConfirmDialog` first (simplest body) — also drop its `LandingPanel`/`isDark` patch entirely, moving onto `Modal` + the app's own tokens. Parity: title/message render, Cancel/Confirm work, Escape/Tab-trap/focus-restore unchanged (regression against `useDialogA11y`, not new a11y work).
+- [x] **Step 3:** Migrate the remaining modals one at a time (`DocumentsModal`, `PositionModal`, `DocumentSelectorModal`, `AddDealDialog`), each its own commit. For each: confirm `useDialogA11y` wiring moves cleanly onto `Modal`'s ref, verify no visual regression in light+dark via `frontend:verify` screenshots.
+- [x] **Step 4:** Evaluate `DocumentViewer` — migrate if it fits the dialog shape, otherwise document why it's deferred (mirrors UI1's deferred-buttons note). Grep guard: `grep -rE "fixed inset-0.*z-50" frontend/src` should only match inside `Modal.tsx` (plus `DocumentViewer` if intentionally deferred). Commit — `feat(frontend): shared Modal primitive; migrate dialog components`
 
 ## Task DS2 — ddTheme → Tailwind sweep
 
