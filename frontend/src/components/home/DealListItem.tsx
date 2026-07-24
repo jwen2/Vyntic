@@ -97,6 +97,11 @@ export default function DealListItem({
   const cardText = text;
   const cardMuted = muted;
   const cardBorder = selected ? "var(--accent)" : border;
+  const selectDeal = () => {
+    if (onSelect) onSelect();
+    else navigate(`/deal/${deal.deal_id}`);
+  };
+  const openAnalyzeFromName = deal.entity_type === "fund";
 
   return (
     <div
@@ -109,51 +114,89 @@ export default function DealListItem({
       }}
     >
       <div className="flex items-start justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            if (onSelect) onSelect();
-            else navigate(`/deal/${deal.deal_id}`);
-          }}
+        <div
           style={{
-            background: "transparent",
-            border: "none",
-            padding: 0,
-            textAlign: "left",
             flex: 1,
             minWidth: 0,
-            cursor: "pointer",
           }}
         >
-          <div
+          <button
+            type="button"
+            onClick={
+              openAnalyzeFromName
+                ? () => navigate(`/deal/${deal.deal_id}`)
+                : selectDeal
+            }
+            aria-label={
+              openAnalyzeFromName
+                ? `Analyze ${deal.name}`
+                : `Select ${deal.name}`
+            }
+            title={
+              openAnalyzeFromName
+                ? `Open ${deal.name} in Analyze`
+                : deal.name
+            }
             style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: 0,
+              background: "transparent",
+              border: "none",
+              textAlign: "left",
               fontSize: 14,
               fontWeight: 600,
               color: cardText,
               lineHeight: 1.3,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              cursor: "pointer",
             }}
-            title={deal.name}
           >
-            {deal.name}
-          </div>
-          <div
+            <span
+              style={{
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                textDecoration:
+                  openAnalyzeFromName && hovered ? "underline" : "none",
+                textUnderlineOffset: 3,
+              }}
+            >
+              {deal.name}
+            </span>
+            {openAnalyzeFromName && (
+              <span aria-hidden="true" style={{ flexShrink: 0, color: cardMuted }}>
+                →
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={selectDeal}
+            aria-label={`Select ${deal.name} for document matrix`}
             className="font-mono-plex"
             style={{
+              display: "block",
+              width: "100%",
+              padding: 0,
+              background: "transparent",
+              border: "none",
+              textAlign: "left",
+              cursor: "pointer",
+              marginTop: 4,
               fontSize: 10,
               color: cardMuted,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              marginTop: 4,
             }}
           >
             {deal.deal_id} · {deal.document_count} doc{deal.document_count !== 1 ? "s" : ""}
             {deal.entity_type === "fund" && deal.vintage ? ` · ${deal.vintage}` : ""}
             {deal.entity_type === "fund" && deal.strategy ? ` · ${deal.strategy}` : ""}
-          </div>
-        </button>
+          </button>
+        </div>
 
         <div className="flex items-center gap-2">
           {onInvestigate && (

@@ -278,19 +278,56 @@ export default function HomePage() {
                     >
                       Matrix
                     </div>
-                    <div
-                      style={{
-                        fontSize: 21,
-                        fontWeight: 600,
-                        color: text,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={selectedDeal.name}
-                    >
-                      {selectedDeal.name}
-                    </div>
+                    {selectedDeal.entity_type === "fund" ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/deal/${selectedDeal.deal_id}`)}
+                        aria-label={`Analyze ${selectedDeal.name}`}
+                        title={`Open ${selectedDeal.name} in Analyze`}
+                        style={{
+                          maxWidth: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 7,
+                          padding: 0,
+                          background: "transparent",
+                          border: "none",
+                          fontSize: 21,
+                          fontWeight: 600,
+                          color: text,
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        <span
+                          style={{
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {selectedDeal.name}
+                        </span>
+                        <span aria-hidden="true" style={{ flexShrink: 0, color: muted }}>
+                          →
+                        </span>
+                      </button>
+                    ) : (
+                      <div
+                        style={{
+                          fontSize: 21,
+                          fontWeight: 600,
+                          color: text,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={selectedDeal.name}
+                      >
+                        {selectedDeal.name}
+                      </div>
+                    )}
                     <div style={{ marginTop: 3, fontSize: 13, color: muted }}>
                       {documentsLoading
                         ? "Loading documents"
