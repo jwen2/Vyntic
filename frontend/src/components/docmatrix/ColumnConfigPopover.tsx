@@ -9,6 +9,7 @@ import {
   type ColumnFormat,
   type MatrixColumnConfig,
 } from "@/lib/matrixColumnConfig";
+import Button from "@/components/ui/Button";
 
 interface ColumnDraft {
   label: string;
@@ -309,24 +310,24 @@ export default function ColumnConfigPopover({
           </div>
 
           <div className="sticky bottom-0 flex items-center justify-between border-t border-edge-light bg-surface px-4 py-3">
-            <button
-              type="button"
+            <Button
+              variant="danger"
+              size="xs"
               onClick={() => {
                 setOpen(false);
                 onDelete();
               }}
-              className="text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400"
             >
               Delete
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
+            </Button>
+            <Button
+              variant="primary"
+              size="xs"
               disabled={!draft.label.trim() || !draft.prompt.trim()}
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40"
+              onClick={handleSave}
             >
               Save
-            </button>
+            </Button>
           </div>
         </div>
         , document.body)}

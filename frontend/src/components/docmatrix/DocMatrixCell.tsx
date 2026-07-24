@@ -4,6 +4,7 @@ import { fixMarkdownTables } from "@/lib/markdownUtils";
 import AnswerText, { CitBadge } from "@/components/dd/AnswerText";
 import { getPillClass, type MatrixColumnConfig } from "@/lib/matrixColumnConfig";
 import type { DocResult } from "./useDocMatrix";
+import Button from "@/components/ui/Button";
 
 // ── Helpers ──
 
@@ -133,14 +134,16 @@ function DocMatrixCellImpl({
           <div className="text-red-700 dark:text-red-400 flex-1 min-w-0">
             {cell.answer}
           </div>
-          <button
+          <Button
+            variant="danger"
+            size="xs"
             onClick={onRetry}
-            className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded border border-red-300 dark:border-red-800 bg-surface dark:bg-red-950/50 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
             title="Re-run this question for this document"
+            style={{ flexShrink: 0 }}
+            iconLeft={<RetryIcon />}
           >
-            <RetryIcon />
             Retry
-          </button>
+          </Button>
         </div>
       </td>
     );
@@ -150,14 +153,17 @@ function DocMatrixCellImpl({
   const clampClass = expanded ? "" : "line-clamp-4";
   return (
     <td className="p-3 border-b border-b-edge-light text-sm max-w-xs align-top group relative transition-colors group-hover:bg-[var(--accent-tint)]">
-      <button
+      <Button
+        variant="subtle"
+        size="xs"
+        iconOnly
         onClick={onRetry}
-        className="absolute top-1.5 right-1.5 z-[1] inline-flex items-center justify-center w-6 h-6 rounded text-t3 hover:text-[var(--accent)] hover:bg-[var(--accent-tint)] opacity-0 group-hover:opacity-100 transition-opacity"
         title="Re-run this question for this document"
         aria-label="Retry this cell"
+        className="absolute top-1.5 right-1.5 z-[1] opacity-0 group-hover:opacity-100"
       >
         <RetryIcon />
-      </button>
+      </Button>
 
       {showPillSummary ? (
         <div className="flex flex-wrap gap-1.5 pr-6">

@@ -6,6 +6,7 @@ import {
   type MatrixColumnConfig,
 } from "@/lib/matrixColumnConfig";
 import DocMatrixCell from "./DocMatrixCell";
+import Button from "@/components/ui/Button";
 import ColumnConfigPopover from "./ColumnConfigPopover";
 import type { DocResult, SortConfig } from "./useDocMatrix";
 
@@ -309,31 +310,27 @@ function DocMatrixRowImpl({
             </div>
           </div>
           {showDeleteDoc && (
-            <button
-              type="button"
+            <Button
+              variant="danger"
+              size="sm"
+              iconOnly
+              loading={isDeleting}
               title={`Delete ${doc.filename}`}
               aria-label={`Delete ${doc.filename}`}
-              disabled={isDeleting}
               onClick={(event) => {
                 event.stopPropagation();
                 onRequestDeleteDoc?.(doc);
               }}
-              className={`h-7 w-7 shrink-0 inline-flex items-center justify-center rounded border border-transparent bg-transparent text-t3 transition-all hover:border-edge hover:bg-surface hover:text-red-600 disabled:opacity-50 dark:hover:text-red-300 ${
-                isDeleting ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-              }`}
+              className={`shrink-0 ${isDeleting ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
             >
-              {isDeleting ? (
-                <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4h8v2" />
-                  <path d="M19 6l-1 14H6L5 6" />
-                  <path d="M10 11v5" />
-                  <path d="M14 11v5" />
-                </svg>
-              )}
-            </button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v5" />
+                <path d="M14 11v5" />
+              </svg>
+            </Button>
           )}
         </div>
       </td>
