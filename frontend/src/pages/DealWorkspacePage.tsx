@@ -439,7 +439,6 @@ export default function DealWorkspacePage() {
           dealId={dealId}
           dealName={deal.name}
           isAdmin={Boolean(user?.is_admin)}
-          theme={theme}
           onClose={() => setPositionModalOpen(false)}
         />
       )}

@@ -2,7 +2,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { DocumentMetadata, UploadProgress } from "@/lib/api";
 import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
-import { ACCENT, ddTheme, tint } from "./types";
+import { ACCENT, tint } from "./types";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 
@@ -87,7 +87,6 @@ export default function DocumentsModal({
   uploadProgress,
   uploadError,
 }: Props) {
-  const c = ddTheme(theme);
   const isDark = theme === "dark";
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -216,12 +215,11 @@ export default function DocumentsModal({
     >
 
         {(error || uploadError) && (
-          <div style={{
+          <div className="border-b border-b-edge" style={{
             padding: "10px 20px",
             background: "var(--danger-tint)",
             color: "var(--danger)",
             fontSize: 12,
-            borderBottom: `1px solid ${c.border}`,
           }}>
             {error || uploadError}
           </div>
@@ -229,10 +227,9 @@ export default function DocumentsModal({
 
         {uploadProgress && (
           <div
+            className="border-b border-b-edge bg-surface-alt"
             style={{
               padding: "10px 20px 11px",
-              borderBottom: `1px solid ${c.border}`,
-              background: c.surfaceAlt,
             }}
           >
             <div
@@ -247,11 +244,9 @@ export default function DocumentsModal({
             >
               <span
                 title={uploadProgress.detail || uploadProgress.filename || ""}
+                className={uploadProgress.status === "error" ? "" : "text-t2"}
                 style={{
-                  color:
-                    uploadProgress.status === "error"
-                      ? "var(--danger)"
-                      : c.t2,
+                  color: uploadProgress.status === "error" ? "var(--danger)" : undefined,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -260,7 +255,7 @@ export default function DocumentsModal({
                 {uploadProgress.stage || "Processing documents"}
                 {uploadProgress.filename ? ` · ${uploadProgress.filename}` : ""}
               </span>
-              <span style={{ color: c.t1, fontWeight: 700, flexShrink: 0 }}>
+              <span className="text-t1" style={{ fontWeight: 700, flexShrink: 0 }}>
                 {uploadProgress.percent}%
               </span>
             </div>
@@ -270,10 +265,10 @@ export default function DocumentsModal({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={uploadProgress.percent}
+              className="bg-edge-light"
               style={{
                 height: 5,
                 overflow: "hidden",
-                background: c.borderLight,
                 borderRadius: 999,
               }}
             >
@@ -294,7 +289,7 @@ export default function DocumentsModal({
 
         <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "6px 0" }}>
           {documents.length === 0 ? (
-            <div style={{ padding: 28, fontSize: 12, color: c.t3, textAlign: "center" }}>
+            <div className="text-t3" style={{ padding: 28, fontSize: 12, textAlign: "center" }}>
               <div>No documents in this deal yet.</div>
               {onUploadDocuments && (
                 <Button
@@ -315,27 +310,26 @@ export default function DocumentsModal({
               return (
                 <div
                   key={doc.doc_id}
+                  className="border-b border-b-edge-light"
                   style={{
                     padding: "10px 16px",
                     display: "flex",
                     alignItems: "center",
                     flexWrap: "wrap",
                     gap: 8,
-                    borderBottom: `1px solid ${c.borderLight}`,
                   }}
                 >
                   <div style={{ flex: "1 1 160px", minWidth: 0 }}>
-                    <div style={{
+                    <div className="text-t1" style={{
                       fontSize: 13,
                       fontWeight: 500,
-                      color: c.t1,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }} title={doc.filename}>
                       {doc.filename}
                     </div>
-                    <div style={{ fontSize: 10, color: c.t3, marginTop: 2 }}>
+                    <div className="text-t3" style={{ fontSize: 10, marginTop: 2 }}>
                       {doc.page_count} page{doc.page_count === 1 ? "" : "s"}
                       {doc.chunk_count ? ` · ${doc.chunk_count} chunks` : ""}
                       {doc.period ? ` · ${doc.period}` : ""}
@@ -354,8 +348,8 @@ export default function DocumentsModal({
                       fontSize: 10,
                       fontWeight: 600,
                       background: doc.scope === "manager" ? tint(ACCENT, 13) : "transparent",
-                      color: doc.scope === "manager" ? ACCENT : c.t3,
-                      border: `1px solid ${doc.scope === "manager" ? tint(ACCENT, 40) : c.border}`,
+                      color: doc.scope === "manager" ? ACCENT : "var(--text-3)",
+                      border: `1px solid ${doc.scope === "manager" ? tint(ACCENT, 40) : "var(--border)"}`,
                       borderRadius: 999,
                       cursor: "pointer",
                       whiteSpace: "nowrap",
@@ -365,9 +359,9 @@ export default function DocumentsModal({
                   </button>
                   {(() => {
                     const chip = categoryChipStyle(doc.doc_category, isDark, {
-                      bg: c.surface,
-                      fg: c.t2,
-                      border: c.border,
+                      bg: "var(--surface)",
+                      fg: "var(--text-2)",
+                      border: "var(--border)",
                     });
                     return (
                   <select
@@ -405,16 +399,13 @@ export default function DocumentsModal({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                     }}
+                    className="border border-edge bg-surface text-t2 rounded-md"
                     style={{
                       flexShrink: 0,
                       width: 78,
                       padding: "4px 6px",
                       fontSize: 11,
                       fontWeight: 600,
-                      background: c.surface,
-                      color: c.t2,
-                      border: `1px solid ${c.border}`,
-                      borderRadius: 6,
                     }}
                   />
                   {confirming ? (
@@ -454,11 +445,9 @@ export default function DocumentsModal({
           )}
         </div>
 
-        <div style={{
+        <div className="border-t border-t-edge text-t3" style={{
           padding: "10px 16px",
-          borderTop: `1px solid ${c.border}`,
           fontSize: 11,
-          color: c.t3,
         }}>
           Deletion removes the document and all of its indexed chunks. Existing run
           history that references the document stays intact but won&apos;t re-execute.
