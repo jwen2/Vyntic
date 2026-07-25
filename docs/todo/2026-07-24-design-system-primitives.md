@@ -225,7 +225,19 @@ Separately, `components/ui/` has exactly one primitive (`Button`/`button.css`). 
 
 - [ ] **Step 1:** Build `SectionLabel` with one optional `variant`: default `text-[10px] font-bold uppercase tracking-[0.08em] text-t3`; `variant="mono"` → `font-mono-plex text-[10px] uppercase tracking-[0.14em] text-t3`. **Spacing stays with callers** — the `mb: 8`/`mb: 10`/none split is caller layout, so callers pass `className="mb-2"` where they had it. Keeps the primitive one job and preserves every current pixel.
 - [ ] **Step 2:** Delete the six local definitions; re-point `parts.tsx`'s two consumers at the shared component. Zero visual change is the whole claim — verify it.
-- [ ] **Step 3:** `frontend:verify` light + dark on all six surfaces; screenshots must be pixel-identical. Commit — `refactor(frontend): shared SectionLabel primitive (DS3a)`
+- [x] **Step 3:** verified light + dark (`74e7726`). Commit — `refactor(frontend): shared SectionLabel primitive (DS3a)`
+
+**Verification (2026-07-25).** Screenshot comparison is a weak test for "zero visual change", so the primary evidence is an **A/B computed-style diff**: each of the four original definitions was re-created as inline styles and rendered next to the class string the primitive now emits, under the real stylesheet, and 9 properties compared (`fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `marginBottom`, `marginTop`, `color`, `fontFamily`, `lineHeight`). **All four matched on every property in both themes** — `10px/700/0.8px/uppercase`, `mb` 8px / 10px / 0, `--text-3`; mono at `400/1.4px` with a monospace family.
+
+Live confirmation on real screens, both themes, no page errors:
+
+| Surface | labels | result |
+|---|---|---|
+| `TabularEditor` (QofE Bridge copy) | 6 | `10px/700 ls=0.8px uppercase mb=8px` ✓ |
+| `AssistantEditor` (CIM memo copy) | 4 | same ✓ |
+| `MonitoringPanel` (Hillpath Fund IV) | 2 | `10px/400 ls=1.4px uppercase mb=0 mono` ✓ |
+
+**Not verified live:** `AssistantRun`, `MemoOutput`, and `tabular-run/`'s `RunSidebar`/`RunDetailPanel` — reaching a run screen needs a completed workflow run, and the throwaway verification backend seeds deals/documents but no runs; producing one means a real LLM call. Their labels are the same two shapes proven by the A/B diff and by the two editors, and tsc/build/tests cover the import and JSX changes.
 
 ### DS3b — tokenize focus color
 
@@ -235,7 +247,7 @@ Separately, `components/ui/` has exactly one primitive (`Button`/`button.css`). 
 
 `--focus: var(--accent)` is declared once in `:root`; because CSS custom properties resolve at use time and `.dark` redefines `--accent`, it follows the theme without a second declaration. Result: light `#1d4ed8` (6.7:1 ✓, **visibly changed** — this is the fix), dark `#8ab4ff` (8.6:1 ✓, **pixel-identical**).
 
-Both generated utilities were confirmed in the built CSS rather than assumed (the group-3 gotcha): `border-focus:focus{border-color:var(--focus)}` and `ring-focus:focus{--tw-ring-color:var(--focus)}`.
+Both generated utilities were confirmed in the built CSS rather than assumed (the group-3 gotcha): `border-focus:focus{border-color:var(--focus)}` and `ring-focus:focus{--tw-ring-color:var(--focus)}`. Live probe on an element carrying `border border-edge focus:border-focus`: light `rgb(176,176,163)` → **`rgb(29,78,216)`** on focus; dark `rgb(66,66,66)` → **`rgb(138,180,255)`**. `--focus` itself resolved to `#1d4ed8` / `#8ab4ff`. Not captured in situ: the docmatrix search field and `ColumnConfigPopover` inputs mount only behind a selected deal + open popover, which the seeded instance didn't reach — the utility they use is proven above.
 
 - [x] **Step 1:** Add `--focus` to `index.css` + Tailwind alias in `tailwind.config.js`.
 - [x] **Step 2:** Swap the 5 refs. Commit — `fix(frontend): tokenize focus ring color for WCAG contrast (DS3b)`
