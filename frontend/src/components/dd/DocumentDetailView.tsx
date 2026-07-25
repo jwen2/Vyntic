@@ -1,7 +1,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DocCoverage, Finding, FindingSeverity } from "./types";
-import { ACCENT, SEV_COLOR, ddTheme, tint } from "./types";
+import { ACCENT, SEV_COLOR, tint } from "./types";
 
 interface Props {
   doc: DocCoverage;
@@ -34,7 +34,6 @@ export default function DocumentDetailView({
   onOpenSource,
   onAsk,
 }: Props) {
-  const c = ddTheme(theme);
   const isDark = theme === "dark";
   const [prompt, setPrompt] = useState("");
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -53,7 +52,7 @@ export default function DocumentDetailView({
   );
 
   const pct = doc.pages > 0 ? Math.round((doc.cited / doc.pages) * 100) : 0;
-  const barColor = doc.uncovered ? "var(--status-critical)" : pct > 50 ? "var(--status-good)" : pct > 0 ? "var(--status-warning)" : c.border;
+  const barColor = doc.uncovered ? "var(--status-critical)" : pct > 50 ? "var(--status-good)" : pct > 0 ? "var(--status-warning)" : "var(--border)";
 
   function submit() {
     const trimmed = prompt.trim();
@@ -63,12 +62,12 @@ export default function DocumentDetailView({
   }
 
   return (
-    <div className="dd-scroll" style={{ flex: 1, overflowY: "auto", background: c.bg }}>
+    <div className="dd-scroll bg-appbg" style={{ flex: 1, overflowY: "auto" }}>
       <div style={{ maxWidth: 880, margin: "0 auto", padding: "24px 28px" }}>
         <button
           onClick={onBack}
-          onMouseEnter={(e) => (e.currentTarget.style.color = c.t1)}
-          onMouseLeave={(e) => (e.currentTarget.style.color = c.t2)}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-1)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-2)")}
           style={{
             display: "flex",
             alignItems: "center",
@@ -76,7 +75,7 @@ export default function DocumentDetailView({
             background: "none",
             border: "none",
             padding: 0,
-            color: c.t2,
+            color: "var(--text-2)",
             fontSize: 12,
             fontWeight: 500,
             cursor: "pointer",
@@ -90,29 +89,22 @@ export default function DocumentDetailView({
         </button>
 
         <div style={{ marginBottom: 18 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: c.t1, marginBottom: 4, lineHeight: 1.3, wordBreak: "break-word" }}>
+          <h2 className="text-t1" style={{ fontSize: 20, fontWeight: 700, marginBottom: 4, lineHeight: 1.3, wordBreak: "break-word" }}>
             {doc.short}
           </h2>
-          <div style={{ fontSize: 12, color: c.t3, marginBottom: 12 }}>{doc.name}</div>
+          <div className="text-t3" style={{ fontSize: 12, marginBottom: 12 }}>{doc.name}</div>
 
-          <div
-            style={{
-              padding: 14,
-              background: c.surface,
-              border: `1px solid ${c.border}`,
-              borderRadius: 10,
-            }}
-          >
+          <div className="bg-surface border border-edge" style={{ padding: 14, borderRadius: 10 }}>
             <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-              <span style={{ fontSize: 11, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+              <span className="text-t3" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
                 Coverage
               </span>
-              <span className="font-mono-dm" style={{ fontSize: 13, fontWeight: 700, color: c.t1 }}>{pct}%</span>
+              <span className="font-mono-dm text-t1" style={{ fontSize: 13, fontWeight: 700 }}>{pct}%</span>
             </div>
-            <div style={{ height: 4, borderRadius: 99, background: c.border, overflow: "hidden", marginBottom: 8 }}>
+            <div className="bg-edge" style={{ height: 4, borderRadius: 99, overflow: "hidden", marginBottom: 8 }}>
               <div style={{ width: `${pct}%`, height: "100%", background: barColor, borderRadius: 99 }} />
             </div>
-            <div className="flex items-center" style={{ gap: 12, fontSize: 11, color: c.t3 }}>
+            <div className="flex items-center text-t3" style={{ gap: 12, fontSize: 11 }}>
               <span className="font-mono-dm">{doc.cited} of {doc.pages} pages cited</span>
               <span className="font-mono-dm">{docFindings.length} flag{docFindings.length === 1 ? "" : "s"}</span>
               {doc.uncovered && (
@@ -123,16 +115,14 @@ export default function DocumentDetailView({
         </div>
 
         <div style={{ marginBottom: 22 }}>
-          <SectionHeader theme={theme} label="Insights flagged on this document" count={docFindings.length} />
+          <SectionHeader label="Insights flagged on this document" count={docFindings.length} />
           {docFindings.length === 0 ? (
             <div
+              className="text-t3 bg-surface border border-dashed border-edge"
               style={{
                 padding: "16px 14px",
                 fontSize: 12,
-                color: c.t3,
                 lineHeight: 1.5,
-                background: c.surface,
-                border: `1px dashed ${c.border}`,
                 borderRadius: 8,
               }}
             >
@@ -151,14 +141,13 @@ export default function DocumentDetailView({
                     <span style={{ fontSize: 10, fontWeight: 700, color: sevText, textTransform: "uppercase", letterSpacing: "0.07em" }}>
                       {label}
                     </span>
-                    <span style={{ fontSize: 10, color: c.t3, fontWeight: 600 }}>{items.length}</span>
+                    <span className="text-t3" style={{ fontSize: 10, fontWeight: 600 }}>{items.length}</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {items.map((finding) => (
                       <FindingCard
                         key={finding.id}
                         finding={finding}
-                        theme={theme}
                         onSelect={onSelectFinding}
                         onOpenSource={onOpenSource}
                       />
@@ -171,15 +160,8 @@ export default function DocumentDetailView({
         </div>
 
         <div>
-          <SectionHeader theme={theme} label={`Ask the agent about ${doc.short}`} />
-          <div
-            style={{
-              padding: 12,
-              background: c.surface,
-              border: `1px solid ${c.border}`,
-              borderRadius: 10,
-            }}
-          >
+          <SectionHeader label={`Ask the agent about ${doc.short}`} />
+          <div className="bg-surface border border-edge" style={{ padding: 12, borderRadius: 10 }}>
             <textarea
               ref={inputRef}
               value={prompt}
@@ -192,13 +174,11 @@ export default function DocumentDetailView({
               }}
               placeholder={`Ask anything about ${doc.short}...`}
               rows={3}
+              className="bg-appbg border border-edge text-t1"
               style={{
                 width: "100%",
                 padding: 10,
-                background: c.bg,
-                border: `1px solid ${c.border}`,
                 borderRadius: 8,
-                color: c.t1,
                 fontSize: 13,
                 fontFamily: "inherit",
                 resize: "vertical",
@@ -206,7 +186,7 @@ export default function DocumentDetailView({
               }}
             />
             <div className="flex items-center justify-between" style={{ marginTop: 10, gap: 10 }}>
-              <span style={{ fontSize: 11, color: c.t3 }}>
+              <span className="text-t3" style={{ fontSize: 11 }}>
                 Agent will scope its analysis to this document.
               </span>
               <button
@@ -214,8 +194,8 @@ export default function DocumentDetailView({
                 disabled={!prompt.trim()}
                 style={{
                   padding: "7px 14px",
-                  background: prompt.trim() ? ACCENT : c.border,
-                  color: prompt.trim() ? "var(--on-accent)" : c.t3,
+                  background: prompt.trim() ? ACCENT : "var(--border)",
+                  color: prompt.trim() ? "var(--on-accent)" : "var(--text-3)",
                   border: "none",
                   borderRadius: 6,
                   fontSize: 12,
@@ -233,19 +213,19 @@ export default function DocumentDetailView({
                   onClick={() => onAsk(suggestion)}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = tint(ACCENT, 40);
-                    e.currentTarget.style.color = c.t1;
+                    e.currentTarget.style.color = "var(--text-1)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = c.border;
-                    e.currentTarget.style.color = c.t2;
+                    e.currentTarget.style.borderColor = "var(--border)";
+                    e.currentTarget.style.color = "var(--text-2)";
                   }}
+                  className="bg-appbg"
                   style={{
                     padding: "6px 10px",
-                    background: c.bg,
-                    border: `1px solid ${c.border}`,
+                    border: "1px solid var(--border)",
                     borderRadius: 99,
                     fontSize: 11,
-                    color: c.t2,
+                    color: "var(--text-2)",
                     cursor: "pointer",
                     transition: "border-color .1s, color .1s",
                   }}
@@ -261,15 +241,14 @@ export default function DocumentDetailView({
   );
 }
 
-function SectionHeader({ label, count, theme }: { label: string; count?: number; theme: "light" | "dark" }) {
-  const c = ddTheme(theme);
+function SectionHeader({ label, count }: { label: string; count?: number }) {
   return (
     <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: c.t2, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+      <span className="text-t2" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>
         {label}
       </span>
       {count != null && (
-        <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, padding: "1px 6px", background: c.surface, borderRadius: 99 }}>
+        <span className="text-t3 bg-surface" style={{ fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 99 }}>
           {count}
         </span>
       )}
@@ -279,19 +258,15 @@ function SectionHeader({ label, count, theme }: { label: string; count?: number;
 
 function FindingCard({
   finding,
-  theme,
   onSelect,
   onOpenSource,
 }: {
   finding: Finding;
-  theme: "light" | "dark";
   onSelect: (f: Finding) => void;
   onOpenSource: (f: Finding) => void;
 }) {
-  const c = ddTheme(theme);
   const meta = SEV_COLOR[finding.sev];
   const isDealBreaker = finding.sev === "deal-breaker";
-  const baseBg = isDealBreaker ? "var(--status-critical-tint)" : c.surface;
 
   return (
     <div
@@ -308,23 +283,30 @@ function FindingCard({
         e.currentTarget.style.borderColor = tint(ACCENT, 40);
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = isDealBreaker ? "var(--status-critical-tint-border)" : c.border;
+        e.currentTarget.style.borderColor = isDealBreaker ? "var(--status-critical-tint-border)" : "var(--border)";
       }}
+      className={isDealBreaker ? "" : "bg-surface"}
       style={{
         padding: "10px 12px",
-        background: baseBg,
-        border: `1px solid ${isDealBreaker ? "var(--status-critical-tint-border)" : c.border}`,
+        background: isDealBreaker ? "var(--status-critical-tint)" : undefined,
+        border: `1px solid ${isDealBreaker ? "var(--status-critical-tint-border)" : "var(--border)"}`,
         borderLeft: `3px solid ${meta.dot}`,
         borderRadius: 7,
         cursor: "pointer",
         transition: "border-color .1s",
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 600, color: isDealBreaker ? "var(--status-critical)" : c.t1, lineHeight: 1.35, marginBottom: 4 }}>
+      <div
+        className={isDealBreaker ? "" : "text-t1"}
+        style={{ fontSize: 13, fontWeight: 600, color: isDealBreaker ? "var(--status-critical)" : undefined, lineHeight: 1.35, marginBottom: 4 }}
+      >
         {finding.title}
       </div>
       {finding.detail && (
-        <div style={{ fontSize: 12, color: isDealBreaker ? "var(--status-critical)" : c.t2, lineHeight: 1.45, marginBottom: 6 }}>
+        <div
+          className={isDealBreaker ? "" : "text-t2"}
+          style={{ fontSize: 12, color: isDealBreaker ? "var(--status-critical)" : undefined, lineHeight: 1.45, marginBottom: 6 }}
+        >
           {finding.detail}
         </div>
       )}
@@ -336,9 +318,9 @@ function FindingCard({
           e.stopPropagation();
           onOpenSource(finding);
         }}
+        className="text-t3"
         style={{
           fontSize: 10,
-          color: c.t3,
           textDecoration: finding.sourceCitation ? "underline" : "none",
           textUnderlineOffset: 2,
           cursor: finding.sourceCitation ? "pointer" : "inherit",
