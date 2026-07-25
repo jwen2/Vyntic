@@ -4,7 +4,8 @@ import AnswerText from "@/components/dd/AnswerText";
 import CitationSnippet from "@/components/dd/CitationSnippet";
 import { ACCENT, AMBER, RED, VIOLET, tint } from "../theme";
 import { proseValue } from "../cells/CellRenderer";
-import { SectionLabel, RetryIcon } from "./parts";
+import SectionLabel from "@/components/ui/SectionLabel";
+import { RetryIcon } from "./parts";
 import { demoteHeadings, formatRunDate } from "./format";
 
 // The right rail: the selected cell's answer + source spans, and recent run

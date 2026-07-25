@@ -15,6 +15,7 @@ import type {
 } from "@/lib/workflows";
 import { ACCENT, RED, VIOLET, tint } from "./theme";
 import Button from "@/components/ui/Button";
+import SectionLabel from "@/components/ui/SectionLabel";
 import {
   CellRenderPreview,
   ShapeOptionsInspector,
@@ -352,7 +353,7 @@ export default function TabularEditor(props: TabularEditorProps) {
           }}
         >
           <div>
-            <SectionLabel>Row source</SectionLabel>
+            <SectionLabel className="mb-2">Row source</SectionLabel>
             <div
               className="bg-surface border border-edge"
               style={{
@@ -406,7 +407,7 @@ export default function TabularEditor(props: TabularEditorProps) {
                 marginBottom: 8,
               }}
             >
-              <SectionLabel>Columns</SectionLabel>
+              <SectionLabel className="mb-2">Columns</SectionLabel>
               {!isReadOnly && (
                 <button
                   onClick={() => addColumn(false)}
@@ -456,7 +457,7 @@ export default function TabularEditor(props: TabularEditorProps) {
                 marginBottom: 8,
               }}
             >
-              <SectionLabel>Derived columns</SectionLabel>
+              <SectionLabel className="mb-2">Derived columns</SectionLabel>
               {!isReadOnly && (
                 <button
                   onClick={() => addColumn(true)}
@@ -520,7 +521,7 @@ export default function TabularEditor(props: TabularEditorProps) {
         >
           {activeColumn && (
             <div>
-              <SectionLabel>
+              <SectionLabel className="mb-2">
                 {activeColumn.is_derived ? "Derived Column Detail" : "Column Detail"}
               </SectionLabel>
               <div
@@ -628,7 +629,7 @@ export default function TabularEditor(props: TabularEditorProps) {
           )}
 
           <div>
-            <SectionLabel>Live grid preview</SectionLabel>
+            <SectionLabel className="mb-2">Live grid preview</SectionLabel>
             <GridPreview columns={columns} />
             <div
               className="text-t3"
@@ -644,7 +645,7 @@ export default function TabularEditor(props: TabularEditorProps) {
           </div>
           {activeColumn && !activeColumn.is_derived && (
             <div>
-              <SectionLabel>Selected cell preview</SectionLabel>
+              <SectionLabel className="mb-2">Selected cell preview</SectionLabel>
               <CellRenderPreview column={activeColumn} />
             </div>
           )}
@@ -668,23 +669,6 @@ export default function TabularEditor(props: TabularEditorProps) {
 
 /** Shared text-input chrome for the column-detail fields. */
 const inputClass = "w-full px-2.5 py-[7px] rounded-[7px] outline-none border border-edge bg-surface-alt text-t1 text-xs";
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="text-t3"
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: 8,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
 
 function Field({
   label,

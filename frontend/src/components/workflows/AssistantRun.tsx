@@ -14,6 +14,7 @@ import {
 } from "@/lib/workflows";
 import DocumentViewer from "@/components/DocumentViewer";
 import AnswerText from "@/components/dd/AnswerText";
+import SectionLabel from "@/components/ui/SectionLabel";
 import { ACCENT, AMBER, GREEN, RED, tint } from "./theme";
 
 interface AssistantRunProps {
@@ -366,7 +367,7 @@ export default function AssistantRun({
             overflowY: "auto",
           }}
         >
-          <SectionLabel>Stages</SectionLabel>
+          <SectionLabel className="mb-2.5">Stages</SectionLabel>
           {orderedStages.map((stage, i) => (
             <StageRailItem
               key={stage.id}
@@ -377,7 +378,7 @@ export default function AssistantRun({
           ))}
 
           <div style={{ marginTop: 24 }}>
-            <SectionLabel>Input Docs ({run?.document_ids.length ?? 0})</SectionLabel>
+            <SectionLabel className="mb-2.5">Input Docs ({run?.document_ids.length ?? 0})</SectionLabel>
             {(run?.document_ids ?? []).map((docId) => {
               const doc = docs.find((d) => d.doc_id === docId);
               const label = doc?.filename ?? docId.slice(0, 8);
@@ -465,23 +466,6 @@ export default function AssistantRun({
 }
 
 // ── Subcomponents ──
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="text-t3"
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
-        marginBottom: 10,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
 
 function StageRailItem({
   stage,
@@ -816,7 +800,7 @@ function AssistantSourceSidebar({
         padding: 16,
       }}
     >
-      <SectionLabel>Sources Cited</SectionLabel>
+      <SectionLabel className="mb-2.5">Sources Cited</SectionLabel>
       <div
         className="bg-surface"
         // A focused stage tints the panel's edge with the accent, not a
@@ -897,7 +881,7 @@ function AssistantSourceSidebar({
         )}
       </div>
 
-      <SectionLabel>Run History</SectionLabel>
+      <SectionLabel className="mb-2.5">Run History</SectionLabel>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
         {runHistory.slice(0, 6).map((item) => {
           const current = item.id === run?.id;
