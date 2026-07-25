@@ -14,7 +14,6 @@ import {
   WorkflowType,
   WorkflowUpdatePayload,
 } from "@/lib/workflows";
-import { ddTheme } from "@/components/dd/types";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { ACCENT } from "./theme";
 import WorkflowLibrary from "./WorkflowLibrary";
@@ -40,7 +39,6 @@ type ScreenState =
   | { kind: "memo"; workflowId: string; runId: string };
 
 export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
-  const c = ddTheme(theme);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,21 +186,22 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   if (loading && workflows.length === 0) {
     return (
       <div
+        className="text-t2"
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: c.t2,
           fontSize: 13,
         }}
       >
         <div
-          className="dd-spin"
+          className="dd-spin border-edge"
           style={{
             width: 24,
             height: 24,
-            border: `3px solid ${c.border}`,
+            borderWidth: 3,
+            borderStyle: "solid",
             borderTopColor: ACCENT,
             borderRadius: "50%",
           }}
@@ -214,6 +213,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   if (error) {
     return (
       <div
+        className="text-t1"
         style={{
           flex: 1,
           display: "flex",
@@ -221,12 +221,11 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           alignItems: "center",
           justifyContent: "center",
           gap: 12,
-          color: c.t1,
           padding: 32,
         }}
       >
         <div style={{ fontSize: 14, fontWeight: 600 }}>Couldn’t load workflows</div>
-        <div style={{ fontSize: 12, color: c.t2, textAlign: "center", maxWidth: 480 }}>{error}</div>
+        <div className="text-t2" style={{ fontSize: 12, textAlign: "center", maxWidth: 480 }}>{error}</div>
         <button
           onClick={refresh}
           style={{
@@ -273,7 +272,6 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
         <RunHistoryModal
           dealId={dealId}
           workflow={historyWorkflow}
-          theme={theme}
           onClose={() => setHistoryWorkflowId(null)}
           onOpen={(run) => handleOpenRun(historyWorkflow, run)}
         />
@@ -324,12 +322,12 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
     if (!workflow) {
       return (
         <div
+          className="text-t2"
           style={{
             flex: 1,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: c.t2,
             fontSize: 13,
           }}
         >
@@ -425,12 +423,12 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   if (!workflow) {
     return (
       <div
+        className="text-t2"
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: c.t2,
           fontSize: 13,
         }}
       >
@@ -465,17 +463,14 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
 function RunHistoryModal({
   dealId,
   workflow,
-  theme,
   onClose,
   onOpen,
 }: {
   dealId: string;
   workflow: Workflow;
-  theme: Theme;
   onClose: () => void;
   onOpen: (run: WorkflowRun) => void;
 }) {
-  const c = ddTheme(theme);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -512,11 +507,10 @@ function RunHistoryModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="bg-surface border-l border-l-edge"
         style={{
           width: "min(420px, 92vw)",
           height: "100%",
-          background: c.surface,
-          borderLeft: `1px solid ${c.border}`,
           padding: 18,
           overflowY: "auto",
           boxShadow: "-16px 0 40px rgba(0,0,0,0.35)",
@@ -524,18 +518,16 @@ function RunHistoryModal({
       >
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>Run history</div>
-            <div style={{ fontSize: 12, color: c.t2, marginTop: 2 }}>{workflow.name}</div>
+            <div className="text-t1" style={{ fontSize: 14, fontWeight: 700 }}>Run history</div>
+            <div className="text-t2" style={{ fontSize: 12, marginTop: 2 }}>{workflow.name}</div>
           </div>
           <button
             onClick={onClose}
+            className="border border-edge bg-surface-alt text-t2"
             style={{
               width: 26,
               height: 26,
               borderRadius: 6,
-              border: `1px solid ${c.border}`,
-              background: c.surfaceAlt,
-              color: c.t2,
               cursor: "pointer",
             }}
           >
@@ -544,24 +536,22 @@ function RunHistoryModal({
         </div>
 
         {loading ? (
-          <div style={{ color: c.t2, fontSize: 12 }}>Loading runs...</div>
+          <div className="text-t2" style={{ fontSize: 12 }}>Loading runs...</div>
         ) : error ? (
           <div style={{ color: "var(--danger)", fontSize: 12 }}>{error}</div>
         ) : runs.length === 0 ? (
-          <div style={{ color: c.t3, fontSize: 12 }}>No runs yet.</div>
+          <div className="text-t3" style={{ fontSize: 12 }}>No runs yet.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {runs.map((run) => (
               <button
                 key={run.id}
                 onClick={() => onOpen(run)}
+                className="border border-edge bg-surface-alt text-t1"
                 style={{
                   textAlign: "left",
                   padding: "10px 12px",
-                  background: c.surfaceAlt,
-                  border: `1px solid ${c.border}`,
                   borderRadius: 8,
-                  color: c.t1,
                   cursor: "pointer",
                 }}
               >
@@ -571,7 +561,7 @@ function RunHistoryModal({
                     {run.status}
                   </span>
                 </div>
-                <div style={{ fontSize: 11, color: c.t3, marginTop: 4 }}>
+                <div className="text-t3" style={{ fontSize: 11, marginTop: 4 }}>
                   {formatRunDate(run.completed_at ?? run.started_at)} · {run.document_ids.length} doc
                   {run.document_ids.length === 1 ? "" : "s"}
                 </div>
