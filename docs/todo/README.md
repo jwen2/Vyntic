@@ -33,6 +33,8 @@ From `docs/assessments/2026-07-07-frontend-audit.md` (audited on `main` @ `19e6d
 | F2 | `2026-07-07-frontend-data-layer.md` | typed errors, one SSE client, one upload path, TanStack Query (decided), code splitting | FE4, FE8, FE10, FE12 | F1 | **done** — moved to `docs/finished/` |
 | F3 | `2026-07-07-frontend-decomposition-client-state.md` | god-component decomposition, typed-cell rendering (**D1**), findings/overrides → backend (**D2**), theming + a11y (**D3**) | FE5, FE6, FE9, FE11, FE13 | F1, F2; F3.4 coordinates with Plan 2 | **done (PR #101)** — `DocMatrixPanel`/`TabularRun` decomposed, brief KV/list cells typed, findings/overrides server-side, semantic CSS-var tokens landed. `ddTheme()` kept as a compat shim (102 call sites) rather than deleted — see DS2. `DealBriefDashboard` decomposition (FE5) still deferred |
 
+| FE5 | `2026-07-25-fe5-brief-decomposition.md` | Decompose `DealBriefDashboard` (2,502 lines → ~280 shell + `brief/` dir); characterization tests for the untested parsers first | — (last god component) | **in progress** on `feat/fe5-brief-decomposition`. Decisions: **D1 tests-before-move**, **D2 extract first, restyle second** (ddTheme conversion is FE5.6). Unblocks the Card primitive (62 of ~75 card sites live here) and `ddTheme` deletion (last caller) |
+
 ## Workspace UX
 
 | # | Plan | Scope | Depends on | Status |
