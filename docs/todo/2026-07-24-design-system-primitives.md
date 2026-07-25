@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (9 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun, TabularEditor — `ddTheme` still referenced in 12 files, 9 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (10 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun, TabularEditor, AssistantEditor — `ddTheme` still referenced in 11 files, 8 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -89,6 +89,12 @@ The main container's tokens were already exercised in every prior tabular-run sc
 Fourth converted instance of the six-times-duplicated `SectionLabel` — left duplicated, still DS3 scope.
 
 Verified in headless Edge, light + dark, against "Contract Stack Review (Copy)"'s editor: active row-source toggle, the active column card's violet border, `ShapePicker`'s active tile, the label input, the dashed "Add column" button, the grid preview table, and the derived-columns empty state all matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
+
+**Group 10 — `AssistantEditor.tsx` (`35cda88`): done.** The assistant workflow create/edit screen (stage rail + prompt editor + flow preview) — same shape as `TabularEditor`: no `isDark` usage, so `theme` drops entirely from every function. `WorkflowsView.tsx`'s two call sites updated. `StageRailItem`'s active state and `FlowStep`'s active/checkpoint state get `var(...)` substitution (three properties change together per state, mixing ACCENT/AMBER with token fallbacks) — same treatment as `ColumnCard` and `toneStyles()`.
+
+Fifth converted instance of the duplicated `SectionLabel`.
+
+Verified in headless Edge, light + dark, against "CIM → IC Memo Draft (Copy)"'s editor: active stage rail item, amber checkpoint badges/flow steps, active blue flow step, prompt textarea, toggle switch, and active "Word" output button all matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
 
 ## Progress (2026-07-24)
 
