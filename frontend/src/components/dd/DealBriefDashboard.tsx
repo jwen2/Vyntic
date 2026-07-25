@@ -21,7 +21,7 @@ import Button from "@/components/ui/Button";
 // Local shape mirrors the old WorkstreamPanel.QuestionResult — the brief's
 // parsing/rendering code below was written against this interface and was
 // kept verbatim when the Workstreams tab was retired.
-interface QuestionResult {
+export interface QuestionResult {
   answer: string;
   /**
    * The cell's typed `answer_formatted`. KV panels (snapshot/transaction) read
@@ -49,7 +49,7 @@ type OverrideStore = Record<string, Record<string, string>>;
 const OVERRIDE_KEY_PREFIX = "vyntic_brief_overrides_";
 const DIFF_KEY_PREFIX = "vyntic_brief_diff_";
 
-interface FieldDiff {
+export interface FieldDiff {
   panel: "snapshot" | "transaction";
   panelLabel: string;
   label: string;
@@ -281,32 +281,32 @@ function useProactiveScanRun(dealId: string, workflowId: string) {
   };
 }
 
-interface BriefField {
+export interface BriefField {
   label: string;
   value: string;
   sourceIdx?: number;
   override?: boolean;
 }
 
-interface Metric {
+export interface Metric {
   label: string;
   value: string;
   context: string;
 }
 
-interface ThesisBullet {
+export interface ThesisBullet {
   text: string;
   sourceIdx?: number;
 }
 
-interface ThesisSections {
+export interface ThesisSections {
   thesis: ThesisBullet[];
   levers: ThesisBullet[];
   exit: ThesisBullet[];
   risks: ThesisBullet[];
 }
 
-interface FinancialTable {
+export interface FinancialTable {
   title: string;
   headers: string[];
   rows: string[][];
@@ -314,13 +314,13 @@ interface FinancialTable {
 
 type FinancialView = "annual" | "quarterly" | "metrics";
 
-interface ChartPoint {
+export interface ChartPoint {
   period: string;
   value: number;
   display: string;
 }
 
-interface ChartSeries {
+export interface ChartSeries {
   label: string;
   values: ChartPoint[];
 }
@@ -1963,7 +1963,7 @@ function formatRelativeTime(ms: number): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function diffPanel(
+export function diffPanel(
   panel: "snapshot" | "transaction",
   panelLabel: string,
   before: BriefField[],
@@ -1999,11 +1999,11 @@ function diffPanel(
   return changes;
 }
 
-function normalizeForCompare(value: string): string {
+export function normalizeForCompare(value: string): string {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-function isNotFound(value: string): boolean {
+export function isNotFound(value: string): boolean {
   return /^not\s+found$/i.test(value.trim());
 }
 
@@ -2077,7 +2077,7 @@ function Placeholder({ text, theme }: { text: string; theme: "light" | "dark" })
   );
 }
 
-function resultByLabel(
+export function resultByLabel(
   workstream: BriefWorkstreamShim | null,
   results: Record<string, QuestionResult>,
   label: string
@@ -2086,7 +2086,7 @@ function resultByLabel(
   return query ? results[query] : undefined;
 }
 
-function cleanText(text = ""): string {
+export function cleanText(text = ""): string {
   return text
     .replace(/<think>[\s\S]*?<\/think>/gi, "")
     .replace(/\[Source\s+\d+\]/gi, "")
@@ -2101,7 +2101,7 @@ function cleanText(text = ""): string {
  * unit-joined. Returns [] when the cell has no typed pairs (old runs) so the
  * panel falls back to rendering `answer` as markdown.
  */
-function pairsToFields(formatted: QuestionResult["formatted"], preferredLabels: string[]): BriefField[] {
+export function pairsToFields(formatted: QuestionResult["formatted"], preferredLabels: string[]): BriefField[] {
   if (!formatted || typeof formatted !== "object" || Array.isArray(formatted)) return [];
   const pairs = (formatted as { pairs?: Array<{ key?: string; value?: string | number; unit?: string | null }> }).pairs;
   if (!Array.isArray(pairs)) return [];
@@ -2129,7 +2129,7 @@ function pairsToFields(formatted: QuestionResult["formatted"], preferredLabels: 
   return fields.slice(0, 7);
 }
 
-function extractMetrics(answer: string | undefined): Metric[] {
+export function extractMetrics(answer: string | undefined): Metric[] {
   const text = cleanText(answer);
   if (!text) return [];
   const lines = text
@@ -2160,7 +2160,7 @@ function extractMetrics(answer: string | undefined): Metric[] {
   return metrics;
 }
 
-function extractFinancialTables(answer: string | undefined): FinancialTable[] {
+export function extractFinancialTables(answer: string | undefined): FinancialTable[] {
   const text = cleanText(answer);
   if (!text) return [];
   const lines = text.split("\n");
@@ -2186,11 +2186,11 @@ function extractFinancialTables(answer: string | undefined): FinancialTable[] {
   return tables.slice(0, 4);
 }
 
-function isMarkdownTableLine(line: string): boolean {
+export function isMarkdownTableLine(line: string): boolean {
   return line.includes("|") && line.split("|").length >= 3;
 }
 
-function inferTableTitle(lines: string[], tableStart: number): string {
+export function inferTableTitle(lines: string[], tableStart: number): string {
   for (let i = tableStart - 1; i >= Math.max(0, tableStart - 4); i--) {
     const candidate = lines[i]
       .replace(/^#+\s*/, "")
@@ -2202,7 +2202,7 @@ function inferTableTitle(lines: string[], tableStart: number): string {
   return "Financials";
 }
 
-function parseMarkdownTable(lines: string[], title: string): FinancialTable | null {
+export function parseMarkdownTable(lines: string[], title: string): FinancialTable | null {
   if (lines.length < 2) return null;
   const rows = lines
     .map((line) =>
@@ -2228,7 +2228,7 @@ function parseMarkdownTable(lines: string[], title: string): FinancialTable | nu
   return { title, headers, rows: body };
 }
 
-function normalizeTableCell(value: string): string {
+export function normalizeTableCell(value: string): string {
   return value
     .replace(/\[Source\s+\d+\]/gi, "")
     .replace(/\*\*/g, "")
@@ -2237,7 +2237,7 @@ function normalizeTableCell(value: string): string {
     .trim();
 }
 
-function buildChartSeries(table: FinancialTable): ChartSeries[] {
+export function buildChartSeries(table: FinancialTable): ChartSeries[] {
   if (table.headers.length < 3) return [];
   const periodHeaders = table.headers.slice(1);
   const candidateRows = table.rows.filter((row) => {
@@ -2259,7 +2259,7 @@ function buildChartSeries(table: FinancialTable): ChartSeries[] {
   })).filter((series) => series.values.length >= 2);
 }
 
-function parseFinancialNumber(value: string): number | null {
+export function parseFinancialNumber(value: string): number | null {
   const cleaned = value
     .replace(/\[Source\s+\d+\]/gi, "")
     .replace(/[$€£,%x]/gi, "")
@@ -2274,7 +2274,7 @@ function parseFinancialNumber(value: string): number | null {
   return (negative ? -1 : 1) * parsed * magnitude;
 }
 
-function shortenLabel(label: string): string {
+export function shortenLabel(label: string): string {
   const cleaned = titleCase(label.replace(/\s*\([^)]*\)/g, ""));
   if (/Adjusted EBITDA/i.test(cleaned)) return "Adj. EBITDA";
   if (/EBITDA Margin/i.test(cleaned)) return "EBITDA %";
@@ -2282,17 +2282,17 @@ function shortenLabel(label: string): string {
   return cleaned.length > 18 ? cleaned.slice(0, 16) + "..." : cleaned;
 }
 
-function shortenPeriod(period: string): string {
+export function shortenPeriod(period: string): string {
   return period.replace(/Fiscal Year|FY|Calendar Year/gi, "").replace(/\s+/g, " ").trim();
 }
 
-function inferMetricLabel(line: string, keyword: string): string {
+export function inferMetricLabel(line: string, keyword: string): string {
   const colonLabel = line.split(/[:|]/)[0]?.trim();
   if (colonLabel && colonLabel.length <= 34 && /[a-z]/i.test(colonLabel)) return titleCase(colonLabel);
   return keyword;
 }
 
-function extractBullets(answer: string | undefined): string[] {
+export function extractBullets(answer: string | undefined): string[] {
   const text = cleanText(answer);
   if (!text) return [];
   return text
@@ -2303,7 +2303,7 @@ function extractBullets(answer: string | undefined): string[] {
     .slice(0, 6);
 }
 
-function mergeOverrides(
+export function mergeOverrides(
   fields: BriefField[],
   overridesForPanel: Record<string, string> | undefined,
   preferredOrder: string[]
@@ -2333,14 +2333,14 @@ function mergeOverrides(
   return merged;
 }
 
-function extractFirstSourceIdx(text: string): number | undefined {
+export function extractFirstSourceIdx(text: string): number | undefined {
   const match = text.match(/\[Source\s+(\d+)\]/i);
   if (!match) return undefined;
   const idx = Number.parseInt(match[1], 10);
   return Number.isFinite(idx) && idx > 0 ? idx : undefined;
 }
 
-function extractBulletsWithSources(answer: string | undefined): ThesisBullet[] {
+export function extractBulletsWithSources(answer: string | undefined): ThesisBullet[] {
   if (!answer) return [];
   const sanitized = answer
     .replace(/<think>[\s\S]*?<\/think>/gi, "")
@@ -2368,7 +2368,7 @@ const THESIS_SECTION_HEADINGS: Array<{ key: keyof ThesisSections; pattern: RegEx
   { key: "risks", pattern: /^risks?\s*(?:to\s*thesis)?\b/i },
 ];
 
-function extractThesisSections(answer: string | undefined): ThesisSections {
+export function extractThesisSections(answer: string | undefined): ThesisSections {
   const empty: ThesisSections = { thesis: [], levers: [], exit: [], risks: [] };
   if (!answer) return empty;
   const sanitized = answer
@@ -2412,7 +2412,7 @@ function extractThesisSections(answer: string | undefined): ThesisSections {
   return sections;
 }
 
-function deriveActions(
+export function deriveActions(
   formatted: QuestionResult["formatted"],
   answer: string | undefined,
   findings: Finding[]
@@ -2454,7 +2454,7 @@ function deriveActions(
   return fallbacks;
 }
 
-function countSources(results: Array<QuestionResult | undefined>): number {
+export function countSources(results: Array<QuestionResult | undefined>): number {
   const sources = new Set<string>();
   for (const result of results) {
     for (const citation of result?.citations || []) {
@@ -2465,29 +2465,29 @@ function countSources(results: Array<QuestionResult | undefined>): number {
   return sources.size;
 }
 
-function compareFindingSeverity(a: Finding, b: Finding): number {
+export function compareFindingSeverity(a: Finding, b: Finding): number {
   return severityRank(b.sev) - severityRank(a.sev);
 }
 
-function severityRank(severity: FindingSeverity): number {
+export function severityRank(severity: FindingSeverity): number {
   if (severity === "deal-breaker") return 3;
   if (severity === "material") return 2;
   return 1;
 }
 
-function isGapFinding(finding: Finding): boolean {
+export function isGapFinding(finding: Finding): boolean {
   return /gap|missing|absent|unprovided|incomplete|omission/i.test(`${finding.title} ${finding.detail}`);
 }
 
-function isInconsistencyFinding(finding: Finding): boolean {
+export function isInconsistencyFinding(finding: Finding): boolean {
   return /inconsisten|conflict|mismatch|reconcile|differ|contradict/i.test(`${finding.title} ${finding.detail}`);
 }
 
-function normalizeValue(value: string): string {
+export function normalizeValue(value: string): string {
   return value.replace(/\s+/g, " ").replace(/^not\s+found$/i, "Not found").trim();
 }
 
-function titleCase(value: string): string {
+export function titleCase(value: string): string {
   return value
     .replace(/\s+/g, " ")
     .trim()
@@ -2497,6 +2497,6 @@ function titleCase(value: string): string {
     .replace(/\bMrr\b/g, "MRR");
 }
 
-function escapeRegExp(value: string): string {
+export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

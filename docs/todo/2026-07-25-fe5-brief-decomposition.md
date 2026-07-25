@@ -58,7 +58,17 @@ Mirrors `docmatrix/` and `workflows/tabular-run/`.
 
 - [ ] **Step 1:** Temporarily `export` the pure functions from `DealBriefDashboard.tsx` so they can be imported by a test. No behaviour change.
 - [ ] **Step 2:** Write `DealBriefDashboard.parsers.test.ts` covering, at minimum: `parseMarkdownTable` (well-formed, ragged rows, missing separator), `extractFinancialTables` (multiple tables, title inference), `buildChartSeries` + `parseFinancialNumber` ($/%/x/m/bn suffixes, negatives, malformed), `extractThesisSections` (all headings, missing headings, unknown headings), `extractMetrics` (keyword hits and misses), `extractBulletsWithSources` + `extractFirstSourceIdx`, `pairsToFields` (preferred-label ordering; the known `[Source N]`-lives-in-`unit` quirk from F3.3), `deriveActions`, `mergeOverrides`, `diffPanel` + `normalizeForCompare` + `isNotFound`.
-- [ ] **Step 3:** **Pin actual behaviour, including anything that looks wrong.** If a parser has a bug, the test records today's output and gets a `// QUIRK:` comment — this task is a safety net, not a fix. Fixing anything here would make a green suite after the move meaningless. File any real bug as a follow-up note. Commit — `test(frontend): characterize brief parsers before decomposition (FE5.1)`
+- [x] **Step 3:** **Pin actual behaviour, including anything that looks wrong.** If a parser has a bug, the test records today's output and gets a `// QUIRK:` comment — this task is a safety net, not a fix. Fixing anything here would make a green suite after the move meaningless. File any real bug as a follow-up note. Commit — `test(frontend): characterize brief parsers before decomposition (FE5.1)`
+
+**FE5.1 done (2026-07-25).** 72 tests in `dd/briefParsers.test.ts`; suite 76 → 148. 31 functions + 9 types temporarily exported from `DealBriefDashboard.tsx` (removed in FE5.2, when only the test's *import line* changes — assertion bodies stay untouched, which is what makes "still green" real evidence).
+
+Four of the initial expectations were wrong and were corrected to match actual behaviour — the point of the exercise. Findings worth acting on later, **deliberately not fixed here**:
+
+1. **Real bug — `parseFinancialNumber` flips the sign of leading-minus values.** `"-5.5"` returns **+5.5**: `negative` is true *and* `parseFloat` already returns `-5.5`, so the `-1` multiplier cancels it. Parenthesised negatives `"(1,234)"` are correct (`-1234`) because the parens are stripped before parsing. Any chart or table fed a `-` negative plots it inverted. Pinned in the suite so the move can't mask it; fix separately, after FE5 lands, with the test updated in the same commit.
+2. `parseFinancialNumber` strips every letter `x` (the cleaning class is `/[$€£,%x]/gi`) and `parseFloat` stops at the first non-numeric character, so prose yields numbers: `"6x growth"` → `6`, `"12 employees"` → `12`. Loose, but plausibly intended for multiples.
+3. `titleCase` only restores acronyms that are **token-initial**: `"ebitda"` → `EBITDA`, but `"EV/EBITDA"` → `"Ev/ebitda"` (`\w\S*` treats it as one token and lowercases it; the restoration regex `\bEbitda\b` is case-sensitive and no longer matches).
+
+Suffix scaling was initially miscategorised as a quirk and corrected: `m`/`bn`/`k` normalize onto a **millions** base unit consistently.
 
 ### FE5.2 — Extract the pure modules
 
