@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done. **DS2 done** — 18 real file-groups converted (`5fd8255` latest); `ddTheme` now referenced only in `DealBriefDashboard.tsx` (permanently excluded, FE5 will decompose it) plus the shim's own definition in `types.ts`/`index.css`, which can't be deleted while that one file still calls it. DS3 not started.
+**Status:** DS1 done. **DS2 done** — 18 real file-groups converted (`5fd8255` latest); `ddTheme` now referenced only in `DealBriefDashboard.tsx` (permanently excluded, FE5 will decompose it) plus the shim's own definition in `types.ts`/`index.css`, which can't be deleted while that one file still calls it. **DS3 re-scoped 2026-07-25** after running its own Step-1 inventory: Card is deferred (83% of its call sites are locked inside the excluded `DealBriefDashboard`, and there is no consistent card radius to standardize onto), leaving DS3a (`SectionLabel` consolidation) + DS3b (focus-color token) — see the DS3 section for the evidence.
 
 ## DS2 completion (2026-07-24)
 
@@ -205,17 +205,43 @@ Separately, `components/ui/` has exactly one primitive (`Button`/`button.css`). 
 - [ ] **Step 2 — DECISION POINT (Stanley):** with the pilot's real numbers in hand, choose whether to continue the sweep, and how far. If continuing, convert per directory, leaf-first (not largest-first — a component forwarding `theme` to unconverted children can't drop the prop). **`DealBriefDashboard.tsx` (23 calls, 2,502 lines) should be excluded**: it is slated for decomposition under FE5, so restyling it now is wasted work plus merge pain.
 - [ ] **Step 3:** Only once *every* call site is converted, delete `ddTheme`, `DD_LIGHT`, `DD_DARK` from `types.ts`. Grep guard: `grep -rn "ddTheme(\|DD_DARK\|DD_LIGHT" frontend/src` returns nothing. Commit per directory group. Note this step is unreachable while `DealBriefDashboard` is excluded — either it gets converted too, or the shim survives until FE5 lands.
 
-## Task DS3 — Card/Panel primitive
+## Task DS3 — re-scoped after inventory (2026-07-25)
 
-**Files:** create `frontend/src/components/ui/Card.tsx`, `frontend/src/components/ui/card.css`; migrate call sites surfaced once DS2's sweep clears the noise (expect: brief panels, workflow cards, manager/position page sections).
+**Step 1's grep was run before designing, as planned — and it moved DS3 off Card.** Findings:
 
-- [ ] **Step 1:** After DS2 lands, grep for the recurring "bordered rounded padded div" pattern (`border-edge`, `rounded-*`, `bg-surface` co-occurring) to find real call sites rather than guessing up front.
-- [ ] **Step 2:** Build `Card` with the minimal prop set the actual call sites need (likely just `padding`/`className` — resist adding variants speculatively). Migrate in one or two tranches by directory.
-- [ ] **Step 3:** Parity pass + `frontend:verify` screenshots. Commit — `feat(frontend): Card primitive; migrate bordered-panel call sites`
+*Card is mostly unreachable.* `DealBriefDashboard.tsx` holds **62** of ~75 card-shaped borders in the app (~83%), and it is permanently excluded pending FE5. A Card primitive built now absorbs ~13 sites.
+
+*There is no card radius to standardize onto.* 17 distinct `rounded-*` values are in use; for card-sized containers alone: `2rem`, `1.75rem`, `1.5rem` (15×), `1.4rem`, `1.25rem` (12×), `1rem`, `20px`, `10px`, `0.9rem`. Building a real Card means **picking one and changing how several pages look** — a visual decision, not a refactor. Doing it against a 13-site sample risks settling the radius twice, since FE5 later lands 62 more sites that may argue differently.
+
+*Input was evaluated as a substitute and rejected for the same reason.* Its call sites *are* fully reachable (34 of 35 — `DealBriefDashboard` has exactly 1 form control), but there are five distinct treatments (`TabularEditor.inputClass` `md`/`surface`/`xs`, `PositionModal.fieldClass` `xl`/`surface-alt`/`sm`, `ColumnConfigPopover` `lg`/`surface-alt`/`sm`, `DocMatrixToolbar` `md` + `ring-2`, `AssistantEditor` textarea `[7px]`/`appbg`). Unifying them is the same "pick one, pages change" decision as Card.
+
+*Only `SectionLabel` is a free win.* Six local definitions; five are identical modulo `marginBottom` (8 vs 10 vs none), and the sixth (`MonitoringPanel`) is a deliberate mono variant.
+
+**Decision (Stanley, 2026-07-25):** ship the free win now; defer both geometry-standardization decisions to one deliberate pass after FE5, where the radius/size/padding scales get decided once against the full population with a visual comparison.
+
+### DS3a — `SectionLabel` primitive
+
+**Files:** create `frontend/src/components/ui/SectionLabel.tsx` (+ test); modify `workflows/AssistantEditor.tsx`, `workflows/AssistantRun.tsx`, `workflows/MemoOutput.tsx`, `workflows/TabularEditor.tsx`, `workflows/tabular-run/parts.tsx` (+ its consumers `RunDetailPanel.tsx`, `RunSidebar.tsx`), `dd/MonitoringPanel.tsx`.
+
+- [ ] **Step 1:** Build `SectionLabel` with one optional `variant`: default `text-[10px] font-bold uppercase tracking-[0.08em] text-t3`; `variant="mono"` → `font-mono-plex text-[10px] uppercase tracking-[0.14em] text-t3`. **Spacing stays with callers** — the `mb: 8`/`mb: 10`/none split is caller layout, so callers pass `className="mb-2"` where they had it. Keeps the primitive one job and preserves every current pixel.
+- [ ] **Step 2:** Delete the six local definitions; re-point `parts.tsx`'s two consumers at the shared component. Zero visual change is the whole claim — verify it.
+- [ ] **Step 3:** `frontend:verify` light + dark on all six surfaces; screenshots must be pixel-identical. Commit — `refactor(frontend): shared SectionLabel primitive (DS3a)`
+
+### DS3b — tokenize focus color
+
+`focus:border-blue-400` / `focus:ring-blue-400` appear **13×** across 4 app files (`docmatrix/ColumnConfigPopover`, `docmatrix/DocMatrixTable`, `docmatrix/DocMatrixToolbar`, `workflows/tabular-run/RunTable`) — raw Tailwind blue in a fully themed app, with **no `--focus` token in `index.css` at all**. `landing/PricingSection.tsx` also matches but stays on the landing system.
+
+- [ ] **Step 1:** Add `--focus` to `index.css` (light + dark) and a Tailwind alias in `tailwind.config.js`.
+- [ ] **Step 2:** Swap the 13 refs. Commit — `refactor(frontend): tokenize focus ring color (DS3b)`
+
+### Deferred out of DS3
+
+- **Card/Panel primitive** → after FE5 decomposes `DealBriefDashboard`, when it can absorb ~75 sites instead of ~13 and the radius scale is decided once.
+- **Input/Field primitive** → same pass as Card; both are geometry standardization, and the two scales should be chosen together.
 
 ## Out of scope (future plans, not this one)
 
-- Badge/Pill, Input/Select, Table-row primitives — no inventory taken yet; premature to design now.
+- Badge/Pill and Table-row primitives — no inventory taken yet; premature to design now.
 - `DealBriefDashboard` god-component decomposition (FE5) — separately deferred, unrelated to styling.
 - `components/landing/ui/` itself — the landing page's own mini design system stays as-is; only `ConfirmDialog`'s cross-boundary borrowing of it is in scope (DS1 Step 2).
 
@@ -228,4 +254,6 @@ Separately, `components/ui/` has exactly one primitive (`Button`/`button.css`). 
 - Zero `ddTheme(`, `DD_LIGHT`, `DD_DARK` in `frontend/src` (DS2).
 - All 6 modal-ish components on `<Modal>`, or a documented poor-fit deferral (DS1).
 - No stray `fixed inset-0 z-50` dialog markup outside `Modal.tsx` / documented deferrals.
+- Exactly one `SectionLabel` definition in `frontend/src` (DS3a). Grep guard: `grep -rn "function SectionLabel" frontend/src` returns one hit, in `components/ui/`.
+- Zero raw `blue-400`/`blue-500` focus styles outside `components/landing/` (DS3b).
 - One commit per task/file-group per the steps above.
