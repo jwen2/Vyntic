@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (4 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar — `ddTheme` still referenced in 18 files); DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (5 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary — `ddTheme` still referenced in 16 files, 13 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -57,6 +57,12 @@ Verified in headless Edge, light + dark: `DocumentsModal` via a live deal's docu
 Verified in headless Edge, light + dark, against both a plain deal (no Position button) and a fund entity (has one), to exercise every branch: surface/border chrome, active-nav highlight, deal-id chip, and the Position button — the latter two reusing the accent-strong/tint/tint-border aliases added last group. All matched exactly. tsc clean, lint unchanged, 76 tests, build green.
 
 **Process note:** a `TaskStop` call on a background vite process did not actually kill it (Windows); it kept listening on 5311 across turns. Confirming with `netstat`/`taskkill` before relying on "stopped" being true would have caught this sooner — verification against a supposedly-dead dev server risks silently testing stale code.
+
+**Group 5 — `WorkflowCard.tsx` + `WorkflowLibrary.tsx` (`667a757`): done.** Both keep `theme` at the top level (`isDark` box-shadow branching), but every internal helper that only used it to reach `ddTheme` drops it: `Section`, `EmptyState`, `NewMenuButton` all lose the prop, call sites updated. `WorkflowBadge`'s color/background/border args and `NewMenuButton`'s imperative hover handler get `var(...)` substitution rather than class conversion or restructuring — consistent with the "don't fight dynamic per-instance styling into classes" rule established in group 3.
+
+Verified in headless Edge, light + dark, against the live Workflows tab: page background, header card, search field, the workflow-count stat row (`text-accent`), a card's surface/border, its "Built-in" badge, and the "New workflow" dropdown menu — all matched tokens exactly.
+
+**Repeat process note:** two more background dev-server processes from this session survived their `TaskStop` calls; both had to be found via `netstat` and `taskkill`'d directly. Treat `TaskStop` as "requested," not "confirmed," for any server used in the next verification pass.
 
 ## Progress (2026-07-24)
 
