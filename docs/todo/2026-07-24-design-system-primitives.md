@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done. **DS2 done, including Step 3** — 18 real file-groups converted here (`5fd8255` latest); the shim itself was deleted by FE5.6 (`a07f629`) once the brief was decomposed, so `frontend/src` now has zero `ddTheme`/`DD_LIGHT`/`DD_DARK`. DS3 not started — and now unblocked, since the ~62 card-shaped call sites that used to be locked inside `DealBriefDashboard` are individually addressable in `brief/`.
+**Status:** DS1 done. **DS2 done, including Step 3** — 18 real file-groups converted here (`5fd8255` latest); the shim itself was deleted by FE5.6 (`a07f629`) once the brief was decomposed, so `frontend/src` now has zero `ddTheme`/`DD_LIGHT`/`DD_DARK`. **DS3 partially done** on the unmerged local branch `feat/design-system-ds3` (DS3a `SectionLabel` dedup + DS3b `--focus` token); its Card/Input re-scope note stands, but the blocker it cited is gone — the ~62 card-shaped call sites that were locked inside `DealBriefDashboard` are now individually addressable in `brief/`.
 
 ## DS2 completion (2026-07-24)
 
