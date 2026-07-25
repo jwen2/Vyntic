@@ -137,7 +137,6 @@ export default function TabularRun({
                 cells={m.cells}
                 docs={m.docs}
                 rowSourceIsDoc={m.workflow.row_source === "one_doc_per_row"}
-                theme={theme}
                 onCitationClick={m.handleCitationClick}
               />
             ) : (
