@@ -74,6 +74,11 @@
   --modal-scrim: rgba(15, 23, 42, 0.55);
   --modal-shadow: rgba(15, 23, 42, 0.18);
   --z-modal: 1000;
+  /* Hero-card elevation — the brief's outermost card (see ui/card.css).
+     Unlike --modal-shadow, which is a colour, this holds the whole box-shadow
+     value: the light treatment has two layers and the dark one has a single
+     deeper layer, so they differ in shape, not just tint. */
+  --card-hero-shadow: 0 12px 30px rgba(17, 17, 17, 0.11), 0 1px 2px rgba(17, 17, 17, 0.05);
 }
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
@@ -117,6 +122,7 @@
   /* Deeper scrim/shadow on near-black surfaces (the light values wash out). */
   --modal-scrim: rgba(0, 0, 0, 0.62);
   --modal-shadow: rgba(0, 0, 0, 0.5);
+  --card-hero-shadow: 0 16px 34px rgba(0, 0, 0, 0.44);
 }
 
 /* Zebra striping for any data table — opt in with class="dd-zebra". Cells
