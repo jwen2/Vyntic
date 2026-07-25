@@ -345,7 +345,6 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
               dealId={dealId}
               runId={screen.runId}
               workflow={workflow}
-              theme={theme}
               onBack={() => setScreen({ kind: "library" })}
             />
             {renderModal()}
