@@ -52,9 +52,8 @@
   --table-header: #e5e3d8;
 
   /* Semantic surface/text/border tokens — the single theming source (FE11).
-     Light values mirror the old DD_LIGHT; .dark overrides them below. Consumed
-     via ddTheme() (which now returns these var refs) and the Tailwind color
-     aliases (bg-surface, text-t1, border-edge, …). */
+     Light values here; .dark overrides them below. Consumed via the Tailwind
+     color aliases (bg-surface, text-t1, border-edge, …). */
   --surface: var(--landing-surface);
   --surface-alt: var(--landing-surface-alt);
   --bg: var(--landing-bg);
@@ -75,6 +74,11 @@
   --modal-scrim: rgba(15, 23, 42, 0.55);
   --modal-shadow: rgba(15, 23, 42, 0.18);
   --z-modal: 1000;
+  /* Hero-card elevation — the brief's outermost card (see ui/card.css).
+     Unlike --modal-shadow, which is a colour, this holds the whole box-shadow
+     value: the light treatment has two layers and the dark one has a single
+     deeper layer, so they differ in shape, not just tint. */
+  --card-hero-shadow: 0 12px 30px rgba(17, 17, 17, 0.11), 0 1px 2px rgba(17, 17, 17, 0.05);
 }
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
@@ -104,7 +108,7 @@
   --table-zebra: #1c1c1c;
   --table-header: #202020;
 
-  /* Dark overrides for the semantic tokens (mirror the old DD_DARK). */
+  /* Dark overrides for the semantic tokens. */
   --surface: #171717;
   --surface-alt: #111111;
   --bg: #0f0f0f;
@@ -118,6 +122,7 @@
   /* Deeper scrim/shadow on near-black surfaces (the light values wash out). */
   --modal-scrim: rgba(0, 0, 0, 0.62);
   --modal-shadow: rgba(0, 0, 0, 0.5);
+  --card-hero-shadow: 0 16px 34px rgba(0, 0, 0, 0.44);
 }
 
 /* Zebra striping for any data table — opt in with class="dd-zebra". Cells

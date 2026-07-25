@@ -1,29 +1,20 @@
 // Analyst next-actions list. Extracted from DealBriefDashboard.tsx (FE5.4).
 
 import { useState } from "react";
+import Card from "@/components/ui/Card";
 import { type Citation } from "@/lib/api";
-import { ddTheme } from "../types";
 import { type ThesisBullet } from "./config";
 import { Placeholder, SourceChip, lineClamp } from "./parts";
 
-export function ActionsPanel({ actions, citations, theme, onCit }: { actions: ThesisBullet[]; citations: (Citation | null)[]; theme: "light" | "dark"; onCit?: (sourceIdx: number) => void }) {
-  const c = ddTheme(theme);
+export function ActionsPanel({ actions, citations, onCit }: { actions: ThesisBullet[]; citations: (Citation | null)[]; onCit?: (sourceIdx: number) => void }) {
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   return (
-    <div
-      style={{
-        padding: 16,
-        borderRadius: 24,
-        border: `1px solid ${c.border}`,
-        background: c.surface,
-      }}
-    >
+    <Card level="panel">
       <div
-        className="font-mono-plex"
+        className="font-mono-plex text-t3"
         style={{
           fontSize: 10,
           fontWeight: 700,
-          color: c.t3,
           marginBottom: 10,
           textTransform: "uppercase",
           letterSpacing: "0.12em",
@@ -40,14 +31,14 @@ export function ActionsPanel({ actions, citations, theme, onCit }: { actions: Th
 
             return (
               <li key={`${action.text}-${idx}`} className="flex" style={{ gap: 8, alignItems: "flex-start" }}>
-                <span className="font-mono-dm" style={{ width: 22, height: 22, borderRadius: "50%", background: c.surfaceAlt, border: `1px solid ${c.border}`, color: c.t2, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span className="font-mono-dm border border-edge bg-surface-alt text-t2" style={{ width: 22, height: 22, borderRadius: "50%", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {idx + 1}
                 </span>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div
+                    className="text-t1"
                     style={{
                       fontSize: 12,
-                      color: c.t1,
                       lineHeight: 1.5,
                       ...(expanded ? {} : lineClamp(3)),
                     }}
@@ -63,13 +54,13 @@ export function ActionsPanel({ actions, citations, theme, onCit }: { actions: Th
                         <button
                           type="button"
                           onClick={() => setExpandedIds((prev) => ({ ...prev, [actionId]: !prev[actionId] }))}
+                          className="text-t2"
                           style={{
                             padding: 0,
                             border: "none",
                             background: "transparent",
                             fontSize: 10,
                             fontWeight: 700,
-                            color: c.t2,
                             cursor: "pointer",
                           }}
                         >
@@ -84,9 +75,9 @@ export function ActionsPanel({ actions, citations, theme, onCit }: { actions: Th
           })}
         </ol>
       ) : (
-        <Placeholder text="Next actions will be generated from the scan" theme={theme} />
+        <Placeholder text="Next actions will be generated from the scan" />
       )}
-    </div>
+    </Card>
   );
 }
 

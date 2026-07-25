@@ -2,7 +2,8 @@
 // Extracted from DealBriefDashboard.tsx (FE5.4).
 
 import { useEffect, useMemo, useState } from "react";
-import { ACCENT, ddTheme } from "../types";
+import Card from "@/components/ui/Card";
+import { ACCENT } from "../types";
 import { type ChartSeries, type FinancialTable, type FinancialView, type Metric } from "./config";
 import { buildChartSeries, extractBullets } from "./parse";
 import { Placeholder } from "./parts";
@@ -11,18 +12,15 @@ export function FinancialPanel({
   metrics,
   tables,
   fallback,
-  theme,
   primaryTabLabel = "Annual",
   panelTitle,
 }: {
   metrics: Metric[];
   tables: FinancialTable[];
   fallback?: string;
-  theme: "light" | "dark";
   primaryTabLabel?: string;
   panelTitle?: string;
 }) {
-  const c = ddTheme(theme);
   const fallbackItems = metrics.length === 0 ? extractBullets(fallback).slice(0, 4) : [];
   const annualTable = tables.find((table) => /annual|year|income statement/i.test(table.title)) || tables[0];
   const quarterlyTable = tables.find((table) => /quarter|q[1-4]/i.test(table.title));
@@ -48,21 +46,13 @@ export function FinancialPanel({
   }, [annualTable, fallbackItems.length, metrics.length, quarterlyTable, userView]);
 
   return (
-    <div
-      style={{
-        padding: 16,
-        borderRadius: 24,
-        border: `1px solid ${c.border}`,
-        background: c.surface,
-      }}
-    >
+    <Card level="panel">
       <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
         <div
-          className="font-mono-plex"
+          className="font-mono-plex text-t3"
           style={{
             fontSize: 10,
             fontWeight: 700,
-            color: c.t3,
             textTransform: "uppercase",
             letterSpacing: "0.12em",
           }}
@@ -78,23 +68,22 @@ export function FinancialPanel({
           ]}
           value={view}
           onChange={setUserView}
-          theme={theme}
         />
       </div>
 
       {activeTable ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {chartSeries.length > 0 && <FinancialChart series={chartSeries} theme={theme} />}
-          <FinancialTableView table={activeTable} theme={theme} />
+          {chartSeries.length > 0 && <FinancialChart series={chartSeries} />}
+          <FinancialTableView table={activeTable} />
         </div>
       ) : metrics.length > 0 ? (
-        <MetricsTable metrics={metrics} theme={theme} />
+        <MetricsTable metrics={metrics} />
       ) : fallbackItems.length > 0 ? (
-        <SimpleFinancialTable items={fallbackItems} theme={theme} />
+        <SimpleFinancialTable items={fallbackItems} />
       ) : !hasStructuredData ? (
-        <Placeholder text="No financial metrics extracted yet" theme={theme} />
+        <Placeholder text="No financial metrics extracted yet" />
       ) : null}
-    </div>
+    </Card>
   );
 }
 
@@ -102,16 +91,13 @@ export function SegmentedTabs({
   options,
   value,
   onChange,
-  theme,
 }: {
   options: Array<{ id: FinancialView; label: string; disabled: boolean }>;
   value: FinancialView;
   onChange: (view: FinancialView) => void;
-  theme: "light" | "dark";
 }) {
-  const c = ddTheme(theme);
   return (
-    <div className="flex items-center" style={{ gap: 2, padding: 3, borderRadius: 999, background: c.surfaceAlt, border: `1px solid ${c.border}` }}>
+    <div className="flex items-center border border-edge bg-surface-alt" style={{ gap: 2, padding: 3, borderRadius: 999 }}>
       {options.map((option) => {
         const active = option.id === value;
         return (
@@ -125,7 +111,7 @@ export function SegmentedTabs({
               padding: "6px 10px",
               fontSize: 10,
               fontWeight: 700,
-              color: option.disabled ? c.t4 : active ? "var(--on-accent)" : c.t2,
+              color: option.disabled ? "var(--text-4)" : active ? "var(--on-accent)" : "var(--text-2)",
               background: active ? ACCENT : "transparent",
               cursor: option.disabled ? "default" : "pointer",
             }}
@@ -138,36 +124,34 @@ export function SegmentedTabs({
   );
 }
 
-export function FinancialChart({ series, theme }: { series: ChartSeries[]; theme: "light" | "dark" }) {
-  const c = ddTheme(theme);
+export function FinancialChart({ series }: { series: ChartSeries[] }) {
   const max = Math.max(...series.flatMap((item) => item.values.map((point) => Math.abs(point.value))), 1);
   return (
-    <div style={{ padding: 12, borderRadius: 18, background: c.surfaceAlt, border: `1px solid ${c.border}` }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Trend chart</div>
+    <Card level="inner" tone="alt">
+      <div className="text-t3" style={{ fontSize: 10, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Trend chart</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {series.slice(0, 3).map((item) => (
           <div key={item.label} style={{ display: "grid", gridTemplateColumns: "86px minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: c.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+            <div className="text-t2" style={{ fontSize: 10, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
             <div style={{ display: "grid", gridTemplateColumns: `repeat(${item.values.length}, minmax(22px, 1fr))`, gap: 4, alignItems: "end", height: 44 }}>
               {item.values.map((point) => (
                 <div key={`${item.label}-${point.period}`} title={`${item.label} ${point.period}: ${point.display}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 3, minWidth: 0 }}>
                   <div style={{ width: "100%", minHeight: 3, height: `${Math.max(4, (Math.abs(point.value) / max) * 38)}px`, borderRadius: "3px 3px 0 0", background: point.value < 0 ? "var(--status-critical)" : ACCENT }} />
-                  <div style={{ fontSize: 8, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{point.period}</div>
+                  <div className="text-t3" style={{ fontSize: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{point.period}</div>
                 </div>
               ))}
             </div>
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
-export function FinancialTableView({ table, theme }: { table: FinancialTable; theme: "light" | "dark" }) {
-  const c = ddTheme(theme);
+export function FinancialTableView({ table }: { table: FinancialTable }) {
   return (
-    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surface, overflow: "hidden" }}>
-      <div style={{ padding: "9px 12px", borderBottom: `1px solid ${c.border}`, fontSize: 11, fontWeight: 700, color: c.t1, background: c.gridHeader }}>
+    <Card level="inner" padding={0} className="overflow-hidden">
+      <div className="border-b border-edge bg-grid-header text-t1" style={{ padding: "9px 12px", fontSize: 11, fontWeight: 700 }}>
         {table.title}
       </div>
       <div style={{ overflowX: "auto" }}>
@@ -177,14 +161,12 @@ export function FinancialTableView({ table, theme }: { table: FinancialTable; th
               {table.headers.map((header, idx) => (
                 <th
                   key={`${table.title}-h-${idx}`}
+                  className="border-b border-edge bg-grid-header text-t3"
                   style={{
                     padding: "7px 8px",
                     textAlign: idx === 0 ? "left" : "right",
                     fontSize: 10,
                     fontWeight: 700,
-                    color: c.t3,
-                    background: c.gridHeader,
-                    borderBottom: `1px solid ${c.border}`,
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -199,13 +181,17 @@ export function FinancialTableView({ table, theme }: { table: FinancialTable; th
                 {table.headers.map((_, cIdx) => (
                   <td
                     key={`${table.title}-r-${rIdx}-${cIdx}`}
-                    className={cIdx > 0 ? "font-mono-dm" : undefined}
+                    className={[
+                      cIdx > 0 ? "font-mono-dm" : "",
+                      cIdx === 0 ? "text-t1" : "text-t2",
+                      rIdx === table.rows.length - 1 ? "" : "border-b border-edge",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     style={{
                       padding: "7px 8px",
                       textAlign: cIdx === 0 ? "left" : "right",
                       fontSize: 11,
-                      color: cIdx === 0 ? c.t1 : c.t2,
-                      borderBottom: rIdx === table.rows.length - 1 ? "none" : `1px solid ${c.border}`,
                       whiteSpace: "nowrap",
                       fontVariantNumeric: "tabular-nums",
                     }}
@@ -218,54 +204,52 @@ export function FinancialTableView({ table, theme }: { table: FinancialTable; th
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }
 
-export function MetricsTable({ metrics, theme }: { metrics: Metric[]; theme: "light" | "dark" }) {
-  const c = ddTheme(theme);
+export function MetricsTable({ metrics }: { metrics: Metric[] }) {
   return (
-    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surface, overflow: "hidden" }}>
+    <Card level="inner" padding={0} className="overflow-hidden">
       <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
             {["Metric", "Value", "Context"].map((header, idx) => (
-              <th key={header} style={{ padding: "9px 10px", textAlign: idx === 1 ? "right" : "left", fontSize: 10, fontWeight: 700, color: c.t3, background: c.gridHeader, borderBottom: `1px solid ${c.border}` }}>{header}</th>
+              <th key={header} className="border-b border-edge bg-grid-header text-t3" style={{ padding: "9px 10px", textAlign: idx === 1 ? "right" : "left", fontSize: 10, fontWeight: 700 }}>{header}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {metrics.slice(0, 8).map((metric, idx) => (
             <tr key={`${metric.label}-${idx}`}>
-              <td style={{ padding: "9px 10px", fontSize: 11, fontWeight: 700, color: c.t1, borderBottom: `1px solid ${c.border}` }}>{metric.label}</td>
-              <td className="font-mono-dm" style={{ padding: "9px 10px", fontSize: 11, color: c.t1, textAlign: "right", borderBottom: `1px solid ${c.border}`, whiteSpace: "nowrap" }}>{metric.value}</td>
-              <td style={{ padding: "9px 10px", fontSize: 10, color: c.t2, borderBottom: `1px solid ${c.border}` }}>{metric.context}</td>
+              <td className="border-b border-edge text-t1" style={{ padding: "9px 10px", fontSize: 11, fontWeight: 700 }}>{metric.label}</td>
+              <td className="font-mono-dm border-b border-edge text-t1" style={{ padding: "9px 10px", fontSize: 11, textAlign: "right", whiteSpace: "nowrap" }}>{metric.value}</td>
+              <td className="border-b border-edge text-t2" style={{ padding: "9px 10px", fontSize: 10 }}>{metric.context}</td>
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }
 
-export function SimpleFinancialTable({ items, theme }: { items: string[]; theme: "light" | "dark" }) {
-  const c = ddTheme(theme);
+export function SimpleFinancialTable({ items }: { items: string[] }) {
   return (
-    <div style={{ borderRadius: 18, border: `1px solid ${c.border}`, background: c.surface, overflow: "hidden" }}>
+    <Card level="inner" padding={0} className="overflow-hidden">
       <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
           {items.map((item, idx) => {
             const [label, ...rest] = item.split(":");
             return (
               <tr key={`${item}-${idx}`}>
-                <td style={{ padding: "9px 10px", fontSize: 11, fontWeight: 700, color: c.t1, width: "34%", borderBottom: `1px solid ${c.border}` }}>{rest.length ? label : `Item ${idx + 1}`}</td>
-                <td style={{ padding: "9px 10px", fontSize: 11, color: c.t2, borderBottom: `1px solid ${c.border}` }}>{rest.length ? rest.join(":").trim() : item}</td>
+                <td className="border-b border-edge text-t1" style={{ padding: "9px 10px", fontSize: 11, fontWeight: 700, width: "34%" }}>{rest.length ? label : `Item ${idx + 1}`}</td>
+                <td className="border-b border-edge text-t2" style={{ padding: "9px 10px", fontSize: 11 }}>{rest.length ? rest.join(":").trim() : item}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }
 

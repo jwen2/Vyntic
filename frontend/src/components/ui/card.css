@@ -1,0 +1,52 @@
+/* Shared <Card> primitive — one styling source for the brief's nested panels.
+   Every colour resolves from a CSS custom property (see index.css), so the card
+   themes automatically with the `.dark` class on <html> and needs no `theme`
+   prop — the same contract as <Button> / button.css.
+
+   Three levels mirror the nesting depth the brief already used before it was
+   decomposed: hero (the outermost card) > panel > inner. */
+
+.card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* Levels — radius + default padding. Consumers override padding via the
+   `padding` prop (inline style), never a Tailwind utility: this file loads
+   after the utility layer and would win. */
+.card--hero {
+  border-radius: 28px;
+  padding: 20px;
+  box-shadow: var(--card-hero-shadow);
+}
+
+.card--panel {
+  border-radius: 24px;
+  padding: 16px;
+}
+
+.card--inner {
+  border-radius: 18px;
+  padding: 12px;
+}
+
+/* Tones — background + border colour. */
+.card--surface {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.card--alt {
+  background: var(--surface-alt);
+  border-color: var(--border);
+}
+
+.card--alert {
+  background: var(--status-critical-tint);
+  border-color: var(--status-critical-tint-border);
+}
+
+/* Style only — the tone still owns the colour. */
+.card--dashed {
+  border-style: dashed;
+}

@@ -2,25 +2,23 @@
 // Extracted from DealBriefDashboard.tsx (FE5.4).
 
 import { useCallback, useState } from "react";
-import { SEV_COLOR, ddTheme, type Finding } from "../types";
+import Card from "@/components/ui/Card";
+import { SEV_COLOR, type Finding } from "../types";
 import { CountBadge, Placeholder, SeverityDot, lineClamp } from "./parts";
 
 export function FindingsPanel({
   findings,
   gapCount,
   inconsistencyCount,
-  theme,
   onSelectFinding,
   onOpenSource,
 }: {
   findings: Finding[];
   gapCount: number;
   inconsistencyCount: number;
-  theme: "light" | "dark";
   onSelectFinding: (finding: Finding) => void;
   onOpenSource?: (finding: Finding) => void;
 }) {
-  const c = ddTheme(theme);
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
   const toggleFinding = useCallback(
@@ -32,21 +30,13 @@ export function FindingsPanel({
   );
 
   return (
-    <div
-      style={{
-        padding: 16,
-        borderRadius: 24,
-        border: `1px solid ${c.border}`,
-        background: c.surface,
-      }}
-    >
+    <Card level="panel">
       <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
         <div
-          className="font-mono-plex"
+          className="font-mono-plex text-t3"
           style={{
             fontSize: 10,
             fontWeight: 700,
-            color: c.t3,
             textTransform: "uppercase",
             letterSpacing: "0.12em",
           }}
@@ -54,8 +44,8 @@ export function FindingsPanel({
           What matters most
         </div>
         <div style={{ flex: 1 }} />
-        <CountBadge label="Gaps" count={gapCount} theme={theme} />
-        <CountBadge label="Mismatches" count={inconsistencyCount} theme={theme} />
+        <CountBadge label="Gaps" count={gapCount} />
+        <CountBadge label="Mismatches" count={inconsistencyCount} />
       </div>
       {findings.length > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
@@ -65,28 +55,24 @@ export function FindingsPanel({
             const canExpand = hasSeparateDetail || finding.title.length > 110;
 
             return (
-              <div
+              <Card
                 key={finding.id}
-                style={{
-                  padding: 12,
-                  borderRadius: 18,
-                  background: c.surfaceAlt,
-                  border: `1px solid ${c.border}`,
-                  minWidth: 0,
-                }}
+                level="inner"
+                tone="alt"
+                style={{ minWidth: 0 }}
               >
                 <div className="flex items-center" style={{ gap: 6, marginBottom: 6 }}>
                   <SeverityDot severity={finding.sev} />
                   <span style={{ fontSize: 10, fontWeight: 700, color: SEV_COLOR[finding.sev].color }}>{SEV_COLOR[finding.sev].label}</span>
-                  <span style={{ fontSize: 10, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                  <span className="text-t3" style={{ fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
                     {finding.src}
                   </span>
                 </div>
                 <div
+                  className="text-t1"
                   style={{
                     fontSize: 12,
                     fontWeight: 650,
-                    color: c.t1,
                     lineHeight: 1.45,
                     ...(expanded ? {} : lineClamp(4)),
                   }}
@@ -94,7 +80,7 @@ export function FindingsPanel({
                   {finding.title}
                 </div>
                 {expanded && hasSeparateDetail && (
-                  <div style={{ marginTop: 8, fontSize: 11, color: c.t2, lineHeight: 1.55 }}>
+                  <div className="text-t2" style={{ marginTop: 8, fontSize: 11, lineHeight: 1.55 }}>
                     {finding.detail}
                   </div>
                 )}
@@ -104,13 +90,13 @@ export function FindingsPanel({
                       <button
                         type="button"
                         onClick={() => toggleFinding(finding)}
+                        className="text-t2"
                         style={{
                           padding: 0,
                           border: "none",
                           background: "transparent",
                           fontSize: 10,
                           fontWeight: 700,
-                          color: c.t2,
                           cursor: "pointer",
                         }}
                       >
@@ -121,13 +107,13 @@ export function FindingsPanel({
                       <button
                         type="button"
                         onClick={() => onOpenSource?.(finding)}
+                        className="text-t2"
                         style={{
                           padding: 0,
                           border: "none",
                           background: "transparent",
                           fontSize: 10,
                           fontWeight: 700,
-                          color: c.t2,
                           cursor: "pointer",
                           textDecoration: "underline",
                           textUnderlineOffset: 2,
@@ -138,14 +124,14 @@ export function FindingsPanel({
                     )}
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>
       ) : (
-        <Placeholder text="Scan findings will appear here" theme={theme} />
+        <Placeholder text="Scan findings will appear here" />
       )}
-    </div>
+    </Card>
   );
 }
 

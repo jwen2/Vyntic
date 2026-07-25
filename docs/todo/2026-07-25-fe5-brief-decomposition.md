@@ -1,6 +1,6 @@
 # Plan: FE5 — DealBriefDashboard decomposition
 
-**Status:** FE5.1–FE5.5 done — decomposition complete (2,502 → 374). Only FE5.6 (ddTheme conversion) remains. Branch `feat/fe5-brief-decomposition` (off `main` @ `0cca00f`).
+**Status:** done. FE5.1–FE5.5 (decomposition, 2,502 → 374) merged as PR #116; FE5.6 (ddTheme conversion + shim deletion) on `feat/fe5.6-brief-theming`.
 
 **Depends on:** nothing. This is the last god component; `DocMatrixPanel` (F3.1, 1786→~280) and `TabularRun` (F3.2, 2205→~200) are already decomposed and set the pattern.
 
@@ -133,8 +133,22 @@ The `Quarterly` tab correctly renders **disabled** when the run carries no quart
 
 ### FE5.6 — ddTheme conversion (separate pass, after FE5.5 lands)
 
-- [ ] Per-file `ddTheme`→Tailwind token conversion across `brief/`, using the DS2 techniques (leaf-first; `var(...)` substitution where a token is mixed into a dynamic ternary; **never** a bare `border` shorthand where the original carried `${c.field}` — it resets `border-color` to `currentColor`).
-- [ ] Then delete `ddTheme`, `DD_LIGHT`, `DD_DARK` from `dd/types.ts` and the explanatory comments in `index.css`. Grep guard: `grep -rn "ddTheme(\|DD_DARK\|DD_LIGHT" frontend/src` returns nothing.
+- [x] Per-file `ddTheme`→Tailwind token conversion across `brief/`, using the DS2 techniques (leaf-first; `var(...)` substitution where a token is mixed into a dynamic ternary; **never** a bare `border` shorthand where the original carried `${c.field}` — it resets `border-color` to `currentColor`).
+- [x] Then delete `ddTheme`, `DD_LIGHT`, `DD_DARK` from `dd/types.ts` and the explanatory comments in `index.css`. Grep guard: `grep -rn "ddTheme(\|DD_DARK\|DD_LIGHT" frontend/src` returns nothing.
+
+**FE5.6 done (2026-07-25, `2cacd37` + `a07f629`).** 92 `c.<field>` refs across 10 files; 122 insertions / 191 deletions, then 10 / 47 for the shim. **This closes DS2 Step 3** — the `ddTheme` grep guard is clean for the first time since F3.5 introduced the shim.
+
+`theme` dropped entirely from `ActionsPanel`, `DiffPanel`/`DiffRow`, `FindingsPanel`, `ThesisPanel`/`ThesisColumn`/`ThesisColumnHeader`, `FinancialPanel` + its five sub-components, `EmptyBrief`, and six of the `parts.tsx` pieces — plus six call sites in the shell. It is **kept** where hardcoded hex still branches on it, exactly as DS2 kept it for `TopBar`/`DocumentsModal`: `BriefHeader` (box-shadow), `StatusPill` (status-hue washes), `OverrideBadge` (amber pair with no token equivalent), and `BriefPanel`/`EditableField`, which only forward it to `OverrideBadge`. Converting the badge would have required inventing `--status-warning-tint` tokens whose values don't match its existing amber — a visual change, not a refactor, so it was left alone.
+
+`DiffPill` also lost a `theme` prop it declared but never destructured.
+
+Two conversions worth remembering:
+- **Conditional borders in the financial table.** `borderBottom: last ? "none" : 1px solid ${c.border}` becomes a composed className fragment (`rIdx === last ? "" : "border-b border-edge"`). Verified the last row still renders borderless — a `border-b`-less `td` reports the preflight default `rgb(229,231,235)` at width 0, which is why probes must read `borderTopColor` *and* know whether the class is present.
+- **No bare-`border`-shorthand risk here.** Every border this file group replaced was either a longhand (`borderBottom`) or kept its own explicit color (`EditableField`'s accent input), so the `currentColor` reset bug DS2 hit in groups 12 and 13 could not apply.
+
+**Verified in headless Edge, light + dark**, against `acme_saas` with a mocked Proactive Scan run (Playwright route interception on the runs list, SSE stream-token 503'd — no LLM call, no data written). 33 computed-style probes per theme, all matching their tokens exactly: surface `#fff`/`#171717`, surface-alt `#ececE4`/`#111`, border `#b0b0a3`/`#424242`, t1/t2/t3/t4, grid-header `#e5e3d8`/`#202020`, and the critical-tint stat card at 10%/16%. A second pass covered what the first could not reach — `DiffPill`→`DiffPanel`→`DiffRow` (all three change kinds, seeded through the same localStorage key the hook uses) and `EditableField`'s edit input (opened, probed, Escaped; a route guard asserted no override `PUT` ever fired). Zero page errors in either pass.
+
+**Process note:** the first probe pass reported several plausible-but-wrong colors because a `textContent.startsWith` matcher selected ancestor wrappers instead of leaves — an element with no border still reports Tailwind's default `rgb(229,231,235)`, which reads as a real value. Probing by deepest-exact-text (and by the converted class itself for containers) fixed it. Worth reusing: a probe that can't distinguish "wrong element" from "wrong color" is not evidence.
 
 ## Risks
 
