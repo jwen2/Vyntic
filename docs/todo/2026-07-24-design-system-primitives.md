@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (6 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput — `ddTheme` still referenced in 15 files, 12 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (7 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView — `ddTheme` still referenced in 14 files, 11 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -71,6 +71,12 @@ This file's `SectionLabel` is another instance of the six-times-duplicated compo
 Verified in headless Edge, light + dark, against a completed assistant run ("CIM → IC Memo Draft" run #1 — the workflow's other two runs are checkpoint-status and don't reach this screen). Crumb, h1, TOC sidebar chrome, TOC links, and the Sources section label all matched their tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
 
 Both this session's background dev servers again outlived their `TaskStop` calls; caught and force-killed via `netstat`/`taskkill` before verifying, same as the last two groups.
+
+**Group 7 — `CompareView.tsx` (`92fda39`): done.** The tabular-run "Compare" tab (anchor doc + diff-highlighting). No `isDark` or other theme usage anywhere in the file, so `theme` drops entirely from every function — `CompareView`, `CompareCard`, `ProseBody`, `CitationStrip`, `PlaceholderBody`, and `toneStyles`' `c` parameter. `TabularRun.tsx`'s call site updated; `TabularRun` keeps its own `theme` since it still calls `ddTheme` directly for its own (not-yet-converted) styling.
+
+`toneStyles()` is the clearest example yet of the "return plain strings, don't force a class split" pattern: two of its four tones (`anchor`/`diff`) are `tint()`-derived hues with no token, so the two neutral tones (`missing`/`agree`) keep returning `var(...)` literals from the same function rather than becoming classes at their call site — splitting one function's output across two styling mechanisms would be worse than the ddTheme call it replaces.
+
+Verified in headless Edge, light + dark, against a completed "Contract Stack Review" run's Compare view: all four tone badges (Anchor/Consistent ×3/Diverges), the anchor card's border and citation strip, and the highlight-differences toggle's active state all matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
 
 ## Progress (2026-07-24)
 
