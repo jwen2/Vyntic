@@ -3,6 +3,7 @@
 **Date:** 2026-07-25
 **Status:** approved (Stanley, 2026-07-25)
 **Depends on:** FE5.6 (`feat/fe5.6-brief-theming`) — the brief's card containers must already carry `border border-edge bg-surface{,-alt}` rather than `ddTheme` inline styles.
+**Implementation plan:** `docs/todo/2026-07-25-card-primitive.md`
 **Plan:** DS3 Step 2 in `docs/todo/2026-07-24-design-system-primitives.md`, re-scoped.
 
 ## Why now, and why only the brief
@@ -70,7 +71,9 @@ boxShadow: theme === "dark"
   : "0 12px 30px rgba(17,17,17,0.11), 0 1px 2px rgba(17,17,17,0.05)"
 ```
 
-Both values move into `index.css` as `--card-hero-shadow` (light in `:root`, dark in `.dark`), following the `--modal-shadow` precedent DS1 set. Same rendered pixels; `BriefHeader` then drops `theme` entirely, leaving `StatusPill` and `OverrideBadge` as the brief's only `theme` consumers — both genuine status-hue cases with no token equivalent.
+Both values move into `index.css` as `--card-hero-shadow` (light in `:root`, dark in `.dark`), following the `--modal-shadow` precedent DS1 set — though unlike `--modal-shadow`, which holds a colour, this holds the entire `box-shadow` value, because the light and dark treatments differ in layer count rather than just tint.
+
+**Correction to the design as first presented:** this does *not* let `BriefHeader` drop its `theme` prop. `BriefHeader` also forwards `theme` to `StatusPill`, whose status-hue washes (`${color}22` dark / `${color}14` light) have no token equivalent. So the prop stays; what the token buys is one less `isDark` branch, elevation defined in one place, and `EmptyBrief` able to share it. The brief's `theme` consumers after this work are `BriefHeader` (forwarding only), `StatusPill`, `OverrideBadge`, and `BriefPanel`/`EditableField` (forwarding to `OverrideBadge`) — unchanged from FE5.6.
 
 `EmptyBrief` is `level="hero"` but has no shadow today. It will acquire one, since the shadow is attached to the level. This is intentional — the two hero cards occupy the same slot in the layout (one replaces the other depending on `scanStarted`) and should not differ in elevation.
 
@@ -78,7 +81,7 @@ Both values move into `index.css` as `--card-hero-shadow` (light in `:root`, dar
 
 | # | Site | level | tone | padding | note |
 |---|---|---|---|---|---|
-| 1 | `BriefHeader` | hero | surface | — | drops `theme` |
+| 1 | `BriefHeader` | hero | surface | — | keeps `theme` (forwards to `StatusPill`); shadow → token |
 | 2 | `EmptyBrief` | hero | surface | — | `dashed`; **p 24 → 20**; gains shadow |
 | 3 | `BriefPanel` | panel | surface | — | keeps `minHeight: 220` via `style` |
 | 4 | `ActionsPanel` | panel | surface | — | |
