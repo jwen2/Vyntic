@@ -406,7 +406,6 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
     if (screen.type === "assistant") {
       return (
         <AssistantEditor
-          theme={theme}
           mode="create"
           onCreate={handleCreate}
           onBack={() => setScreen({ kind: "library" })}
@@ -444,7 +443,6 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
   if (workflow.type === "assistant") {
     return (
       <AssistantEditor
-        theme={theme}
         mode="edit"
         workflow={workflow}
         onSave={(payload) => handleSave(workflow.id, payload)}
