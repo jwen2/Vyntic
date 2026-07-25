@@ -229,10 +229,18 @@ Separately, `components/ui/` has exactly one primitive (`Button`/`button.css`). 
 
 ### DS3b — tokenize focus color
 
-`focus:border-blue-400` / `focus:ring-blue-400` appear **13×** across 4 app files (`docmatrix/ColumnConfigPopover`, `docmatrix/DocMatrixTable`, `docmatrix/DocMatrixToolbar`, `workflows/tabular-run/RunTable`) — raw Tailwind blue in a fully themed app, with **no `--focus` token in `index.css` at all**. `landing/PricingSection.tsx` also matches but stays on the landing system.
+**Correction to the first pass of this section: it said "13×", which counted every raw `blue-400`/`blue-500` reference, not focus styles.** The genuine focus refs are **5** — `docmatrix/ColumnConfigPopover` ×4 (`focus:border-blue-400`) and `docmatrix/DocMatrixToolbar` ×1 (`focus:ring-2 focus:ring-blue-400`). There was no `--focus` token in `index.css` at all.
 
-- [ ] **Step 1:** Add `--focus` to `index.css` (light + dark) and a Tailwind alias in `tailwind.config.js`.
-- [ ] **Step 2:** Swap the 13 refs. Commit — `refactor(frontend): tokenize focus ring color (DS3b)`
+**This turned out to be an a11y defect, not a preference.** `tailwind.config.js` retunes the whole blue scale to the cobalt accent (per `2026-07-09-cobalt-accent-design.md`), so `blue-400` is **`#8ab4ff`** — the *dark*-mode accent — in **both** themes. Measured against a white input surface that is **2.09:1**, below the 3:1 WCAG 2.2 SC 1.4.11 floor for non-text indicators. Light mode was rendering a washed-out focus ring.
+
+`--focus: var(--accent)` is declared once in `:root`; because CSS custom properties resolve at use time and `.dark` redefines `--accent`, it follows the theme without a second declaration. Result: light `#1d4ed8` (6.7:1 ✓, **visibly changed** — this is the fix), dark `#8ab4ff` (8.6:1 ✓, **pixel-identical**).
+
+Both generated utilities were confirmed in the built CSS rather than assumed (the group-3 gotcha): `border-focus:focus{border-color:var(--focus)}` and `ring-focus:focus{--tw-ring-color:var(--focus)}`.
+
+- [x] **Step 1:** Add `--focus` to `index.css` + Tailwind alias in `tailwind.config.js`.
+- [x] **Step 2:** Swap the 5 refs. Commit — `fix(frontend): tokenize focus ring color for WCAG contrast (DS3b)`
+
+**Deliberately not changed — a separate finding.** Seven further raw-blue refs are *accent* colors, not focus: `hover:text-blue-600 dark:hover:text-blue-400` link/hover treatments in `ColumnConfigPopover` (2), `DocMatrixTable` (2), `DocMatrixToolbar` (2), and `RunTable`'s `hover:bg-blue-400/40` highlight. They render correctly today (the retuned scale maps them onto accent values), so swapping them to `text-accent` etc. is cosmetic cleanup with real regression risk, not a fix. Fold into the same deliberate colour pass as Card/Input. `landing/PricingSection.tsx` stays on the landing system.
 
 ### Deferred out of DS3
 
@@ -255,5 +263,5 @@ Separately, `components/ui/` has exactly one primitive (`Button`/`button.css`). 
 - All 6 modal-ish components on `<Modal>`, or a documented poor-fit deferral (DS1).
 - No stray `fixed inset-0 z-50` dialog markup outside `Modal.tsx` / documented deferrals.
 - Exactly one `SectionLabel` definition in `frontend/src` (DS3a). Grep guard: `grep -rn "function SectionLabel" frontend/src` returns one hit, in `components/ui/`.
-- Zero raw `blue-400`/`blue-500` focus styles outside `components/landing/` (DS3b).
+- Zero `focus:*blue-*` styles in `frontend/src` (DS3b). Grep guard: `grep -rn "focus:.*blue" frontend/src` returns nothing. (Non-focus raw blues remain by design — see DS3b's closing note.)
 - One commit per task/file-group per the steps above.

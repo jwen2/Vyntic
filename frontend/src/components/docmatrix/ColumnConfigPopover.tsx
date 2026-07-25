@@ -217,7 +217,7 @@ export default function ColumnConfigPopover({
                   : {}),
               });
             }}
-            className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-blue-400 focus:outline-none"
+            className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-focus focus:outline-none"
           />
 
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -231,7 +231,7 @@ export default function ColumnConfigPopover({
                     tags: event.target.value === "tag" ? draft.tags : [],
                   })
                 }
-                className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-blue-400 focus:outline-none"
+                className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-focus focus:outline-none"
               >
                 {FORMAT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -247,7 +247,7 @@ export default function ColumnConfigPopover({
                 onChange={(event) => {
                   if (event.target.value) applyPreset(event.target.value);
                 }}
-                className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-blue-400 focus:outline-none"
+                className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-focus focus:outline-none"
               >
                 <option value="">Choose...</option>
                 {PE_COLUMN_PRESETS.map((preset) => (
@@ -305,7 +305,7 @@ export default function ColumnConfigPopover({
             rows={8}
             value={draft.prompt}
             onChange={(event) => updateDraft({ prompt: event.target.value })}
-            className="mt-1 w-full resize-none rounded-md border border-edge bg-surface px-2 py-2 text-xs leading-relaxed text-t1 focus:border-blue-400 focus:outline-none"
+            className="mt-1 w-full resize-none rounded-md border border-edge bg-surface px-2 py-2 text-xs leading-relaxed text-t1 focus:border-focus focus:outline-none"
           />
           </div>
 

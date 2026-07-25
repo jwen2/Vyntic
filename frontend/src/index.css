@@ -21,6 +21,12 @@
   --accent-tint: #e7edfb;
   --accent-tint-border: #b6c6ee;
   --on-accent: #ffffff;
+  /* Focus indicator. Follows --accent, so it flips with the theme: #1d4ed8
+     (6.7:1 on white) light, #8ab4ff (8.6:1 on #171717) dark — both clear the
+     3:1 WCAG 2.2 SC 1.4.11 floor for non-text indicators. Replaces a hardcoded
+     `blue-400`, which this config retunes to #8ab4ff for *both* themes and so
+     measured only 2.09:1 against a white input surface. */
+  --focus: var(--accent);
   /* Danger — the destructive semantic hue for the shared <Button> (danger
      variant) and, over time, red status pills/badges. Burnt-orange from the
      finalized button-system artifact; reads as destructive without the bright
