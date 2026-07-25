@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (12 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun, TabularEditor, AssistantEditor, AssistantRun, WorkflowsView — `ddTheme` still referenced in 9 files, 6 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`). **All of `components/workflows/` is clean.** Remaining: `DealAssistantPanel.tsx`, `MonitoringPanel.tsx`, `DocumentDetailView.tsx` (dead code), and the 3 top-level pages. DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (13 of ~23 file-groups converted — `ddTheme` still referenced in 8 files, 5 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`). **All of `components/workflows/` clean; `DealAssistantPanel.tsx` clean.** Remaining: `MonitoringPanel.tsx`, `DocumentDetailView.tsx` (dead code), and the 3 top-level pages. DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -111,6 +111,12 @@ Verified in headless Edge, light + dark, against "CIM → IC Memo Draft"'s check
 This retires `ddTheme` from every file under `components/workflows/` — no exceptions left in that directory.
 
 Verified in headless Edge, light + dark, against the Run History drawer: panel chrome, title, subtitle, close button, and both completed-run entries matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
+
+**Group 13 — `DealAssistantPanel.tsx` (`36a795d`): done.** The main Agent chat panel. Different shape from every prior group: it calls `useTheme()` itself rather than receiving `theme` as a prop, so only its two internal helpers (`InitialAssistantState`, `ChatBubble`) needed the prop dropped, no external caller to touch.
+
+Second instance of the border-shorthand color-reset bug from group 12, caught the same way: the "reading" spinner needed `borderWidth`/`borderStyle` instead of a bare `border` shorthand.
+
+Verified in headless Edge, light + dark: the "Begin your diligence" empty state, the sources picker dropdown, and a full chat exchange. The assistant's answer was mocked via Playwright route interception on `/query/stream` (no real LLM call) — but `saveConversation` isn't mocked and fired for real against the dev backend both times, leaving two harmless conversation records in Recent for `acme_saas`.
 
 ## Progress (2026-07-24)
 
