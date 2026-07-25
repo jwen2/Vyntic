@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (7 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView — `ddTheme` still referenced in 14 files, 11 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (8 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun — `ddTheme` still referenced in 13 files, 10 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -77,6 +77,10 @@ Both this session's background dev servers again outlived their `TaskStop` calls
 `toneStyles()` is the clearest example yet of the "return plain strings, don't force a class split" pattern: two of its four tones (`anchor`/`diff`) are `tint()`-derived hues with no token, so the two neutral tones (`missing`/`agree`) keep returning `var(...)` literals from the same function rather than becoming classes at their call site — splitting one function's output across two styling mechanisms would be worse than the ddTheme call it replaces.
 
 Verified in headless Edge, light + dark, against a completed "Contract Stack Review" run's Compare view: all four tone badges (Anchor/Consistent ×3/Diverges), the anchor card's border and citation strip, and the highlight-differences toggle's active state all matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
+
+**Group 8 — `TabularRun.tsx` (`31be933`): done.** The last `ddTheme` holdout in the tabular-run cluster started by the pilot — only 5 refs (the error-state screen and main container's bg/text), all static. `theme` drops entirely; `WorkflowsView.tsx`'s call site updated (it keeps its own `theme`, 19 refs remaining). This retires `ddTheme` from every file under `components/workflows/tabular-run/` and `components/workflows/cells/` — both directories the pilot and group 2 targeted are now fully clean.
+
+The main container's tokens were already exercised in every prior tabular-run screenshot this session, so verification targeted the one genuinely new path: `m.error && !m.run`, reached by routing `GET /runs/**` to a 500 via Playwright request interception (browser-side only — no backend or data touched). "Couldn't load run" heading, error detail text, and background all matched tokens in both themes. tsc clean, lint unchanged, 76 tests, build green.
 
 ## Progress (2026-07-24)
 
