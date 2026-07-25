@@ -23,7 +23,7 @@ import PositionModal from "@/components/dd/PositionModal";
 import MonitoringPanel from "@/components/dd/MonitoringPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFindings } from "@/components/dd/useFindings";
-import { ACCENT, ddTheme } from "@/components/dd/types";
+import { ACCENT } from "@/components/dd/types";
 import { useDocumentUpload } from "@/hooks/useDocumentUpload";
 
 const TAB_PREFIX = "vyntic_ws_tab_";
@@ -71,7 +71,6 @@ export default function DealWorkspacePage() {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const c = ddTheme(theme);
 
   const [mode, setMode] = useState<DealWorkspaceMode>("agent");
   const [selectedAssistantEntry, setSelectedAssistantEntry] = useState<ConversationEntry | null>(null);
@@ -217,18 +216,18 @@ export default function DealWorkspacePage() {
 
   if (dealQuery.isPending) {
     return (
-      <div style={{ minHeight: "100vh", background: c.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="dd-spin" style={{ width: 32, height: 32, border: `4px solid ${c.border}`, borderTopColor: ACCENT, borderRadius: "50%" }} />
+      <div className="bg-appbg" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="dd-spin border-edge" style={{ width: 32, height: 32, borderWidth: 4, borderStyle: "solid", borderTopColor: ACCENT, borderRadius: "50%" }} />
       </div>
     );
   }
 
   if (!deal) {
     return (
-      <div style={{ minHeight: "100vh", background: c.bg, color: c.t1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className="bg-appbg text-t1" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center" }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Deal not found</h2>
-          <p style={{ fontSize: 13, color: c.t2, marginBottom: 16 }}>
+          <p className="text-t2" style={{ fontSize: 13, marginBottom: 16 }}>
             {dealQuery.error instanceof Error
               ? dealQuery.error.message
               : `No deal with ID "${dealId}" exists.`}
@@ -260,11 +259,9 @@ export default function DealWorkspacePage() {
 
   return (
     <div
-      className="flex h-screen overflow-hidden"
+      className="flex h-screen overflow-hidden bg-appbg text-t1"
       style={{
         fontFamily: "'IBM Plex Sans', sans-serif",
-        background: c.bg,
-        color: c.t1,
       }}
     >
       <div className="hidden lg:block">{rail()}</div>
@@ -338,7 +335,7 @@ export default function DealWorkspacePage() {
       )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <main className="flex min-w-0 flex-1 overflow-hidden" style={{ background: c.bg }}>
+        <main className="flex min-w-0 flex-1 overflow-hidden bg-appbg">
           {mode === "workflows" ? (
             <ErrorBoundary>
               <WorkflowsView dealId={dealId} theme={theme} />
