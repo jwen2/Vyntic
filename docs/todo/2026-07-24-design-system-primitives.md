@@ -1,6 +1,17 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (15 of ~23 file-groups converted — `ddTheme` still referenced in 6 files, only 3 real files remain: the 3 top-level pages). DS3 not started.
+**Status:** DS1 done. **DS2 done** — 18 real file-groups converted (`5fd8255` latest); `ddTheme` now referenced only in `DealBriefDashboard.tsx` (permanently excluded, FE5 will decompose it) plus the shim's own definition in `types.ts`/`index.css`, which can't be deleted while that one file still calls it. DS3 not started.
+
+## DS2 completion (2026-07-24)
+
+All 18 real file-groups converted and verified in headless Edge, light + dark, against live data wherever reachable (2 groups — `DocumentDetailView.tsx`'s dead code and `TabularEditor`/`AssistantEditor`'s create-mode paths — verified via tsc/lint/build only, documented per-group above). Every commit is listed in the git log (`deeae24` pilot through `5fd8255` final); see each numbered "Group N" note above for what was found, converted, and how it was verified.
+
+**Net result:** `ddTheme()` — a shim that already just returned `var()` refs — is now called from exactly one file. The plan's original goal (a colorway edit is one line in `index.css`) was actually achieved back in F3.5; what this sweep achieved on top of that was **deleting the redundant second styling path** in ~750 of ~775 call sites, cutting several hundred net lines, and along the way fixing real defects the ddTheme layer had been masking: two missing focus traps (DS1), a scrim-click guard bypass (DS1), and two instances of a border-shorthand bug that would have silently discarded a border-color class (DS2 groups 12 & 13) — plus clearing both of the two pre-existing lint errors recorded in project memory, as an incidental byproduct of removing the dead variables ddTheme conversion touched.
+
+**What's left, deliberately:**
+- `DealBriefDashboard.tsx` (2,502 lines, 23 refs) stays out of scope — slated for decomposition under FE5; converting its styling now would be wasted work plus merge pain against that future rewrite.
+- The `ddTheme`/`DD_LIGHT`/`DD_DARK` shim in `types.ts` (and its explanatory comments in `index.css`) stays until `DealBriefDashboard` is either converted or FE5 lands and removes it outright.
+- `SectionLabel` was found duplicated **six times** across the codebase (all six now converted individually, not consolidated) and the Card/bordered-panel shape recurs ~13+ times — both flagged as DS3 candidates, not done here.
 
 ## DS2 audit + pilot (2026-07-24)
 
