@@ -1,4 +1,3 @@
-import { ddTheme } from "@/components/dd/types";
 import type { Workflow } from "@/lib/workflows";
 import { formatRelativeShort, tint, workflowTypeColor } from "./theme";
 import Button from "@/components/ui/Button";
@@ -24,7 +23,6 @@ export default function WorkflowCard({
   onHistory,
   onDelete,
 }: WorkflowCardProps) {
-  const c = ddTheme(theme);
   const isDark = theme === "dark";
   const typeColor = workflowTypeColor(workflow.type);
   const primaryAction = workflow.is_builtin
@@ -42,9 +40,8 @@ export default function WorkflowCard({
 
   return (
     <article
+      className="bg-surface border border-edge"
       style={{
-        background: c.surface,
-        border: `1px solid ${c.border}`,
         borderRadius: 12,
         padding: 15,
         display: "flex",
@@ -79,12 +76,12 @@ export default function WorkflowCard({
           </div>
           <div style={{ minWidth: 0 }}>
             <div className="flex flex-wrap items-center gap-2">
-              <div style={{ fontSize: 15, fontWeight: 600, color: c.t1 }}>{workflow.name}</div>
+              <div className="text-t1" style={{ fontSize: 15, fontWeight: 600 }}>{workflow.name}</div>
               <WorkflowBadge
                 label={workflow.is_builtin ? "Built-in" : "Custom"}
-                color={workflow.is_builtin ? c.t3 : typeColor}
-                background={workflow.is_builtin ? c.surfaceAlt : tint(typeColor, 14)}
-                border={workflow.is_builtin ? c.border : tint(typeColor, 28)}
+                color={workflow.is_builtin ? "var(--text-3)" : typeColor}
+                background={workflow.is_builtin ? "var(--surface-alt)" : tint(typeColor, 14)}
+                border={workflow.is_builtin ? "var(--border)" : tint(typeColor, 28)}
               />
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -97,9 +94,9 @@ export default function WorkflowCard({
               {workflow.variables.length > 0 && (
                 <WorkflowBadge
                   label={`${workflow.variables.length} variable${workflow.variables.length === 1 ? "" : "s"}`}
-                  color={c.t2}
-                  background={c.surfaceAlt}
-                  border={c.border}
+                  color="var(--text-2)"
+                  background="var(--surface-alt)"
+                  border="var(--border)"
                 />
               )}
             </div>
@@ -107,13 +104,13 @@ export default function WorkflowCard({
         </div>
       </div>
 
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: c.t2, minHeight: 66 }}>
+      <p className="text-t2" style={{ margin: 0, fontSize: 13, lineHeight: 1.7, minHeight: 66 }}>
         {workflow.description || "No description yet."}
       </p>
 
       <div
-        className="font-mono-plex"
-        style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 10.5, letterSpacing: "0.03em", color: c.t3 }}
+        className="font-mono-plex text-t3"
+        style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 10.5, letterSpacing: "0.03em" }}
       >
         {meta.map((m, i) => (
           <span key={m} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>

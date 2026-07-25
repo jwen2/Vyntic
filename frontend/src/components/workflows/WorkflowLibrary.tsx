@@ -1,5 +1,4 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { ddTheme } from "@/components/dd/types";
 import type { Workflow, WorkflowType } from "@/lib/workflows";
 import { ACCENT, VIOLET } from "./theme";
 import WorkflowCard from "./WorkflowCard";
@@ -27,7 +26,6 @@ export default function WorkflowLibrary({
   onRun,
   onHistory,
 }: WorkflowLibraryProps) {
-  const c = ddTheme(theme);
   const isDark = theme === "dark";
   const [query, setQuery] = useState("");
   const [showNewMenu, setShowNewMenu] = useState(false);
@@ -51,22 +49,20 @@ export default function WorkflowLibrary({
 
   return (
     <div
+      className="bg-appbg text-t1"
       style={{
         flex: 1,
         width: "100%",
         height: "100%",
-        background: c.bg,
-        color: c.t1,
         overflowY: "auto",
       }}
     >
       <div style={{ maxWidth: 1320, margin: "0 auto", padding: "24px 16px 40px" }}>
         <div
+          className="border border-edge bg-surface"
           style={{
             padding: "18px 20px",
             borderRadius: 16,
-            border: `1px solid ${c.border}`,
-            background: c.surface,
             boxShadow: isDark
               ? "0 10px 30px rgba(0,0,0,0.35)"
               : "0 8px 24px rgba(17,17,17,0.06)",
@@ -74,12 +70,11 @@ export default function WorkflowLibrary({
           }}
         >
           <div
-            className="font-mono-plex"
+            className="font-mono-plex text-t3"
             style={{
               fontSize: 10,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
-              color: c.t3,
             }}
           >
             Workflow workspace
@@ -87,13 +82,13 @@ export default function WorkflowLibrary({
 
           <div className="mt-3 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div style={{ maxWidth: 720 }}>
-              <h2 style={{ margin: 0, fontSize: 20, lineHeight: 1.2, fontWeight: 600, color: c.t1 }}>
+              <h2 className="text-t1" style={{ margin: 0, fontSize: 20, lineHeight: 1.2, fontWeight: 600 }}>
                 Templates that turn diligence into repeatable output
               </h2>
-              <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.6, color: c.t2 }}>
+              <p className="text-t2" style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.6 }}>
                 Start from built-ins, then clone or create custom workflows for your own memo, extraction, and synthesis patterns.
               </p>
-              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 12.5, color: c.t2 }}>
+              <div className="text-t2" style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 12.5 }}>
                 {([
                   [builtIns.length + customs.length, "workflows"],
                   [workflows.filter((workflow) => workflow.is_builtin).length, "built-in"],
@@ -102,9 +97,9 @@ export default function WorkflowLibrary({
                   [tabularCount, "tabular"],
                 ] as [number, string][]).map(([n, l], i) => (
                   <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    {i > 0 && <span style={{ color: c.t3 }}>·</span>}
+                    {i > 0 && <span className="text-t3">·</span>}
                     <span>
-                      <span style={{ color: c.accent, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{n}</span> {l}
+                      <span className="text-accent" style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{n}</span> {l}
                     </span>
                   </span>
                 ))}
@@ -115,6 +110,7 @@ export default function WorkflowLibrary({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                 <div style={{ position: "relative", flex: 1 }}>
                   <svg
+                    className="text-t3"
                     style={{
                       position: "absolute",
                       left: 12,
@@ -122,7 +118,6 @@ export default function WorkflowLibrary({
                       transform: "translateY(-50%)",
                       width: 14,
                       height: 14,
-                      color: c.t3,
                     }}
                     fill="none"
                     viewBox="0 0 24 24"
@@ -139,13 +134,11 @@ export default function WorkflowLibrary({
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search workflows"
+                    className="border border-edge bg-surface-alt text-t1"
                     style={{
                       width: "100%",
                       padding: "9px 12px 9px 36px",
-                      background: c.surfaceAlt,
-                      border: `1px solid ${c.border}`,
                       borderRadius: 9,
-                      color: c.t1,
                       fontSize: 13,
                       outline: "none",
                       fontFamily: "inherit",
@@ -163,13 +156,12 @@ export default function WorkflowLibrary({
 
               {showNewMenu && (
                 <div
+                  className="border border-edge bg-surface"
                   style={{
                     position: "absolute",
                     top: "calc(100% + 8px)",
                     right: 0,
                     width: "min(320px, 100%)",
-                    background: c.surface,
-                    border: `1px solid ${c.border}`,
                     borderRadius: 12,
                     boxShadow: isDark ? "0 24px 44px rgba(0,0,0,0.32)" : "0 24px 44px rgba(17,17,17,0.08)",
                     zIndex: 10,
@@ -184,7 +176,6 @@ export default function WorkflowLibrary({
                       setShowNewMenu(false);
                       onNew("assistant");
                     }}
-                    theme={theme}
                   />
                   <NewMenuButton
                     title="Tabular workflow"
@@ -194,7 +185,6 @@ export default function WorkflowLibrary({
                       setShowNewMenu(false);
                       onNew("tabular");
                     }}
-                    theme={theme}
                   />
                 </div>
               )}
@@ -207,17 +197,15 @@ export default function WorkflowLibrary({
           title="Built-in Templates"
           subtitle="Start here when you need a known workflow shape with proven prompts and structure."
           right={
-            <span style={{ fontSize: 11, color: c.t3 }}>
+            <span className="text-t3" style={{ fontSize: 11 }}>
               {builtIns.length} workflow{builtIns.length === 1 ? "" : "s"}
             </span>
           }
-          theme={theme}
         >
           {builtIns.length === 0 ? (
             <EmptyState
               title="No built-in templates match"
               text="Try another search term or clear the current filter."
-              theme={theme}
             />
           ) : (
             <CardGrid>
@@ -239,17 +227,15 @@ export default function WorkflowLibrary({
           title="Custom Workflows"
           subtitle="Clone built-ins or create originals when you need deal-specific logic, shapes, or deliverables."
           right={
-            <span style={{ fontSize: 11, color: c.t3 }}>
+            <span className="text-t3" style={{ fontSize: 11 }}>
               {customs.length} workflow{customs.length === 1 ? "" : "s"}
             </span>
           }
-          theme={theme}
         >
           {customs.length === 0 ? (
             <EmptyState
               title="No custom workflows yet"
               text="Create an assistant or tabular workflow to capture your team’s own diligence process."
-              theme={theme}
               action={
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                   <QuickCreateButton label="Assistant" accent={ACCENT} onClick={() => onNew("assistant")} />
@@ -295,23 +281,19 @@ function Section({
   title,
   subtitle,
   right,
-  theme,
   children,
 }: {
   title: string;
   subtitle: string;
   right?: ReactNode;
-  theme: Theme;
   children: ReactNode;
 }) {
-  const c = ddTheme(theme);
-
   return (
     <section
+      className="border-t border-t-edge"
       style={{
         marginTop: 22,
         padding: "18px 0 0",
-        borderTop: `1px solid ${c.border}`,
       }}
     >
       <div
@@ -319,18 +301,17 @@ function Section({
       >
         <div>
           <div
-            className="font-mono-plex"
+            className="font-mono-plex text-t3"
             style={{
               fontSize: 10,
               fontWeight: 700,
               letterSpacing: "0.12em",
               textTransform: "uppercase",
-              color: c.t3,
             }}
           >
             {title}
           </div>
-          <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.65, color: c.t2 }}>{subtitle}</div>
+          <div className="text-t2" style={{ marginTop: 6, fontSize: 14, lineHeight: 1.65 }}>{subtitle}</div>
         </div>
         {right}
       </div>
@@ -342,28 +323,23 @@ function Section({
 function EmptyState({
   title,
   text,
-  theme,
   action,
 }: {
   title: string;
   text: string;
-  theme: Theme;
   action?: ReactNode;
 }) {
-  const c = ddTheme(theme);
-
   return (
     <div
+      className="border border-dashed border-edge bg-surface"
       style={{
-        background: c.surface,
-        border: `1px dashed ${c.border}`,
         borderRadius: 12,
         padding: "30px 18px",
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 16, fontWeight: 600, color: c.t1 }}>{title}</div>
-      <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7, color: c.t2 }}>{text}</div>
+      <div className="text-t1" style={{ fontSize: 16, fontWeight: 600 }}>{title}</div>
+      <div className="text-t2" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>{text}</div>
       {action}
     </div>
   );
@@ -403,16 +379,12 @@ function NewMenuButton({
   subtitle,
   accent,
   onClick,
-  theme,
 }: {
   title: string;
   subtitle: string;
   accent: string;
   onClick: () => void;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
-
   return (
     <button
       type="button"
@@ -425,10 +397,10 @@ function NewMenuButton({
         border: "none",
         borderRadius: 10,
         cursor: "pointer",
-        color: c.t1,
+        color: "var(--text-1)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = c.surfaceAlt;
+        e.currentTarget.style.background = "var(--surface-alt)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = "transparent";
@@ -454,7 +426,7 @@ function NewMenuButton({
         </span>
         <span style={{ minWidth: 0 }}>
           <span style={{ display: "block", fontSize: 13, fontWeight: 600 }}>{title}</span>
-          <span style={{ display: "block", marginTop: 3, fontSize: 12, lineHeight: 1.6, color: c.t2 }}>
+          <span className="text-t2" style={{ display: "block", marginTop: 3, fontSize: 12, lineHeight: 1.6 }}>
             {subtitle}
           </span>
         </span>
