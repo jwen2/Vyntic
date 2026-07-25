@@ -1,13 +1,11 @@
 import { memo } from "react";
-import { ddTheme } from "@/components/dd/types";
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
 import { ACCENT, tint } from "../theme";
 import CellRenderer, { proseValue, type CellDensity } from "../cells/CellRenderer";
 import { formatCellValue, stripSourceMarkers } from "./format";
 import { RetryIcon } from "./parts";
-import { cellBodyStyle } from "./styles";
-import type { Theme } from "./useTabularRun";
+import { cellBodyChromeClass } from "./styles";
 import Button from "@/components/ui/Button";
 
 // A completed-cell <td>. Memoized so a single SSE cell update re-renders one
@@ -22,7 +20,6 @@ function ValueCellImpl({
   onRetry,
   retrying,
   zebra,
-  theme,
   density,
   onCitationClick,
 }: {
@@ -34,11 +31,9 @@ function ValueCellImpl({
   onRetry: (cellId: string) => void;
   retrying: boolean;
   zebra: boolean;
-  theme: Theme;
   density: CellDensity;
   onCitationClick: (citation: Citation, id: string) => void;
 }) {
-  const c = ddTheme(theme);
   const display = formatCellValue(cell, column);
   // Prose-shaped cells carry {summary, body, caveats} — their raw answer is
   // JSON, so run it through proseValue rather than dumping the blob into the
@@ -49,16 +44,13 @@ function ValueCellImpl({
   return (
     <td
       onClick={() => onSelectKey(cellKeyStr)}
-      className="group/cell"
+      className={`group/cell ${cellBodyChromeClass} p-0 text-[11px] leading-[1.2] cursor-pointer relative align-top ${
+        selected ? "" : zebra ? "bg-zebra" : "bg-surface"
+      }`}
+      // The selection tint is a color-mix wash over the accent, not a surface
+      // token, so it (and its ring) stay inline and win over the class above.
       style={{
-        ...cellBodyStyle(c, zebra),
-        padding: 0,
-        fontSize: 11,
-        lineHeight: 1.2,
-        cursor: "pointer",
-        position: "relative",
-        verticalAlign: "top",
-        background: selected ? tint(ACCENT, 12) : zebra ? c.zebra : c.surface,
+        background: selected ? tint(ACCENT, 12) : undefined,
         boxShadow: selected ? `inset 0 0 0 1px ${tint(ACCENT, 55)}` : undefined,
       }}
       title={fullAnswer || (Array.isArray(display) ? display.join("; ") : display)}
@@ -66,7 +58,6 @@ function ValueCellImpl({
       <CellRenderer
         cell={cell}
         column={column}
-        theme={theme}
         density={density}
         onCitationClick={onCitationClick}
         citationIdPrefix={`${cell.id}_${column.id}`}

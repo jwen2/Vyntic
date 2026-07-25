@@ -1,6 +1,5 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { ddTheme } from "@/components/dd/types";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   type ColumnFormat,
@@ -23,8 +22,6 @@ import {
   detectShape,
 } from "./cells/ShapeControls";
 
-type Theme = "light" | "dark";
-
 type EditorMode =
   | { mode: "create"; onCreate: (payload: WorkflowCreatePayload) => void | Promise<void> }
   | {
@@ -35,7 +32,6 @@ type EditorMode =
     };
 
 type TabularEditorProps = EditorMode & {
-  theme: Theme;
   onBack: () => void;
 };
 
@@ -92,8 +88,7 @@ const FORMAT_BADGE_COLOR: Record<ColumnFormat, string> = {
 };
 
 export default function TabularEditor(props: TabularEditorProps) {
-  const { theme, onBack } = props;
-  const c = ddTheme(theme);
+  const { onBack } = props;
   const isEdit = props.mode === "edit";
   const isReadOnly = isEdit && props.workflow.is_builtin;
 
@@ -230,12 +225,11 @@ export default function TabularEditor(props: TabularEditorProps) {
 
   return (
     <div
+      className="bg-appbg text-t1"
       style={{
         flex: 1,
         width: "100%",
         height: "100%",
-        background: c.bg,
-        color: c.t1,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -243,12 +237,12 @@ export default function TabularEditor(props: TabularEditorProps) {
     >
       {/* Header */}
       <div
+        className="border-b border-b-edge"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: "16px 32px",
-          borderBottom: `1px solid ${c.border}`,
           gap: 16,
           flexWrap: "wrap",
         }}
@@ -263,12 +257,12 @@ export default function TabularEditor(props: TabularEditorProps) {
               disabled={isReadOnly}
               onChange={(e) => setName(e.target.value)}
               placeholder="Workflow name"
+              className="text-t1"
               style={{
                 width: "100%",
                 background: "transparent",
                 border: "none",
                 outline: "none",
-                color: c.t1,
                 fontSize: 18,
                 fontWeight: 700,
                 fontFamily: "inherit",
@@ -279,13 +273,13 @@ export default function TabularEditor(props: TabularEditorProps) {
               disabled={isReadOnly}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="One-line description"
+              className="text-t2"
               style={{
                 width: "100%",
                 marginTop: 2,
                 background: "transparent",
                 border: "none",
                 outline: "none",
-                color: c.t2,
                 fontSize: 12,
                 fontFamily: "inherit",
               }}
@@ -295,6 +289,7 @@ export default function TabularEditor(props: TabularEditorProps) {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {isReadOnly && (
             <span
+              className="border border-edge bg-surface-alt text-t3"
               style={{
                 fontSize: 10,
                 fontWeight: 700,
@@ -302,9 +297,6 @@ export default function TabularEditor(props: TabularEditorProps) {
                 textTransform: "uppercase",
                 padding: "3px 8px",
                 borderRadius: 4,
-                background: c.surfaceAlt,
-                border: `1px solid ${c.border}`,
-                color: c.t3,
               }}
             >
               Built-in · Read only
@@ -350,23 +342,21 @@ export default function TabularEditor(props: TabularEditorProps) {
       >
         {/* Left: config panel */}
         <div
+          className="border-r border-r-edge bg-surface-alt"
           style={{
-            borderRight: `1px solid ${c.border}`,
             padding: 16,
             overflowY: "auto",
-            background: c.surfaceAlt,
             display: "flex",
             flexDirection: "column",
             gap: 16,
           }}
         >
           <div>
-            <SectionLabel theme={theme}>Row source</SectionLabel>
+            <SectionLabel>Row source</SectionLabel>
             <div
+              className="bg-surface border border-edge"
               style={{
                 display: "flex",
-                background: c.surface,
-                border: `1px solid ${c.border}`,
                 borderRadius: 7,
                 padding: 2,
                 gap: 2,
@@ -386,7 +376,7 @@ export default function TabularEditor(props: TabularEditorProps) {
                     flex: 1,
                     padding: "5px 8px",
                     background: rowSource === opt.v ? VIOLET : "transparent",
-                    color: rowSource === opt.v ? "var(--on-violet)" : c.t2,
+                    color: rowSource === opt.v ? "var(--on-violet)" : "var(--text-2)",
                     border: "none",
                     borderRadius: 5,
                     fontSize: 11,
@@ -399,7 +389,7 @@ export default function TabularEditor(props: TabularEditorProps) {
               ))}
             </div>
             {rowSource === "multi_doc_synthesis" && (
-              <div style={{ fontSize: 10, color: c.t3, marginTop: 6, lineHeight: 1.5 }}>
+              <div className="text-t3" style={{ fontSize: 10, marginTop: 6, lineHeight: 1.5 }}>
                 Each row is a synthesis question you'll enter when you launch the
                 run. The retriever pulls relevant chunks from every selected
                 document, then the LLM answers each column for that question.
@@ -416,16 +406,15 @@ export default function TabularEditor(props: TabularEditorProps) {
                 marginBottom: 8,
               }}
             >
-              <SectionLabel theme={theme}>Columns</SectionLabel>
+              <SectionLabel>Columns</SectionLabel>
               {!isReadOnly && (
                 <button
                   onClick={() => addColumn(false)}
+                  className="border border-dashed border-edge text-t2"
                   style={{
                     padding: "3px 8px",
                     background: "transparent",
-                    border: `1px dashed ${c.border}`,
                     borderRadius: 6,
-                    color: c.t2,
                     fontSize: 10,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -453,7 +442,6 @@ export default function TabularEditor(props: TabularEditorProps) {
                       ? () => removeColumn(column.uid)
                       : undefined
                   }
-                  theme={theme}
                 />
               ))}
             </div>
@@ -468,16 +456,15 @@ export default function TabularEditor(props: TabularEditorProps) {
                 marginBottom: 8,
               }}
             >
-              <SectionLabel theme={theme}>Derived columns</SectionLabel>
+              <SectionLabel>Derived columns</SectionLabel>
               {!isReadOnly && (
                 <button
                   onClick={() => addColumn(true)}
+                  className="border border-dashed border-edge text-t2"
                   style={{
                     padding: "3px 8px",
                     background: "transparent",
-                    border: `1px dashed ${c.border}`,
                     borderRadius: 6,
-                    color: c.t2,
                     fontSize: 10,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -490,11 +477,9 @@ export default function TabularEditor(props: TabularEditorProps) {
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {columns.filter((cl) => cl.is_derived).length === 0 ? (
                 <div
+                  className="text-t3 bg-surface border border-dashed border-edge"
                   style={{
                     fontSize: 11,
-                    color: c.t3,
-                    background: c.surface,
-                    border: `1px dashed ${c.border}`,
                     borderRadius: 8,
                     padding: 10,
                     lineHeight: 1.5,
@@ -515,7 +500,6 @@ export default function TabularEditor(props: TabularEditorProps) {
                       onRemove={
                         !isReadOnly ? () => removeColumn(column.uid) : undefined
                       }
-                      theme={theme}
                     />
                   ))
               )}
@@ -536,13 +520,12 @@ export default function TabularEditor(props: TabularEditorProps) {
         >
           {activeColumn && (
             <div>
-              <SectionLabel theme={theme}>
+              <SectionLabel>
                 {activeColumn.is_derived ? "Derived Column Detail" : "Column Detail"}
               </SectionLabel>
               <div
+                className="bg-surface border border-edge"
                 style={{
-                  background: c.surface,
-                  border: `1px solid ${c.border}`,
                   borderRadius: 10,
                   padding: 16,
                   display: "flex",
@@ -550,16 +533,16 @@ export default function TabularEditor(props: TabularEditorProps) {
                   gap: 12,
                 }}
               >
-                <Field label="Label" theme={theme}>
+                <Field label="Label">
                   <input
                     value={activeColumn.label}
                     disabled={isReadOnly}
                     onChange={(e) => patchActiveColumn({ label: e.target.value })}
-                    style={inputStyle(c)}
+                    className={inputClass}
                   />
                 </Field>
                 {!activeColumn.is_derived ? (
-                  <Field label="Answer shape" theme={theme}>
+                  <Field label="Answer shape">
                     <ShapePicker
                       value={activeColumn.format}
                       disabled={isReadOnly}
@@ -569,10 +552,9 @@ export default function TabularEditor(props: TabularEditorProps) {
                           tags: format === "enum" ? activeColumn.tags ?? [] : null,
                         })
                       }
-                      theme={theme}
                     />
                     {autoDetectedShape && (
-                      <div style={{ fontSize: 10, color: c.t3, marginTop: 7, lineHeight: 1.45 }}>
+                      <div className="text-t3" style={{ fontSize: 10, marginTop: 7, lineHeight: 1.45 }}>
                         ↳ Auto-detected:{" "}
                         <button
                           type="button"
@@ -596,12 +578,12 @@ export default function TabularEditor(props: TabularEditorProps) {
                     )}
                   </Field>
                 ) : (
-                  <Field label="Format" theme={theme}>
-                    <input value="Formula" disabled style={inputStyle(c)} />
+                  <Field label="Format">
+                    <input value="Formula" disabled className={inputClass} />
                   </Field>
                 )}
                 {(activeColumn.format === "tag" || activeColumn.format === "enum") && (
-                  <Field label="Shape options" theme={theme}>
+                  <Field label="Shape options">
                     <ShapeOptionsInspector
                       format={activeColumn.format}
                       tags={activeColumn.tags ?? []}
@@ -611,28 +593,28 @@ export default function TabularEditor(props: TabularEditorProps) {
                           tags,
                         })
                       }
-                      theme={theme}
                     />
                   </Field>
                 )}
                 {!activeColumn.is_derived ? (
-                  <Field label="Extraction prompt" theme={theme}>
+                  <Field label="Extraction prompt">
                     <textarea
                       value={activeColumn.prompt}
                       disabled={isReadOnly}
                       onChange={(e) => patchActiveColumn({ prompt: e.target.value })}
-                      style={{ ...inputStyle(c), minHeight: 120, resize: "vertical" }}
+                      className={inputClass}
+                      style={{ minHeight: 120, resize: "vertical" }}
                     />
                   </Field>
                 ) : (
-                  <Field label="Formula" theme={theme}>
+                  <Field label="Formula">
                     <textarea
                       value={activeColumn.formula ?? ""}
                       disabled={isReadOnly}
                       onChange={(e) => patchActiveColumn({ formula: e.target.value })}
                       placeholder='= IF(CoC="No" AND Exclusivity="Yes", "High", "Low")'
+                      className={inputClass}
                       style={{
-                        ...inputStyle(c),
                         minHeight: 80,
                         resize: "vertical",
                         fontFamily: "'DM Mono', monospace",
@@ -646,12 +628,12 @@ export default function TabularEditor(props: TabularEditorProps) {
           )}
 
           <div>
-            <SectionLabel theme={theme}>Live grid preview</SectionLabel>
-            <GridPreview columns={columns} theme={theme} />
+            <SectionLabel>Live grid preview</SectionLabel>
+            <GridPreview columns={columns} />
             <div
+              className="text-t3"
               style={{
                 fontSize: 10,
-                color: c.t3,
                 marginTop: 6,
                 fontStyle: "italic",
               }}
@@ -662,8 +644,8 @@ export default function TabularEditor(props: TabularEditorProps) {
           </div>
           {activeColumn && !activeColumn.is_derived && (
             <div>
-              <SectionLabel theme={theme}>Selected cell preview</SectionLabel>
-              <CellRenderPreview column={activeColumn} theme={theme} />
+              <SectionLabel>Selected cell preview</SectionLabel>
+              <CellRenderPreview column={activeColumn} />
             </div>
           )}
         </div>
@@ -684,30 +666,18 @@ export default function TabularEditor(props: TabularEditorProps) {
   );
 }
 
-function inputStyle(c: ReturnType<typeof ddTheme>): React.CSSProperties {
-  return {
-    width: "100%",
-    padding: "7px 10px",
-    background: c.surfaceAlt,
-    border: `1px solid ${c.border}`,
-    borderRadius: 7,
-    color: c.t1,
-    fontSize: 12,
-    outline: "none",
-    fontFamily: "inherit",
-  };
-}
+/** Shared text-input chrome for the column-detail fields. */
+const inputClass = "w-full px-2.5 py-[7px] rounded-[7px] outline-none border border-edge bg-surface-alt text-t1 text-xs";
 
-function SectionLabel({ children, theme }: { children: React.ReactNode; theme: Theme }) {
-  const c = ddTheme(theme);
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
+      className="text-t3"
       style={{
         fontSize: 10,
         fontWeight: 700,
         letterSpacing: "0.08em",
         textTransform: "uppercase",
-        color: c.t3,
         marginBottom: 8,
       }}
     >
@@ -719,16 +689,13 @@ function SectionLabel({ children, theme }: { children: React.ReactNode; theme: T
 function Field({
   label,
   children,
-  theme,
 }: {
   label: string;
   children: React.ReactNode;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   return (
     <div>
-      <div style={{ fontSize: 11, color: c.t2, marginBottom: 4 }}>{label}</div>
+      <div className="text-t2" style={{ fontSize: 11, marginBottom: 4 }}>{label}</div>
       {children}
     </div>
   );
@@ -741,7 +708,6 @@ function ColumnCard({
   onMoveUp,
   onMoveDown,
   onRemove,
-  theme,
 }: {
   column: DraftColumn;
   active: boolean;
@@ -749,18 +715,18 @@ function ColumnCard({
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   onRemove?: () => void;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   const badgeColor = column.is_derived ? RED : FORMAT_BADGE_COLOR[column.format] ?? ACCENT;
   const badgeLabel = column.is_derived ? "Formula" : getFormatShort(column.format);
 
   return (
     <div
       onClick={onClick}
+      // Active state carries a VIOLET border, not a token — kept inline
+      // rather than a class, matching background so the two vary together.
       style={{
-        background: active ? c.surface : c.surfaceAlt,
-        border: `1px solid ${active ? VIOLET : c.border}`,
+        background: active ? "var(--surface)" : "var(--surface-alt)",
+        border: `1px solid ${active ? VIOLET : "var(--border)"}`,
         borderRadius: 8,
         padding: "8px 10px",
         cursor: "pointer",
@@ -770,7 +736,7 @@ function ColumnCard({
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: c.t1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div className="text-t1" style={{ fontSize: 12, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {column.label || "Untitled"}
         </div>
         <span
@@ -790,9 +756,9 @@ function ColumnCard({
         </span>
       </div>
       <div
+        className="text-t3"
         style={{
           fontSize: 10,
-          color: c.t3,
           lineHeight: 1.4,
           display: "-webkit-box",
           WebkitLineClamp: 2,
@@ -805,17 +771,17 @@ function ColumnCard({
       {active && (onMoveUp || onMoveDown || onRemove) && (
         <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
           {onMoveUp && (
-            <SmallIconButton onClick={onMoveUp} title="Move up" theme={theme}>
+            <SmallIconButton onClick={onMoveUp} title="Move up">
               ↑
             </SmallIconButton>
           )}
           {onMoveDown && (
-            <SmallIconButton onClick={onMoveDown} title="Move down" theme={theme}>
+            <SmallIconButton onClick={onMoveDown} title="Move down">
               ↓
             </SmallIconButton>
           )}
           {onRemove && (
-            <SmallIconButton onClick={onRemove} title="Remove" theme={theme}>
+            <SmallIconButton onClick={onRemove} title="Remove">
               ×
             </SmallIconButton>
           )}
@@ -829,14 +795,11 @@ function SmallIconButton({
   onClick,
   title,
   children,
-  theme,
 }: {
   onClick: () => void;
   title: string;
   children: React.ReactNode;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   return (
     <button
       onClick={(e) => {
@@ -844,12 +807,11 @@ function SmallIconButton({
         onClick();
       }}
       title={title}
+      className="border border-edge text-t2"
       style={{
         width: 18,
         height: 18,
         background: "transparent",
-        border: `1px solid ${c.border}`,
-        color: c.t2,
         fontSize: 11,
         cursor: "pointer",
         borderRadius: 4,
@@ -860,25 +822,17 @@ function SmallIconButton({
   );
 }
 
-function GridPreview({ columns, theme }: { columns: DraftColumn[]; theme: Theme }) {
-  const c = ddTheme(theme);
+function GridPreview({ columns }: { columns: DraftColumn[] }) {
   const sortedCols = [...columns].sort((a, b) => a.order_index - b.order_index);
   const sampleRows = ["Document A.pdf", "Document B.pdf", "Document C.pdf"];
   return (
-    <div
-      style={{
-        background: c.surface,
-        border: `1px solid ${c.border}`,
-        borderRadius: 10,
-        overflow: "auto",
-      }}
-    >
+    <div className="bg-surface border border-edge" style={{ borderRadius: 10, overflow: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
         <thead>
           <tr>
-            <th style={cellStyle(c, true)}>Document</th>
+            <th style={cellStyle(true)}>Document</th>
             {sortedCols.map((col) => (
-              <th key={col.uid} style={cellStyle(c, true)}>
+              <th key={col.uid} style={cellStyle(true)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span>{col.label}</span>
                   <span
@@ -903,14 +857,14 @@ function GridPreview({ columns, theme }: { columns: DraftColumn[]; theme: Theme 
         <tbody>
           {sampleRows.map((doc) => (
             <tr key={doc}>
-              <td style={cellStyle(c)}>{doc}</td>
+              <td style={cellStyle()}>{doc}</td>
               {sortedCols.map((col) => (
-                <td key={col.uid} style={cellStyle(c)}>
+                <td key={col.uid} style={cellStyle()}>
                   <div
+                    className="bg-edge"
                     style={{
                       width: "70%",
                       height: 6,
-                      background: c.border,
                       borderRadius: 3,
                       opacity: 0.5,
                     }}
@@ -925,11 +879,11 @@ function GridPreview({ columns, theme }: { columns: DraftColumn[]; theme: Theme 
   );
 }
 
-function cellStyle(c: ReturnType<typeof ddTheme>, header = false): React.CSSProperties {
+function cellStyle(header = false): React.CSSProperties {
   return {
     padding: "8px 10px",
-    borderBottom: `1px solid ${c.border}`,
-    color: header ? c.t2 : c.t1,
+    borderBottom: "1px solid var(--border)",
+    color: header ? "var(--text-2)" : "var(--text-1)",
     fontWeight: header ? 600 : 400,
     textAlign: "left",
     whiteSpace: "nowrap",

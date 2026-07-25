@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import type { ConversationEntry, Deal } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { ACCENT, ddTheme, tint } from "./types";
+import { ACCENT, tint } from "./types";
 import type { DealWorkspaceMode } from "./TopBar";
 import Button from "@/components/ui/Button";
 
@@ -45,7 +45,6 @@ export default function LeftSidebar({
   onSelectAssistantHistory,
   onClose,
 }: Props) {
-  const c = ddTheme(theme);
   const isDark = theme === "dark";
   const { user } = useAuth();
   const displayName = user?.full_name || user?.email || "Account";
@@ -69,17 +68,17 @@ export default function LeftSidebar({
 
   return (
     <aside
-      className="dd-scroll flex h-full min-h-0 flex-col overflow-hidden"
-      style={{ width: 264, flexShrink: 0, background: c.surface, borderRight: `1px solid ${c.border}` }}
+      className="dd-scroll flex h-full min-h-0 flex-col overflow-hidden bg-surface border-r border-r-edge"
+      style={{ width: 264, flexShrink: 0 }}
     >
       {/* Brand + back */}
-      <div className="border-b px-3 pt-3 pb-3" style={{ borderBottomColor: c.border }}>
+      <div className="border-b border-b-edge px-3 pt-3 pb-3">
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={onBack}
-            className="font-mono-plex"
-            style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: c.t3 }}
+            className="font-mono-plex text-t3"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase" }}
           >
             ‹ All deals
           </button>
@@ -87,8 +86,7 @@ export default function LeftSidebar({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border lg:hidden"
-              style={{ borderColor: c.border, color: c.t1, background: c.surfaceAlt }}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-edge text-t1 bg-surface-alt lg:hidden"
               aria-label="Close"
             >
               ×
@@ -96,10 +94,10 @@ export default function LeftSidebar({
           )}
         </div>
         <div className="mt-2.5 flex items-center gap-2.5">
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: c.t1, color: c.surface, display: "grid", placeItems: "center", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>V</div>
+          <div className="bg-t1 text-surface" style={{ width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>V</div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, color: c.t1 }}>Vyntic</div>
-            <div className="font-mono-plex" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: c.t3 }}>Deal workspace</div>
+            <div className="text-t1" style={{ fontWeight: 600, fontSize: 14 }}>Vyntic</div>
+            <div className="font-mono-plex text-t3" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase" }}>Deal workspace</div>
           </div>
         </div>
       </div>
@@ -125,15 +123,14 @@ export default function LeftSidebar({
               key={item.label}
               type="button"
               onClick={item.onClick}
-              className="flex items-center"
+              className={`flex items-center border ${
+                item.active ? "border-edge bg-surface-alt text-t1" : "border-transparent bg-transparent text-t2"
+              }`}
               style={{
                 gap: 10,
                 width: "100%",
                 padding: "8px 10px",
                 borderRadius: 9,
-                border: `1px solid ${item.active ? c.border : "transparent"}`,
-                background: item.active ? c.surfaceAlt : "transparent",
-                color: item.active ? c.t1 : c.t2,
                 fontSize: 13.5,
                 fontWeight: item.active ? 500 : 400,
                 cursor: "pointer",
@@ -149,7 +146,7 @@ export default function LeftSidebar({
 
       {/* Recent history */}
       <div className="flex min-h-0 flex-1 flex-col px-3 pt-4">
-        <div className="font-mono-plex" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: c.t3, padding: "0 4px 8px" }}>
+        <div className="font-mono-plex text-t3" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", padding: "0 4px 8px" }}>
           Recent
         </div>
         <div className="dd-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
@@ -160,7 +157,7 @@ export default function LeftSidebar({
               ))}
             </div>
           ) : assistantHistory.length === 0 ? (
-            <div style={{ padding: "12px 10px", fontSize: 12.5, color: c.t3, lineHeight: 1.6 }}>
+            <div className="text-t3" style={{ padding: "12px 10px", fontSize: 12.5, lineHeight: 1.6 }}>
               No chats yet.
             </div>
           ) : (
@@ -180,14 +177,14 @@ export default function LeftSidebar({
       </div>
 
       {/* User */}
-      <div className="flex items-center gap-2.5 border-t px-4 py-3" style={{ borderTopColor: c.border }}>
+      <div className="flex items-center gap-2.5 border-t border-t-edge px-4 py-3">
         <span style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--accent-tint)", border: "1px solid var(--accent-tint-border)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
           {initials}
         </span>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</div>
+          <div className="text-t1" style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</div>
           {user?.email && user?.full_name && (
-            <div style={{ fontSize: 11, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
+            <div className="text-t3" style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
           )}
         </div>
       </div>
@@ -206,7 +203,6 @@ function AssistantHistoryRow({
   theme: "light" | "dark";
   onSelect: (entry: ConversationEntry) => void;
 }) {
-  const c = ddTheme(theme);
   const isDark = theme === "dark";
   const bg = active ? (isDark ? "#1d1d1d" : "#ffffff") : "transparent";
   const title = entry.question.replace(/^Focus on these document\(s\):[\s\S]+?\n\n/, "").trim() || "Untitled chat";
@@ -235,10 +231,10 @@ function AssistantHistoryRow({
         transition: "background .1s, border-color .1s",
       }}
     >
-      <span style={{ display: "block", fontSize: 12.5, fontWeight: 500, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <span className="text-t1" style={{ display: "block", fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {title}
       </span>
-      <span style={{ display: "block", marginTop: 2, fontSize: 10, color: c.t3 }}>
+      <span className="text-t3" style={{ display: "block", marginTop: 2, fontSize: 10 }}>
         {formatSessionDate(entry.created_at)} · {entry.citations.filter(Boolean).length} source{entry.citations.filter(Boolean).length === 1 ? "" : "s"}
       </span>
     </button>

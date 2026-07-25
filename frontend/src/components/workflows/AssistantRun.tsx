@@ -1,6 +1,5 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ddTheme } from "@/components/dd/types";
 import { listDocuments, type Citation, type DocumentMetadata } from "@/lib/api";
 import {
   approveStage,
@@ -17,13 +16,10 @@ import DocumentViewer from "@/components/DocumentViewer";
 import AnswerText from "@/components/dd/AnswerText";
 import { ACCENT, AMBER, GREEN, RED, tint } from "./theme";
 
-type Theme = "light" | "dark";
-
 interface AssistantRunProps {
   dealId: string;
   runId: string;
   workflow: Workflow;
-  theme: Theme;
   onBack: () => void;
   /** Called once when the run reaches `complete` so the caller can flip to memo view. */
   onComplete?: () => void;
@@ -40,11 +36,9 @@ export default function AssistantRun({
   dealId,
   runId,
   workflow,
-  theme,
   onBack,
   onComplete,
 }: AssistantRunProps) {
-  const c = ddTheme(theme);
   const [run, setRun] = useState<WorkflowRun | null>(null);
   const [stages, setStages] = useState<Map<string, AssistantStageOutput>>(new Map());
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
@@ -264,31 +258,30 @@ export default function AssistantRun({
 
   return (
     <div
+      className="bg-appbg text-t1"
       style={{
         flex: 1,
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
-        background: c.bg,
-        color: c.t1,
       }}
     >
       {/* Top crumb / status bar */}
       <div
+        className="border-b border-b-edge"
         style={{
           display: "flex",
           alignItems: "center",
           gap: 10,
           padding: "10px 24px",
-          borderBottom: `1px solid ${c.border}`,
         }}
       >
         <button
           onClick={onBack}
+          className="text-t3"
           style={{
             background: "transparent",
             border: "none",
-            color: c.t3,
             fontSize: 12,
             cursor: "pointer",
             padding: 0,
@@ -296,7 +289,7 @@ export default function AssistantRun({
         >
           ← {workflow.name}
         </button>
-        <span style={{ color: c.t4 }}>›</span>
+        <span className="text-t4">›</span>
         <span style={{ fontSize: 13, fontWeight: 600 }}>
           Run #{run?.run_number ?? "—"}
         </span>
@@ -327,18 +320,16 @@ export default function AssistantRun({
           {statusPill.label}
         </span>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: c.t3, fontFamily: "var(--font-mono, monospace)" }}>
+        <span className="text-t3" style={{ fontSize: 11, fontFamily: "var(--font-mono, monospace)" }}>
           {summaryLine(orderedStages)}
         </span>
         {(runStatus === "running" || runStatus === "checkpoint" || runStatus === "pending") && (
           <button
             onClick={handleCancel}
             disabled={cancelling}
+            className="border border-edge bg-surface-alt text-t1"
             style={{
               padding: "5px 12px",
-              background: c.surfaceAlt,
-              color: c.t1,
-              border: `1px solid ${c.border}`,
               borderRadius: 7,
               fontSize: 11,
               fontWeight: 600,
@@ -367,37 +358,35 @@ export default function AssistantRun({
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
         {/* Left: stage progress rail + input docs */}
         <div
+          className="border-r border-r-edge bg-surface-alt"
           style={{
             width: 220,
             flexShrink: 0,
-            borderRight: `1px solid ${c.border}`,
-            background: c.surfaceAlt,
             padding: 16,
             overflowY: "auto",
           }}
         >
-          <SectionLabel theme={theme}>Stages</SectionLabel>
+          <SectionLabel>Stages</SectionLabel>
           {orderedStages.map((stage, i) => (
             <StageRailItem
               key={stage.id}
               stage={stage}
-              theme={theme}
               isLast={i === orderedStages.length - 1}
               isFocused={focusedStage?.id === stage.id}
             />
           ))}
 
           <div style={{ marginTop: 24 }}>
-            <SectionLabel theme={theme}>Input Docs ({run?.document_ids.length ?? 0})</SectionLabel>
+            <SectionLabel>Input Docs ({run?.document_ids.length ?? 0})</SectionLabel>
             {(run?.document_ids ?? []).map((docId) => {
               const doc = docs.find((d) => d.doc_id === docId);
               const label = doc?.filename ?? docId.slice(0, 8);
               return (
                 <div
                   key={docId}
+                  className="text-t2"
                   style={{
                     fontSize: 11,
-                    color: c.t2,
                     padding: "4px 0",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -428,12 +417,11 @@ export default function AssistantRun({
               setDraft={setDraft}
               onApprove={() => handleApprove(focusedStage)}
               approving={approving === focusedStage.id}
-              theme={theme}
               activeCitationId={activeCitationId}
               onCitationClick={(cite, id) => handleCitationClick(cite, dealId, id)}
             />
           ) : (
-            <div style={{ color: c.t3, fontSize: 12 }}>
+            <div className="text-t3" style={{ fontSize: 12 }}>
               {runStatus === "pending"
                 ? "Run is starting…"
                 : "Waiting for the first stage to begin."}
@@ -447,7 +435,6 @@ export default function AssistantRun({
               <CompletedStageBlock
                 key={s.id}
                 stage={s}
-                theme={theme}
                 activeCitationId={activeCitationId}
                 onCitationClick={(cite, id) => handleCitationClick(cite, dealId, id)}
               />
@@ -455,7 +442,6 @@ export default function AssistantRun({
         </div>
 
         <AssistantSourceSidebar
-          theme={theme}
           run={run}
           runHistory={runHistory}
           stage={focusedStage}
@@ -480,14 +466,13 @@ export default function AssistantRun({
 
 // ── Subcomponents ──
 
-function SectionLabel({ theme, children }: { theme: Theme; children: React.ReactNode }) {
-  const c = ddTheme(theme);
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
+      className="text-t3"
       style={{
         fontSize: 10,
         fontWeight: 700,
-        color: c.t3,
         textTransform: "uppercase",
         letterSpacing: "0.08em",
         marginBottom: 10,
@@ -500,20 +485,19 @@ function SectionLabel({ theme, children }: { theme: Theme; children: React.React
 
 function StageRailItem({
   stage,
-  theme,
   isLast,
   isFocused,
 }: {
   stage: AssistantStageOutput;
-  theme: Theme;
   isLast: boolean;
   isFocused: boolean;
 }) {
-  const c = ddTheme(theme);
   const dotProps = stageDotProps(stage.status);
   return (
     <>
       <div
+        // Focused-state border derives from the stage's status hue, not a
+        // token, so background/border stay inline together.
         style={{
           display: "flex",
           alignItems: "center",
@@ -521,7 +505,7 @@ function StageRailItem({
           padding: "8px 10px",
           marginBottom: 2,
           borderRadius: 8,
-          background: isFocused ? c.surface : "transparent",
+          background: isFocused ? "var(--surface)" : "transparent",
           border: isFocused ? `1px solid ${dotProps.color}40` : "1px solid transparent",
         }}
       >
@@ -543,10 +527,10 @@ function StageRailItem({
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
+            className={stage.status === "queued" ? "text-t4" : "text-t1"}
             style={{
               fontSize: 11,
               fontWeight: 500,
-              color: stage.status === "queued" ? c.t4 : c.t1,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -557,9 +541,9 @@ function StageRailItem({
           </div>
           {stage.status === "complete" && stage.duration_ms > 0 && (
             <div
+              className="text-t3"
               style={{
                 fontSize: 9,
-                color: c.t3,
                 fontFamily: "var(--font-mono, monospace)",
               }}
             >
@@ -585,7 +569,7 @@ function StageRailItem({
           )}
         </div>
       </div>
-      {!isLast && <div style={{ width: 1, height: 12, background: c.border, marginLeft: 21 }} />}
+      {!isLast && <div className="bg-edge" style={{ width: 1, height: 12, marginLeft: 21 }} />}
     </>
   );
 }
@@ -596,7 +580,6 @@ function StageDetail({
   setDraft,
   onApprove,
   approving,
-  theme,
   activeCitationId,
   onCitationClick,
 }: {
@@ -605,11 +588,9 @@ function StageDetail({
   setDraft: (stageId: string, md: string) => void;
   onApprove: () => void;
   approving: boolean;
-  theme: Theme;
   activeCitationId: string | null;
   onCitationClick: (cite: Citation, id: string) => void;
 }) {
-  const c = ddTheme(theme);
   const isCheckpoint = stage.status === "checkpoint";
   const value = draft !== undefined ? draft : (stage.edited_md ?? stage.output_md);
   const editable = isCheckpoint;
@@ -635,7 +616,7 @@ function StageDetail({
             <div style={{ fontSize: 13, fontWeight: 600, color: AMBER }}>
               Checkpoint — review Stage {stage.order_index} output
             </div>
-            <div style={{ fontSize: 11, color: c.t2 }}>
+            <div className="text-t2" style={{ fontSize: 11 }}>
               Edit the markdown below if needed, then approve to continue.
             </div>
           </div>
@@ -667,7 +648,7 @@ function StageDetail({
           marginBottom: 10,
         }}
       >
-        <span style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>
+        <span className="text-t1" style={{ fontSize: 14, fontWeight: 700 }}>
           Stage {stage.order_index}: {stage.label}
         </span>
         {stage.status === "running" && (
@@ -681,12 +662,10 @@ function StageDetail({
       {/* Output area */}
       {stage.status === "running" && stage.output_md.length === 0 ? (
         <div
+          className="bg-surface border border-edge text-t3"
           style={{
             padding: "16px 18px",
-            background: c.surface,
-            border: `1px solid ${c.border}`,
             borderRadius: 8,
-            color: c.t3,
             fontSize: 12,
             fontStyle: "italic",
           }}
@@ -700,27 +679,24 @@ function StageDetail({
             citations={stage.citations}
             activeCitationId={activeCitationId}
             onCitationClick={onCitationClick}
-            theme={theme}
           />
           <details style={{ marginTop: 12 }}>
-            <summary style={{ fontSize: 11, fontWeight: 600, color: c.t3, cursor: "pointer" }}>
+            <summary className="text-t3" style={{ fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
               Edit markdown
             </summary>
             <textarea
               value={value}
               onChange={(e) => setDraft(stage.id, e.target.value)}
               spellCheck={false}
+              className="bg-surface border border-edge text-t1"
               style={{
                 width: "100%",
                 minHeight: 220,
                 marginTop: 8,
                 padding: "12px 14px",
-                background: c.surface,
-                border: `1px solid ${c.border}`,
                 borderLeft: `3px solid ${tint(ACCENT, 50)}`,
                 borderRadius: 8,
                 fontSize: 12.5,
-                color: c.t1,
                 lineHeight: 1.7,
                 fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
                 resize: "vertical",
@@ -735,7 +711,6 @@ function StageDetail({
           citations={stage.citations}
           activeCitationId={activeCitationId}
           onCitationClick={onCitationClick}
-          theme={theme}
         />
       )}
     </div>
@@ -744,30 +719,27 @@ function StageDetail({
 
 function CompletedStageBlock({
   stage,
-  theme,
   activeCitationId,
   onCitationClick,
 }: {
   stage: AssistantStageOutput;
-  theme: Theme;
   activeCitationId: string | null;
   onCitationClick: (cite: Citation, id: string) => void;
 }) {
-  const c = ddTheme(theme);
   return (
     <details style={{ marginBottom: 14 }}>
       <summary
+        className="text-t2"
         style={{
           fontSize: 12,
           fontWeight: 600,
-          color: c.t2,
           cursor: "pointer",
           padding: "6px 0",
         }}
       >
         ✓ Stage {stage.order_index}: {stage.label}
         {stage.approved_at && (
-          <span style={{ color: c.t4, fontWeight: 400, marginLeft: 8 }}>
+          <span className="text-t4" style={{ fontWeight: 400, marginLeft: 8 }}>
             (analyst-approved)
           </span>
         )}
@@ -777,7 +749,6 @@ function CompletedStageBlock({
         citations={stage.citations}
         activeCitationId={activeCitationId}
         onCitationClick={onCitationClick}
-        theme={theme}
         muted
       />
     </details>
@@ -789,28 +760,23 @@ function AssistantOutputText({
   citations,
   activeCitationId,
   onCitationClick,
-  theme,
   muted = false,
 }: {
   text: string;
   citations: (Citation | null)[];
   activeCitationId: string | null;
   onCitationClick: (cite: Citation, id: string) => void;
-  theme: Theme;
   muted?: boolean;
 }) {
-  const c = ddTheme(theme);
   return (
     <div
+      className={`border border-edge text-t1 ${muted ? "bg-surface-alt" : "bg-surface"}`}
       style={{
         margin: muted ? "8px 0 0 0" : 0,
         padding: muted ? "10px 12px" : "12px 14px",
-        background: muted ? c.surfaceAlt : c.surface,
-        border: `1px solid ${c.border}`,
         borderLeft: `3px solid ${tint(ACCENT, muted ? 24 : 35)}`,
         borderRadius: muted ? 6 : 8,
         fontSize: 12.5,
-        color: c.t1,
       }}
     >
       <AnswerText
@@ -828,7 +794,6 @@ function AssistantSourceSidebar({
   run,
   runHistory,
   dealId,
-  theme,
   onCitationClick,
 }: {
   stage: AssistantStageOutput | null;
@@ -836,40 +801,40 @@ function AssistantSourceSidebar({
   runHistory: WorkflowRun[];
   dealId: string;
   activeCitationId: string | null;
-  theme: Theme;
   onCitationClick: (cite: Citation, dealId: string, id?: string) => void;
 }) {
-  const c = ddTheme(theme);
   const realCites = (stage?.citations ?? []).filter(
     (cite): cite is Citation => cite !== null
   );
   return (
     <aside
+      className="border-l border-l-edge bg-surface-alt"
       style={{
         width: 320,
         flexShrink: 0,
-        borderLeft: `1px solid ${c.border}`,
-        background: c.surfaceAlt,
         overflowY: "auto",
         padding: 16,
       }}
     >
-      <SectionLabel theme={theme}>Sources Cited</SectionLabel>
+      <SectionLabel>Sources Cited</SectionLabel>
       <div
+        className="bg-surface"
+        // A focused stage tints the panel's edge with the accent, not a
+        // token, so the border overrides the class inline (as in DS1/DS2's
+        // PositionModal/RunDetailPanel).
         style={{
           padding: "12px 14px",
-          background: c.surface,
-          border: `1px solid ${stage ? tint(ACCENT, 35) : c.border}`,
+          border: `1px solid ${stage ? tint(ACCENT, 35) : "var(--border)"}`,
           borderRadius: 10,
           marginBottom: 20,
         }}
       >
         {stage ? (
           <>
-            <div style={{ fontSize: 10, color: c.t3, marginBottom: 8 }}>
+            <div className="text-t3" style={{ fontSize: 10, marginBottom: 8 }}>
               Stage {stage.order_index}: {stage.label}
             </div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, marginBottom: 8 }}>
+            <div className="text-t3" style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>
               Citations ({realCites.length})
             </div>
             {realCites.length ? (
@@ -877,11 +842,11 @@ function AssistantSourceSidebar({
                 <button
                   key={`${cite.source_file}-${cite.page}-${i}`}
                   onClick={() => onCitationClick(cite, cite.deal_id || dealId, workflowCitationId(cite, i))}
+                  className="bg-appbg"
                   style={{
                     width: "100%",
                     textAlign: "left",
                     padding: "8px 10px",
-                    background: c.bg,
                     border: "none",
                     borderLeft: `3px solid ${ACCENT}`,
                     borderRadius: 6,
@@ -900,26 +865,24 @@ function AssistantSourceSidebar({
                   >
                     {cite.source_file} · p.{cite.page}
                   </div>
-                  <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.5, fontStyle: "italic" }}>
+                  <div className="text-t2" style={{ fontSize: 11, lineHeight: 1.5, fontStyle: "italic" }}>
                     {cite.text_snippet || "Open source passage"}
                   </div>
                 </button>
               ))
             ) : (
-              <div style={{ fontSize: 11, color: c.t3, lineHeight: 1.5 }}>
+              <div className="text-t3" style={{ fontSize: 11, lineHeight: 1.5 }}>
                 No valid source markers were captured for this stage.
               </div>
             )}
             {realCites[0] && (
               <button
                 onClick={() => onCitationClick(realCites[0], realCites[0].deal_id || dealId, workflowCitationId(realCites[0], 0))}
+                className="border border-edge bg-surface-alt text-t1"
                 style={{
                   marginTop: 4,
                   padding: "6px 10px",
-                  border: `1px solid ${c.border}`,
                   borderRadius: 7,
-                  background: c.surfaceAlt,
-                  color: c.t1,
                   fontSize: 11,
                   fontWeight: 600,
                   cursor: "pointer",
@@ -930,37 +893,33 @@ function AssistantSourceSidebar({
             )}
           </>
         ) : (
-          <div style={{ fontSize: 12, color: c.t3 }}>No active stage yet.</div>
+          <div className="text-t3" style={{ fontSize: 12 }}>No active stage yet.</div>
         )}
       </div>
 
-      <SectionLabel theme={theme}>Run History</SectionLabel>
+      <SectionLabel>Run History</SectionLabel>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
         {runHistory.slice(0, 6).map((item) => {
           const current = item.id === run?.id;
           return (
             <div
               key={item.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 10px",
-                borderRadius: 6,
-                background: current ? c.surface : "transparent",
-                border: current ? `1px solid ${c.border}` : "1px solid transparent",
-              }}
+              className={`flex items-center justify-between px-[10px] py-2 rounded-md border ${
+                current ? "bg-surface border-edge" : "bg-transparent border-transparent"
+              }`}
             >
-              <span style={{ fontSize: 11, fontWeight: current ? 700 : 500, color: current ? c.t1 : c.t3 }}>
+              <span
+                className={`text-[11px] ${current ? "font-bold text-t1" : "font-medium text-t3"}`}
+              >
                 Run #{item.run_number}
               </span>
-              <span style={{ fontSize: 10, color: c.t3, fontFamily: "var(--font-mono, monospace)" }}>
+              <span className="text-t3" style={{ fontSize: 10, fontFamily: "var(--font-mono, monospace)" }}>
                 {formatRunDate(item.started_at)}
               </span>
             </div>
           );
         })}
-        {runHistory.length === 0 && <div style={{ fontSize: 11, color: c.t3 }}>No prior runs.</div>}
+        {runHistory.length === 0 && <div className="text-t3" style={{ fontSize: 11 }}>No prior runs.</div>}
       </div>
     </aside>
   );

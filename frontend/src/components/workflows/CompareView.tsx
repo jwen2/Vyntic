@@ -1,6 +1,5 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { ddTheme } from "@/components/dd/types";
 import type { Citation, DocumentMetadata } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
 import { diffWords, type DiffSegment } from "@/lib/diffWords";
@@ -11,8 +10,6 @@ import CellRenderer, {
 } from "./cells/CellRenderer";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "./theme";
 
-type Theme = "light" | "dark";
-
 interface CompareViewProps {
   workflowId: string;
   columns: WorkflowColumn[];
@@ -20,7 +17,6 @@ interface CompareViewProps {
   cells: Map<string, TabularCell>;
   docs: DocumentMetadata[];
   rowSourceIsDoc: boolean;
-  theme: Theme;
   onCitationClick?: (citation: Citation, id: string) => void;
 }
 
@@ -38,11 +34,8 @@ export default function CompareView({
   cells,
   docs,
   rowSourceIsDoc,
-  theme,
   onCitationClick,
 }: CompareViewProps) {
-  const c = ddTheme(theme);
-
   const [activeColumnId, setActiveColumnId] = useState<string>(() => {
     if (typeof window === "undefined") return columns[0]?.id ?? "";
     const stored = window.localStorage.getItem(COL_KEY_PREFIX + workflowId);
@@ -108,7 +101,7 @@ export default function CompareView({
 
   if (!activeColumn) {
     return (
-      <div style={{ padding: 24, color: c.t3, fontSize: 12 }}>
+      <div className="text-t3" style={{ padding: 24, fontSize: 12 }}>
         Add a column to this workflow to use Compare.
       </div>
     );
@@ -117,12 +110,14 @@ export default function CompareView({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* Column picker */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-        padding: "10px 12px", borderRadius: 8,
-        background: c.surfaceAlt, border: `1px solid ${c.border}`,
-      }}>
-        <span style={{ fontSize: 10, color: c.t3, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+      <div
+        className="bg-surface-alt border border-edge"
+        style={{
+          display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+          padding: "10px 12px", borderRadius: 8,
+        }}
+      >
+        <span className="text-t3" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
           Compare column
         </span>
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -134,10 +129,12 @@ export default function CompareView({
                 type="button"
                 onClick={() => setActiveColumnId(col.id)}
                 title={col.prompt || col.label}
+                // Active state is an accent tint, not a token — kept inline
+                // rather than split across two competing border/bg classes.
                 style={{
-                  border: `1px solid ${active ? tint(ACCENT, 60) : c.border}`,
-                  background: active ? tint(ACCENT, 18) : c.surface,
-                  color: active ? c.t1 : c.t2,
+                  border: `1px solid ${active ? tint(ACCENT, 60) : "var(--border)"}`,
+                  background: active ? tint(ACCENT, 18) : "var(--surface)",
+                  color: active ? "var(--text-1)" : "var(--text-2)",
                   padding: "4px 10px",
                   borderRadius: 6,
                   fontSize: 11,
@@ -157,21 +154,21 @@ export default function CompareView({
       </div>
 
       {/* Sub-toolbar: anchor + diff toggle + caveat count */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-        padding: "8px 12px", borderRadius: 8,
-        background: c.surface, border: `1px solid ${c.border}`,
-        fontSize: 11, color: c.t2,
-      }}>
+      <div
+        className="bg-surface border border-edge text-t2"
+        style={{
+          display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+          padding: "8px 12px", borderRadius: 8,
+          fontSize: 11,
+        }}
+      >
         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ color: c.t3 }}>Anchor:</span>
+          <span className="text-t3">Anchor:</span>
           <select
             value={anchorRowKey}
             onChange={(e) => setAnchorRowKey(e.target.value)}
+            className="bg-surface-alt text-t1 border border-edge"
             style={{
-              background: c.surfaceAlt,
-              color: c.t1,
-              border: `1px solid ${c.border}`,
               borderRadius: 5,
               padding: "3px 6px",
               fontSize: 11,
@@ -188,11 +185,11 @@ export default function CompareView({
           type="button"
           onClick={() => setHighlightDiffs((v) => !v)}
           aria-pressed={highlightDiffs}
+          className="border border-edge"
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
-            border: `1px solid ${c.border}`,
-            background: highlightDiffs ? tint(ACCENT, 18) : c.surfaceAlt,
-            color: highlightDiffs ? c.t1 : c.t2,
+            background: highlightDiffs ? tint(ACCENT, 18) : "var(--surface-alt)",
+            color: highlightDiffs ? "var(--text-1)" : "var(--text-2)",
             padding: "3px 8px", borderRadius: 5,
             fontSize: 11, fontWeight: 600, cursor: "pointer",
           }}
@@ -200,8 +197,8 @@ export default function CompareView({
           Highlight differences
           <span style={{
             padding: "1px 5px", borderRadius: 3, fontSize: 9, fontWeight: 700,
-            background: highlightDiffs ? ACCENT : c.border,
-            color: highlightDiffs ? "white" : c.t3,
+            background: highlightDiffs ? ACCENT : "var(--border)",
+            color: highlightDiffs ? "white" : "var(--text-3)",
           }}>
             {highlightDiffs ? "On" : "Off"}
           </span>
@@ -226,7 +223,6 @@ export default function CompareView({
           return (
             <CompareCard
               key={rowKey}
-              theme={theme}
               tone={tone}
               docLabel={rowLabel(rowKey, docs, rowSourceIsDoc)}
               docMeta={docMeta(rowKey, docs, rowSourceIsDoc)}
@@ -245,7 +241,6 @@ export default function CompareView({
 }
 
 function CompareCard({
-  theme,
   tone,
   docLabel,
   docMeta,
@@ -256,7 +251,6 @@ function CompareCard({
   onCitationClick,
   citationIdPrefix,
 }: {
-  theme: Theme;
   tone: CompareTone;
   docLabel: string;
   docMeta: string | null;
@@ -267,27 +261,32 @@ function CompareCard({
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix: string;
 }) {
-  const c = ddTheme(theme);
-  const tones = toneStyles(tone, c);
+  const tones = toneStyles(tone);
   const isProse = isProseShape(column.format);
 
   return (
-    <div style={{
-      background: c.surface,
-      border: tones.border,
-      borderRadius: 8,
-      padding: 14,
-      display: "flex", flexDirection: "column", gap: 10,
-      minWidth: 0,
-    }}>
+    <div
+      className="bg-surface"
+      style={{
+        border: tones.border,
+        borderRadius: 8,
+        padding: 14,
+        display: "flex", flexDirection: "column", gap: 10,
+        minWidth: 0,
+      }}
+    >
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: 12, fontWeight: 600, color: c.t1,
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }} title={docLabel}>{docLabel}</div>
-          {docMeta && <div style={{ fontSize: 10, color: c.t3, marginTop: 2 }}>{docMeta}</div>}
+          <div
+            className="text-t1"
+            style={{
+              fontSize: 12, fontWeight: 600,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}
+            title={docLabel}
+          >{docLabel}</div>
+          {docMeta && <div className="text-t3" style={{ fontSize: 10, marginTop: 2 }}>{docMeta}</div>}
         </div>
         <span style={{
           flexShrink: 0,
@@ -300,10 +299,9 @@ function CompareCard({
 
       {/* Body */}
       {!cell || cell.status !== "complete" ? (
-        <PlaceholderBody status={cell?.status ?? "queued"} theme={theme} />
+        <PlaceholderBody status={cell?.status ?? "queued"} />
       ) : isProse ? (
         <ProseBody
-          theme={theme}
           cell={cell}
           tone={tone}
           anchorProse={anchorProse}
@@ -315,7 +313,6 @@ function CompareCard({
         <CellRenderer
           cell={cell}
           column={column}
-          theme={theme}
           density="comfortable"
           onCitationClick={onCitationClick}
           citationIdPrefix={citationIdPrefix}
@@ -326,7 +323,6 @@ function CompareCard({
 }
 
 function ProseBody({
-  theme,
   cell,
   tone,
   anchorProse,
@@ -334,7 +330,6 @@ function ProseBody({
   onCitationClick,
   citationIdPrefix,
 }: {
-  theme: Theme;
   cell: TabularCell;
   tone: CompareTone;
   anchorProse: ProseValue | null;
@@ -342,7 +337,6 @@ function ProseBody({
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix: string;
 }) {
-  const c = ddTheme(theme);
   const pv = proseValue(cell.answer_formatted, stripSourceMarkers(cell.answer || ""));
   const summary = pv.summary || pv.body;
   const body = pv.body && pv.body !== summary ? pv.body : "";
@@ -352,16 +346,19 @@ function ProseBody({
   return (
     <>
       {summary && (
-        <div style={{
-          fontSize: 11.5, color: c.t1, fontWeight: 500, lineHeight: 1.45,
-          paddingBottom: body ? 10 : 0,
-          borderBottom: body ? `1px dashed ${c.border}` : undefined,
-        }}>
+        <div
+          className="text-t1"
+          style={{
+            fontSize: 11.5, fontWeight: 500, lineHeight: 1.45,
+            paddingBottom: body ? 10 : 0,
+            borderBottom: body ? "1px dashed var(--border)" : undefined,
+          }}
+        >
           {summary}
         </div>
       )}
       {body && (
-        <div style={{ fontSize: 10.5, color: c.t2, lineHeight: 1.6 }}>
+        <div className="text-t2" style={{ fontSize: 10.5, lineHeight: 1.6 }}>
           {showDiff
             ? renderDiff(diffWords(anchorBody, body).segments)
             : body}
@@ -375,7 +372,6 @@ function ProseBody({
         </div>
       )}
       <CitationStrip
-        theme={theme}
         citations={cell.citations}
         onCitationClick={onCitationClick}
         citationIdPrefix={citationIdPrefix}
@@ -419,25 +415,25 @@ function CaveatRibbon({ caveat }: { caveat: { text: string; severity: "info" | "
 }
 
 function CitationStrip({
-  theme,
   citations,
   onCitationClick,
   citationIdPrefix,
 }: {
-  theme: Theme;
   citations: (Citation | null)[];
   onCitationClick?: (citation: Citation, id: string) => void;
   citationIdPrefix: string;
 }) {
-  const c = ddTheme(theme);
   const real = citations.filter((cit): cit is Citation => cit !== null);
   if (real.length === 0) return null;
   return (
-    <div style={{
-      display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8,
-      paddingTop: 6, borderTop: `1px solid ${c.border}`,
-      fontSize: 10, color: c.t3,
-    }}>
+    <div
+      className="border-t border-t-edge text-t3"
+      style={{
+        display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8,
+        paddingTop: 6,
+        fontSize: 10,
+      }}
+    >
       {real.slice(0, 4).map((cit, i) => {
         const id = `${citationIdPrefix}_${i}`;
         const label = cit.span_label || `${cit.kind === "derived" ? "D" : "S"}${i + 1}`;
@@ -465,10 +461,9 @@ function CitationStrip({
   );
 }
 
-function PlaceholderBody({ status, theme }: { status: string; theme: Theme }) {
-  const c = ddTheme(theme);
+function PlaceholderBody({ status }: { status: string }) {
   const label = status === "running" ? "Running…" : status === "error" ? "Failed" : status === "queued" ? "Queued" : "—";
-  const color = status === "error" ? RED : c.t3;
+  const color = status === "error" ? RED : "var(--text-3)";
   return (
     <div style={{
       fontSize: 11, color, fontStyle: "italic",
@@ -514,7 +509,7 @@ function docMeta(rowKey: string, docs: DocumentMetadata[], rowSourceIsDoc: boole
   return `${doc.page_count} page${doc.page_count === 1 ? "" : "s"}`;
 }
 
-function toneStyles(tone: CompareTone, c: ReturnType<typeof ddTheme>) {
+function toneStyles(tone: CompareTone) {
   if (tone === "anchor") {
     return {
       border: `1px solid ${tint(ACCENT, 60)}`,
@@ -529,12 +524,12 @@ function toneStyles(tone: CompareTone, c: ReturnType<typeof ddTheme>) {
   }
   if (tone === "missing") {
     return {
-      border: `1px dashed ${c.border}`,
-      badgeBg: c.surfaceAlt, badgeFg: c.t3, badgeLabel: "—",
+      border: "1px dashed var(--border)",
+      badgeBg: "var(--surface-alt)", badgeFg: "var(--text-3)", badgeLabel: "—",
     };
   }
   return {
-    border: `1px solid ${c.border}`,
+    border: "1px solid var(--border)",
     badgeBg: tint(GREEN, 18), badgeFg: GREEN, badgeLabel: "Consistent",
   };
 }

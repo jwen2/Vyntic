@@ -1,7 +1,6 @@
 import type React from "react";
 import type { Deal } from "@/lib/api";
 import { stageBadge } from "@/lib/stageBadges";
-import { ddTheme } from "./types";
 
 export type DealWorkspaceMode = "agent" | "workflows" | "brief" | "monitoring";
 
@@ -25,22 +24,17 @@ export default function TopBar({
   onToggleTheme,
   theme,
 }: TopBarProps) {
-  const c = ddTheme(theme);
   const isDark = theme === "dark";
   const chip = isDark ? "#1a1a1a" : "rgba(255,255,255,0.78)";
   const badge = stageBadge(deal.stage, isDark);
 
   return (
-    <div
-      className="flex flex-shrink-0 items-center gap-3 border-b px-4 py-3"
-      style={{ background: c.surface, borderBottomColor: c.border }}
-    >
+    <div className="flex flex-shrink-0 items-center gap-3 border-b border-b-edge bg-surface px-4 py-3">
       {onOpenSidebar && (
         <button
           type="button"
           onClick={onOpenSidebar}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border lg:hidden"
-          style={{ borderColor: c.border, background: c.surfaceAlt, color: c.t1 }}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-edge bg-surface-alt text-t1 lg:hidden"
           aria-label="Open menu"
         >
           ≡
@@ -49,8 +43,8 @@ export default function TopBar({
 
       <div style={{ minWidth: 0 }}>
         <div
-          className="font-mono-plex flex items-center gap-1"
-          style={{ color: c.t3, fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase" }}
+          className="font-mono-plex flex items-center gap-1 text-t3"
+          style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase" }}
         >
           {deal.entity_type === "fund" && deal.manager_name && onOpenManager ? (
             <>
@@ -70,7 +64,7 @@ export default function TopBar({
           )}
         </div>
         <div className="mt-0.5 flex items-center gap-2" style={{ minWidth: 0 }}>
-          <h1 style={{ margin: 0, fontSize: 18, lineHeight: 1.2, fontWeight: 600, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <h1 className="text-t1" style={{ margin: 0, fontSize: 18, lineHeight: 1.2, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {deal.name}
           </h1>
           <span
@@ -80,7 +74,7 @@ export default function TopBar({
             {deal.deal_id}
           </span>
           {deal.entity_type === "fund" && deal.vintage && (
-            <span className="font-mono-plex" style={{ flexShrink: 0, fontSize: 10, padding: "3px 8px", borderRadius: 7, background: chip, color: c.t2, border: `1px solid ${c.border}`, letterSpacing: "0.1em" }}>
+            <span className="font-mono-plex" style={{ flexShrink: 0, fontSize: 10, padding: "3px 8px", borderRadius: 7, background: chip, color: "var(--text-2)", border: "1px solid var(--border)", letterSpacing: "0.1em" }}>
               {deal.vintage}
             </span>
           )}
@@ -110,8 +104,8 @@ export default function TopBar({
         <button
           type="button"
           onClick={onOpenPosition}
-          className="rounded-lg"
-          style={{ padding: "8px 12px", background: c.accentTint, color: c.accentStrong, border: `1px solid ${c.accentTintBorder}`, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+          className="rounded-lg bg-accent-tint text-accent-strong border border-accent-tint-border"
+          style={{ padding: "8px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
         >
           Position
         </button>

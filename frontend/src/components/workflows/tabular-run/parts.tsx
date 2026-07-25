@@ -1,23 +1,10 @@
-import { ddTheme } from "@/components/dd/types";
 import { RED } from "../theme";
-import type { Theme } from "./useTabularRun";
 
 // Small presentational primitives shared across the tabular-run subcomponents.
 
-export function SectionLabel({ children, theme }: { children: React.ReactNode; theme: Theme }) {
-  const c = ddTheme(theme);
+export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        color: c.t3,
-      }}
-    >
-      {children}
-    </div>
+    <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-t3">{children}</div>
   );
 }
 
@@ -41,7 +28,6 @@ export function RetryIcon({ spinning = false }: { spinning?: boolean }) {
 }
 
 export function SummaryCards({
-  theme,
   documents,
   completeCells,
   totalCells,
@@ -49,7 +35,6 @@ export function SummaryCards({
   elapsedLabel,
   runId,
 }: {
-  theme: Theme;
   documents: number;
   completeCells: number;
   totalCells: number;
@@ -57,7 +42,6 @@ export function SummaryCards({
   elapsedLabel: string;
   runId: string;
 }) {
-  const c = ddTheme(theme);
   // Quiet inline metadata rather than a row of boxed tiles — the run's numbers
   // are context, not the point of the screen.
   const items: { value: string; label: string; color?: string; mono?: boolean }[] = [
@@ -68,26 +52,17 @@ export function SummaryCards({
     { value: runId.slice(0, 8), label: "run id", mono: true },
   ];
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 14,
-        fontSize: 12.5,
-        color: c.t3,
-      }}
-    >
+    <div className="flex flex-wrap items-center gap-2 mb-[14px] text-[12.5px] text-t3">
       {items.map((item, i) => (
-        <span key={item.label} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          {i > 0 && <span style={{ opacity: 0.55 }}>·</span>}
+        <span key={item.label} className="inline-flex items-center gap-2">
+          {i > 0 && <span className="opacity-[0.55]">·</span>}
           <span>
             <span
+              // `item.color` is a status hue (RED) rather than a surface token,
+              // so it stays inline; the default falls back to the t1 class.
+              className={`font-semibold tabular-nums${item.color ? "" : " text-t1"}`}
               style={{
-                color: item.color || c.t1,
-                fontWeight: 600,
-                fontVariantNumeric: "tabular-nums",
+                color: item.color,
                 fontFamily: item.mono
                   ? "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
                   : "inherit",

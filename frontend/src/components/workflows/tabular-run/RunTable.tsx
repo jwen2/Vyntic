@@ -1,14 +1,13 @@
 import { memo } from "react";
-import { ddTheme } from "@/components/dd/types";
 import type { Citation, DocumentMetadata } from "@/lib/api";
 import type { TabularCell, WorkflowColumn, Workflow } from "@/lib/workflows";
 import { getFormatShort } from "@/lib/matrixColumnConfig";
 import { ACCENT, RED, VIOLET, tint } from "../theme";
 import type { CellDensity } from "../cells/CellRenderer";
-import { cellBodyStyle, cellHeaderStyle, docBodyStyle, docHeaderStyle } from "./styles";
+import { cellBodyClass, cellHeaderClass, docBodyClass, docHeaderClass } from "./styles";
 import ValueCell from "./RunCell";
 import ColumnEditMenu, { type ColumnDraft } from "./ColumnEditMenu";
-import { cellKey, type Theme } from "./useTabularRun";
+import { cellKey } from "./useTabularRun";
 
 interface RunTableProps {
   workflow: Workflow;
@@ -16,7 +15,6 @@ interface RunTableProps {
   rowKeys: string[];
   cells: Map<string, TabularCell>;
   docs: DocumentMetadata[];
-  theme: Theme;
   density: CellDensity;
   COL_DOC: number;
   COL_DEFAULT: number;
@@ -41,7 +39,6 @@ export default function RunTable({
   rowKeys,
   cells,
   docs,
-  theme,
   density,
   COL_DOC,
   COL_DEFAULT,
@@ -56,11 +53,11 @@ export default function RunTable({
   onSaveColumn,
   onColumnPromptChanged,
 }: RunTableProps) {
-  const c = ddTheme(theme);
   const rowSourceIsDoc = workflow.row_source === "one_doc_per_row";
 
   return (
     <table
+      className="bg-surface border border-edge rounded-lg"
       style={{
         width:
           getColWidth("doc", COL_DOC) +
@@ -69,9 +66,6 @@ export default function RunTable({
         borderCollapse: "separate",
         borderSpacing: 0,
         fontSize: 11,
-        background: c.surface,
-        border: `1px solid ${c.border}`,
-        borderRadius: 8,
       }}
     >
       <colgroup>
@@ -82,7 +76,7 @@ export default function RunTable({
       </colgroup>
       <thead>
         <tr>
-          <th style={docHeaderStyle(c)}>
+          <th className={docHeaderClass}>
             Document
             <ColResizeHandle
               active={resizingKey === "doc"}
@@ -90,7 +84,7 @@ export default function RunTable({
             />
           </th>
           {runColumns.map((col) => (
-            <th key={col.id} style={cellHeaderStyle(c)} className="group/header">
+            <th key={col.id} className={`${cellHeaderClass} group/header`}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 6, minWidth: 0 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
@@ -115,9 +109,9 @@ export default function RunTable({
                   </div>
                   {col.prompt && col.prompt !== col.label && (
                     <div
+                      className="text-t3"
                       style={{
                         fontSize: 9,
-                        color: c.t3,
                         fontWeight: 400,
                         marginTop: 2,
                         overflow: "hidden",
@@ -135,7 +129,6 @@ export default function RunTable({
                 {!workflow.is_builtin && (
                   <ColumnEditMenu
                     column={col}
-                    theme={theme}
                     onSave={async (patch) => {
                       const { promptChanged } = await onSaveColumn(col.id, patch);
                       if (promptChanged) onColumnPromptChanged(col.id, patch.label);
@@ -172,7 +165,6 @@ export default function RunTable({
               zebra={rowIndex % 2 === 1}
               selectedColId={selectedColId}
               retryingCellIds={retryingCellIds}
-              theme={theme}
               density={density}
               onSelectKey={onSelectKey}
               onRetryCell={onRetryCell}
@@ -196,7 +188,6 @@ interface RunRowProps {
   zebra: boolean;
   selectedColId: string | null;
   retryingCellIds: Set<string>;
-  theme: Theme;
   density: CellDensity;
   onSelectKey: (key: string) => void;
   onRetryCell: (cellId: string) => void;
@@ -212,16 +203,14 @@ function RunRowImpl({
   zebra,
   selectedColId,
   retryingCellIds,
-  theme,
   density,
   onSelectKey,
   onRetryCell,
   onCitationClick,
 }: RunRowProps) {
-  const c = ddTheme(theme);
   return (
     <tr>
-      <td style={docBodyStyle(c, zebra)}>
+      <td className={docBodyClass(zebra)}>
         <div
           style={{
             overflow: "hidden",
@@ -249,15 +238,14 @@ function RunRowImpl({
               onRetry={onRetryCell}
               retrying={retryingCellIds.has(cell.id)}
               zebra={zebra}
-              theme={theme}
               density={density}
               onCitationClick={onCitationClick}
             />
           );
         }
         return (
-          <td key={col.id} style={cellBodyStyle(c, zebra)}>
-            <PlaceholderCell cell={cell} theme={theme} />
+          <td key={col.id} className={cellBodyClass(zebra)}>
+            <PlaceholderCell cell={cell} />
           </td>
         );
       })}
@@ -274,7 +262,6 @@ const RunRow = memo(RunRowImpl, (prev, next) => {
     prev.zebra !== next.zebra ||
     prev.selectedColId !== next.selectedColId ||
     prev.retryingCellIds !== next.retryingCellIds ||
-    prev.theme !== next.theme ||
     prev.density !== next.density ||
     prev.onSelectKey !== next.onSelectKey ||
     prev.onRetryCell !== next.onRetryCell ||
@@ -291,21 +278,14 @@ const RunRow = memo(RunRowImpl, (prev, next) => {
 
 /** Renders a placeholder for non-complete cells (queued / running / error).
  * Complete cells are delegated to CellRenderer via ValueCell. */
-function PlaceholderCell({
-  cell,
-  theme,
-}: {
-  cell: TabularCell | undefined;
-  theme: Theme;
-}) {
-  const c = ddTheme(theme);
+function PlaceholderCell({ cell }: { cell: TabularCell | undefined }) {
   if (!cell || cell.status === "queued") {
     return (
       <div
+        className="bg-edge"
         style={{
           width: 30,
           height: 6,
-          background: c.border,
           borderRadius: 3,
           opacity: 0.3,
         }}

@@ -33,3 +33,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Claude Code local settings (personal, machine-specific)
+.claude/settings.local.json

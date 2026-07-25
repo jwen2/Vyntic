@@ -1,6 +1,5 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { ddTheme } from "@/components/dd/types";
 import { listDocuments, type Citation, type DocumentMetadata } from "@/lib/api";
 import {
   downloadRunExport,
@@ -13,13 +12,10 @@ import DocumentViewer from "@/components/DocumentViewer";
 import AnswerText from "@/components/dd/AnswerText";
 import { ACCENT, GREEN, RED, tint } from "./theme";
 
-type Theme = "light" | "dark";
-
 interface MemoOutputProps {
   dealId: string;
   runId: string;
   workflow: Workflow;
-  theme: Theme;
   onBack: () => void;
 }
 
@@ -34,10 +30,8 @@ export default function MemoOutput({
   dealId,
   runId,
   workflow,
-  theme,
   onBack,
 }: MemoOutputProps) {
-  const c = ddTheme(theme);
   const [run, setRun] = useState<WorkflowRun | null>(null);
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -112,12 +106,12 @@ export default function MemoOutput({
   if (!run) {
     return (
       <div
+        className="text-t2"
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: c.t2,
           fontSize: 12,
         }}
       >
@@ -130,20 +124,20 @@ export default function MemoOutput({
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
       {/* Top crumb / status bar */}
       <div
+        className="border-b border-b-edge"
         style={{
           display: "flex",
           alignItems: "center",
           gap: 10,
           padding: "10px 24px",
-          borderBottom: `1px solid ${c.border}`,
         }}
       >
         <button
           onClick={onBack}
+          className="text-t3"
           style={{
             background: "transparent",
             border: "none",
-            color: c.t3,
             fontSize: 12,
             cursor: "pointer",
             padding: 0,
@@ -151,7 +145,7 @@ export default function MemoOutput({
         >
           ← {workflow.name}
         </button>
-        <span style={{ color: c.t4 }}>›</span>
+        <span className="text-t4">›</span>
         <span style={{ fontSize: 13, fontWeight: 600 }}>
           Run #{run.run_number} — {outputLabel}
         </span>
@@ -214,22 +208,22 @@ export default function MemoOutput({
       {/* Body: output center + TOC sidebar */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
         <div
+          className="bg-appbg"
           style={{
             flex: 1,
             overflowY: "auto",
             display: "flex",
             justifyContent: "center",
             padding: "32px 24px",
-            background: c.bg,
           }}
         >
           <div style={{ maxWidth: 720, width: "100%" }}>
             {/* Output header */}
             <div style={{ marginBottom: 28 }}>
               <div
+                className="text-t3"
                 style={{
                   fontSize: 10,
-                  color: c.t3,
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
                   marginBottom: 8,
@@ -238,16 +232,16 @@ export default function MemoOutput({
                 {workflow.description || generatedLabel}
               </div>
               <h1
+                className="text-t1"
                 style={{
                   fontSize: 24,
                   fontWeight: 700,
                   marginBottom: 6,
-                  color: c.t1,
                 }}
               >
                 {workflow.name}
               </h1>
-              <div style={{ fontSize: 12, color: c.t2 }}>
+              <div className="text-t2" style={{ fontSize: 12 }}>
                 Generated {formatDate(run.completed_at ?? run.started_at)} · Run #
                 {run.run_number} · {run.document_ids.length} document
                 {run.document_ids.length === 1 ? "" : "s"} analyzed
@@ -258,7 +252,6 @@ export default function MemoOutput({
               <MemoSection
                 key={stage.id}
                 stage={stage}
-                theme={theme}
                 activeCitationId={activeCitationId}
                 onCitationClick={(cite, id) => {
                   setActiveCitationId(id);
@@ -273,12 +266,11 @@ export default function MemoOutput({
             ))}
 
             <div
+              className="text-t3 border-t border-t-edge"
               style={{
                 fontSize: 12,
-                color: c.t3,
                 fontStyle: "italic",
                 padding: "16px 0",
-                borderTop: `1px solid ${c.border}`,
                 marginTop: 24,
               }}
             >
@@ -291,16 +283,15 @@ export default function MemoOutput({
 
         {/* TOC + sources sidebar */}
         <div
+          className="border-l border-l-edge bg-surface-alt"
           style={{
             width: 280,
             flexShrink: 0,
-            borderLeft: `1px solid ${c.border}`,
-            background: c.surfaceAlt,
             overflowY: "auto",
             padding: 16,
           }}
         >
-          <SectionLabel theme={theme}>Contents</SectionLabel>
+          <SectionLabel>Contents</SectionLabel>
           {stages.map((s) => (
             <a
               key={s.id}
@@ -310,10 +301,10 @@ export default function MemoOutput({
                 const el = document.getElementById(`stage-${s.id}`);
                 if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
+              className="text-t1"
               style={{
                 display: "block",
                 fontSize: 11,
-                color: c.t1,
                 padding: "5px 8px",
                 cursor: "pointer",
                 borderRadius: 4,
@@ -326,7 +317,7 @@ export default function MemoOutput({
           ))}
 
           <div style={{ marginTop: 20 }}>
-            <SectionLabel theme={theme}>Sources</SectionLabel>
+            <SectionLabel>Sources</SectionLabel>
             {run.document_ids.map((docId) => {
               const doc = docs.find((d) => d.doc_id === docId);
               const filename = doc?.filename ?? docId;
@@ -334,13 +325,13 @@ export default function MemoOutput({
               return (
                 <div
                   key={docId}
+                  className="text-t2"
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
                     padding: "6px 8px",
                     fontSize: 11,
-                    color: c.t2,
                   }}
                 >
                   <span
@@ -356,9 +347,9 @@ export default function MemoOutput({
                     📄 {filename}
                   </span>
                   <span
+                    className="text-t3"
                     style={{
                       fontSize: 9,
-                      color: c.t3,
                       fontFamily: "var(--font-mono, monospace)",
                       flexShrink: 0,
                       marginLeft: 8,
@@ -388,34 +379,31 @@ export default function MemoOutput({
 
 function MemoSection({
   stage,
-  theme,
   activeCitationId,
   onCitationClick,
 }: {
   stage: AssistantStageOutput;
-  theme: Theme;
   activeCitationId: string | null;
   onCitationClick: (cite: Citation, id: string) => void;
 }) {
-  const c = ddTheme(theme);
   const body = stage.edited_md ?? stage.output_md;
   return (
     <div id={`stage-${stage.id}`} style={{ marginBottom: 26, scrollMarginTop: 24 }}>
       <h3
+        className="text-t1"
         style={{
           fontSize: 16,
           fontWeight: 700,
           marginBottom: 8,
-          color: c.t1,
         }}
       >
         {stage.order_index}. {stage.label}
       </h3>
       <div
+        className="text-t2"
         style={{
           padding: "2px 0",
           fontSize: 13,
-          color: c.t2,
         }}
       >
         <AnswerText
@@ -429,19 +417,9 @@ function MemoSection({
   );
 }
 
-function SectionLabel({ theme, children }: { theme: Theme; children: React.ReactNode }) {
-  const c = ddTheme(theme);
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        color: c.t3,
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
-        marginBottom: 10,
-      }}
-    >
+    <div className="text-t3" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
       {children}
     </div>
   );

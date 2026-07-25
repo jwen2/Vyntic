@@ -99,10 +99,14 @@
     0 2px 4px rgba(15, 23, 42, 0.12);
 }
 .btn--primary:disabled {
-  background: var(--accent-tint);
-  color: var(--accent);
-  border-color: var(--accent-tint-border);
-  opacity: 0.8;
+  /* Reads as "off", not a dimmer accent button — the accent-tint triad is
+     what `.btn--tint` uses at full strength, so reusing it here (even at
+     lower opacity) made an active tint button and a disabled primary
+     button look nearly identical wherever they sat near each other. */
+  background: var(--surface-alt);
+  color: var(--text-3);
+  border-color: var(--border);
+  opacity: 0.6;
 }
 
 /* violet — a `primary` in the second semantic hue, for tabular-workflow actions

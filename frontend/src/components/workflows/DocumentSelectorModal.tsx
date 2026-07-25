@@ -1,12 +1,9 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { ddTheme } from "@/components/dd/types";
-import { useDialogA11y } from "@/hooks/useDialogA11y";
+import Modal from "@/components/ui/Modal";
 import { listDocuments, type DocumentMetadata } from "@/lib/api";
 import type { RowSource } from "@/lib/workflows";
 import { ACCENT, VIOLET } from "./theme";
-
-type Theme = "light" | "dark";
 
 interface DocumentSelectorModalProps {
   dealId: string;
@@ -20,10 +17,12 @@ interface DocumentSelectorModalProps {
    * for them so they run one-click.
    */
   isBuiltin?: boolean;
-  theme: Theme;
   onConfirm: (documentIds: string[], synthesisQuestions?: string[]) => void;
   onCancel: () => void;
 }
+
+const smallBtnClass =
+  "rounded-md border border-edge bg-surface-alt text-t2 px-2.5 py-[5px] text-[11px] font-semibold cursor-pointer";
 
 export default function DocumentSelectorModal({
   dealId,
@@ -31,12 +30,9 @@ export default function DocumentSelectorModal({
   initialSelected = [],
   rowSource = "one_doc_per_row",
   isBuiltin = false,
-  theme,
   onConfirm,
   onCancel,
 }: DocumentSelectorModalProps) {
-  const c = ddTheme(theme);
-  const dialogRef = useDialogA11y<HTMLDivElement>(onCancel);
   const [docs, setDocs] = useState<DocumentMetadata[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected));
   const [loading, setLoading] = useState(true);
@@ -101,83 +97,33 @@ export default function DocumentSelectorModal({
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onCancel}
+    <Modal
+      onClose={onCancel}
+      size="md"
+      title={
+        needsSynthesisRows
+          ? "Select documents and synthesis rows"
+          : "Select documents to run"
+      }
+      description={workflowName}
     >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Select documents"
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: c.surface,
-          border: `1px solid ${c.border}`,
-          borderRadius: 12,
-          width: "min(620px, 92vw)",
-          maxHeight: "82vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
-        }}
-      >
-        <div
-          style={{
-            padding: "16px 20px",
-            borderBottom: `1px solid ${c.border}`,
-          }}
-        >
-          <div style={{ fontSize: 14, fontWeight: 700, color: c.t1 }}>
-            {needsSynthesisRows
-              ? "Select documents and synthesis rows"
-              : "Select documents to run"}
-          </div>
-          <div style={{ fontSize: 12, color: c.t2, marginTop: 2 }}>{workflowName}</div>
-        </div>
 
-        <div
-          style={{
-            padding: "12px 20px",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            borderBottom: `1px solid ${c.border}`,
-          }}
-        >
+        <div className="border-b border-b-edge flex items-center gap-2 px-5 py-3">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search documents..."
+            className="flex-1 rounded-[7px] border border-edge bg-surface-alt text-t1 outline-none"
             style={{
-              flex: 1,
               padding: "6px 10px",
-              background: c.surfaceAlt,
-              border: `1px solid ${c.border}`,
-              borderRadius: 7,
-              color: c.t1,
               fontSize: 12,
-              outline: "none",
               fontFamily: "inherit",
             }}
           />
-          <button
-            onClick={selectAll}
-            style={smallBtnStyle(c, false)}
-          >
+          <button onClick={selectAll} className={smallBtnClass}>
             Select all
           </button>
-          <button onClick={clearAll} style={smallBtnStyle(c, false)}>
+          <button onClick={clearAll} className={smallBtnClass}>
             Clear
           </button>
         </div>
@@ -191,43 +137,35 @@ export default function DocumentSelectorModal({
         >
           {needsSynthesisRows && (
             <div
+              className="border border-edge bg-surface-alt rounded-lg"
               style={{
                 margin: "8px 8px 12px",
                 padding: 12,
-                background: c.surfaceAlt,
-                border: `1px solid ${c.border}`,
-                borderRadius: 8,
               }}
             >
-              <div style={{ fontSize: 11, fontWeight: 700, color: c.t2, marginBottom: 6 }}>
+              <div className="text-t2" style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
                 Synthesis rows
               </div>
               <textarea
                 value={questionsText}
                 onChange={(e) => setQuestionsText(e.target.value)}
                 placeholder={"One question per line, e.g.\nRevenue bridge by period\nCustomer concentration and churn risk\nAdjusted EBITDA add-backs"}
+                className="w-full rounded-[7px] border border-edge bg-appbg text-t1 outline-none resize-y"
                 style={{
-                  width: "100%",
                   minHeight: 96,
                   padding: "8px 10px",
-                  background: c.bg,
-                  border: `1px solid ${c.border}`,
-                  borderRadius: 7,
-                  color: c.t1,
                   fontSize: 12,
                   lineHeight: 1.45,
-                  resize: "vertical",
-                  outline: "none",
                   fontFamily: "inherit",
                 }}
               />
-              <div style={{ fontSize: 10, color: c.t3, marginTop: 6 }}>
+              <div className="text-t3" style={{ fontSize: 10, marginTop: 6 }}>
                 {synthesisQuestions.length} row{synthesisQuestions.length === 1 ? "" : "s"} will run across all selected documents.
               </div>
             </div>
           )}
           {loading ? (
-            <div style={{ color: c.t2, fontSize: 12, textAlign: "center", padding: 24 }}>
+            <div className="text-t2" style={{ fontSize: 12, textAlign: "center", padding: 24 }}>
               Loading documents…
             </div>
           ) : error ? (
@@ -235,7 +173,7 @@ export default function DocumentSelectorModal({
               {error}
             </div>
           ) : filtered.length === 0 ? (
-            <div style={{ color: c.t3, fontSize: 12, textAlign: "center", padding: 24 }}>
+            <div className="text-t3" style={{ fontSize: 12, textAlign: "center", padding: 24 }}>
               {search ? "No documents match your search." : "No documents in this deal."}
             </div>
           ) : (
@@ -245,12 +183,12 @@ export default function DocumentSelectorModal({
                 return (
                   <label
                     key={doc.doc_id}
+                    className={checked ? "bg-surface-alt" : "bg-transparent"}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 10,
                       padding: "8px 10px",
-                      background: checked ? c.surfaceAlt : "transparent",
                       border: `1px solid ${checked ? VIOLET : "transparent"}`,
                       borderRadius: 7,
                       cursor: "pointer",
@@ -264,10 +202,10 @@ export default function DocumentSelectorModal({
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div
+                        className="text-t1"
                         style={{
                           fontSize: 12,
                           fontWeight: 600,
-                          color: c.t1,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
@@ -275,7 +213,7 @@ export default function DocumentSelectorModal({
                       >
                         {doc.filename}
                       </div>
-                      <div style={{ fontSize: 10, color: c.t3, marginTop: 1 }}>
+                      <div className="text-t3" style={{ fontSize: 10, marginTop: 1 }}>
                         {doc.page_count} {doc.page_count === 1 ? "page" : "pages"} ·{" "}
                         {doc.chunk_count} chunks
                       </div>
@@ -288,28 +226,29 @@ export default function DocumentSelectorModal({
         </div>
 
         <div
+          className="border-t border-t-edge"
           style={{
             padding: "12px 20px",
-            borderTop: `1px solid ${c.border}`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
           }}
         >
-          <span style={{ fontSize: 11, color: c.t2 }}>
+          <span className="text-t2" style={{ fontSize: 11 }}>
             {selected.size} of {docs.length} selected
           </span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onCancel} style={smallBtnStyle(c, false)}>
+            <button onClick={onCancel} className={smallBtnClass}>
               Cancel
             </button>
             <button
               onClick={() => onConfirm(Array.from(selected), synthesisQuestions)}
               disabled={!canRun}
+              className={!canRun ? "bg-surface-alt text-t3" : ""}
               style={{
                 padding: "6px 14px",
-                background: !canRun ? c.surfaceAlt : ACCENT,
-                color: !canRun ? c.t3 : "var(--on-accent)",
+                background: !canRun ? undefined : ACCENT,
+                color: !canRun ? undefined : "var(--on-accent)",
                 border: "none",
                 borderRadius: 7,
                 fontSize: 12,
@@ -321,20 +260,6 @@ export default function DocumentSelectorModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
-}
-
-function smallBtnStyle(c: ReturnType<typeof ddTheme>, primary: boolean): React.CSSProperties {
-  return {
-    padding: "5px 10px",
-    background: primary ? ACCENT : c.surfaceAlt,
-    color: primary ? "var(--on-accent)" : c.t2,
-    border: `1px solid ${c.border}`,
-    borderRadius: 6,
-    fontSize: 11,
-    fontWeight: 600,
-    cursor: "pointer",
-  };
 }

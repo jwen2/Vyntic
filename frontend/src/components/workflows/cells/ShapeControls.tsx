@@ -1,13 +1,10 @@
 
 import { useState } from "react";
-import { ddTheme } from "@/components/dd/types";
 import type { Citation } from "@/lib/api";
 import type { ColumnFormat } from "@/lib/matrixColumnConfig";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
 import { ACCENT, AMBER, GREEN, VIOLET, tint } from "../theme";
 import CellRenderer from "./CellRenderer";
-
-type Theme = "light" | "dark";
 
 export const SHAPE_OPTIONS: Array<{
   value: ColumnFormat;
@@ -50,14 +47,11 @@ export function ShapePicker({
   value,
   onChange,
   disabled,
-  theme,
 }: {
   value: ColumnFormat;
   onChange: (value: ColumnFormat) => void;
   disabled?: boolean;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   const activeValue = normalizeShape(value);
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(112px, 1fr))", gap: 7 }}>
@@ -69,26 +63,25 @@ export function ShapePicker({
             type="button"
             disabled={disabled}
             onClick={() => onChange(shape.value)}
+            className={`min-h-[74px] text-left px-[9px] py-2 rounded-[7px] flex flex-col gap-1 text-t1 ${
+              active ? "" : "border border-edge bg-surface-alt"
+            }`}
+            // The active shape's hue is data, not a token.
             style={{
-              minHeight: 74,
-              textAlign: "left",
-              padding: "8px 9px",
-              borderRadius: 7,
-              border: `1px solid ${active ? shape.color : c.border}`,
-              background: active ? tint(shape.color, 13) : c.surfaceAlt,
-              color: c.t1,
+              border: active ? `1px solid ${shape.color}` : undefined,
+              background: active ? tint(shape.color, 13) : undefined,
               cursor: disabled ? "not-allowed" : "pointer",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
               opacity: disabled ? 0.65 : 1,
             }}
           >
-            <span style={{ color: active ? shape.color : c.t3, fontFamily: "var(--font-mono, monospace)", fontSize: 13, fontWeight: 800 }}>
+            <span
+              className={`text-[13px] font-extrabold ${active ? "" : "text-t3"}`}
+              style={{ color: active ? shape.color : undefined, fontFamily: "var(--font-mono, monospace)" }}
+            >
               {shape.glyph}
             </span>
             <span style={{ fontSize: 11, fontWeight: 750 }}>{shape.label}</span>
-            <span style={{ fontSize: 9.5, color: c.t3, lineHeight: 1.25 }}>{shape.example}</span>
+            <span className="text-t3" style={{ fontSize: 9.5, lineHeight: 1.25 }}>{shape.example}</span>
           </button>
         );
       })}
@@ -101,15 +94,12 @@ export function ShapeOptionsInspector({
   tags,
   onTagsChange,
   disabled,
-  theme,
 }: {
   format: ColumnFormat;
   tags: string[];
   onTagsChange: (tags: string[]) => void;
   disabled?: boolean;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   const [input, setInput] = useState("");
   const shape = normalizeShape(format);
   const shapeMeta = SHAPE_OPTIONS.find((option) => option.value === shape);
@@ -129,15 +119,13 @@ export function ShapeOptionsInspector({
   if (shape !== "enum") {
     return (
       <div
+        className="border border-edge bg-surface-alt text-t2"
         style={{
           display: "flex",
           alignItems: "center",
           gap: 8,
           padding: "8px 10px",
           borderRadius: 7,
-          border: `1px solid ${c.border}`,
-          background: c.surfaceAlt,
-          color: c.t2,
           fontSize: 11,
         }}
       >
@@ -164,6 +152,7 @@ export function ShapeOptionsInspector({
 
   return (
     <div
+      className="border border-edge bg-surface-alt"
       style={{
         minHeight: 36,
         display: "flex",
@@ -171,8 +160,6 @@ export function ShapeOptionsInspector({
         gap: 5,
         padding: "7px 8px",
         borderRadius: 7,
-        border: `1px solid ${c.border}`,
-        background: c.surfaceAlt,
       }}
     >
       {tags.map((tag) => (
@@ -217,13 +204,13 @@ export function ShapeOptionsInspector({
             }
           }}
           placeholder={tags.length ? "" : "Add allowed value"}
+          className="text-t1"
           style={{
             flex: 1,
             minWidth: 110,
             border: "none",
             background: "transparent",
             outline: "none",
-            color: c.t1,
             fontSize: 12,
           }}
         />
@@ -234,7 +221,6 @@ export function ShapeOptionsInspector({
 
 export function CellRenderPreview({
   column,
-  theme,
 }: {
   column: {
     id?: string;
@@ -246,9 +232,7 @@ export function CellRenderPreview({
     is_derived?: boolean;
     formula?: string | null;
   };
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   const previewColumn: WorkflowColumn = {
     id: column.id || "preview_column",
     order_index: column.order_index || 1,
@@ -262,21 +246,12 @@ export function CellRenderPreview({
   const cell = sampleCellForFormat(previewColumn.format, previewColumn.tags ?? []);
 
   return (
-    <div
-      style={{
-        border: `1px solid ${c.border}`,
-        borderRadius: 8,
-        background: c.surface,
-        overflow: "hidden",
-      }}
-    >
+    <div className="border border-edge bg-surface rounded-lg overflow-hidden">
       <div
+        className="border-b border-b-edge bg-surface-alt text-t2"
         style={{
           padding: "6px 9px",
-          borderBottom: `1px solid ${c.border}`,
-          background: c.surfaceAlt,
           fontSize: 10,
-          color: c.t2,
           fontWeight: 700,
           display: "flex",
           justifyContent: "space-between",
@@ -288,7 +263,7 @@ export function CellRenderPreview({
           {SHAPE_OPTIONS.find((shape) => shape.value === previewColumn.format)?.label ?? "Prose"}
         </span>
       </div>
-      <CellRenderer cell={cell} column={previewColumn} theme={theme} density="comfortable" />
+      <CellRenderer cell={cell} column={previewColumn} density="comfortable" />
     </div>
   );
 }

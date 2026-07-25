@@ -1,6 +1,5 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { ddTheme } from "@/components/dd/types";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type {
   OutputFormat,
@@ -13,8 +12,6 @@ import type {
 import { ACCENT, AMBER } from "./theme";
 import Button from "@/components/ui/Button";
 
-type Theme = "light" | "dark";
-
 type EditorMode =
   | { mode: "create"; onCreate: (payload: WorkflowCreatePayload) => void | Promise<void> }
   | {
@@ -25,7 +22,6 @@ type EditorMode =
     };
 
 type AssistantEditorProps = EditorMode & {
-  theme: Theme;
   onBack: () => void;
 };
 
@@ -56,8 +52,7 @@ function newStageDraft(orderIndex: number): DraftStage {
 }
 
 export default function AssistantEditor(props: AssistantEditorProps) {
-  const { theme, onBack } = props;
-  const c = ddTheme(theme);
+  const { onBack } = props;
   const isEdit = props.mode === "edit";
   const isReadOnly = isEdit && props.workflow.is_builtin;
 
@@ -187,12 +182,11 @@ export default function AssistantEditor(props: AssistantEditorProps) {
 
   return (
     <div
+      className="bg-appbg text-t1"
       style={{
         flex: 1,
         width: "100%",
         height: "100%",
-        background: c.bg,
-        color: c.t1,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -200,12 +194,12 @@ export default function AssistantEditor(props: AssistantEditorProps) {
     >
       {/* Header */}
       <div
+        className="border-b border-b-edge"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: "16px 32px",
-          borderBottom: `1px solid ${c.border}`,
           gap: 16,
           flexWrap: "wrap",
         }}
@@ -220,12 +214,12 @@ export default function AssistantEditor(props: AssistantEditorProps) {
               disabled={isReadOnly}
               onChange={(e) => setName(e.target.value)}
               placeholder="Workflow name"
+              className="text-t1"
               style={{
                 width: "100%",
                 background: "transparent",
                 border: "none",
                 outline: "none",
-                color: c.t1,
                 fontSize: 18,
                 fontWeight: 700,
                 fontFamily: "inherit",
@@ -236,13 +230,13 @@ export default function AssistantEditor(props: AssistantEditorProps) {
               disabled={isReadOnly}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="One-line description"
+              className="text-t2"
               style={{
                 width: "100%",
                 marginTop: 2,
                 background: "transparent",
                 border: "none",
                 outline: "none",
-                color: c.t2,
                 fontSize: 12,
                 fontFamily: "inherit",
               }}
@@ -252,6 +246,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {isReadOnly && (
             <span
+              className="border border-edge bg-surface-alt text-t3"
               style={{
                 fontSize: 10,
                 fontWeight: 700,
@@ -259,16 +254,13 @@ export default function AssistantEditor(props: AssistantEditorProps) {
                 textTransform: "uppercase",
                 padding: "3px 8px",
                 borderRadius: 4,
-                background: c.surfaceAlt,
-                border: `1px solid ${c.border}`,
-                color: c.t3,
               }}
             >
               Built-in · Read only
             </span>
           )}
           {saveMessage && (
-            <span style={{ fontSize: 11, color: c.t2 }}>{saveMessage}</span>
+            <span className="text-t2" style={{ fontSize: 11 }}>{saveMessage}</span>
           )}
           {!isReadOnly && (
             <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
@@ -294,14 +286,13 @@ export default function AssistantEditor(props: AssistantEditorProps) {
       >
         {/* Left rail */}
         <div
+          className="border-r border-r-edge bg-surface-alt"
           style={{
-            borderRight: `1px solid ${c.border}`,
             padding: 16,
             overflowY: "auto",
-            background: c.surfaceAlt,
           }}
         >
-          <SectionLabel theme={theme}>Stages</SectionLabel>
+          <SectionLabel>Stages</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
             {stages.map((stage, i) => (
               <StageRailItem
@@ -320,19 +311,17 @@ export default function AssistantEditor(props: AssistantEditorProps) {
                 onRemove={
                   stages.length > 1 && !isReadOnly ? () => removeStage(stage.uid) : undefined
                 }
-                theme={theme}
               />
             ))}
           </div>
           {!isReadOnly && (
             <button
               onClick={addStage}
+              className="border border-dashed border-edge text-t2"
               style={{
                 width: "100%",
                 padding: "7px 10px",
                 background: "transparent",
-                border: `1px dashed ${c.border}`,
-                color: c.t2,
                 borderRadius: 7,
                 fontSize: 11,
                 fontWeight: 600,
@@ -344,13 +333,12 @@ export default function AssistantEditor(props: AssistantEditorProps) {
           )}
 
           <div style={{ marginTop: 24 }}>
-            <SectionLabel theme={theme}>Settings</SectionLabel>
-            <div style={{ fontSize: 11, color: c.t3, marginBottom: 6 }}>Output format</div>
+            <SectionLabel>Settings</SectionLabel>
+            <div className="text-t3" style={{ fontSize: 11, marginBottom: 6 }}>Output format</div>
             <div
+              className="bg-surface border border-edge"
               style={{
                 display: "flex",
-                background: c.surface,
-                border: `1px solid ${c.border}`,
                 borderRadius: 7,
                 padding: 2,
                 gap: 2,
@@ -365,7 +353,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
                     flex: 1,
                     padding: "5px 6px",
                     background: outputFormat === fmt ? ACCENT : "transparent",
-                    color: outputFormat === fmt ? "var(--on-accent)" : c.t2,
+                    color: outputFormat === fmt ? "var(--on-accent)" : "var(--text-2)",
                     border: "none",
                     borderRadius: 5,
                     fontSize: 10,
@@ -394,19 +382,19 @@ export default function AssistantEditor(props: AssistantEditorProps) {
                 value={activeStage.label}
                 disabled={isReadOnly}
                 onChange={(e) => patchActiveStage({ label: e.target.value })}
+                className="text-t1"
                 style={{
                   width: "100%",
                   background: "transparent",
                   border: "none",
                   outline: "none",
-                  color: c.t1,
                   fontSize: 14,
                   fontWeight: 600,
                   fontFamily: "inherit",
                   marginBottom: 4,
                 }}
               />
-              <div style={{ fontSize: 12, color: c.t2, marginBottom: 16 }}>
+              <div className="text-t2" style={{ fontSize: 12, marginBottom: 16 }}>
                 Stage {activeStage.order_index} of {stages.length} ·{" "}
                 {activeStage.checkpoint
                   ? "Pauses for analyst review before next stage"
@@ -414,12 +402,12 @@ export default function AssistantEditor(props: AssistantEditorProps) {
               </div>
 
               <div
+                className="text-t3"
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
-                  color: c.t3,
                   marginBottom: 6,
                 }}
               >
@@ -430,14 +418,12 @@ export default function AssistantEditor(props: AssistantEditorProps) {
                 disabled={isReadOnly}
                 onChange={(e) => patchActiveStage({ prompt_md: e.target.value })}
                 placeholder="Write the system prompt for this stage. Use {variables} for placeholders that get filled at run time."
+                className="bg-surface border border-edge text-t1"
                 style={{
                   width: "100%",
                   minHeight: 280,
-                  background: c.surface,
-                  border: `1px solid ${c.border}`,
                   borderRadius: 10,
                   padding: 16,
-                  color: c.t1,
                   fontSize: 12,
                   fontFamily: "'DM Mono', monospace",
                   lineHeight: 1.6,
@@ -447,11 +433,10 @@ export default function AssistantEditor(props: AssistantEditorProps) {
               />
 
               <div
+                className="bg-surface border border-edge"
                 style={{
                   marginTop: 16,
                   padding: 12,
-                  background: c.surface,
-                  border: `1px solid ${c.border}`,
                   borderRadius: 10,
                   display: "flex",
                   alignItems: "center",
@@ -467,7 +452,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
                   <div style={{ fontSize: 12, fontWeight: 600 }}>
                     Checkpoint before next stage
                   </div>
-                  <div style={{ fontSize: 11, color: c.t2, marginTop: 2 }}>
+                  <div className="text-t2" style={{ fontSize: 11, marginTop: 2 }}>
                     When on, the run pauses after this stage so an analyst can review and
                     edit the output before continuing.
                   </div>
@@ -475,56 +460,51 @@ export default function AssistantEditor(props: AssistantEditorProps) {
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 12, color: c.t2 }}>Select a stage to edit.</div>
+            <div className="text-t2" style={{ fontSize: 12 }}>Select a stage to edit.</div>
           )}
         </div>
 
         {/* Right: flow preview */}
         <div
+          className="border-l border-l-edge bg-surface-alt"
           style={{
-            borderLeft: `1px solid ${c.border}`,
             padding: 20,
-            background: c.surfaceAlt,
             overflowY: "auto",
           }}
         >
-          <SectionLabel theme={theme}>Flow</SectionLabel>
-          <FlowStep label="Upload docs" theme={theme} />
+          <SectionLabel>Flow</SectionLabel>
+          <FlowStep label="Upload docs" />
           {stages.flatMap((stage, i) => {
             const items = [
-              <FlowConnector key={`con-pre-${stage.uid}`} theme={theme} />,
+              <FlowConnector key={`con-pre-${stage.uid}`} />,
               <FlowStep
                 key={`step-${stage.uid}`}
                 label={stage.label || `Stage ${i + 1}`}
                 active={stage.uid === activeStageUid}
-                theme={theme}
               />,
             ];
             if (stage.checkpoint && i < stages.length - 1) {
               items.push(
-                <FlowConnector key={`con-post-${stage.uid}`} theme={theme} />,
+                <FlowConnector key={`con-post-${stage.uid}`} />,
                 <FlowStep
                   key={`cp-${stage.uid}`}
                   label="Checkpoint"
                   badge
-                  theme={theme}
                 />
               );
             }
             return items;
           })}
-          <FlowConnector theme={theme} />
-          <FlowStep label={`Output (${outputFormat})`} theme={theme} />
+          <FlowConnector />
+          <FlowStep label={`Output (${outputFormat})`} />
 
           <div style={{ marginTop: 28 }}>
-            <SectionLabel theme={theme}>Test context</SectionLabel>
+            <SectionLabel>Test context</SectionLabel>
             <div
+              className="text-t2 bg-surface border border-edge"
               style={{
                 fontSize: 11,
-                color: c.t2,
                 lineHeight: 1.6,
-                background: c.surface,
-                border: `1px solid ${c.border}`,
                 borderRadius: 8,
                 padding: 12,
               }}
@@ -551,16 +531,15 @@ export default function AssistantEditor(props: AssistantEditorProps) {
   );
 }
 
-function SectionLabel({ children, theme }: { children: React.ReactNode; theme: Theme }) {
-  const c = ddTheme(theme);
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
+      className="text-t3"
       style={{
         fontSize: 10,
         fontWeight: 700,
         letterSpacing: "0.08em",
         textTransform: "uppercase",
-        color: c.t3,
         marginBottom: 8,
       }}
     >
@@ -578,7 +557,6 @@ function StageRailItem({
   onMoveUp,
   onMoveDown,
   onRemove,
-  theme,
 }: {
   index: number;
   label: string;
@@ -588,16 +566,16 @@ function StageRailItem({
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   onRemove?: () => void;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   return (
     <div
       onClick={onClick}
+      // Active-state background/border/badge vary together, so kept inline
+      // rather than a class — matches ColumnCard's pattern in TabularEditor.
       style={{
         padding: "8px 10px",
-        background: active ? c.surface : "transparent",
-        border: `1px solid ${active ? c.border : "transparent"}`,
+        background: active ? "var(--surface)" : "transparent",
+        border: `1px solid ${active ? "var(--border)" : "transparent"}`,
         borderRadius: 7,
         cursor: "pointer",
         display: "flex",
@@ -611,8 +589,8 @@ function StageRailItem({
           height: 22,
           borderRadius: "50%",
           background: active ? ACCENT : "transparent",
-          border: `1px solid ${active ? ACCENT : c.border}`,
-          color: active ? "var(--on-accent)" : c.t2,
+          border: `1px solid ${active ? ACCENT : "var(--border)"}`,
+          color: active ? "var(--on-accent)" : "var(--text-2)",
           fontSize: 11,
           fontWeight: 600,
           display: "flex",
@@ -625,10 +603,10 @@ function StageRailItem({
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
+          className="text-t1"
           style={{
             fontSize: 12,
             fontWeight: active ? 600 : 500,
-            color: c.t1,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -643,17 +621,17 @@ function StageRailItem({
       {(onMoveUp || onMoveDown || onRemove) && active && (
         <div style={{ display: "flex", gap: 2 }}>
           {onMoveUp && (
-            <RailIconButton onClick={onMoveUp} title="Move up" theme={theme}>
+            <RailIconButton onClick={onMoveUp} title="Move up">
               ↑
             </RailIconButton>
           )}
           {onMoveDown && (
-            <RailIconButton onClick={onMoveDown} title="Move down" theme={theme}>
+            <RailIconButton onClick={onMoveDown} title="Move down">
               ↓
             </RailIconButton>
           )}
           {onRemove && (
-            <RailIconButton onClick={onRemove} title="Remove" theme={theme}>
+            <RailIconButton onClick={onRemove} title="Remove">
               ×
             </RailIconButton>
           )}
@@ -667,14 +645,11 @@ function RailIconButton({
   onClick,
   title,
   children,
-  theme,
 }: {
   onClick: () => void;
   title: string;
   children: React.ReactNode;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   return (
     <button
       onClick={(e) => {
@@ -682,12 +657,12 @@ function RailIconButton({
         onClick();
       }}
       title={title}
+      className="text-t2"
       style={{
         width: 18,
         height: 18,
         background: "transparent",
         border: "none",
-        color: c.t2,
         fontSize: 12,
         cursor: "pointer",
         borderRadius: 4,
@@ -743,24 +718,23 @@ function FlowStep({
   label,
   active,
   badge,
-  theme,
 }: {
   label: string;
   active?: boolean;
   badge?: boolean;
-  theme: Theme;
 }) {
-  const c = ddTheme(theme);
   return (
     <div
+      // Active/badge states carry accent/amber hues, not tokens — kept
+      // inline since background/border/color all vary together per state.
       style={{
         padding: "8px 10px",
-        background: active ? c.surface : badge ? "transparent" : c.surface,
-        border: `1px solid ${active ? ACCENT : badge ? AMBER : c.border}`,
+        background: active ? "var(--surface)" : badge ? "transparent" : "var(--surface)",
+        border: `1px solid ${active ? ACCENT : badge ? AMBER : "var(--border)"}`,
         borderRadius: 8,
         fontSize: 11,
         fontWeight: badge ? 600 : 500,
-        color: badge ? AMBER : c.t1,
+        color: badge ? AMBER : "var(--text-1)",
         textAlign: "center",
       }}
     >
@@ -769,14 +743,13 @@ function FlowStep({
   );
 }
 
-function FlowConnector({ theme }: { theme: Theme }) {
-  const c = ddTheme(theme);
+function FlowConnector() {
   return (
     <div
+      className="bg-edge"
       style={{
         width: 1,
         height: 12,
-        background: c.border,
         margin: "0 auto",
       }}
     />

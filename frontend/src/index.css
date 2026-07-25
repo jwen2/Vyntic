@@ -66,6 +66,15 @@
   --text-4: #c8c8bd;
   --zebra: var(--table-zebra);
   --grid-header: var(--table-header);
+
+  /* Modal chrome — the shared <Modal> overlay/panel (see ui/modal.css). Before
+     DS1 each dialog picked its own scrim (rgba(15,23,42,.55/.58), rgba(0,0,0,.55),
+     black/35) and z-index (50/90/1000); these tokens are the single source now.
+     --z-modal sits above app chrome but below the 9999 portaled popovers, so a
+     popover opened from inside a dialog still paints over it. */
+  --modal-scrim: rgba(15, 23, 42, 0.55);
+  --modal-shadow: rgba(15, 23, 42, 0.18);
+  --z-modal: 1000;
 }
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
@@ -105,6 +114,10 @@
   --text-2: rgba(255, 255, 255, 0.68);
   --text-3: rgba(255, 255, 255, 0.55);
   --text-4: #303030;
+
+  /* Deeper scrim/shadow on near-black surfaces (the light values wash out). */
+  --modal-scrim: rgba(0, 0, 0, 0.62);
+  --modal-shadow: rgba(0, 0, 0, 0.5);
 }
 
 /* Zebra striping for any data table — opt in with class="dd-zebra". Cells

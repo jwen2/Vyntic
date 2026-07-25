@@ -1,40 +1,28 @@
-import { ddTheme } from "@/components/dd/types";
 import type { DocumentMetadata } from "@/lib/api";
 import type { CellStatus, TabularCell, WorkflowColumn } from "@/lib/workflows";
 import { AMBER, GREEN, RED } from "../theme";
 import { SectionLabel } from "./parts";
-import { cellKey, type RunLogEntry, type Theme } from "./useTabularRun";
+import { cellKey, type RunLogEntry } from "./useTabularRun";
 
 // The left rail: the per-document roll-up (status derived from its cells) and
 // the scrolling run log.
 export default function RunSidebar({
-  theme,
   documentIds,
   docs,
   runColumns,
   cells,
   log,
 }: {
-  theme: Theme;
   documentIds: string[];
   docs: DocumentMetadata[];
   runColumns: WorkflowColumn[];
   cells: Map<string, TabularCell>;
   log: RunLogEntry[];
 }) {
-  const c = ddTheme(theme);
   return (
-    <div
-      style={{
-        borderRight: `1px solid ${c.border}`,
-        background: c.surfaceAlt,
-        display: "flex",
-        flexDirection: "column",
-        minHeight: 0,
-      }}
-    >
+    <div className="flex flex-col min-h-0 border-r border-r-edge bg-surface-alt">
       <div style={{ padding: "16px 16px 8px", flexShrink: 0 }}>
-        <SectionLabel theme={theme}>Documents ({documentIds.length})</SectionLabel>
+        <SectionLabel>Documents ({documentIds.length})</SectionLabel>
       </div>
       <div style={{ padding: "0 8px", overflowY: "auto", flex: "0 1 auto", maxHeight: "55%" }}>
         {documentIds.map((docId) => {
@@ -63,48 +51,34 @@ export default function RunSidebar({
             >
               <DocStatusIcon status={status} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: c.t1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <div className="text-xs font-medium text-t1 overflow-hidden text-ellipsis whitespace-nowrap">
                   {doc?.filename ?? docId.slice(0, 8)}
                 </div>
-                {doc && <div style={{ fontSize: 10, color: c.t3 }}>{doc.page_count} pages</div>}
+                {doc && <div className="text-[10px] text-t3">{doc.page_count} pages</div>}
               </div>
             </div>
           );
         })}
       </div>
       <div style={{ padding: "16px 16px 8px", flexShrink: 0 }}>
-        <SectionLabel theme={theme}>Run log</SectionLabel>
+        <SectionLabel>Run log</SectionLabel>
       </div>
       <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          padding: "0 12px 16px",
-          fontFamily: "'DM Mono', monospace",
-          fontSize: 10,
-          color: c.t2,
-          lineHeight: 1.55,
-        }}
+        className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 text-[10px] text-t2 leading-[1.55]"
+        style={{ fontFamily: "'DM Mono', monospace" }}
       >
         {log.length === 0 ? (
-          <div style={{ color: c.t3 }}>Waiting for events…</div>
+          <div className="text-t3">Waiting for events…</div>
         ) : (
           log
             .slice()
             .reverse()
             .map((entry) => (
+              // Level hues are status colors, not surface tokens, so they stay
+              // inline; the default level falls through to the t2 class.
               <div
                 key={entry.id}
+                className="text-t2 whitespace-pre-wrap break-words"
                 style={{
                   color:
                     entry.level === "ok"
@@ -113,9 +87,7 @@ export default function RunSidebar({
                         ? RED
                         : entry.level === "warn"
                           ? AMBER
-                          : c.t2,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
+                          : undefined,
                 }}
               >
                 {entry.text}

@@ -1,4 +1,3 @@
-import { ddTheme } from "@/components/dd/types";
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn, WorkflowRun } from "@/lib/workflows";
 import AnswerText from "@/components/dd/AnswerText";
@@ -7,12 +6,10 @@ import { ACCENT, AMBER, RED, VIOLET, tint } from "../theme";
 import { proseValue } from "../cells/CellRenderer";
 import { SectionLabel, RetryIcon } from "./parts";
 import { demoteHeadings, formatRunDate } from "./format";
-import type { Theme } from "./useTabularRun";
 
 // The right rail: the selected cell's answer + source spans, and recent run
 // history.
 export default function RunDetailPanel({
-  theme,
   run,
   runHistory,
   selectedCell,
@@ -23,7 +20,6 @@ export default function RunDetailPanel({
   onRetryCell,
   retrying,
 }: {
-  theme: Theme;
   run: WorkflowRun | null;
   runHistory: WorkflowRun[];
   selectedCell: TabularCell | null;
@@ -34,7 +30,6 @@ export default function RunDetailPanel({
   onRetryCell: (cellId: string) => void;
   retrying: boolean;
 }) {
-  const c = ddTheme(theme);
   const citations = selectedCell?.citations ?? [];
   // Prose-shaped columns carry a structured {summary, body, caveats} payload,
   // so their raw `answer` is a JSON blob. Render the parsed body (and surface
@@ -53,15 +48,7 @@ export default function RunDetailPanel({
   const answer = demoteHeadings(prose ? prose.body || prose.summary : rawAnswer).trim();
   const caveats = prose?.caveats ?? [];
   return (
-    <aside
-      style={{
-        borderLeft: `1px solid ${c.border}`,
-        background: c.surfaceAlt,
-        minHeight: 0,
-        overflowY: "auto",
-        padding: 16,
-      }}
-    >
+    <aside className="border-l border-l-edge bg-surface-alt min-h-0 overflow-y-auto p-4">
       <div
         style={{
           display: "flex",
@@ -70,23 +57,14 @@ export default function RunDetailPanel({
           marginBottom: 8,
         }}
       >
-        <SectionLabel theme={theme}>Cell Detail</SectionLabel>
+        <SectionLabel>Cell Detail</SectionLabel>
         {selectedCell && (
           <button
             type="button"
             onClick={() => !retrying && onRetryCell(selectedCell.id)}
             disabled={retrying}
+            className="inline-flex items-center gap-1 px-2 py-[3px] rounded-md border border-edge bg-surface text-t2 text-[10px] font-semibold"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 8px",
-              borderRadius: 6,
-              border: `1px solid ${c.border}`,
-              background: c.surface,
-              color: c.t2,
-              fontSize: 10,
-              fontWeight: 600,
               cursor: retrying ? "wait" : "pointer",
               opacity: retrying ? 0.6 : 1,
             }}
@@ -97,16 +75,12 @@ export default function RunDetailPanel({
         )}
       </div>
       <div
-        style={{
-          padding: "12px 14px",
-          background: c.surface,
-          border: `1px solid ${selectedCell ? tint(ACCENT, 45) : c.border}`,
-          borderRadius: 10,
-          marginBottom: 20,
-        }}
+        className="px-[14px] py-3 bg-surface border border-edge rounded-[10px] mb-5"
+        // A selected cell tints the panel's edge with the accent — a wash, not
+        // a token, so it overrides the border-edge class inline.
+        style={{ borderColor: selectedCell ? tint(ACCENT, 45) : undefined }}
       >
         <CellSourcesPanel
-          theme={theme}
           cell={selectedCell}
           column={selectedColumn}
           rowLabel={selectedRowLabel}
@@ -118,33 +92,32 @@ export default function RunDetailPanel({
         />
       </div>
 
-      <SectionLabel theme={theme}>Run History</SectionLabel>
+      <SectionLabel>Run History</SectionLabel>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
         {runHistory.slice(0, 6).map((item) => {
           const current = item.id === run?.id;
           return (
             <div
               key={item.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 10px",
-                borderRadius: 6,
-                background: current ? c.surface : "transparent",
-                border: current ? `1px solid ${c.border}` : "1px solid transparent",
-              }}
+              className={`flex items-center justify-between px-[10px] py-2 rounded-md border ${
+                current ? "bg-surface border-edge" : "bg-transparent border-transparent"
+              }`}
             >
-              <span style={{ fontSize: 11, fontWeight: current ? 700 : 500, color: current ? c.t1 : c.t3 }}>
+              <span
+                className={`text-[11px] ${current ? "font-bold text-t1" : "font-medium text-t3"}`}
+              >
                 Run #{item.run_number}
               </span>
-              <span style={{ fontSize: 10, color: c.t3, fontFamily: "var(--font-mono, monospace)" }}>
+              <span
+                className="text-[10px] text-t3"
+                style={{ fontFamily: "var(--font-mono, monospace)" }}
+              >
                 {formatRunDate(item.started_at)}
               </span>
             </div>
           );
         })}
-        {runHistory.length === 0 && <div style={{ fontSize: 11, color: c.t3 }}>No prior runs.</div>}
+        {runHistory.length === 0 && <div className="text-[11px] text-t3">No prior runs.</div>}
       </div>
     </aside>
   );
@@ -158,7 +131,6 @@ function isProseShaped(value: unknown): boolean {
 }
 
 function CellSourcesPanel({
-  theme,
   cell,
   column,
   rowLabel,
@@ -168,7 +140,6 @@ function CellSourcesPanel({
   activeCitId,
   onCitationClick,
 }: {
-  theme: Theme;
   cell: TabularCell | null;
   column: WorkflowColumn | null;
   rowLabel: string;
@@ -178,12 +149,11 @@ function CellSourcesPanel({
   activeCitId: string | null;
   onCitationClick: (citation: Citation, id: string) => void;
 }) {
-  const c = ddTheme(theme);
   const nonNullCitations = citations.filter((cite): cite is Citation => cite !== null);
 
   if (!cell || !column) {
     return (
-      <div style={{ fontSize: 12, color: c.t3, lineHeight: 1.5 }}>
+      <div className="text-xs text-t3 leading-normal">
         Select a completed cell to inspect extracted text and citations.
       </div>
     );
@@ -191,16 +161,10 @@ function CellSourcesPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ fontSize: 10, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <div className="text-[10px] text-t3 overflow-hidden text-ellipsis whitespace-nowrap">
         {rowLabel} → {column.label}
       </div>
-      <div
-        style={{
-          fontSize: 12,
-          color: c.t1,
-          lineHeight: 1.6,
-        }}
-      >
+      <div className="text-xs text-t1 leading-[1.6]">
         {answer ? (
           <AnswerText
             text={answer}
@@ -209,7 +173,7 @@ function CellSourcesPanel({
             onCit={onCitationClick}
           />
         ) : (
-          <span style={{ color: c.t3 }}>No answer captured for this cell yet.</span>
+          <span className="text-t3">No answer captured for this cell yet.</span>
         )}
       </div>
       {caveats.length > 0 && (
@@ -220,17 +184,11 @@ function CellSourcesPanel({
             return (
               <div
                 key={`${caveat.severity}_${index}`}
+                className="flex items-start gap-[7px] px-[9px] py-1.5 rounded-[7px] text-[11.5px] leading-normal text-t2"
+                // Severity washes are derived from a status hue, not a token.
                 style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 7,
-                  padding: "6px 9px",
-                  borderRadius: 7,
                   background: tint(color, 10),
                   border: `1px solid ${tint(color, 26)}`,
-                  fontSize: 11.5,
-                  lineHeight: 1.5,
-                  color: c.t2,
                 }}
               >
                 <span
@@ -251,7 +209,7 @@ function CellSourcesPanel({
       )}
       {nonNullCitations.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <div className="text-[10px] font-bold text-t3 uppercase tracking-[0.06em]">
             Source spans
           </div>
           {nonNullCitations.map((cite, index) => {
@@ -263,28 +221,33 @@ function CellSourcesPanel({
                 key={id}
                 type="button"
                 onClick={() => onCitationClick(cite, id)}
+                className={`text-left border rounded-lg p-2.5 cursor-pointer text-t1 ${
+                  active ? "" : "border-edge bg-surface-alt"
+                }`}
+                // The active span is an accent wash rather than a token.
                 style={{
-                  textAlign: "left",
-                  border: `1px solid ${active ? tint(ACCENT, 55) : c.border}`,
-                  borderRadius: 8,
-                  background: active ? tint(ACCENT, 10) : c.surfaceAlt,
-                  color: c.t1,
-                  padding: 10,
-                  cursor: "pointer",
+                  borderColor: active ? tint(ACCENT, 55) : undefined,
+                  background: active ? tint(ACCENT, 10) : undefined,
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 750, color: kind === "derived" ? VIOLET : ACCENT }}>
+                  <span
+                    className="text-[11px] font-[750]"
+                    style={{ color: kind === "derived" ? VIOLET : ACCENT }}
+                  >
                     {cite.span_label || `${kind === "derived" ? "Derived" : "Source"} ${index + 1}`}
                   </span>
-                  <span style={{ fontSize: 10, color: c.t3, fontFamily: "var(--font-mono, monospace)" }}>
+                  <span
+                    className="text-[10px] text-t3"
+                    style={{ fontFamily: "var(--font-mono, monospace)" }}
+                  >
                     p.{cite.page}
                   </span>
                 </div>
-                <div style={{ fontSize: 10, color: c.t3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 5 }}>
+                <div className="text-[10px] text-t3 overflow-hidden text-ellipsis whitespace-nowrap mb-[5px]">
                   {cite.source_file}
                 </div>
-                <div style={{ fontSize: 11, color: c.t2, lineHeight: 1.45 }}>
+                <div className="text-[11px] text-t2 leading-[1.45]">
                   <CitationSnippet
                     sourceFile={cite.source_file}
                     text={cite.text_snippet || "Open the source document to inspect this span."}
@@ -296,7 +259,7 @@ function CellSourcesPanel({
           })}
         </div>
       ) : (
-        <div style={{ fontSize: 11, color: c.t3 }}>No citations captured.</div>
+        <div className="text-[11px] text-t3">No citations captured.</div>
       )}
     </div>
   );
