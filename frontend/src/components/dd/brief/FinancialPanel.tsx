@@ -127,7 +127,7 @@ export function SegmentedTabs({
 export function FinancialChart({ series }: { series: ChartSeries[] }) {
   const max = Math.max(...series.flatMap((item) => item.values.map((point) => Math.abs(point.value))), 1);
   return (
-    <div className="border border-edge bg-surface-alt" style={{ padding: 12, borderRadius: 18 }}>
+    <Card level="inner" tone="alt">
       <div className="text-t3" style={{ fontSize: 10, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Trend chart</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {series.slice(0, 3).map((item) => (
@@ -144,13 +144,13 @@ export function FinancialChart({ series }: { series: ChartSeries[] }) {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
 export function FinancialTableView({ table }: { table: FinancialTable }) {
   return (
-    <div className="border border-edge bg-surface" style={{ borderRadius: 18, overflow: "hidden" }}>
+    <Card level="inner" padding={0} className="overflow-hidden">
       <div className="border-b border-edge bg-grid-header text-t1" style={{ padding: "9px 12px", fontSize: 11, fontWeight: 700 }}>
         {table.title}
       </div>
@@ -204,13 +204,13 @@ export function FinancialTableView({ table }: { table: FinancialTable }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }
 
 export function MetricsTable({ metrics }: { metrics: Metric[] }) {
   return (
-    <div className="border border-edge bg-surface" style={{ borderRadius: 18, overflow: "hidden" }}>
+    <Card level="inner" padding={0} className="overflow-hidden">
       <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
@@ -229,13 +229,13 @@ export function MetricsTable({ metrics }: { metrics: Metric[] }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }
 
 export function SimpleFinancialTable({ items }: { items: string[] }) {
   return (
-    <div className="border border-edge bg-surface" style={{ borderRadius: 18, overflow: "hidden" }}>
+    <Card level="inner" padding={0} className="overflow-hidden">
       <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
           {items.map((item, idx) => {
@@ -249,7 +249,7 @@ export function SimpleFinancialTable({ items }: { items: string[] }) {
           })}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }
 

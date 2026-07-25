@@ -103,13 +103,10 @@ export function EditableField({
   };
 
   return (
-    <div
-      className="border border-edge bg-surface-alt"
-      style={{
-        minWidth: 0,
-        padding: "10px 12px",
-        borderRadius: 16,
-      }}
+    <Card
+      level="inner"
+      tone="alt"
+      style={{ minWidth: 0 }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
@@ -178,7 +175,7 @@ export function EditableField({
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

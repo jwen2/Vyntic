@@ -55,14 +55,11 @@ export function FindingsPanel({
             const canExpand = hasSeparateDetail || finding.title.length > 110;
 
             return (
-              <div
+              <Card
                 key={finding.id}
-                className="border border-edge bg-surface-alt"
-                style={{
-                  padding: 12,
-                  borderRadius: 18,
-                  minWidth: 0,
-                }}
+                level="inner"
+                tone="alt"
+                style={{ minWidth: 0 }}
               >
                 <div className="flex items-center" style={{ gap: 6, marginBottom: 6 }}>
                   <SeverityDot severity={finding.sev} />
@@ -127,7 +124,7 @@ export function FindingsPanel({
                     )}
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>

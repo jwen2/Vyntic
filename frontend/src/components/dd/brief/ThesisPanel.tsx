@@ -78,14 +78,14 @@ export function ThesisColumn({
 }) {
   if (bullets.length === 0) {
     return (
-      <div className="border border-edge bg-surface-alt" style={{ padding: 12, borderRadius: 18, minHeight: 110 }}>
+      <Card level="inner" tone="alt" style={{ minHeight: 110 }}>
         <ThesisColumnHeader label={label} accent={accent} />
         <div className="text-t3" style={{ fontSize: 11, fontStyle: "italic" }}>Not synthesized</div>
-      </div>
+      </Card>
     );
   }
   return (
-    <div className="border border-edge bg-surface-alt" style={{ padding: 12, borderRadius: 18 }}>
+    <Card level="inner" tone="alt">
       <ThesisColumnHeader label={label} accent={accent} />
       <ul style={{ display: "flex", flexDirection: "column", gap: 7, margin: 0, padding: 0, listStyle: "none" }}>
         {bullets.slice(0, 5).map((bullet, idx) => (
@@ -100,7 +100,7 @@ export function ThesisColumn({
           </li>
         ))}
       </ul>
-    </div>
+    </Card>
   );
 }
 

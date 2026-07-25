@@ -2,6 +2,7 @@
 // cards and the line-clamp helper. Extracted from DealBriefDashboard.tsx (FE5.4).
 
 import { useEffect, useState, type CSSProperties } from "react";
+import Card from "@/components/ui/Card";
 import { type Citation } from "@/lib/api";
 import { ACCENT, SEV_COLOR, type FindingSeverity } from "../types";
 import { formatRelativeTime } from "./diff";
@@ -29,14 +30,7 @@ export function BriefStatCard({
   const isAlert = tone === "alert";
 
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        borderRadius: 20,
-        border: `1px solid ${isAlert ? "var(--status-critical-tint-border)" : "var(--border)"}`,
-        background: isAlert ? "var(--status-critical-tint)" : "var(--surface-alt)",
-      }}
-    >
+    <Card level="inner" tone={isAlert ? "alert" : "alt"} padding="12px 14px">
       <div
         className="font-mono-plex"
         style={{
@@ -50,7 +44,7 @@ export function BriefStatCard({
       </div>
       <div className="text-t1" style={{ marginTop: 6, fontSize: 24, lineHeight: 1, fontWeight: 600 }}>{value}</div>
       <div className="text-t2" style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}>{detail}</div>
-    </div>
+    </Card>
   );
 }
 

@@ -40,14 +40,7 @@ export function DiffPanel({
 export function DiffRow({ change }: { change: FieldDiff }) {
   const tone = change.kind === "added" ? "var(--status-good)" : change.kind === "removed" ? "var(--status-critical)" : "var(--status-warning)";
   return (
-    <div
-      className="border border-edge bg-surface-alt"
-      style={{
-        padding: "10px 12px",
-        borderRadius: 18,
-        minWidth: 0,
-      }}
-    >
+    <Card level="inner" tone="alt" style={{ minWidth: 0 }}>
       <div className="flex items-center" style={{ gap: 6, marginBottom: 4 }}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: tone, flexShrink: 0 }} />
         <span style={{ fontSize: 9, fontWeight: 700, color: tone, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -62,7 +55,7 @@ export function DiffRow({ change }: { change: FieldDiff }) {
       {change.kind !== "removed" && (
         <div className="text-t1" style={{ fontSize: 11, lineHeight: 1.35, overflowWrap: "anywhere" }}>{change.after}</div>
       )}
-    </div>
+    </Card>
   );
 }
 
