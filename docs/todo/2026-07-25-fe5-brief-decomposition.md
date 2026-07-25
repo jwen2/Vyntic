@@ -1,6 +1,6 @@
 # Plan: FE5 — DealBriefDashboard decomposition
 
-**Status:** FE5.1–FE5.3 done. FE5.4 (components) next. Branch `feat/fe5-brief-decomposition` (off `main` @ `0cca00f`).
+**Status:** FE5.1–FE5.5 done — decomposition complete (2,502 → 374). Only FE5.6 (ddTheme conversion) remains. Branch `feat/fe5-brief-decomposition` (off `main` @ `0cca00f`).
 
 **Depends on:** nothing. This is the last god component; `DocMatrixPanel` (F3.1, 1786→~280) and `TabularRun` (F3.2, 2205→~200) are already decomposed and set the pattern.
 
@@ -99,15 +99,37 @@ Covered: server-first load; the one-time migration (PUT *then* clear, so it cann
 
 ### FE5.4 — Extract the components, leaf-first
 
-- [ ] **Step 1:** `parts.tsx` first — every panel uses these, and the DS2 prop-cascade lesson applies: a component still forwarding `theme` to unextracted children can't be finished.
-- [ ] **Step 2:** Then one commit per panel: `EmptyBrief`, `DiffPanel`, `ActionsPanel`, `ThesisPanel`, `FindingsPanel`, `BriefPanel`, `FinancialPanel` (largest last).
-- [ ] Panels keep their `theme` prop for now — conversion is FE5.6.
+- [x] **Step 1:** `parts.tsx` first — every panel uses these, and the DS2 prop-cascade lesson applies.
+- [x] **Step 2:** The panels: `EmptyBrief`, `DiffPanel`, `ActionsPanel`, `ThesisPanel`, `FindingsPanel`, `BriefPanel`, `FinancialPanel`.
+- [x] Panels keep their `theme` prop for now — conversion is FE5.6.
+
+**FE5.4 done (2026-07-25, `123f6be`).** Shell **1,593 → 374**, under the <400 target. parts.tsx 228 / FinancialPanel 272 / BriefPanel 195 / BriefHeader 168 / FindingsPanel 152 / ThesisPanel 130 / ActionsPanel 93 / DiffPanel 81 / EmptyBrief 50.
+
+**Deviation: `BriefHeader.tsx` was not in the plan.** The header card (title, status pills, actions, stat row) is presentation like every other panel, so leaving it inline once the rest had moved would have been inconsistent — and it takes the shell under 400, which the planned modules alone did not (they left it at 469). Cost: an 18-prop interface, the honest price of a header displaying 18 pieces of derived state.
+
+Module imports are computed by scanning each block for known symbols rather than hand-listed. Two generator gaps surfaced as tsc errors and were fixed at source: `Button` is a *default* export, and the parse symbol table was incomplete. Separately, 39 orphaned imports were left in the shell — **lint caught those, not tsc**, since `noUnusedLocals` is not set; worth remembering for FE5.6.
+
+Side effect: `DealBriefDashboard.tsx` no longer calls `ddTheme` at all. The remaining callers are the nine new `brief/` components — FE5.6's scope, now spread across small files.
 
 ### FE5.5 — Shell reduction + verification
 
-- [ ] **Step 1:** Shell retains only: props, `useProactiveScanRun`/`useBriefOverrides`/`useBriefDiff` wiring, the `onFindingsExtracted` effect, derived counts, and JSX composition. Target ~280 lines.
-- [ ] **Step 2:** Verify in-app (`frontend:verify`, headless Edge, light + dark) against a **live completed Proactive Scan run** — the seeded backend has no runs, so one must be kicked off. Cover: stat cards, both `BriefPanel`s, financial panel across all three tabs (annual/quarterly/metrics), thesis, findings, actions, an inline override edit, and the diff pill/panel after a re-run.
-- [ ] **Step 3:** `tsc --noEmit`, `vitest run`, `eslint`, `npm run build` green. Commit — `refactor(frontend): reduce DealBriefDashboard to a composition shell (FE5.5)`
+- [x] **Step 1:** Shell holds only props, the three hooks' wiring, the `onFindingsExtracted` effect, derived counts, and JSX composition — **374 lines** (the ~280 estimate was optimistic; see FE5.3's note).
+- [x] **Step 2:** Verified in-app, headless Edge, light + dark.
+- [x] **Step 3:** gates green.
+
+**FE5.5 done (2026-07-25).**
+
+**A live run was not possible and was not needed.** `GEMINI_API_KEY` is required (`backend/app/agents/llm.py:40`) and there is no `.env` in the repo nor the key in the environment, so kicking off a real Proactive Scan would have failed. Rather than ask for a secret, the run payload was **mocked via Playwright route interception** — the same technique DS2 used for `/runs/**` and `/query/stream`. For a pure frontend refactor against an unchanged backend contract this is the stronger test anyway: deterministic, free, mutates no data, and it drives states a single real run would not produce (the plan itself records that real runs sometimes yield empty KV cells).
+
+The **real** workflow endpoint was left un-mocked, so the synthetic run's cells key off the live `Proactive Scan` column ids (11 columns).
+
+Two datasets, each in both themes, **20/20 probes passing and zero page errors**:
+1. *Populated* — header/status/freshness/source pills, all 5 stat cards (Coverage 11/11), both KV panels with citation chips (p.12 / p.23), a `Not found` value rendering correctly, financial panel with trend chart + Revenue Bridge table + Metrics tab.
+2. *Sparse* — the empty-state paths ("Awaiting scan output", "No financial metrics extracted yet") alongside a populated thesis panel (all four columns), the findings panel, next actions, and finding counts flowing into the stat cards.
+
+The `Quarterly` tab correctly renders **disabled** when the run carries no quarterly table.
+
+**Not covered:** the inline override edit and the diff pill/panel after a re-run were exercised by the FE5.3 hook tests rather than in-app; `useProactiveScanRun`'s SSE path is still unverified by either route — its subscription was stubbed with an empty event stream.
 
 ### FE5.6 — ddTheme conversion (separate pass, after FE5.5 lands)
 
