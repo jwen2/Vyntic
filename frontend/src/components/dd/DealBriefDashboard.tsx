@@ -242,11 +242,11 @@ export default function DealBriefDashboard({
         )}
 
         {diff && diffOpen && diff.changes.length > 0 && (
-          <DiffPanel diff={diff} theme={theme} onDismiss={dismissDiff} onClose={() => setDiffOpen(false)} />
+          <DiffPanel diff={diff} onDismiss={dismissDiff} onClose={() => setDiffOpen(false)} />
         )}
 
         {!scanStarted ? (
-          <EmptyBrief theme={theme} onOpenProactiveScan={onOpenProactiveScan} config={brief} />
+          <EmptyBrief onOpenProactiveScan={onOpenProactiveScan} config={brief} />
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
@@ -276,7 +276,6 @@ export default function DealBriefDashboard({
               metrics={metrics}
               tables={financialTables}
               fallback={financialResult?.answer}
-              theme={theme}
               primaryTabLabel={brief.financialTabLabel}
               panelTitle={entityType === "fund" ? "Key performance data" : undefined}
             />
@@ -285,7 +284,6 @@ export default function DealBriefDashboard({
               sections={thesisSections}
               citations={thesisResult?.citations || []}
               fallback={thesisResult?.answer}
-              theme={theme}
               onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, thesisResult?.citations || [], "thesis") : undefined}
               loading={thesisResult?.status === "loading"}
             />
@@ -295,14 +293,12 @@ export default function DealBriefDashboard({
                 findings={topFindings}
                 gapCount={gapCount}
                 inconsistencyCount={inconsistencyCount}
-                theme={theme}
                 onSelectFinding={onSelectFinding}
                 onOpenSource={handleFindingSource}
               />
               <ActionsPanel
                 actions={nextActions}
                 citations={nextActionsResult?.citations || []}
-                theme={theme}
                 onCit={onCit ? (sourceIdx) => handleCit(sourceIdx, nextActionsResult?.citations || [], "actions") : undefined}
               />
             </div>
