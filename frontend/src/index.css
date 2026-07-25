@@ -72,7 +72,7 @@
   --zebra: var(--table-zebra);
   --grid-header: var(--table-header);
 
-  /* Modal chrome — the shared <Modal> overlay/panel (see ui/modal.css). Before
+  /* Modal chrome — the shared <Modal> overlay/panel (see ui/Modal/index.css). Before
      DS1 each dialog picked its own scrim (rgba(15,23,42,.55/.58), rgba(0,0,0,.55),
      black/35) and z-index (50/90/1000); these tokens are the single source now.
      --z-modal sits above app chrome but below the 9999 portaled popovers, so a
@@ -80,7 +80,7 @@
   --modal-scrim: rgba(15, 23, 42, 0.55);
   --modal-shadow: rgba(15, 23, 42, 0.18);
   --z-modal: 1000;
-  /* Hero-card elevation — the brief's outermost card (see ui/card.css).
+  /* Hero-card elevation — the brief's outermost card (see ui/Card/index.css).
      Unlike --modal-shadow, which is a colour, this holds the whole box-shadow
      value: the light treatment has two layers and the dark one has a single
      deeper layer, so they differ in shape, not just tint. */

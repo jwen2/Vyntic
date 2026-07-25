@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import Modal from "./Modal";
+import Modal from "./index";
 
 afterEach(() => {
   cleanup();
