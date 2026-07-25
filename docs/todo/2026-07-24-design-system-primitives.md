@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (3 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs — `ddTheme` still referenced in 20 files); DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (4 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar — `ddTheme` still referenced in 18 files); DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -51,6 +51,12 @@ Verified in headless Edge, light + dark, against "QofE Bridge" (metric cells) an
 **Gotcha:** a leftover vite dev server from an earlier turn predated the `tailwind.config.js` edit and kept serving the old Tailwind color palette — new classes existed in the DOM but resolved to no rule, so the first verification pass silently returned the wrong (default black) colors. Restarting the dev server fixed it. Any config-file change (not just component edits) invalidates an already-running dev server for verification purposes.
 
 Verified in headless Edge, light + dark: `DocumentsModal` via a live deal's document row list, scope toggle, and category/period fields; `DocumentSelectorModal` via a workflow's "Run extraction" flow; `PositionModal` against `hillpath_fund_iv` (the only fund-entity deal in the dev DB) with commitment/called/distributed/NAV filled in client-side only, never saved, to render the accent-tint computed-metrics box. All values matched their tokens exactly in both themes. tsc clean, lint unchanged, 76 tests, build green.
+
+**Group 4 — `TopBar.tsx` + `LeftSidebar.tsx` (`3ab3015`): done.** The deal-workspace chrome. Both keep `theme` — chip/badge colors (TopBar) and skeleton loaders / history-row hover (LeftSidebar) branch on `isDark` for hardcoded hex unrelated to `ddTheme` — but every `c.field` converts to a class, or (LeftSidebar's active nav item, where border/background/text all vary together per row) a conditional className string composing non-overlapping fragments, same pattern as the pilot's `RunCell`.
+
+Verified in headless Edge, light + dark, against both a plain deal (no Position button) and a fund entity (has one), to exercise every branch: surface/border chrome, active-nav highlight, deal-id chip, and the Position button — the latter two reusing the accent-strong/tint/tint-border aliases added last group. All matched exactly. tsc clean, lint unchanged, 76 tests, build green.
+
+**Process note:** a `TaskStop` call on a background vite process did not actually kill it (Windows); it kept listening on 5311 across turns. Confirming with `netstat`/`taskkill` before relying on "stopped" being true would have caught this sooner — verification against a supposedly-dead dev server risks silently testing stale code.
 
 ## Progress (2026-07-24)
 
