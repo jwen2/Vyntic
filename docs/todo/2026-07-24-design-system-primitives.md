@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (14 of ~23 file-groups converted — `ddTheme` still referenced in 7 files, 4 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`). Remaining: `DocumentDetailView.tsx` (dead code) and the 3 top-level pages (`DealWorkspacePage.tsx`, `ManagerPage.tsx`, `PortfolioPage.tsx`). DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (15 of ~23 file-groups converted — `ddTheme` still referenced in 6 files, only 3 real files remain: the 3 top-level pages). DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -125,6 +125,8 @@ Verified in headless Edge, light + dark: the "Begin your diligence" empty state,
 Removing `MiniBtn`'s dead, unused `c?:` type parameter as part of the conversion incidentally cleared a pre-existing lint error (`MonitoringPanel.tsx:371` unused `c`) that predated this branch.
 
 Verified in headless Edge, light + dark, against Hillpath Fund IV's Monitoring screen: both tabs, active/inactive `SubTab` styling, card chrome, and dashed empty-state borders all matched tokens exactly. No capital-call/side-letter data exists in the dev DB to exercise populated rows, but every empty-state and chrome path is covered.
+
+**Group 15 — `DocumentDetailView.tsx` (`1e13ddf`): done.** Confirmed dead code — re-checked before starting, unimported anywhere. Converted anyway for consistency with the rest of `components/dd/`; deleting the unreferenced file is a separate call outside this sweep. `theme` stays (isDark still drives an unrelated severity-label lookup); every `c.field` becomes a class or a `var(...)` substitution where mixed into hover handlers / conditional ternaries (the back-button hover, `FindingCard`'s deal-breaker styling, the ask-agent button, suggested-prompt hover). No visual verification possible for dead code — tsc/lint/build only, all green (lint 0 problems).
 
 ## Progress (2026-07-24)
 
