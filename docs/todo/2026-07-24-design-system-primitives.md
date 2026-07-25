@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done. **DS2 done** — 18 real file-groups converted (`5fd8255` latest); `ddTheme` now referenced only in `DealBriefDashboard.tsx` (permanently excluded, FE5 will decompose it) plus the shim's own definition in `types.ts`/`index.css`, which can't be deleted while that one file still calls it. DS3 not started.
+**Status:** DS1 done. **DS2 done, including Step 3** — 18 real file-groups converted here (`5fd8255` latest); the shim itself was deleted by FE5.6 (`a07f629`) once the brief was decomposed, so `frontend/src` now has zero `ddTheme`/`DD_LIGHT`/`DD_DARK`. DS3 not started — and now unblocked, since the ~62 card-shaped call sites that used to be locked inside `DealBriefDashboard` are individually addressable in `brief/`.
 
 ## DS2 completion (2026-07-24)
 
@@ -203,7 +203,7 @@ Separately, `components/ui/` has exactly one primitive (`Button`/`button.css`). 
 - [x] **Step 1:** ~~Confirm the mapping is mechanical~~ — **done, and it isn't.** See the audit above for the field→class table (4 fields still need aliases in `tailwind.config.js`) and the measured breakdown of why ~75% of sites need whole-object rewrites.
 - [x] **Step 1b (pilot):** Convert `workflows/tabular-run/` to measure real cost per file before committing to the rest. Done in `deeae24` — 8 files, 82 refs, verified light + dark.
 - [ ] **Step 2 — DECISION POINT (Stanley):** with the pilot's real numbers in hand, choose whether to continue the sweep, and how far. If continuing, convert per directory, leaf-first (not largest-first — a component forwarding `theme` to unconverted children can't drop the prop). **`DealBriefDashboard.tsx` (23 calls, 2,502 lines) should be excluded**: it is slated for decomposition under FE5, so restyling it now is wasted work plus merge pain.
-- [ ] **Step 3:** Only once *every* call site is converted, delete `ddTheme`, `DD_LIGHT`, `DD_DARK` from `types.ts`. Grep guard: `grep -rn "ddTheme(\|DD_DARK\|DD_LIGHT" frontend/src` returns nothing. Commit per directory group. Note this step is unreachable while `DealBriefDashboard` is excluded — either it gets converted too, or the shim survives until FE5 lands.
+- [x] **Step 3 — done by FE5.6 (`a07f629`), not here.** `ddTheme`, `DD_LIGHT`, `DD_DARK` are gone from `types.ts`; the grep guard returns nothing. As predicted, this was unreachable until `DealBriefDashboard` was decomposed: FE5.4 spread its 23 calls across nine small `brief/` components, and FE5.6 converted those 92 refs and pulled the shim. See `2026-07-25-fe5-brief-decomposition.md` §FE5.6.
 
 ## Task DS3 — Card/Panel primitive
 
