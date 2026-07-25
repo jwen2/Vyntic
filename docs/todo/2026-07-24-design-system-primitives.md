@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (13 of ~23 file-groups converted — `ddTheme` still referenced in 8 files, 5 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`). **All of `components/workflows/` clean; `DealAssistantPanel.tsx` clean.** Remaining: `MonitoringPanel.tsx`, `DocumentDetailView.tsx` (dead code), and the 3 top-level pages. DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (14 of ~23 file-groups converted — `ddTheme` still referenced in 7 files, 4 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`). Remaining: `DocumentDetailView.tsx` (dead code) and the 3 top-level pages (`DealWorkspacePage.tsx`, `ManagerPage.tsx`, `PortfolioPage.tsx`). DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -117,6 +117,14 @@ Verified in headless Edge, light + dark, against the Run History drawer: panel c
 Second instance of the border-shorthand color-reset bug from group 12, caught the same way: the "reading" spinner needed `borderWidth`/`borderStyle` instead of a bare `border` shorthand.
 
 Verified in headless Edge, light + dark: the "Begin your diligence" empty state, the sources picker dropdown, and a full chat exchange. The assistant's answer was mocked via Playwright route interception on `/query/stream` (no real LLM call) — but `saveConversation` isn't mocked and fired for real against the dev backend both times, leaving two harmless conversation records in Recent for `acme_saas`.
+
+**Group 14 — `MonitoringPanel.tsx` (`25bb537`): done.** The fund-only capital-calls/side-letters screen. Structurally different from every prior file: `c` (the `ddTheme()` result) was threaded as an explicit prop through ~9 shared components (`Card`, `SectionLabel`, `Empty`, `Banner`, `Field`, `InputMini`, `SelectMini`, `StatusPill`, `SubTab`) instead of each calling `ddTheme()` itself — so converting touched nearly every line, not just the two section components that used `c` directly.
+
+`SubTab`'s active/inactive state is a fully classed conditional (`bg-accent text-on-accent border-accent` vs `bg-surface-alt text-t2 border-edge`) rather than staying inline — accent/on-accent are already Tailwind-aliased tokens, no `tint()`-derived hue involved, unlike every other active-state pattern this sweep.
+
+Removing `MiniBtn`'s dead, unused `c?:` type parameter as part of the conversion incidentally cleared a pre-existing lint error (`MonitoringPanel.tsx:371` unused `c`) that predated this branch.
+
+Verified in headless Edge, light + dark, against Hillpath Fund IV's Monitoring screen: both tabs, active/inactive `SubTab` styling, card chrome, and dashed empty-state borders all matched tokens exactly. No capital-call/side-letter data exists in the dev DB to exercise populated rows, but every empty-state and chrome path is covered.
 
 ## Progress (2026-07-24)
 
