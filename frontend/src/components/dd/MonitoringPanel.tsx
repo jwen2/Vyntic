@@ -16,7 +16,6 @@ import {
   type Obligation,
   type ObligationDraft,
 } from "@/lib/api";
-import { ddTheme } from "./types";
 import Button from "@/components/ui/Button";
 
 type Sub = "calls" | "sideletters";
@@ -32,11 +31,9 @@ interface Props {
   dealId: string;
   dealName: string;
   isAdmin: boolean;
-  theme: "light" | "dark";
 }
 
-export default function MonitoringPanel({ dealId, dealName, isAdmin, theme }: Props) {
-  const c = ddTheme(theme);
+export default function MonitoringPanel({ dealId, dealName, isAdmin }: Props) {
   const [sub, setSub] = useState<Sub>("calls");
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
 
@@ -45,28 +42,28 @@ export default function MonitoringPanel({ dealId, dealName, isAdmin, theme }: Pr
   }, [dealId]);
 
   return (
-    <div style={{ background: c.bg, color: c.t1, height: "100%", overflowY: "auto" }}>
+    <div className="bg-appbg text-t1" style={{ height: "100%", overflowY: "auto" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 16px 48px" }}>
-        <div className="font-mono-plex" style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: c.t3 }}>
+        <div className="font-mono-plex text-t3" style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase" }}>
           Monitoring · {dealName}
         </div>
-        <h2 style={{ margin: "6px 0 4px", fontSize: 26, fontWeight: 600, color: c.t1 }}>
+        <h2 className="text-t1" style={{ margin: "6px 0 4px", fontSize: 26, fontWeight: 600 }}>
           Post-commitment tracking
         </h2>
-        <p style={{ margin: 0, fontSize: 14, color: c.t2 }}>
+        <p className="text-t2" style={{ margin: 0, fontSize: 14 }}>
           Process capital calls and verify side-letter obligations against each quarterly package.
         </p>
 
         <div className="mt-5 flex gap-2">
-          <SubTab label="Capital calls & distributions" active={sub === "calls"} onClick={() => setSub("calls")} c={c} />
-          <SubTab label="Side letters" active={sub === "sideletters"} onClick={() => setSub("sideletters")} c={c} />
+          <SubTab label="Capital calls & distributions" active={sub === "calls"} onClick={() => setSub("calls")} />
+          <SubTab label="Side letters" active={sub === "sideletters"} onClick={() => setSub("sideletters")} />
         </div>
 
         <div className="mt-5">
           {sub === "calls" ? (
-            <CallsSection dealId={dealId} isAdmin={isAdmin} documents={documents} c={c} />
+            <CallsSection dealId={dealId} isAdmin={isAdmin} documents={documents} />
           ) : (
-            <SideLettersSection dealId={dealId} isAdmin={isAdmin} documents={documents} c={c} />
+            <SideLettersSection dealId={dealId} isAdmin={isAdmin} documents={documents} />
           )}
         </div>
       </div>
@@ -76,7 +73,7 @@ export default function MonitoringPanel({ dealId, dealName, isAdmin, theme }: Pr
 
 // ── Capital calls ──
 
-function CallsSection({ dealId, isAdmin, documents, c }: { dealId: string; isAdmin: boolean; documents: DocumentMetadata[]; c: ReturnType<typeof ddTheme> }) {
+function CallsSection({ dealId, isAdmin, documents }: { dealId: string; isAdmin: boolean; documents: DocumentMetadata[] }) {
   const [notices, setNotices] = useState<CallNotice[]>([]);
   const [draft, setDraft] = useState<CallNoticeDraft | null>(null);
   const [busy, setBusy] = useState(false);
@@ -125,16 +122,16 @@ function CallsSection({ dealId, isAdmin, documents, c }: { dealId: string; isAdm
 
   return (
     <div>
-      {error && <Banner c={c}>{error}</Banner>}
+      {error && <Banner>{error}</Banner>}
 
       {isAdmin && (
-        <Card c={c}>
-          <SectionLabel c={c}>Process a notice</SectionLabel>
-          <p style={{ margin: "4px 0 12px", fontSize: 13, color: c.t2 }}>
+        <Card>
+          <SectionLabel>Process a notice</SectionLabel>
+          <p className="text-t2" style={{ margin: "4px 0 12px", fontSize: 13 }}>
             Pick an uploaded capital-call or distribution notice. Vyntic extracts the amount, due date, and purpose with citations for you to confirm.
           </p>
           {candidateDocs.length === 0 ? (
-            <Empty c={c}>No capital-call or distribution documents uploaded yet. Upload one and classify it in the documents panel.</Empty>
+            <Empty>No capital-call or distribution documents uploaded yet. Upload one and classify it in the documents panel.</Empty>
           ) : (
             <div className="flex flex-wrap gap-2">
               {candidateDocs.map((d) => (
@@ -146,17 +143,17 @@ function CallsSection({ dealId, isAdmin, documents, c }: { dealId: string; isAdm
           )}
 
           {draft && (
-            <div className="mt-4 rounded-[1rem] border p-4" style={{ borderColor: c.accentTintBorder, background: c.accentTint }}>
-              <SectionLabel c={c}>Review extracted notice</SectionLabel>
+            <div className="mt-4 rounded-[1rem] border border-accent-tint-border bg-accent-tint p-4">
+              <SectionLabel>Review extracted notice</SectionLabel>
               <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                <Field label="Kind" c={c}><SelectMini value={draft.kind} options={["call", "distribution"]} onChange={(v) => setDraft({ ...draft, kind: v as CallNoticeDraft["kind"] })} c={c} /></Field>
-                <Field label="Amount" c={c}><InputMini value={draft.amount?.toString() ?? ""} onChange={(v) => setDraft({ ...draft, amount: v ? Number(v.replace(/,/g, "")) : null })} c={c} /></Field>
-                <Field label="Due date" c={c}><InputMini value={draft.due_date ?? ""} placeholder="2026-08-14" onChange={(v) => setDraft({ ...draft, due_date: v || null })} c={c} /></Field>
-                <Field label="Period" c={c}><InputMini value={draft.period ?? ""} placeholder="2026-Q3" onChange={(v) => setDraft({ ...draft, period: v || null })} c={c} /></Field>
-                <div className="sm:col-span-2"><Field label="Purpose" c={c}><InputMini value={draft.purpose} onChange={(v) => setDraft({ ...draft, purpose: v })} c={c} /></Field></div>
+                <Field label="Kind"><SelectMini value={draft.kind} options={["call", "distribution"]} onChange={(v) => setDraft({ ...draft, kind: v as CallNoticeDraft["kind"] })} /></Field>
+                <Field label="Amount"><InputMini value={draft.amount?.toString() ?? ""} onChange={(v) => setDraft({ ...draft, amount: v ? Number(v.replace(/,/g, "")) : null })} /></Field>
+                <Field label="Due date"><InputMini value={draft.due_date ?? ""} placeholder="2026-08-14" onChange={(v) => setDraft({ ...draft, due_date: v || null })} /></Field>
+                <Field label="Period"><InputMini value={draft.period ?? ""} placeholder="2026-Q3" onChange={(v) => setDraft({ ...draft, period: v || null })} /></Field>
+                <div className="sm:col-span-2"><Field label="Purpose"><InputMini value={draft.purpose} onChange={(v) => setDraft({ ...draft, purpose: v })} /></Field></div>
               </div>
               {draft.citations.filter(Boolean).length > 0 && (
-                <div className="mt-2 text-[11px]" style={{ color: c.t3 }}>
+                <div className="mt-2 text-[11px] text-t3">
                   {draft.citations.filter(Boolean).length} citation(s) — {draft.citations.filter(Boolean).map((ci) => ci && `${ci.source_file} p.${ci.page}`).join(", ")}
                 </div>
               )}
@@ -169,33 +166,33 @@ function CallsSection({ dealId, isAdmin, documents, c }: { dealId: string; isAdm
         </Card>
       )}
 
-      <Card c={c} className="mt-4">
-        <SectionLabel c={c}>Queue</SectionLabel>
+      <Card className="mt-4">
+        <SectionLabel>Queue</SectionLabel>
         {notices.length === 0 ? (
-          <Empty c={c}>No notices processed yet.</Empty>
+          <Empty>No notices processed yet.</Empty>
         ) : (
           <div className="mt-2 overflow-x-auto">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ color: c.t3, textAlign: "left" }}>
+                <tr className="text-t3" style={{ textAlign: "left" }}>
                   {["Due", "Kind", "Amount", "Purpose", "Status", ""].map((h) => (
-                    <th key={h} style={{ padding: "6px 8px", fontWeight: 600, borderBottom: `1px solid ${c.border}` }}>{h}</th>
+                    <th key={h} className="border-b border-b-edge" style={{ padding: "6px 8px", fontWeight: 600 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {notices.map((n) => (
-                  <tr key={n.id} style={{ color: c.t1 }}>
-                    <td style={{ padding: "8px", borderBottom: `1px solid ${c.border}` }}>{n.due_date ?? "—"}</td>
-                    <td style={{ padding: "8px", borderBottom: `1px solid ${c.border}` }}>{n.kind}</td>
-                    <td style={{ padding: "8px", borderBottom: `1px solid ${c.border}`, fontVariantNumeric: "tabular-nums" }}>{n.amount != null ? `${n.currency} ${n.amount.toLocaleString()}` : "—"}</td>
-                    <td style={{ padding: "8px", borderBottom: `1px solid ${c.border}`, color: c.t2 }}>{n.purpose || "—"}</td>
-                    <td style={{ padding: "8px", borderBottom: `1px solid ${c.border}` }}><StatusPill status={n.status} c={c} /></td>
-                    <td style={{ padding: "8px", borderBottom: `1px solid ${c.border}` }}>
+                  <tr key={n.id} className="text-t1">
+                    <td className="border-b border-b-edge" style={{ padding: "8px" }}>{n.due_date ?? "—"}</td>
+                    <td className="border-b border-b-edge" style={{ padding: "8px" }}>{n.kind}</td>
+                    <td className="border-b border-b-edge" style={{ padding: "8px", fontVariantNumeric: "tabular-nums" }}>{n.amount != null ? `${n.currency} ${n.amount.toLocaleString()}` : "—"}</td>
+                    <td className="border-b border-b-edge text-t2" style={{ padding: "8px" }}>{n.purpose || "—"}</td>
+                    <td className="border-b border-b-edge" style={{ padding: "8px" }}><StatusPill status={n.status} /></td>
+                    <td className="border-b border-b-edge" style={{ padding: "8px" }}>
                       {isAdmin && n.status !== "paid" && n.status !== "dismissed" && (
                         <span className="flex gap-1">
-                          <MiniBtn onClick={() => setStatus(n.id, "paid")} c={c}>Mark paid</MiniBtn>
-                          <MiniBtn onClick={() => setStatus(n.id, "dismissed")} c={c}>Dismiss</MiniBtn>
+                          <MiniBtn onClick={() => setStatus(n.id, "paid")}>Mark paid</MiniBtn>
+                          <MiniBtn onClick={() => setStatus(n.id, "dismissed")}>Dismiss</MiniBtn>
                         </span>
                       )}
                     </td>
@@ -212,7 +209,7 @@ function CallsSection({ dealId, isAdmin, documents, c }: { dealId: string; isAdm
 
 // ── Side letters ──
 
-function SideLettersSection({ dealId, isAdmin, documents, c }: { dealId: string; isAdmin: boolean; documents: DocumentMetadata[]; c: ReturnType<typeof ddTheme> }) {
+function SideLettersSection({ dealId, isAdmin, documents }: { dealId: string; isAdmin: boolean; documents: DocumentMetadata[] }) {
   const [obligations, setObligations] = useState<Obligation[]>([]);
   const [drafts, setDrafts] = useState<ObligationDraft[] | null>(null);
   const [draftDocId, setDraftDocId] = useState<string | null>(null);
@@ -262,13 +259,13 @@ function SideLettersSection({ dealId, isAdmin, documents, c }: { dealId: string;
 
   return (
     <div>
-      {error && <Banner c={c}>{error}</Banner>}
+      {error && <Banner>{error}</Banner>}
 
       {isAdmin && (
-        <Card c={c}>
-          <SectionLabel c={c}>Extract obligations from a side letter</SectionLabel>
+        <Card>
+          <SectionLabel>Extract obligations from a side letter</SectionLabel>
           {slDocs.length === 0 ? (
-            <Empty c={c}>No side-letter documents uploaded yet.</Empty>
+            <Empty>No side-letter documents uploaded yet.</Empty>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
               {slDocs.map((d) => (
@@ -280,12 +277,12 @@ function SideLettersSection({ dealId, isAdmin, documents, c }: { dealId: string;
           )}
 
           {drafts && (
-            <div className="mt-4 rounded-[1rem] border p-4" style={{ borderColor: c.accentTintBorder, background: c.accentTint }}>
-              <SectionLabel c={c}>Review {drafts.length} obligation(s) before saving</SectionLabel>
+            <div className="mt-4 rounded-[1rem] border border-accent-tint-border bg-accent-tint p-4">
+              <SectionLabel>Review {drafts.length} obligation(s) before saving</SectionLabel>
               <ul className="mt-2 space-y-2">
                 {drafts.map((o, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm" style={{ color: c.t1 }}>
-                    <span className="rounded px-1.5 py-0.5 text-[10px] uppercase" style={{ background: c.surfaceAlt, color: c.t3 }}>{o.category}</span>
+                  <li key={i} className="flex items-start gap-2 text-sm text-t1">
+                    <span className="rounded px-1.5 py-0.5 text-[10px] uppercase bg-surface-alt text-t3">{o.category}</span>
                     <span>{o.text}</span>
                     <Button variant="subtle" size="xs" className="ml-auto" onClick={() => setDrafts(drafts.filter((_, j) => j !== i))}>remove</Button>
                   </li>
@@ -300,12 +297,12 @@ function SideLettersSection({ dealId, isAdmin, documents, c }: { dealId: string;
         </Card>
       )}
 
-      <Card c={c} className="mt-4">
+      <Card className="mt-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <SectionLabel c={c}>Obligations & compliance</SectionLabel>
+          <SectionLabel>Obligations & compliance</SectionLabel>
           {isAdmin && obligations.length > 0 && (
             <div className="flex items-center gap-2">
-              <InputMini value={period} placeholder="2026-Q2" onChange={setPeriod} c={c} />
+              <InputMini value={period} placeholder="2026-Q2" onChange={setPeriod} />
               <Button variant="primary" size="sm" loading={busy} onClick={handleVerify}>
                 {busy ? "Verifying…" : "Verify against period"}
               </Button>
@@ -313,27 +310,27 @@ function SideLettersSection({ dealId, isAdmin, documents, c }: { dealId: string;
           )}
         </div>
         {obligations.length === 0 ? (
-          <Empty c={c}>No obligations tracked yet. Extract them from a side letter above.</Empty>
+          <Empty>No obligations tracked yet. Extract them from a side letter above.</Empty>
         ) : (
           <ul className="mt-3 space-y-3">
             {obligations.map((o) => (
-              <li key={o.id} className="rounded-[0.9rem] border p-3" style={{ borderColor: c.border, background: c.surface }}>
+              <li key={o.id} className="rounded-[0.9rem] border border-edge bg-surface p-3">
                 <div className="flex items-start gap-2">
-                  <span className="rounded px-1.5 py-0.5 text-[10px] uppercase" style={{ background: c.surfaceAlt, color: c.t3 }}>{o.category}</span>
-                  <span style={{ fontSize: 14, color: c.t1 }}>{o.text}</span>
+                  <span className="rounded px-1.5 py-0.5 text-[10px] uppercase bg-surface-alt text-t3">{o.category}</span>
+                  <span className="text-t1" style={{ fontSize: 14 }}>{o.text}</span>
                   {o.latest_check && <span className="ml-auto"><VerdictPill verdict={o.latest_check.verdict} confirmed={o.latest_check.confirmed} /></span>}
                 </div>
-                {o.verify_hint && <div className="mt-1 text-xs" style={{ color: c.t3 }}>Check: {o.verify_hint}</div>}
+                {o.verify_hint && <div className="mt-1 text-xs text-t3">Check: {o.verify_hint}</div>}
                 {o.latest_check && (
-                  <div className="mt-2 rounded-lg p-2 text-xs" style={{ background: c.surfaceAlt, color: c.t2 }}>
-                    <div><strong style={{ color: c.t1 }}>{o.latest_check.period}</strong> — {o.latest_check.rationale || "No rationale"}</div>
+                  <div className="mt-2 rounded-lg p-2 text-xs bg-surface-alt text-t2">
+                    <div><strong className="text-t1">{o.latest_check.period}</strong> — {o.latest_check.rationale || "No rationale"}</div>
                     {isAdmin && !o.latest_check.confirmed && (
                       <div className="mt-2 flex flex-wrap gap-1.5 items-center">
-                        <span style={{ color: c.t3 }}>Model proposed {o.latest_check.verdict}. Confirm or override:</span>
-                        <MiniBtn onClick={() => handleConfirm(o.latest_check!.id)} c={c}>Accept</MiniBtn>
-                        <MiniBtn onClick={() => handleConfirm(o.latest_check!.id, "compliant")} c={c}>Compliant</MiniBtn>
-                        <MiniBtn onClick={() => handleConfirm(o.latest_check!.id, "breach")} c={c}>Breach</MiniBtn>
-                        <MiniBtn onClick={() => handleConfirm(o.latest_check!.id, "unclear")} c={c}>Unclear</MiniBtn>
+                        <span className="text-t3">Model proposed {o.latest_check.verdict}. Confirm or override:</span>
+                        <MiniBtn onClick={() => handleConfirm(o.latest_check!.id)}>Accept</MiniBtn>
+                        <MiniBtn onClick={() => handleConfirm(o.latest_check!.id, "compliant")}>Compliant</MiniBtn>
+                        <MiniBtn onClick={() => handleConfirm(o.latest_check!.id, "breach")}>Breach</MiniBtn>
+                        <MiniBtn onClick={() => handleConfirm(o.latest_check!.id, "unclear")}>Unclear</MiniBtn>
                       </div>
                     )}
                   </div>
@@ -353,33 +350,43 @@ function VerdictPill({ verdict, confirmed }: { verdict: Verdict; confirmed: bool
   const v = VERDICT_COLOR[verdict];
   return <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: v.bg, color: v.fg }}>{v.label}{confirmed ? "" : " (proposed)"}</span>;
 }
-function StatusPill({ status, c }: { status: string; c: ReturnType<typeof ddTheme> }) {
-  return <span className="rounded-full px-2 py-0.5 text-[11px]" style={{ background: c.surfaceAlt, color: c.t2 }}>{status}</span>;
+function StatusPill({ status }: { status: string }) {
+  return <span className="rounded-full px-2 py-0.5 text-[11px] bg-surface-alt text-t2">{status}</span>;
 }
-function SubTab({ label, active, onClick, c }: { label: string; active: boolean; onClick: () => void; c: ReturnType<typeof ddTheme> }) {
-  return <button type="button" onClick={onClick} className="rounded-full px-4 py-2 text-sm font-medium" style={{ background: active ? c.accent : c.surfaceAlt, color: active ? c.onAccent : c.t2, border: `1px solid ${active ? c.accent : c.border}` }}>{label}</button>;
+function SubTab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-4 py-2 text-sm font-medium border ${
+        active ? "bg-accent text-on-accent border-accent" : "bg-surface-alt text-t2 border-edge"
+      }`}
+    >
+      {label}
+    </button>
+  );
 }
-function Card({ children, c, className }: { children: React.ReactNode; c: ReturnType<typeof ddTheme>; className?: string }) {
-  return <div className={className} style={{ borderRadius: 20, border: `1px solid ${c.border}`, background: c.surface, padding: 18 }}>{children}</div>;
+function Card({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={`rounded-[20px] border border-edge bg-surface p-[18px] ${className ?? ""}`}>{children}</div>;
 }
-function SectionLabel({ children, c }: { children: React.ReactNode; c: ReturnType<typeof ddTheme> }) {
-  return <div className="font-mono-plex" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: c.t3 }}>{children}</div>;
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <div className="font-mono-plex text-t3" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase" }}>{children}</div>;
 }
-function Empty({ children, c }: { children: React.ReactNode; c: ReturnType<typeof ddTheme> }) {
-  return <div className="mt-2 rounded-xl border border-dashed p-4 text-sm" style={{ borderColor: c.border, color: c.t3 }}>{children}</div>;
+function Empty({ children }: { children: React.ReactNode }) {
+  return <div className="mt-2 rounded-xl border border-dashed border-edge p-4 text-sm text-t3">{children}</div>;
 }
-function Banner({ children, c }: { children: React.ReactNode; c: ReturnType<typeof ddTheme> }) {
+function Banner({ children }: { children: React.ReactNode }) {
   return <div className="mb-3 rounded-xl px-3 py-2 text-sm" style={{ background: "var(--danger-tint)", color: "var(--danger)", border: "1px solid var(--danger-tint-border)" }}>{children}</div>;
 }
-function Field({ label, children, c }: { label: string; children: React.ReactNode; c: ReturnType<typeof ddTheme> }) {
-  return <label className="flex flex-col gap-1"><span className="font-mono-plex text-[9px] uppercase tracking-[0.12em]" style={{ color: c.t3 }}>{label}</span>{children}</label>;
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="flex flex-col gap-1"><span className="font-mono-plex text-[9px] uppercase tracking-[0.12em] text-t3">{label}</span>{children}</label>;
 }
-function InputMini({ value, onChange, placeholder, c }: { value: string; onChange: (v: string) => void; placeholder?: string; c: ReturnType<typeof ddTheme> }) {
-  return <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="rounded-lg border px-2.5 py-1.5 text-sm outline-none" style={{ background: c.surfaceAlt, borderColor: c.border, color: c.t1 }} />;
+function InputMini({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="rounded-lg border border-edge px-2.5 py-1.5 text-sm outline-none bg-surface-alt text-t1" />;
 }
-function SelectMini({ value, options, onChange, c }: { value: string; options: string[]; onChange: (v: string) => void; c: ReturnType<typeof ddTheme> }) {
-  return <select value={value} onChange={(e) => onChange(e.target.value)} className="rounded-lg border px-2.5 py-1.5 text-sm outline-none" style={{ background: c.surfaceAlt, borderColor: c.border, color: c.t1 }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
+function SelectMini({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  return <select value={value} onChange={(e) => onChange(e.target.value)} className="rounded-lg border border-edge px-2.5 py-1.5 text-sm outline-none bg-surface-alt text-t1">{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
 }
-function MiniBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void; c?: ReturnType<typeof ddTheme> }) {
+function MiniBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return <Button variant="secondary" size="xs" onClick={onClick}>{children}</Button>;
 }
