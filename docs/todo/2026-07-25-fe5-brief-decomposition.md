@@ -72,9 +72,13 @@ Suffix scaling was initially miscategorised as a quirk and corrected: `m`/`bn`/`
 
 ### FE5.2 — Extract the pure modules
 
-- [ ] **Step 1:** Move to `brief/config.ts` first (types + constants; everything else imports from it).
-- [ ] **Step 2:** Move `brief/parse.ts`, `brief/diff.ts`, `brief/findings.ts`. Re-point the test file's imports at the new paths and **drop the temporary exports** from the shell.
-- [ ] **Step 3:** Tests must stay green with no edits to their bodies — that is the evidence the move was clean. Commit — `refactor(frontend): extract brief pure modules (FE5.2)`
+- [x] **Step 1:** Move to `brief/config.ts` first (types + constants; everything else imports from it).
+- [x] **Step 2:** Move `brief/parse.ts`, `brief/diff.ts`, `brief/findings.ts`. Re-point the test file's imports at the new paths and **drop the temporary exports** from the shell.
+- [x] **Step 3:** Tests must stay green with no edits to their bodies — that is the evidence the move was clean. Commit — `refactor(frontend): extract brief pure modules (FE5.2)`
+
+**FE5.2 done (2026-07-25, `dff7800`).** config.ts 204 / parse.ts 376 / diff.ts 108 / findings.ts 43; shell **2,502 -> 1,868**. All 72 characterization tests pass with assertion bodies byte-identical — only the import block changed. Symbol audit: all **97** top-level symbols present before are present after, none added, none lost. FE5.1's temporary exports are fully retired (the shell has only its default export again).
+
+Blocks were sliced programmatically rather than retyped. Worth knowing if similar tooling is used for FE5.4: the slicer needed three fixes, each surfaced by a guard rather than by inspection — (1) a balanced single-line `interface T { a: string }` has a net depth delta of 0, so it never registered as "opened" and ran into later declarations, producing overlapping ranges that corrupt neighbouring code on delete; (2) a multi-line parameter list ends blocks early because `before: BriefField[],` has balanced `[]` while still inside the `(` — count parens too; (3) `` .replace(/`/g, "") `` puts a backtick inside a regex literal, which a naive scanner reads as opening a template string. A disjointness assertion plus a "every block must end with `}` or `;`" truncation guard caught all three.
 
 ### FE5.3 — Extract the hooks
 
