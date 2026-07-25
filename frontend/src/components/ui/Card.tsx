@@ -18,7 +18,10 @@ interface CardOwnProps {
    * Escape hatch for the handful of sites whose padding is deliberate — the
    * financial table wrappers pass 0 and pad their own cells. Prefer the level
    * default. Never use a Tailwind padding utility here: card.css loads after
-   * the utilities, so `.card--panel`'s padding would win.
+   * the utilities, so `.card--panel`'s padding would win. The same cascade
+   * problem applies to background/border-colour utilities (e.g.
+   * `bg-surface-alt`) since `.card--{tone}` also loads after the utility
+   * layer — use the `tone` prop for those instead of a Tailwind class.
    */
   padding?: number | string;
 }

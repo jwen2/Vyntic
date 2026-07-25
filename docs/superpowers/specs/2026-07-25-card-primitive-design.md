@@ -132,8 +132,8 @@ Items 3 and 6 were **not** in the design as first presented and were added while
 
 Split by risk, using the techniques these plans have already proven:
 
-- **The 13 unchanged sites** — A/B computed-style diff (DS3b's technique, which beat screenshots for zero-change claims): render the old inline-style markup beside the new class string in the live page and diff `borderRadius` / `padding` / `backgroundColor` / `borderColor` / `borderStyle` in both themes. A screenshot cannot prove a 1px radius delta; this can.
-- **The 5 changed sites** — explicit before/after screenshots in both themes, since these are *meant* to move. Reviewed, not just captured.
+- **The 14 unchanged sites** — A/B computed-style diff (DS3b's technique, which beat screenshots for zero-change claims): render the old inline-style markup beside the new class string in the live page and diff `borderRadius` / `padding` / `backgroundColor` / `borderColor` / `borderStyle` in both themes. A screenshot cannot prove a 1px radius delta; this can.
+- **The 4 changed sites** — explicit before/after screenshots in both themes, since these are *meant* to move. Reviewed, not just captured.
 - Gates: `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npx eslint src` (baseline 0 errors / 49 warnings).
 
 In-app driving reuses the FE5.6 harness: `acme_saas` with a Playwright-mocked Proactive Scan run (no LLM call), plus the localStorage-seeded diff snapshot for `DiffPanel`/`DiffRow` and the open-then-Escape path for `EditableField`.
