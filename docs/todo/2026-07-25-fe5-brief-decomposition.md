@@ -1,6 +1,6 @@
 # Plan: FE5 — DealBriefDashboard decomposition
 
-**Status:** not started. Branch `feat/fe5-brief-decomposition` (off `main` @ `0cca00f`).
+**Status:** FE5.1 + FE5.2 done. FE5.3 (hooks) next. Branch `feat/fe5-brief-decomposition` (off `main` @ `0cca00f`).
 
 **Depends on:** nothing. This is the last god component; `DocMatrixPanel` (F3.1, 1786→~280) and `TabularRun` (F3.2, 2205→~200) are already decomposed and set the pattern.
 
@@ -56,8 +56,8 @@ Mirrors `docmatrix/` and `workflows/tabular-run/`.
 
 ### FE5.1 — Characterization tests (nothing moves)
 
-- [ ] **Step 1:** Temporarily `export` the pure functions from `DealBriefDashboard.tsx` so they can be imported by a test. No behaviour change.
-- [ ] **Step 2:** Write `DealBriefDashboard.parsers.test.ts` covering, at minimum: `parseMarkdownTable` (well-formed, ragged rows, missing separator), `extractFinancialTables` (multiple tables, title inference), `buildChartSeries` + `parseFinancialNumber` ($/%/x/m/bn suffixes, negatives, malformed), `extractThesisSections` (all headings, missing headings, unknown headings), `extractMetrics` (keyword hits and misses), `extractBulletsWithSources` + `extractFirstSourceIdx`, `pairsToFields` (preferred-label ordering; the known `[Source N]`-lives-in-`unit` quirk from F3.3), `deriveActions`, `mergeOverrides`, `diffPanel` + `normalizeForCompare` + `isNotFound`.
+- [x] **Step 1:** Temporarily `export` the pure functions from `DealBriefDashboard.tsx` so they can be imported by a test. No behaviour change.
+- [x] **Step 2:** Write `briefParsers.test.ts` covering, at minimum: `parseMarkdownTable` (well-formed, ragged rows, missing separator), `extractFinancialTables` (multiple tables, title inference), `buildChartSeries` + `parseFinancialNumber` ($/%/x/m/bn suffixes, negatives, malformed), `extractThesisSections` (all headings, missing headings, unknown headings), `extractMetrics` (keyword hits and misses), `extractBulletsWithSources` + `extractFirstSourceIdx`, `pairsToFields` (preferred-label ordering; the known `[Source N]`-lives-in-`unit` quirk from F3.3), `deriveActions`, `mergeOverrides`, `diffPanel` + `normalizeForCompare` + `isNotFound`.
 - [x] **Step 3:** **Pin actual behaviour, including anything that looks wrong.** If a parser has a bug, the test records today's output and gets a `// QUIRK:` comment — this task is a safety net, not a fix. Fixing anything here would make a green suite after the move meaningless. File any real bug as a follow-up note. Commit — `test(frontend): characterize brief parsers before decomposition (FE5.1)`
 
 **FE5.1 done (2026-07-25).** 72 tests in `dd/briefParsers.test.ts`; suite 76 → 148. 31 functions + 9 types temporarily exported from `DealBriefDashboard.tsx` (removed in FE5.2, when only the test's *import line* changes — assertion bodies stay untouched, which is what makes "still green" real evidence).
