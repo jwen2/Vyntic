@@ -1,6 +1,6 @@
 # Plan: FE5 — DealBriefDashboard decomposition
 
-**Status:** FE5.1 + FE5.2 done. FE5.3 (hooks) next. Branch `feat/fe5-brief-decomposition` (off `main` @ `0cca00f`).
+**Status:** FE5.1–FE5.3 done. FE5.4 (components) next. Branch `feat/fe5-brief-decomposition` (off `main` @ `0cca00f`).
 
 **Depends on:** nothing. This is the last god component; `DocMatrixPanel` (F3.1, 1786→~280) and `TabularRun` (F3.2, 2205→~200) are already decomposed and set the pattern.
 
@@ -80,12 +80,22 @@ Suffix scaling was initially miscategorised as a quirk and corrected: `m`/`bn`/`
 
 Blocks were sliced programmatically rather than retyped. Worth knowing if similar tooling is used for FE5.4: the slicer needed three fixes, each surfaced by a guard rather than by inspection — (1) a balanced single-line `interface T { a: string }` has a net depth delta of 0, so it never registered as "opened" and ran into later declarations, producing overlapping ranges that corrupt neighbouring code on delete; (2) a multi-line parameter list ends blocks early because `before: BriefField[],` has balanced `[]` while still inside the `(` — count parens too; (3) `` .replace(/`/g, "") `` puts a backtick inside a regex literal, which a naive scanner reads as opening a template string. A disjointness assertion plus a "every block must end with `}` or `;`" truncation guard caught all three.
 
-### FE5.3 — Extract the hooks
+### FE5.3 — Extract the hooks **and test them**
 
-- [ ] **Step 1:** `useProactiveScanRun.ts` (self-contained already).
-- [ ] **Step 2:** `useBriefOverrides.ts` — owns `overrides` state, the server load, the localStorage→server migration, and `setOverride`.
-- [ ] **Step 3:** `useBriefDiff.ts` — owns `diff`/`diffOpen`/`rerunning`, `beforeSnapshotRef`, `persistDiff`, `handleRerun`, `dismissDiff`.
-- [ ] Commit per hook — `refactor(frontend): extract use<X> from brief shell (FE5.3)`
+**Scope changed (Stanley, 2026-07-25) after challenging the task's value.** Two of the three stated justifications did not survive: *reuse* is zero (nothing else will ever consume these hooks) and *line count* is circular. The estimate was corrected too — the shell lands ~330–450, not the ~280 first claimed.
+
+The one justification that holds is testability. `useBriefOverrides` and `useBriefDiff` carry the server I/O this plan's Risks section flagged as uncovered, and inside a 2,500-line component that logic was untestable. So FE5.3 was upgraded from "move the hooks" (which captures only the weak benefits) to "move **and** test them", converting a one-time browser check at FE5.5 into permanent CI coverage.
+
+- [x] **Step 1:** `useProactiveScanRun.ts` (self-contained already) — verbatim lift with its cell mappers, no tests (SSE + multi-effect; still verified in-app at FE5.5).
+- [x] **Step 2:** `useBriefOverrides.ts` — owns `overrides` state, the server load, the localStorage→server migration, and `setOverride`. **12 tests.**
+- [x] **Step 3:** `useBriefDiff.ts` — owns `diff`/`diffOpen`/`rerunning`, `beforeSnapshotRef`, `persistDiff`, `handleRerun`, `dismissDiff`. **11 tests.**
+- [x] Commit — `refactor(frontend): extract brief hooks with tests (FE5.3)`
+
+**FE5.3 done (2026-07-25, `1b3c23f`).** Shell **1,868 → 1,593**; hooks 222 / 82 / 159. Suite **148 → 171**.
+
+Covered: server-first load; the one-time migration (PUT *then* clear, so it cannot run twice) and the local copy being retained when that PUT fails; fallback to local when the server errors; unparseable local JSON; reload on deal change; `setOverride` add/trim/clear-empties-the-panel/sibling-preservation and a swallowed PUT failure still landing the edit. For the diff: snapshot load/parse-failure/dismiss/deal-change, the two re-run guards, and a full lifecycle asserting the diff is computed against the *pre-run* snapshot, carries `previousAt` forward, opens the panel only when something changed, and persists.
+
+**One behaviour-preserving fix, caught by tsc:** `setDiffOpen` is typed `Dispatch<SetStateAction<boolean>>`, not the narrower `(open: boolean) => void` first written — the call site toggles via the functional-updater form, which the narrow type would have silently removed.
 
 ### FE5.4 — Extract the components, leaf-first
 
