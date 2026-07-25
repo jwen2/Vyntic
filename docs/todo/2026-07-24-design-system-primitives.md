@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (11 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun, TabularEditor, AssistantEditor, AssistantRun — `ddTheme` still referenced in 10 files, 7 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`). **All of `components/workflows/` is clean except `WorkflowsView.tsx` itself** (the hub, 19 refs, unconverted). DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (12 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun, TabularEditor, AssistantEditor, AssistantRun, WorkflowsView — `ddTheme` still referenced in 9 files, 6 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`). **All of `components/workflows/` is clean.** Remaining: `DealAssistantPanel.tsx`, `MonitoringPanel.tsx`, `DocumentDetailView.tsx` (dead code), and the 3 top-level pages. DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -103,6 +103,14 @@ This closes out every file under `components/workflows/` except `WorkflowsView.t
 Verified in headless Edge, light + dark, against "CIM → IC Memo Draft"'s checkpoint-status run: the checkpoint banner, paused stage rail item, amber "Awaiting review" label, sources-cited sidebar with citation cards, and Cancel button all matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
 
 **Process note:** a leftover backend process from an earlier turn survived a `taskkill` that reported success — `tasklist` could no longer find the PID, yet `:8000` kept responding. Not blocking, left running rather than blind-kill further PIDs; worth a manual check if a stray `uvicorn` is still around at session end.
+
+**Group 12 — `WorkflowsView.tsx` (`2e752b1`): done.** The workflow-screen router/hub — its own loading/error states plus the local `RunHistoryModal` helper convert; the top-level `theme` prop stays (still forwarded to `WorkflowLibrary`, unconverted for `isDark`). `RunHistoryModal` drops `theme` entirely; its call site updated.
+
+**Caught a real bug before it shipped:** converting `border: \`3px solid ${c.border}\`` to a bare `border: "3px solid"` string plus a `border-edge` class looked equivalent but isn't — the `border` shorthand resets every unspecified sub-property to its initial value, and `border-color`'s initial value is `currentColor`, not "whatever a class set". That would have silently discarded the class and painted the spinner ring in the current text color. Fixed by splitting into `borderWidth`/`borderStyle` longhands, which don't touch `border-color`, letting the class's `border-color: var(--border)` apply as intended. Audited every other border-shorthand conversion this sweep for the same mistake; found none — this is the only place a bare multi-value shorthand replaced one that used to carry a `${c.field}`.
+
+This retires `ddTheme` from every file under `components/workflows/` — no exceptions left in that directory.
+
+Verified in headless Edge, light + dark, against the Run History drawer: panel chrome, title, subtitle, close button, and both completed-run entries matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
 
 ## Progress (2026-07-24)
 
