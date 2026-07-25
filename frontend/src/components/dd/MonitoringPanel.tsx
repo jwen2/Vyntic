@@ -17,6 +17,7 @@ import {
   type ObligationDraft,
 } from "@/lib/api";
 import Button from "@/components/ui/Button";
+import SectionLabel from "@/components/ui/SectionLabel";
 
 type Sub = "calls" | "sideletters";
 type Verdict = "compliant" | "breach" | "unclear";
@@ -126,7 +127,7 @@ function CallsSection({ dealId, isAdmin, documents }: { dealId: string; isAdmin:
 
       {isAdmin && (
         <Card>
-          <SectionLabel>Process a notice</SectionLabel>
+          <SectionLabel variant="mono">Process a notice</SectionLabel>
           <p className="text-t2" style={{ margin: "4px 0 12px", fontSize: 13 }}>
             Pick an uploaded capital-call or distribution notice. Vyntic extracts the amount, due date, and purpose with citations for you to confirm.
           </p>
@@ -144,7 +145,7 @@ function CallsSection({ dealId, isAdmin, documents }: { dealId: string; isAdmin:
 
           {draft && (
             <div className="mt-4 rounded-[1rem] border border-accent-tint-border bg-accent-tint p-4">
-              <SectionLabel>Review extracted notice</SectionLabel>
+              <SectionLabel variant="mono">Review extracted notice</SectionLabel>
               <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 <Field label="Kind"><SelectMini value={draft.kind} options={["call", "distribution"]} onChange={(v) => setDraft({ ...draft, kind: v as CallNoticeDraft["kind"] })} /></Field>
                 <Field label="Amount"><InputMini value={draft.amount?.toString() ?? ""} onChange={(v) => setDraft({ ...draft, amount: v ? Number(v.replace(/,/g, "")) : null })} /></Field>
@@ -167,7 +168,7 @@ function CallsSection({ dealId, isAdmin, documents }: { dealId: string; isAdmin:
       )}
 
       <Card className="mt-4">
-        <SectionLabel>Queue</SectionLabel>
+        <SectionLabel variant="mono">Queue</SectionLabel>
         {notices.length === 0 ? (
           <Empty>No notices processed yet.</Empty>
         ) : (
@@ -263,7 +264,7 @@ function SideLettersSection({ dealId, isAdmin, documents }: { dealId: string; is
 
       {isAdmin && (
         <Card>
-          <SectionLabel>Extract obligations from a side letter</SectionLabel>
+          <SectionLabel variant="mono">Extract obligations from a side letter</SectionLabel>
           {slDocs.length === 0 ? (
             <Empty>No side-letter documents uploaded yet.</Empty>
           ) : (
@@ -278,7 +279,7 @@ function SideLettersSection({ dealId, isAdmin, documents }: { dealId: string; is
 
           {drafts && (
             <div className="mt-4 rounded-[1rem] border border-accent-tint-border bg-accent-tint p-4">
-              <SectionLabel>Review {drafts.length} obligation(s) before saving</SectionLabel>
+              <SectionLabel variant="mono">Review {drafts.length} obligation(s) before saving</SectionLabel>
               <ul className="mt-2 space-y-2">
                 {drafts.map((o, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-t1">
@@ -299,7 +300,7 @@ function SideLettersSection({ dealId, isAdmin, documents }: { dealId: string; is
 
       <Card className="mt-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <SectionLabel>Obligations & compliance</SectionLabel>
+          <SectionLabel variant="mono">Obligations & compliance</SectionLabel>
           {isAdmin && obligations.length > 0 && (
             <div className="flex items-center gap-2">
               <InputMini value={period} placeholder="2026-Q2" onChange={setPeriod} />
@@ -368,9 +369,6 @@ function SubTab({ label, active, onClick }: { label: string; active: boolean; on
 }
 function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={`rounded-[20px] border border-edge bg-surface p-[18px] ${className ?? ""}`}>{children}</div>;
-}
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="font-mono-plex text-t3" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase" }}>{children}</div>;
 }
 function Empty({ children }: { children: React.ReactNode }) {
   return <div className="mt-2 rounded-xl border border-dashed border-edge p-4 text-sm text-t3">{children}</div>;

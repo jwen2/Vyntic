@@ -40,7 +40,7 @@ export default function DocMatrixToolbar({
               value={gridSearch}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Filter grid..."
-              className="w-56 pl-7 pr-7 py-1.5 text-xs border border-edge rounded-md bg-surface text-t1 placeholder:text-t3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-56 pl-7 pr-7 py-1.5 text-xs border border-edge rounded-md bg-surface text-t1 placeholder:text-t3 focus:outline-none focus:ring-2 focus:ring-focus"
               autoFocus
             />
             {gridSearch && (
