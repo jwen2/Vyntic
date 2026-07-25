@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (5 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary — `ddTheme` still referenced in 16 files, 13 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (6 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput — `ddTheme` still referenced in 15 files, 12 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -63,6 +63,14 @@ Verified in headless Edge, light + dark, against both a plain deal (no Position 
 Verified in headless Edge, light + dark, against the live Workflows tab: page background, header card, search field, the workflow-count stat row (`text-accent`), a card's surface/border, its "Built-in" badge, and the "New workflow" dropdown menu — all matched tokens exactly.
 
 **Repeat process note:** two more background dev-server processes from this session survived their `TaskStop` calls; both had to be found via `netstat` and `taskkill`'d directly. Treat `TaskStop` as "requested," not "confirmed," for any server used in the next verification pass.
+
+**Group 6 — `MemoOutput.tsx` (`fce8321`): done.** The memo/extraction output screen — a clean leaf (only `DocumentViewer`/`AnswerText`, neither theme-aware), so `theme` drops entirely from the component and both its helpers (`MemoSection`, `SectionLabel`); it existed solely to reach `ddTheme`. `WorkflowsView.tsx`'s call site updated.
+
+This file's `SectionLabel` is another instance of the six-times-duplicated component the pilot flagged — converted in place to match the already-converted `tabular-run/parts.tsx` version, without consolidating the duplication (still DS3 scope).
+
+Verified in headless Edge, light + dark, against a completed assistant run ("CIM → IC Memo Draft" run #1 — the workflow's other two runs are checkpoint-status and don't reach this screen). Crumb, h1, TOC sidebar chrome, TOC links, and the Sources section label all matched their tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
+
+Both this session's background dev servers again outlived their `TaskStop` calls; caught and force-killed via `netstat`/`taskkill` before verifying, same as the last two groups.
 
 ## Progress (2026-07-24)
 
