@@ -1,6 +1,7 @@
 // Analyst next-actions list. Extracted from DealBriefDashboard.tsx (FE5.4).
 
 import { useState } from "react";
+import Card from "@/components/ui/Card";
 import { type Citation } from "@/lib/api";
 import { type ThesisBullet } from "./config";
 import { Placeholder, SourceChip, lineClamp } from "./parts";
@@ -8,13 +9,7 @@ import { Placeholder, SourceChip, lineClamp } from "./parts";
 export function ActionsPanel({ actions, citations, onCit }: { actions: ThesisBullet[]; citations: (Citation | null)[]; onCit?: (sourceIdx: number) => void }) {
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   return (
-    <div
-      className="border border-edge bg-surface"
-      style={{
-        padding: 16,
-        borderRadius: 24,
-      }}
-    >
+    <Card level="panel">
       <div
         className="font-mono-plex text-t3"
         style={{
@@ -82,7 +77,7 @@ export function ActionsPanel({ actions, citations, onCit }: { actions: ThesisBul
       ) : (
         <Placeholder text="Next actions will be generated from the scan" />
       )}
-    </div>
+    </Card>
   );
 }
 

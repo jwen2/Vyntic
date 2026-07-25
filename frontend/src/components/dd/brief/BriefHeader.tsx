@@ -4,6 +4,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import type { BriefEntityConfig } from "./config";
 import type { BriefDiffSnapshot } from "./diff";
 import {
@@ -56,16 +57,7 @@ export default function BriefHeader({
   onOpenProactiveScan,
 }: BriefHeaderProps) {
   return (
-  <div
-    className="border border-edge bg-surface"
-    style={{
-      borderRadius: 28,
-      padding: "20px",
-      boxShadow: theme === "dark"
-        ? "0 16px 34px rgba(0,0,0,0.44)"
-        : "0 12px 30px rgba(17,17,17,0.11), 0 1px 2px rgba(17,17,17,0.05)",
-    }}
-  >
+  <Card level="hero">
     <div
       className="font-mono-plex text-t3"
       style={{
@@ -153,6 +145,6 @@ export default function BriefHeader({
         detail="Cross-document inconsistencies"
       />
     </div>
-  </div>
+  </Card>
   );
 }

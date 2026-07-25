@@ -2,6 +2,7 @@
 // fields. Extracted from DealBriefDashboard.tsx (FE5.4).
 
 import { useEffect, useState } from "react";
+import Card from "@/components/ui/Card";
 import { type Citation } from "@/lib/api";
 import { ACCENT } from "../types";
 import { type BriefField } from "./config";
@@ -30,14 +31,7 @@ export function BriefPanel({
   const fallbackItems = fields.length === 0 ? extractBullets(fallback).slice(0, 4) : [];
 
   return (
-    <div
-      className="border border-edge bg-surface"
-      style={{
-        padding: 16,
-        borderRadius: 24,
-        minHeight: 220,
-      }}
-    >
+    <Card level="panel" style={{ minHeight: 220 }}>
       <div
         className="font-mono-plex text-t3"
         style={{
@@ -68,7 +62,7 @@ export function BriefPanel({
       ) : (
         <Placeholder text="Awaiting scan output" />
       )}
-    </div>
+    </Card>
   );
 }
 

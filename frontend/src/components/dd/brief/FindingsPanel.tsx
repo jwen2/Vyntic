@@ -2,6 +2,7 @@
 // Extracted from DealBriefDashboard.tsx (FE5.4).
 
 import { useCallback, useState } from "react";
+import Card from "@/components/ui/Card";
 import { SEV_COLOR, type Finding } from "../types";
 import { CountBadge, Placeholder, SeverityDot, lineClamp } from "./parts";
 
@@ -29,13 +30,7 @@ export function FindingsPanel({
   );
 
   return (
-    <div
-      className="border border-edge bg-surface"
-      style={{
-        padding: 16,
-        borderRadius: 24,
-      }}
-    >
+    <Card level="panel">
       <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
         <div
           className="font-mono-plex text-t3"
@@ -139,7 +134,7 @@ export function FindingsPanel({
       ) : (
         <Placeholder text="Scan findings will appear here" />
       )}
-    </div>
+    </Card>
   );
 }
 

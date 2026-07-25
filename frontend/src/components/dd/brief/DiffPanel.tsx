@@ -2,6 +2,7 @@
 // DealBriefDashboard.tsx (FE5.4).
 
 import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import { formatRelativeTime, type BriefDiffSnapshot, type FieldDiff } from "./diff";
 
 export function DiffPanel({
@@ -14,13 +15,7 @@ export function DiffPanel({
   onClose: () => void;
 }) {
   return (
-    <div
-      className="border border-edge bg-surface"
-      style={{
-        borderRadius: 24,
-        padding: "16px",
-      }}
-    >
+    <Card level="panel">
       <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
         <span className="text-t1" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           Changes since {diff.previousAt ? formatRelativeTime(diff.previousAt) : "previous run"}
@@ -38,7 +33,7 @@ export function DiffPanel({
           <DiffRow key={`${change.panel}-${change.label}-${idx}`} change={change} />
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 

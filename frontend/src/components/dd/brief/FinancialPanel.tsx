@@ -2,6 +2,7 @@
 // Extracted from DealBriefDashboard.tsx (FE5.4).
 
 import { useEffect, useMemo, useState } from "react";
+import Card from "@/components/ui/Card";
 import { ACCENT } from "../types";
 import { type ChartSeries, type FinancialTable, type FinancialView, type Metric } from "./config";
 import { buildChartSeries, extractBullets } from "./parse";
@@ -45,13 +46,7 @@ export function FinancialPanel({
   }, [annualTable, fallbackItems.length, metrics.length, quarterlyTable, userView]);
 
   return (
-    <div
-      className="border border-edge bg-surface"
-      style={{
-        padding: 16,
-        borderRadius: 24,
-      }}
-    >
+    <Card level="panel">
       <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
         <div
           className="font-mono-plex text-t3"
@@ -88,7 +83,7 @@ export function FinancialPanel({
       ) : !hasStructuredData ? (
         <Placeholder text="No financial metrics extracted yet" />
       ) : null}
-    </div>
+    </Card>
   );
 }
 

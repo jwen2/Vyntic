@@ -1,6 +1,7 @@
 // Investment thesis columns (thesis / levers / exit / risks).
 // Extracted from DealBriefDashboard.tsx (FE5.4).
 
+import Card from "@/components/ui/Card";
 import { type Citation } from "@/lib/api";
 import { ACCENT } from "../types";
 import { type ThesisBullet, type ThesisSections } from "./config";
@@ -30,13 +31,7 @@ export function ThesisPanel({
   const fallbackBullets: ThesisBullet[] = hasAny ? [] : extractBulletsWithSources(fallback).slice(0, 6);
 
   return (
-    <div
-      className="border border-edge bg-surface"
-      style={{
-        padding: 16,
-        borderRadius: 24,
-      }}
-    >
+    <Card level="panel">
       <div className="flex items-center" style={{ gap: 8, marginBottom: 10 }}>
         <div
           className="font-mono-plex text-t3"
@@ -64,7 +59,7 @@ export function ThesisPanel({
       ) : (
         <Placeholder text="Thesis synthesis will appear here once the scan completes" />
       )}
-    </div>
+    </Card>
   );
 }
 

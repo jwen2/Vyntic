@@ -1,6 +1,7 @@
 // Pre-run empty state for the brief. Extracted from DealBriefDashboard.tsx (FE5.4).
 
 import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import { type BriefEntityConfig } from "./config";
 
 export function EmptyBrief({ onOpenProactiveScan, config }: { onOpenProactiveScan: () => void; config: BriefEntityConfig }) {
@@ -9,13 +10,7 @@ export function EmptyBrief({ onOpenProactiveScan, config }: { onOpenProactiveSca
     ? "Run the fund brief to extract the fund snapshot, terms vs. market, track record, key risks, and analyst next steps from the manager's documents."
     : "Run the proactive scan to extract target profile, transaction terms, financial highlights, key risks, and analyst next steps from the current VDR.";
   return (
-    <div
-      className="border border-dashed border-edge bg-surface"
-      style={{
-        padding: "24px",
-        borderRadius: 28,
-      }}
-    >
+    <Card level="hero" dashed>
       <div
         className="font-mono-plex text-t3"
         style={{
@@ -39,7 +34,7 @@ export function EmptyBrief({ onOpenProactiveScan, config }: { onOpenProactiveSca
           Run {config.runLabel.toLowerCase()}
         </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
