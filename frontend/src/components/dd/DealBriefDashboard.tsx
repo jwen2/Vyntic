@@ -59,6 +59,9 @@ import {
   isInconsistencyFinding,
   resultByLabel,
 } from "./brief/findings";
+import { useProactiveScanRun } from "./brief/useProactiveScanRun";
+import { useBriefOverrides } from "./brief/useBriefOverrides";
+import { useBriefDiff } from "./brief/useBriefDiff";
 
 
 
@@ -82,207 +85,10 @@ interface Props {
   onFindingsExtracted?: (findings: Finding[]) => void;
 }
 
-/**
- * The prose panels (financial highlights, investment thesis) parse the cell's
- * free-form text via extractMetrics / extractFinancialTables /
- * extractThesisSections. Prefer the typed `body`, then `summary`, then the raw
- * streamed answer. KV and list panels don't use this — they read the cell's
- * typed `answer_formatted` directly (see pairsToFields / deriveActions), so the
- * old JSON→fake-markdown→regex round-trip is gone.
- */
-function briefProse(cell: TabularCell): string {
-  const raw = cell.answer || "";
-  const formatted = cell.answer_formatted;
-  if (formatted && typeof formatted === "object" && !Array.isArray(formatted)) {
-    const prose = formatted as { summary?: string; body?: string };
-    if (typeof prose.body === "string" && prose.body.trim()) return prose.body;
-    if (typeof prose.summary === "string" && prose.summary.trim()) return prose.summary;
-  }
-  return raw;
-}
 
-function cellToQuestionResult(cell: TabularCell): QuestionResult {
-  return {
-    answer: briefProse(cell),
-    formatted: cell.answer_formatted,
-    citations: cell.citations || [],
-    status:
-      cell.status === "complete"
-        ? "complete"
-        : cell.status === "error"
-          ? "error"
-          : cell.status === "running"
-            ? "loading"
-            : "pending",
-    model: cell.model,
-    fallback: cell.fallback,
-    duration_ms: cell.duration_ms,
-    completed_at: cell.completed_at ? new Date(cell.completed_at).getTime() : undefined,
-  };
-}
 
-function cellsToScanResults(cells: TabularCell[], columns: WorkflowColumn[]): Record<string, QuestionResult> {
-  const colById = new Map(columns.map((col) => [col.id, col]));
-  const out: Record<string, QuestionResult> = {};
-  for (const cell of cells) {
-    const col = colById.get(cell.column_id);
-    if (!col) continue;
-    // Brief lookups key by template.query == column.prompt verbatim.
-    out[col.prompt] = cellToQuestionResult(cell);
-  }
-  return out;
-}
 
-function workflowToScanShim(workflow: Workflow | null): BriefWorkstreamShim | null {
-  if (!workflow || workflow.type !== "tabular") return null;
-  return {
-    id: "proactive_scan",
-    templates: workflow.columns
-      .slice()
-      .sort((a, b) => a.order_index - b.order_index)
-      .map((col) => ({ label: col.label, query: col.prompt })),
-  };
-}
 
-/**
- * Fetches the latest Proactive Scan workflow run for the deal and exposes it
- * in the legacy QuestionResult shape so the brief's parsing/rendering code
- * (~1.5k lines below) can stay untouched.
- */
-function useProactiveScanRun(dealId: string, workflowId: string) {
-  const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [run, setRun] = useState<WorkflowRun | null>(null);
-  const [scanResults, setScanResults] = useState<Record<string, QuestionResult>>({});
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch the workflow definition once on mount (or dealId/workflow change) so
-  // we know the column layout the brief expects.
-  useEffect(() => {
-    let active = true;
-    setWorkflow(null);
-    setRun(null);
-    setScanResults({});
-    getWorkflow(dealId, workflowId)
-      .then((wf) => {
-        if (active) setWorkflow(wf);
-      })
-      .catch((err) => {
-        if (active) setError((err as Error).message);
-      });
-    return () => {
-      active = false;
-    };
-  }, [dealId, workflowId]);
-
-  // Fetch the latest run on dealId change. We take the most recent non-aborted
-  // run — pending/running/complete are all worth surfacing (the SSE
-  // subscription below transitions a pending run to populated as cells stream
-  // in). Only "cancelled" and "error" are skipped.
-  useEffect(() => {
-    let active = true;
-    listRuns(dealId, workflowId)
-      .then((runs) => {
-        if (!active) return;
-        const sorted = [...runs].sort((a, b) =>
-          (b.started_at || "").localeCompare(a.started_at || ""),
-        );
-        const latest =
-          sorted.find((r) => r.status !== "cancelled" && r.status !== "error") ?? null;
-        setRun(latest);
-        if (latest && workflow) {
-          setScanResults(cellsToScanResults(latest.cells, workflow.columns));
-        } else {
-          setScanResults({});
-        }
-      })
-      .catch((err) => {
-        if (active) setError((err as Error).message);
-      });
-    return () => {
-      active = false;
-    };
-  }, [dealId, workflowId, workflow]);
-
-  // SSE subscription keyed by runId (not the full run object). Using the id
-  // avoids reconnect churn: each "snapshot" event calls setRun(event.run)
-  // which creates a new reference, but the id is stable across status
-  // transitions, so the subscription stays open until the run actually
-  // changes (e.g. the user kicks off a new one).
-  const runId = run?.id ?? null;
-  useEffect(() => {
-    if (!runId || !workflow) return;
-    const unsubscribe = subscribeRun(runId, (event: RunStreamEvent) => {
-      if (event.type === "snapshot") {
-        setRun(event.run);
-        setScanResults(cellsToScanResults(event.run.cells, workflow.columns));
-      } else if (event.type === "cell") {
-        setScanResults((prev) => {
-          const col = workflow.columns.find((c) => c.id === event.cell.column_id);
-          if (!col) return prev;
-          return {
-            ...prev,
-            [col.prompt]: cellToQuestionResult(event.cell),
-          };
-        });
-      } else if (event.type === "run") {
-        setRun((prev) => (prev ? { ...prev, status: event.status } : prev));
-      }
-    });
-    return unsubscribe;
-  }, [runId, workflow]);
-
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    setError(null);
-    try {
-      const docs = await listDocuments(dealId);
-      if (docs.length === 0) {
-        throw new Error("Upload at least one document before running the brief.");
-      }
-      const newRun = await startWorkflowRun(
-        dealId,
-        workflowId,
-        docs.map((d) => d.doc_id),
-        [],
-      );
-      setRun(newRun);
-      // Seed scanResults with loading state for every column so the UI shows
-      // the panels animating while cells stream in.
-      if (workflow) {
-        const seeded: Record<string, QuestionResult> = {};
-        for (const col of workflow.columns) {
-          seeded[col.prompt] = { answer: "", citations: [], status: "loading" };
-        }
-        setScanResults(seeded);
-      }
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [dealId, workflowId, workflow]);
-
-  // Extract structured findings from the latest run's cells. Pure derived
-  // state — recomputes whenever the run changes. The brief's findings panel
-  // reads from here; the parent useFindings hook is fed via the
-  // onFindingsExtracted callback in the dashboard body.
-  const findings: Finding[] = useMemo(() => {
-    if (!run || !workflow) return [];
-    return extractFindingsFromRun(run.cells, workflow.columns);
-  }, [run, workflow]);
-
-  return {
-    workflow,
-    run,
-    scanWorkstream: workflowToScanShim(workflow),
-    scanResults,
-    findings,
-    refresh,
-    refreshing,
-    error,
-  };
-}
 
 
 
@@ -357,66 +163,7 @@ export default function DealBriefDashboard({
   const hasAnyCompleted = Object.values(scanResults).some((r) => r.status === "complete");
   const onOpenProactiveScan = kickOffRun;
 
-  const [overrides, setOverrides] = useState<OverrideStore>({});
-
-  // Load overrides from the server; migrate localStorage up once if empty.
-  useEffect(() => {
-    let active = true;
-    const readLocal = (): OverrideStore => {
-      try {
-        const raw = localStorage.getItem(OVERRIDE_KEY_PREFIX + dealId);
-        return raw ? (JSON.parse(raw) as OverrideStore) : {};
-      } catch {
-        return {};
-      }
-    };
-    (async () => {
-      try {
-        const server = await getBriefOverrides(dealId);
-        if (!active) return;
-        if (Object.keys(server).length > 0) {
-          setOverrides(server);
-          return;
-        }
-        const local = readLocal();
-        if (Object.keys(local).length > 0) {
-          setOverrides(local);
-          try {
-            await putBriefOverrides(dealId, local);
-            if (active) localStorage.removeItem(OVERRIDE_KEY_PREFIX + dealId);
-          } catch {}
-        } else {
-          setOverrides({});
-        }
-      } catch {
-        if (active) setOverrides(readLocal());
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [dealId]);
-
-  const setOverride = useCallback(
-    (panelKey: string, label: string, value: string | null) => {
-      setOverrides((prev) => {
-        const panel = { ...(prev[panelKey] || {}) };
-        const trimmed = value?.trim() ?? "";
-        if (!trimmed) {
-          delete panel[label];
-        } else {
-          panel[label] = trimmed;
-        }
-        const next: OverrideStore = { ...prev };
-        if (Object.keys(panel).length > 0) next[panelKey] = panel;
-        else delete next[panelKey];
-        // Best-effort server persistence (last-write-wins).
-        void putBriefOverrides(dealId, next).catch(() => {});
-        return next;
-      });
-    },
-    [dealId]
-  );
+  const { overrides, setOverride } = useBriefOverrides(dealId);
 
   const snapshotResult = resultByLabel(scanWorkstream, scanResults, brief.snapshotLabel);
   const transactionResult = resultByLabel(scanWorkstream, scanResults, brief.transactionLabel);
@@ -445,92 +192,28 @@ export default function DealBriefDashboard({
     return max || null;
   }, [scanResults]);
 
-  const [rerunning, setRerunning] = useState(false);
-  const [diff, setDiff] = useState<BriefDiffSnapshot | null>(null);
-  const [diffOpen, setDiffOpen] = useState(false);
-  const beforeSnapshotRef = useRef<{
-    snapshot: BriefField[];
-    transaction: BriefField[];
-    previousAt?: number;
-  } | null>(null);
+  const {
+    diff,
+    diffOpen,
+    setDiffOpen,
+    rerunning,
+    handleRerun,
+    dismissDiff,
+  } = useBriefDiff({
+    dealId,
+    brief,
+    scanWorkstream,
+    scanResults,
+    overrides,
+    snapshotFields,
+    transactionFields,
+    lastScanAt,
+    refreshing,
+    hasAnyCompleted,
+    isLoading,
+    kickOffRun,
+  });
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem(DIFF_KEY_PREFIX + dealId);
-      setDiff(raw ? (JSON.parse(raw) as BriefDiffSnapshot) : null);
-    } catch {
-      setDiff(null);
-    }
-    setDiffOpen(false);
-  }, [dealId]);
-
-  const persistDiff = useCallback(
-    (next: BriefDiffSnapshot | null) => {
-      setDiff(next);
-      if (typeof window === "undefined") return;
-      try {
-        if (next) localStorage.setItem(DIFF_KEY_PREFIX + dealId, JSON.stringify(next));
-        else localStorage.removeItem(DIFF_KEY_PREFIX + dealId);
-      } catch {}
-    },
-    [dealId]
-  );
-
-  const handleRerun = useCallback(() => {
-    if (refreshing || !scanWorkstream) return;
-    beforeSnapshotRef.current = {
-      snapshot: snapshotFields.map((f) => ({ ...f })),
-      transaction: transactionFields.map((f) => ({ ...f })),
-      previousAt: lastScanAt ?? undefined,
-    };
-    setRerunning(true);
-    void kickOffRun().finally(() => setRerunning(false));
-    // Diff snapshot logic stays — once the new run completes the hook updates
-    // scanResults via SSE and the field-extraction below re-derives fields.
-    // We compute the diff in a separate effect (see below).
-  }, [kickOffRun, lastScanAt, refreshing, scanWorkstream, snapshotFields, transactionFields]);
-
-  // After a rerun completes, compute the diff against the snapshot we took
-  // at kickoff time. `rerunning` flips to false once the new run is queued,
-  // but we want to wait until ALL cells are complete to compare.
-  useEffect(() => {
-    if (rerunning) return;
-    const before = beforeSnapshotRef.current;
-    if (!before) return;
-    if (!hasAnyCompleted || isLoading) return;
-    if (!scanWorkstream) return;
-    const newSnapshotFields = mergeOverrides(
-      pairsToFields(
-        scanResults[scanWorkstream.templates.find((t) => t.label === brief.snapshotLabel)?.query || ""]?.formatted,
-        brief.snapshotFields,
-      ),
-      overrides.snapshot,
-      brief.snapshotFields,
-    );
-    const newTransactionFields = mergeOverrides(
-      pairsToFields(
-        scanResults[scanWorkstream.templates.find((t) => t.label === brief.transactionLabel)?.query || ""]?.formatted,
-        brief.transactionFields,
-      ),
-      overrides.transaction,
-      brief.transactionFields,
-    );
-    const changes = [
-      ...diffPanel("snapshot", brief.snapshotLabel, before.snapshot, newSnapshotFields),
-      ...diffPanel("transaction", brief.transactionDiffLabel, before.transaction, newTransactionFields),
-    ];
-    const next: BriefDiffSnapshot = { changes, at: Date.now(), previousAt: before.previousAt };
-    persistDiff(next);
-    if (changes.length > 0) setDiffOpen(true);
-    beforeSnapshotRef.current = null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasAnyCompleted, isLoading, rerunning]);
-
-  const dismissDiff = useCallback(() => {
-    persistDiff(null);
-    setDiffOpen(false);
-  }, [persistDiff]);
   const metrics = extractMetrics(financialResult?.answer);
   const financialTables = extractFinancialTables(financialResult?.answer);
   const thesisSections = extractThesisSections(thesisResult?.answer);
