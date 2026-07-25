@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (8 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun — `ddTheme` still referenced in 13 files, 10 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (9 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun, TabularEditor — `ddTheme` still referenced in 12 files, 9 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -81,6 +81,14 @@ Verified in headless Edge, light + dark, against a completed "Contract Stack Rev
 **Group 8 — `TabularRun.tsx` (`31be933`): done.** The last `ddTheme` holdout in the tabular-run cluster started by the pilot — only 5 refs (the error-state screen and main container's bg/text), all static. `theme` drops entirely; `WorkflowsView.tsx`'s call site updated (it keeps its own `theme`, 19 refs remaining). This retires `ddTheme` from every file under `components/workflows/tabular-run/` and `components/workflows/cells/` — both directories the pilot and group 2 targeted are now fully clean.
 
 The main container's tokens were already exercised in every prior tabular-run screenshot this session, so verification targeted the one genuinely new path: `m.error && !m.run`, reached by routing `GET /runs/**` to a 500 via Playwright request interception (browser-side only — no backend or data touched). "Couldn't load run" heading, error detail text, and background all matched tokens in both themes. tsc clean, lint unchanged, 76 tests, build green.
+
+**Group 9 — `TabularEditor.tsx` (`f013d8b`): done.** The tabular workflow create/edit screen. No `isDark` usage anywhere, so `theme` drops entirely — `TabularEditorProps` and every helper (`SectionLabel`, `Field`, `ColumnCard`, `SmallIconButton`, `GridPreview`, `cellStyle`). `WorkflowsView.tsx`'s two call sites (create and edit mode) updated.
+
+`inputStyle(c)` (a `CSSProperties` factory feeding 4 inputs/textareas) becomes a single `inputClass` string — same pattern as the pilot's `styles.ts`. `ColumnCard`'s active-state border (`VIOLET`, not a token) and `cellStyle()` (consumed via the `style` prop, not `className`, so it stays a plain-object factory) got `var(...)` substitution rather than a class split.
+
+Fourth converted instance of the six-times-duplicated `SectionLabel` — left duplicated, still DS3 scope.
+
+Verified in headless Edge, light + dark, against "Contract Stack Review (Copy)"'s editor: active row-source toggle, the active column card's violet border, `ShapePicker`'s active tile, the label input, the dashed "Add column" button, the grid preview table, and the derived-columns empty state all matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
 
 ## Progress (2026-07-24)
 
