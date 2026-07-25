@@ -9,7 +9,6 @@ import {
   listManagerFunds,
 } from "@/lib/api";
 import { useTheme } from "@/components/ThemeProvider";
-import { ddTheme } from "@/components/dd/types";
 import Button from "@/components/ui/Button";
 import { stageBadge } from "@/lib/stageBadges";
 
@@ -18,7 +17,6 @@ export default function ManagerPage() {
   const managerId = managerIdParam ?? "";
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const c = ddTheme(theme);
   const isDark = theme === "dark";
 
   const managerQuery = useQuery({
@@ -48,20 +46,20 @@ export default function ManagerPage() {
 
   if (!managerIdParam) return null;
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center" style={{ background: c.bg }}><div className="dd-spin h-8 w-8 rounded-full border-4" style={{ borderColor: c.border, borderTopColor: c.accent }} /></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-appbg"><div className="dd-spin h-8 w-8 rounded-full border-4 border-edge" style={{ borderTopColor: "var(--accent)" }} /></div>;
   }
   if (!managerQuery.data) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6" style={{ background: c.bg, color: c.t1 }}>
-        <div className="text-center"><h1 className="text-xl font-semibold">Manager not found</h1><p className="mt-2 text-sm" style={{ color: c.t2 }}>{managerQuery.error instanceof Error ? managerQuery.error.message : "This manager is unavailable."}</p><Button variant="primary" size="sm" className="mt-5" onClick={() => navigate("/app")}>All funds</Button></div>
+      <div className="flex min-h-screen items-center justify-center px-6 bg-appbg text-t1">
+        <div className="text-center"><h1 className="text-xl font-semibold">Manager not found</h1><p className="mt-2 text-sm text-t2">{managerQuery.error instanceof Error ? managerQuery.error.message : "This manager is unavailable."}</p><Button variant="primary" size="sm" className="mt-5" onClick={() => navigate("/app")}>All funds</Button></div>
       </div>
     );
   }
 
   const manager = managerQuery.data;
   return (
-    <div className="min-h-screen" style={{ background: c.bg, color: c.t1, fontFamily: "'IBM Plex Sans', sans-serif" }}>
-      <header className="border-b px-5 py-4 sm:px-8" style={{ background: c.surface, borderColor: c.border }}>
+    <div className="min-h-screen bg-appbg text-t1" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+      <header className="border-b border-b-edge bg-surface px-5 py-4 sm:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <Button variant="secondary" size="sm" onClick={() => navigate("/app")}>← All funds</Button>
           <Button variant="secondary" size="sm" iconOnly aria-label="Toggle theme" onClick={toggleTheme} style={{ fontSize: 15 }}>{isDark ? "☀" : "☾"}</Button>
@@ -69,27 +67,58 @@ export default function ManagerPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
-        <section className="rounded-[2rem] border p-6 sm:p-8" style={{ borderColor: c.border, background: c.surface }}>
-          <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em]" style={{ color: c.t3 }}>Fund manager</div>
+        <section className="rounded-[2rem] border border-edge bg-surface p-6 sm:p-8">
+          <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-t3">Fund manager</div>
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-3xl font-semibold sm:text-4xl">{manager.name}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6" style={{ color: c.t2 }}>{manager.description || "No manager description has been added yet."}</p>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-t2">{manager.description || "No manager description has been added yet."}</p>
             </div>
-            <div className="rounded-full border px-4 py-3 text-center" style={{ borderColor: c.accentTintBorder, background: c.accentTint }}>
-              <div className="font-mono-plex text-[9px] uppercase tracking-[0.14em]" style={{ color: c.t3 }}>Funds</div>
-              <div className="mt-1 text-xl font-semibold" style={{ color: c.accentStrong }}>{manager.fund_count}</div>
+            <div className="rounded-full border border-accent-tint-border bg-accent-tint px-4 py-3 text-center">
+              <div className="font-mono-plex text-[9px] uppercase tracking-[0.14em] text-t3">Funds</div>
+              <div className="mt-1 text-xl font-semibold text-accent-strong">{manager.fund_count}</div>
             </div>
           </div>
         </section>
 
         <section className="mt-10">
-          <div className="flex items-end justify-between"><div><div className="font-mono-plex text-[10px] uppercase tracking-[0.18em]" style={{ color: c.t3 }}>Portfolio</div><h2 className="mt-2 text-2xl font-semibold">Funds</h2></div><span className="text-sm" style={{ color: c.t2 }}>{funds.length} visible</span></div>
-          {fundsQuery.error ? <ErrorCard message={fundsQuery.error instanceof Error ? fundsQuery.error.message : "Could not load funds."} theme={theme} /> : funds.length === 0 ? <EmptyCard text="No accessible funds are linked to this manager." theme={theme} /> : (
+          <div className="flex items-end justify-between"><div><div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-t3">Portfolio</div><h2 className="mt-2 text-2xl font-semibold">Funds</h2></div><span className="text-sm text-t2">{funds.length} visible</span></div>
+          {fundsQuery.error ? <ErrorCard message={fundsQuery.error instanceof Error ? fundsQuery.error.message : "Could not load funds."} /> : funds.length === 0 ? <EmptyCard text="No accessible funds are linked to this manager." /> : (
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {funds.map((fund) => {
                 const badge = stageBadge(fund.stage, isDark);
-                return <button key={fund.deal_id} type="button" onClick={() => navigate(`/deal/${encodeURIComponent(fund.deal_id)}`)} className="rounded-[1.5rem] border p-5 text-left transition-transform hover:-translate-y-0.5" style={{ borderColor: c.border, background: c.surface, color: c.t1 }}><div className="flex items-start justify-between gap-3"><div><div className="font-mono-plex text-[9px] uppercase tracking-[0.14em]" style={{ color: c.t3 }}>{fund.vintage ?? "Vintage —"}</div><h3 className="mt-2 text-lg font-semibold">{fund.name}</h3></div><span className="rounded-full border px-2.5 py-1 font-mono-plex text-[9px] uppercase tracking-[0.1em]" style={{ background: badge?.bg ?? c.surfaceAlt, borderColor: badge?.border ?? c.border, color: badge?.fg ?? c.t2 }}>{fund.stage}</span></div><div className="mt-6 flex items-center justify-between text-sm" style={{ color: c.t2 }}><span>{fund.strategy || "Strategy not set"}</span><span>{fund.document_count} docs →</span></div></button>;
+                return (
+                  <button
+                    key={fund.deal_id}
+                    type="button"
+                    onClick={() => navigate(`/deal/${encodeURIComponent(fund.deal_id)}`)}
+                    className="rounded-[1.5rem] border border-edge bg-surface text-t1 p-5 text-left transition-transform hover:-translate-y-0.5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-mono-plex text-[9px] uppercase tracking-[0.14em] text-t3">{fund.vintage ?? "Vintage —"}</div>
+                        <h3 className="mt-2 text-lg font-semibold">{fund.name}</h3>
+                      </div>
+                      <span
+                        className="rounded-full border px-2.5 py-1 font-mono-plex text-[9px] uppercase tracking-[0.1em]"
+                        // Fund-stage badges are data-driven (stageBadge()); the
+                        // ddTheme fallback for an unrecognized stage is the
+                        // only token here, so this stays inline.
+                        style={{
+                          background: badge?.bg ?? "var(--surface-alt)",
+                          borderColor: badge?.border ?? "var(--border)",
+                          color: badge?.fg ?? "var(--text-2)",
+                        }}
+                      >
+                        {fund.stage}
+                      </span>
+                    </div>
+                    <div className="mt-6 flex items-center justify-between text-sm text-t2">
+                      <span>{fund.strategy || "Strategy not set"}</span>
+                      <span>{fund.document_count} docs →</span>
+                    </div>
+                  </button>
+                );
               })}
             </div>
           )}
@@ -97,12 +126,22 @@ export default function ManagerPage() {
 
         {!documentsForbidden && (
           <section className="mt-12">
-            <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em]" style={{ color: c.t3 }}>Manager scope</div>
+            <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-t3">Manager scope</div>
             <h2 className="mt-2 text-2xl font-semibold">Shared documents</h2>
-            <p className="mt-2 text-sm" style={{ color: c.t2 }}>Documents shared across sibling funds for this manager.</p>
-            {documentsQuery.error ? <ErrorCard message={documentsQuery.error instanceof Error ? documentsQuery.error.message : "Could not load shared documents."} theme={theme} /> : (documentsQuery.data?.length ?? 0) === 0 ? <EmptyCard text="No manager-scoped documents yet." theme={theme} /> : (
-              <div className="mt-5 overflow-hidden rounded-[1.5rem] border" style={{ borderColor: c.border, background: c.surface }}>
-                {documentsQuery.data!.map((doc) => <div key={doc.doc_id} className="flex flex-col gap-3 border-b px-5 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: c.borderLight }}><div className="min-w-0"><div className="truncate text-sm font-semibold">{doc.filename}</div><div className="mt-1 text-xs" style={{ color: c.t3 }}>Owned by {fundNames.get(doc.deal_id) ?? doc.deal_id}</div></div><span className="w-fit rounded-full border px-3 py-1 font-mono-plex text-[9px] uppercase tracking-[0.1em]" style={{ borderColor: c.accentTintBorder, background: c.accentTint, color: c.accentStrong }}>{DOC_CATEGORY_LABELS[doc.doc_category] ?? doc.doc_category}</span></div>)}
+            <p className="mt-2 text-sm text-t2">Documents shared across sibling funds for this manager.</p>
+            {documentsQuery.error ? <ErrorCard message={documentsQuery.error instanceof Error ? documentsQuery.error.message : "Could not load shared documents."} /> : (documentsQuery.data?.length ?? 0) === 0 ? <EmptyCard text="No manager-scoped documents yet." /> : (
+              <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-edge bg-surface">
+                {documentsQuery.data!.map((doc) => (
+                  <div key={doc.doc_id} className="flex flex-col gap-3 border-b border-b-edge-light px-5 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">{doc.filename}</div>
+                      <div className="mt-1 text-xs text-t3">Owned by {fundNames.get(doc.deal_id) ?? doc.deal_id}</div>
+                    </div>
+                    <span className="w-fit rounded-full border border-accent-tint-border bg-accent-tint text-accent-strong px-3 py-1 font-mono-plex text-[9px] uppercase tracking-[0.1em]">
+                      {DOC_CATEGORY_LABELS[doc.doc_category] ?? doc.doc_category}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </section>
@@ -112,12 +151,10 @@ export default function ManagerPage() {
   );
 }
 
-function EmptyCard({ text, theme }: { text: string; theme: "light" | "dark" }) {
-  const c = ddTheme(theme);
-  return <div className="mt-5 rounded-[1.5rem] border px-5 py-8 text-center text-sm" style={{ borderColor: c.border, background: c.surface, color: c.t2 }}>{text}</div>;
+function EmptyCard({ text }: { text: string }) {
+  return <div className="mt-5 rounded-[1.5rem] border border-edge bg-surface text-t2 px-5 py-8 text-center text-sm">{text}</div>;
 }
 
-function ErrorCard({ message, theme }: { message: string; theme: "light" | "dark" }) {
-  const isDark = theme === "dark";
+function ErrorCard({ message }: { message: string }) {
   return <div className="mt-5 rounded-[1.5rem] border px-5 py-4 text-sm" style={{ borderColor: "var(--danger-tint-border)", background: "var(--danger-tint)", color: "var(--danger)" }}>{message}</div>;
 }
