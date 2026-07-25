@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (10 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun, TabularEditor, AssistantEditor — `ddTheme` still referenced in 11 files, 8 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`); DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (11 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs, TopBar/LeftSidebar, WorkflowCard/WorkflowLibrary, MemoOutput, CompareView, TabularRun, TabularEditor, AssistantEditor, AssistantRun — `ddTheme` still referenced in 10 files, 7 excluding `types.ts`/`index.css`/`DealBriefDashboard.tsx`). **All of `components/workflows/` is clean except `WorkflowsView.tsx` itself** (the hub, 19 refs, unconverted). DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -95,6 +95,14 @@ Verified in headless Edge, light + dark, against "Contract Stack Review (Copy)"'
 Fifth converted instance of the duplicated `SectionLabel`.
 
 Verified in headless Edge, light + dark, against "CIM → IC Memo Draft (Copy)"'s editor: active stage rail item, amber checkpoint badges/flow steps, active blue flow step, prompt textarea, toggle switch, and active "Word" output button all matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
+
+**Group 11 — `AssistantRun.tsx` (`e7a64af`): done.** The largest single file converted this sweep — the assistant workflow run/checkpoint screen (stage rail, checkpoint approval, sources sidebar, run history). Same shape as the other two editor/run screens: no `isDark`, so `theme` drops entirely from all six helpers. `WorkflowsView.tsx`'s call site updated. Sixth and final converted instance of the duplicated `SectionLabel`.
+
+This closes out every file under `components/workflows/` except `WorkflowsView.tsx` itself (the hub all three editor/run screens render into).
+
+Verified in headless Edge, light + dark, against "CIM → IC Memo Draft"'s checkpoint-status run: the checkpoint banner, paused stage rail item, amber "Awaiting review" label, sources-cited sidebar with citation cards, and Cancel button all matched tokens exactly. tsc clean, lint unchanged, 76 tests, build green.
+
+**Process note:** a leftover backend process from an earlier turn survived a `taskkill` that reported success — `tasklist` could no longer find the PID, yet `:8000` kept responding. Not blocking, left running rather than blind-kill further PIDs; worth a manual check if a stray `uvicorn` is still around at session end.
 
 ## Progress (2026-07-24)
 
