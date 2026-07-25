@@ -1,10 +1,9 @@
-import { ddTheme } from "@/components/dd/types";
 import type { Workflow, WorkflowRun } from "@/lib/workflows";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DocumentViewer from "@/components/DocumentViewer";
 import { ACCENT } from "./theme";
 import CompareView from "./CompareView";
-import { useTabularRun, type Theme } from "./tabular-run/useTabularRun";
+import { useTabularRun } from "./tabular-run/useTabularRun";
 import { SummaryCards } from "./tabular-run/parts";
 import RunToolbar from "./tabular-run/RunToolbar";
 import RunSidebar from "./tabular-run/RunSidebar";
@@ -15,7 +14,6 @@ interface TabularRunProps {
   dealId: string;
   runId: string;
   workflow: Workflow;
-  theme: Theme;
   onBack: () => void;
   /** Called once when run reaches a terminal state (complete/error/cancelled). */
   onComplete?: (run: WorkflowRun) => void;
@@ -27,17 +25,16 @@ export default function TabularRun({
   dealId,
   runId,
   workflow: workflowProp,
-  theme,
   onBack,
   onComplete,
   onWorkflowChange,
 }: TabularRunProps) {
-  const c = ddTheme(theme);
   const m = useTabularRun({ dealId, runId, workflow: workflowProp, onComplete, onWorkflowChange });
 
   if (m.error && !m.run) {
     return (
       <div
+        className="bg-appbg text-t1"
         style={{
           flex: 1,
           display: "flex",
@@ -45,13 +42,11 @@ export default function TabularRun({
           alignItems: "center",
           justifyContent: "center",
           gap: 12,
-          background: c.bg,
-          color: c.t1,
           padding: 32,
         }}
       >
         <div style={{ fontSize: 14, fontWeight: 600 }}>Couldn't load run</div>
-        <div style={{ fontSize: 12, color: c.t2, textAlign: "center", maxWidth: 480 }}>{m.error}</div>
+        <div className="text-t2" style={{ fontSize: 12, textAlign: "center", maxWidth: 480 }}>{m.error}</div>
         <button
           onClick={onBack}
           style={{
@@ -72,12 +67,11 @@ export default function TabularRun({
 
   return (
     <div
+      className="bg-appbg text-t1"
       style={{
         flex: 1,
         width: "100%",
         height: "100%",
-        background: c.bg,
-        color: c.t1,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
