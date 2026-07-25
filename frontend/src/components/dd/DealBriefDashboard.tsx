@@ -17,52 +17,55 @@ import { extractFindingsFromRun } from "./extractFindingsFromRun";
 import type { Finding, FindingSeverity } from "./types";
 import { ACCENT, SEV_COLOR, ddTheme } from "./types";
 import Button from "@/components/ui/Button";
+import {
+  BRIEF_CONFIG,
+  DIFF_KEY_PREFIX,
+  INVESTMENT_THESIS_LABEL,
+  NEXT_ACTIONS_LABEL,
+  OVERRIDE_KEY_PREFIX,
+  type BriefEntityConfig,
+  type BriefField,
+  type BriefWorkstreamShim,
+  type ChartSeries,
+  type FinancialTable,
+  type FinancialView,
+  type Metric,
+  type OverrideStore,
+  type QuestionResult,
+  type ThesisBullet,
+  type ThesisSections,
+} from "./brief/config";
+import {
+  buildChartSeries,
+  deriveActions,
+  extractBullets,
+  extractBulletsWithSources,
+  extractFinancialTables,
+  extractMetrics,
+  extractThesisSections,
+  pairsToFields,
+} from "./brief/parse";
+import {
+  diffPanel,
+  formatRelativeTime,
+  mergeOverrides,
+  type BriefDiffSnapshot,
+  type FieldDiff,
+} from "./brief/diff";
+import {
+  compareFindingSeverity,
+  countSources,
+  isGapFinding,
+  isInconsistencyFinding,
+  resultByLabel,
+} from "./brief/findings";
 
-// Local shape mirrors the old WorkstreamPanel.QuestionResult — the brief's
-// parsing/rendering code below was written against this interface and was
-// kept verbatim when the Workstreams tab was retired.
-export interface QuestionResult {
-  answer: string;
-  /**
-   * The cell's typed `answer_formatted`. KV panels (snapshot/transaction) read
-   * `pairs` and the list panel (next actions) reads `items` directly from here;
-   * prose panels fall back to `answer`.
-   */
-  formatted?: TabularCell["answer_formatted"];
-  citations: (Citation | null)[];
-  status: "pending" | "loading" | "complete" | "error";
-  model?: string;
-  fallback?: boolean;
-  duration_ms?: number;
-  completed_at?: number;
-}
 
-// Local shape mirrors the old Workstream type. The brief only uses
-// `templates` for label/query lookups.
-interface BriefTemplate { label: string; query: string }
-interface BriefWorkstreamShim { id: "proactive_scan"; templates: BriefTemplate[] }
 
-const PROACTIVE_SCAN_WORKFLOW_ID = "builtin_proactive_scan";
 
-type OverrideStore = Record<string, Record<string, string>>;
 
-const OVERRIDE_KEY_PREFIX = "vyntic_brief_overrides_";
-const DIFF_KEY_PREFIX = "vyntic_brief_diff_";
 
-export interface FieldDiff {
-  panel: "snapshot" | "transaction";
-  panelLabel: string;
-  label: string;
-  before: string;
-  after: string;
-  kind: "changed" | "added" | "removed";
-}
 
-interface BriefDiffSnapshot {
-  changes: FieldDiff[];
-  at: number;
-  previousAt?: number;
-}
 
 interface Props {
   dealId: string;
@@ -281,49 +284,13 @@ function useProactiveScanRun(dealId: string, workflowId: string) {
   };
 }
 
-export interface BriefField {
-  label: string;
-  value: string;
-  sourceIdx?: number;
-  override?: boolean;
-}
 
-export interface Metric {
-  label: string;
-  value: string;
-  context: string;
-}
 
-export interface ThesisBullet {
-  text: string;
-  sourceIdx?: number;
-}
 
-export interface ThesisSections {
-  thesis: ThesisBullet[];
-  levers: ThesisBullet[];
-  exit: ThesisBullet[];
-  risks: ThesisBullet[];
-}
 
-export interface FinancialTable {
-  title: string;
-  headers: string[];
-  rows: string[][];
-}
 
-type FinancialView = "annual" | "quarterly" | "metrics";
 
-export interface ChartPoint {
-  period: string;
-  value: number;
-  display: string;
-}
 
-export interface ChartSeries {
-  label: string;
-  values: ChartPoint[];
-}
 
 function lineClamp(lineCount: number): CSSProperties {
   return {
@@ -334,123 +301,14 @@ function lineClamp(lineCount: number): CSSProperties {
   };
 }
 
-const DEAL_SNAPSHOT_LABEL = "Deal snapshot";
-const PROPOSED_TRANSACTION_LABEL = "Proposed transaction";
-const FINANCIAL_HIGHLIGHTS_LABEL = "Key financial highlights";
-const INVESTMENT_THESIS_LABEL = "Investment thesis";
-const NEXT_ACTIONS_LABEL = "Analyst next actions";
 
-const SNAPSHOT_FIELDS = [
-  "Target",
-  "Company",
-  "Sector",
-  "Business model",
-  "Geography",
-  "Seller",
-  "Stage",
-];
 
-const TRANSACTION_FIELDS = [
-  "Transaction type",
-  "Purchase price",
-  "Enterprise value",
-  "Ownership",
-  "Valuation",
-  "Financing",
-  "Timing",
-];
 
-const FUND_SNAPSHOT_FIELDS = [
-  "Manager",
-  "Fund",
-  "Vintage",
-  "Strategy",
-  "Target size",
-  "Hard cap",
-  "Geography",
-  "Raise stage",
-];
 
-const FUND_TERMS_FIELDS = [
-  "Management fee",
-  "Carried interest",
-  "Preferred return",
-  "Waterfall",
-  "GP commitment",
-  "Fee offset",
-  "Key person",
-  "Term",
-];
 
-// Entity-aware brief configuration. The buyout Deal Brief and the LP Fund Brief
-// share the same dashboard machinery; only the workflow id, the two kv panels'
-// column-labels / field-lists / titles, the financial-highlights column label,
-// and the copy differ. `snapshotLabel`/`transactionLabel`/`financialLabel` must
-// equal the seed column labels exactly (resultByLabel matches on label).
-interface BriefEntityConfig {
-  workflowId: string;
-  runLabel: string;
-  snapshotLabel: string;
-  snapshotTitle: string;
-  snapshotFields: string[];
-  transactionLabel: string;
-  transactionTitle: string;
-  transactionDiffLabel: string;
-  transactionFields: string[];
-  financialLabel: string;
-  financialTabLabel: string;
-}
 
-const BRIEF_CONFIG: Record<"deal" | "fund", BriefEntityConfig> = {
-  deal: {
-    workflowId: PROACTIVE_SCAN_WORKFLOW_ID,
-    runLabel: "Deal Brief",
-    snapshotLabel: DEAL_SNAPSHOT_LABEL,
-    snapshotTitle: "What is the deal?",
-    snapshotFields: SNAPSHOT_FIELDS,
-    transactionLabel: PROPOSED_TRANSACTION_LABEL,
-    transactionTitle: "What is being proposed?",
-    transactionDiffLabel: "Proposed Transaction",
-    transactionFields: TRANSACTION_FIELDS,
-    financialLabel: FINANCIAL_HIGHLIGHTS_LABEL,
-    financialTabLabel: "Annual",
-  },
-  fund: {
-    workflowId: "builtin_lp_fund_brief",
-    runLabel: "Fund Brief",
-    snapshotLabel: "Fund snapshot",
-    snapshotTitle: "About the fund",
-    snapshotFields: FUND_SNAPSHOT_FIELDS,
-    transactionLabel: "Terms at a glance",
-    transactionTitle: "Terms at a glance",
-    transactionDiffLabel: "Terms",
-    transactionFields: FUND_TERMS_FIELDS,
-    financialLabel: "Key performance data",
-    financialTabLabel: "Track record",
-  },
-};
 
-const METRIC_KEYWORDS = [
-  "Revenue",
-  "ARR",
-  "MRR",
-  "Gross margin",
-  "EBITDA",
-  "Adjusted EBITDA",
-  "EBITDA margin",
-  "Growth",
-  "Net revenue retention",
-  "NRR",
-  "Churn",
-  "Capex",
-  "Free cash flow",
-  "FCF",
-  "Net debt",
-  "Working capital",
-  "Customer concentration",
-];
 
-const VALUE_PATTERN = /(?:[$€£]\s?\d[\d,.]*(?:\s?(?:m|mm|bn|k))?|\d+(?:\.\d+)?\s?%|\d+(?:\.\d+)?x)/gi;
 
 export default function DealBriefDashboard({
   dealId,
@@ -1948,64 +1806,9 @@ function DiffRow({ change, theme }: { change: FieldDiff; theme: "light" | "dark"
   );
 }
 
-function formatRelativeTime(ms: number): string {
-  const diff = Date.now() - ms;
-  if (diff < 0) return "just now";
-  const seconds = Math.round(diff / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  const date = new Date(ms);
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
 
-export function diffPanel(
-  panel: "snapshot" | "transaction",
-  panelLabel: string,
-  before: BriefField[],
-  after: BriefField[]
-): FieldDiff[] {
-  const beforeMap = new Map(before.map((f) => [f.label.toLowerCase(), f]));
-  const afterMap = new Map(after.map((f) => [f.label.toLowerCase(), f]));
-  const changes: FieldDiff[] = [];
 
-  for (const [key, afterField] of Array.from(afterMap.entries())) {
-    const beforeField = beforeMap.get(key);
-    if (!beforeField) {
-      if (!isNotFound(afterField.value)) {
-        changes.push({ panel, panelLabel, label: afterField.label, before: "", after: afterField.value, kind: "added" });
-      }
-      continue;
-    }
-    if (afterField.override || beforeField.override) continue; // analyst-controlled fields don't count as scan changes
-    if (normalizeForCompare(beforeField.value) !== normalizeForCompare(afterField.value)) {
-      const beforeNF = isNotFound(beforeField.value);
-      const afterNF = isNotFound(afterField.value);
-      if (beforeNF && afterNF) continue;
-      if (beforeNF) changes.push({ panel, panelLabel, label: afterField.label, before: "", after: afterField.value, kind: "added" });
-      else if (afterNF) changes.push({ panel, panelLabel, label: afterField.label, before: beforeField.value, after: "", kind: "removed" });
-      else changes.push({ panel, panelLabel, label: afterField.label, before: beforeField.value, after: afterField.value, kind: "changed" });
-    }
-  }
-  for (const [key, beforeField] of Array.from(beforeMap.entries())) {
-    if (afterMap.has(key)) continue;
-    if (isNotFound(beforeField.value)) continue;
-    changes.push({ panel, panelLabel, label: beforeField.label, before: beforeField.value, after: "", kind: "removed" });
-  }
-  return changes;
-}
 
-export function normalizeForCompare(value: string): string {
-  return value.replace(/\s+/g, " ").trim().toLowerCase();
-}
-
-export function isNotFound(value: string): boolean {
-  return /^not\s+found$/i.test(value.trim());
-}
 
 function StatusPill({ completed, total, loading, theme }: { completed: number; total: number; loading: boolean; theme: "light" | "dark" }) {
   const done = total > 0 && completed === total;
@@ -2077,426 +1880,31 @@ function Placeholder({ text, theme }: { text: string; theme: "light" | "dark" })
   );
 }
 
-export function resultByLabel(
-  workstream: BriefWorkstreamShim | null,
-  results: Record<string, QuestionResult>,
-  label: string
-): QuestionResult | undefined {
-  const query = workstream?.templates.find((template) => template.label === label)?.query;
-  return query ? results[query] : undefined;
-}
 
-export function cleanText(text = ""): string {
-  return text
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .replace(/\[Source\s+\d+\]/gi, "")
-    .replace(/\*\*/g, "")
-    .trim();
-}
 
-/**
- * Build the snapshot/transaction fields straight from the KV cell's typed
- * `answer_formatted.pairs`. Only keys in `preferredLabels` are surfaced (same
- * whitelist the old prose regex enforced); values are title-cased and
- * unit-joined. Returns [] when the cell has no typed pairs (old runs) so the
- * panel falls back to rendering `answer` as markdown.
- */
-export function pairsToFields(formatted: QuestionResult["formatted"], preferredLabels: string[]): BriefField[] {
-  if (!formatted || typeof formatted !== "object" || Array.isArray(formatted)) return [];
-  const pairs = (formatted as { pairs?: Array<{ key?: string; value?: string | number; unit?: string | null }> }).pairs;
-  if (!Array.isArray(pairs)) return [];
-  const allow = new Set(preferredLabels.map((l) => l.toLowerCase()));
-  const fields: BriefField[] = [];
-  const seen = new Set<string>();
-  for (const pair of pairs) {
-    const key = (pair?.key ?? "").trim();
-    if (!key || !allow.has(key.toLowerCase())) continue;
-    const label = titleCase(key);
-    if (seen.has(label.toLowerCase())) continue;
-    const rawValue = pair?.value;
-    if (rawValue == null || rawValue === "") continue;
-    const unit = (pair?.unit ?? "").trim();
-    // The LLM sometimes tucks the "[Source N]" marker into `unit`, so build the
-    // combined string first, then pull the source index and strip the marker —
-    // mirroring the old synthesize(value+unit) → extractFields behavior.
-    const combined = `${rawValue}${unit ? ` ${unit}` : ""}`;
-    const sourceIdx = extractFirstSourceIdx(combined);
-    const value = normalizeValue(combined.replace(/\[Source\s+\d+\]/gi, ""));
-    if (!value) continue;
-    seen.add(label.toLowerCase());
-    fields.push({ label, value, sourceIdx });
-  }
-  return fields.slice(0, 7);
-}
 
-export function extractMetrics(answer: string | undefined): Metric[] {
-  const text = cleanText(answer);
-  if (!text) return [];
-  const lines = text
-    .split("\n")
-    .map((line) => line.replace(/^\s*[-*]\s*/, "").replace(/^\|+|\|+$/g, "").trim())
-    .filter(Boolean);
-  const metrics: Metric[] = [];
-  const seen = new Set<string>();
 
-  for (const rawLine of lines) {
-    const line = rawLine.replace(/\s*\|\s*/g, " | ");
-    const keyword = METRIC_KEYWORDS.find((k) => new RegExp(`\\b${escapeRegExp(k)}\\b`, "i").test(line));
-    if (!keyword) continue;
-    const values = line.match(VALUE_PATTERN);
-    if (!values?.length) continue;
-    const label = inferMetricLabel(line, keyword);
-    const key = `${label}:${values[0]}`.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    metrics.push({
-      label,
-      value: values.slice(0, 3).join(" / "),
-      context: line.replace(/\s+/g, " ").slice(0, 90),
-    });
-    if (metrics.length >= 10) break;
-  }
 
-  return metrics;
-}
 
-export function extractFinancialTables(answer: string | undefined): FinancialTable[] {
-  const text = cleanText(answer);
-  if (!text) return [];
-  const lines = text.split("\n");
-  const tables: FinancialTable[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!isMarkdownTableLine(line)) continue;
 
-    const title = inferTableTitle(lines, i);
-    const block: string[] = [];
-    while (i < lines.length && isMarkdownTableLine(lines[i].trim())) {
-      block.push(lines[i].trim());
-      i += 1;
-    }
 
-    const parsed = parseMarkdownTable(block, title);
-    if (parsed && parsed.headers.length >= 2 && parsed.rows.length > 0) {
-      tables.push(parsed);
-    }
-  }
 
-  return tables.slice(0, 4);
-}
 
-export function isMarkdownTableLine(line: string): boolean {
-  return line.includes("|") && line.split("|").length >= 3;
-}
 
-export function inferTableTitle(lines: string[], tableStart: number): string {
-  for (let i = tableStart - 1; i >= Math.max(0, tableStart - 4); i--) {
-    const candidate = lines[i]
-      .replace(/^#+\s*/, "")
-      .replace(/^\s*[-*]\s*/, "")
-      .trim();
-    if (!candidate || isMarkdownTableLine(candidate) || /^:?-{3,}:?$/.test(candidate)) continue;
-    if (candidate.length <= 70) return titleCase(candidate);
-  }
-  return "Financials";
-}
 
-export function parseMarkdownTable(lines: string[], title: string): FinancialTable | null {
-  if (lines.length < 2) return null;
-  const rows = lines
-    .map((line) =>
-      line
-        .replace(/^\|/, "")
-        .replace(/\|$/, "")
-        .split("|")
-        .map((cell) => normalizeTableCell(cell))
-    )
-    .filter((row) => row.some(Boolean));
-  if (rows.length < 2) return null;
 
-  const headers = rows[0];
-  const body = rows
-    .slice(1)
-    .filter((row) => !row.every((cell) => /^:?-{3,}:?$/.test(cell)))
-    .map((row) => {
-      const normalized = [...row];
-      while (normalized.length < headers.length) normalized.push("");
-      return normalized.slice(0, headers.length);
-    });
-  if (body.length === 0) return null;
-  return { title, headers, rows: body };
-}
 
-export function normalizeTableCell(value: string): string {
-  return value
-    .replace(/\[Source\s+\d+\]/gi, "")
-    .replace(/\*\*/g, "")
-    .replace(/`/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
-export function buildChartSeries(table: FinancialTable): ChartSeries[] {
-  if (table.headers.length < 3) return [];
-  const periodHeaders = table.headers.slice(1);
-  const candidateRows = table.rows.filter((row) => {
-    const label = row[0] || "";
-    const numericCount = row.slice(1).filter((cell) => parseFinancialNumber(cell) !== null).length;
-    return numericCount >= 2 && /revenue|sales|gross profit|ebitda|income|cash flow|arr|margin/i.test(label);
-  });
 
-  return candidateRows.slice(0, 4).map((row) => ({
-    label: shortenLabel(row[0] || "Metric"),
-    values: periodHeaders
-      .map((period, idx) => {
-        const display = row[idx + 1] || "";
-        const value = parseFinancialNumber(display);
-        if (value === null) return null;
-        return { period: shortenPeriod(period), value, display };
-      })
-      .filter((point): point is ChartPoint => point !== null),
-  })).filter((series) => series.values.length >= 2);
-}
 
-export function parseFinancialNumber(value: string): number | null {
-  const cleaned = value
-    .replace(/\[Source\s+\d+\]/gi, "")
-    .replace(/[$€£,%x]/gi, "")
-    .replace(/\s+/g, "")
-    .trim();
-  if (!cleaned || /^n\/?a$/i.test(cleaned) || /notfound/i.test(cleaned)) return null;
-  const negative = /^\(.+\)$/.test(cleaned) || /^-/.test(cleaned);
-  const magnitude = /bn|b$/i.test(cleaned) ? 1000 : /k$/i.test(cleaned) ? 0.001 : 1;
-  const normalized = cleaned.replace(/[(),]/g, "").replace(/mm|m|bn|b|k/gi, "");
-  const parsed = Number.parseFloat(normalized);
-  if (!Number.isFinite(parsed)) return null;
-  return (negative ? -1 : 1) * parsed * magnitude;
-}
 
-export function shortenLabel(label: string): string {
-  const cleaned = titleCase(label.replace(/\s*\([^)]*\)/g, ""));
-  if (/Adjusted EBITDA/i.test(cleaned)) return "Adj. EBITDA";
-  if (/EBITDA Margin/i.test(cleaned)) return "EBITDA %";
-  if (/Gross Margin/i.test(cleaned)) return "Gross %";
-  return cleaned.length > 18 ? cleaned.slice(0, 16) + "..." : cleaned;
-}
 
-export function shortenPeriod(period: string): string {
-  return period.replace(/Fiscal Year|FY|Calendar Year/gi, "").replace(/\s+/g, " ").trim();
-}
 
-export function inferMetricLabel(line: string, keyword: string): string {
-  const colonLabel = line.split(/[:|]/)[0]?.trim();
-  if (colonLabel && colonLabel.length <= 34 && /[a-z]/i.test(colonLabel)) return titleCase(colonLabel);
-  return keyword;
-}
 
-export function extractBullets(answer: string | undefined): string[] {
-  const text = cleanText(answer);
-  if (!text) return [];
-  return text
-    .split("\n")
-    .map((line) => line.replace(/^\s*(?:[-*]|\d+\.)\s*/, "").trim())
-    .filter((line) => line.length > 18 && !/^#+\s/.test(line))
-    .map((line) => (line.length > 150 ? line.slice(0, 147) + "..." : line))
-    .slice(0, 6);
-}
 
-export function mergeOverrides(
-  fields: BriefField[],
-  overridesForPanel: Record<string, string> | undefined,
-  preferredOrder: string[]
-): BriefField[] {
-  if (!overridesForPanel || Object.keys(overridesForPanel).length === 0) return fields;
-  const lower = (s: string) => s.toLowerCase();
-  const remaining = new Map<string, { label: string; value: string }>();
-  for (const [label, value] of Object.entries(overridesForPanel)) {
-    remaining.set(lower(label), { label, value });
-  }
-  const merged = fields.map((field) => {
-    const hit = remaining.get(lower(field.label));
-    if (!hit) return field;
-    remaining.delete(lower(field.label));
-    return { ...field, value: hit.value, sourceIdx: undefined, override: true };
-  });
-  // Append remaining overrides in preferred-label order first, then anything left
-  for (const label of preferredOrder) {
-    const hit = remaining.get(lower(label));
-    if (!hit) continue;
-    merged.push({ label: hit.label, value: hit.value, override: true });
-    remaining.delete(lower(label));
-  }
-  for (const { label, value } of Array.from(remaining.values())) {
-    merged.push({ label, value, override: true });
-  }
-  return merged;
-}
 
-export function extractFirstSourceIdx(text: string): number | undefined {
-  const match = text.match(/\[Source\s+(\d+)\]/i);
-  if (!match) return undefined;
-  const idx = Number.parseInt(match[1], 10);
-  return Number.isFinite(idx) && idx > 0 ? idx : undefined;
-}
 
-export function extractBulletsWithSources(answer: string | undefined): ThesisBullet[] {
-  if (!answer) return [];
-  const sanitized = answer
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .replace(/\*\*/g, "")
-    .trim();
-  if (!sanitized) return [];
-  const lines = sanitized
-    .split("\n")
-    .map((line) => line.replace(/^\s*(?:[-*]|\d+\.)\s*/, "").trim())
-    .filter((line) => line.length > 12 && !/^#+\s/.test(line) && !/^[A-Z][A-Za-z ]+:\s*$/.test(line));
-  const bullets: ThesisBullet[] = [];
-  for (const raw of lines) {
-    const sourceIdx = extractFirstSourceIdx(raw);
-    const text = raw.replace(/\[Source\s+\d+\]/gi, "").replace(/\s+/g, " ").trim();
-    if (!text || /^not\s+found$/i.test(text)) continue;
-    bullets.push({ text, sourceIdx });
-  }
-  return bullets;
-}
 
-const THESIS_SECTION_HEADINGS: Array<{ key: keyof ThesisSections; pattern: RegExp }> = [
-  { key: "thesis", pattern: /^thesis\b/i },
-  { key: "levers", pattern: /^value\s*creation\s*levers\b/i },
-  { key: "exit", pattern: /^exit\s*considerations\b/i },
-  { key: "risks", pattern: /^risks?\s*(?:to\s*thesis)?\b/i },
-];
 
-export function extractThesisSections(answer: string | undefined): ThesisSections {
-  const empty: ThesisSections = { thesis: [], levers: [], exit: [], risks: [] };
-  if (!answer) return empty;
-  const sanitized = answer
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .replace(/\*\*/g, "")
-    .trim();
-  if (!sanitized) return empty;
 
-  const sections: ThesisSections = { thesis: [], levers: [], exit: [], risks: [] };
-  let current: keyof ThesisSections | null = null;
-  for (const rawLine of sanitized.split("\n")) {
-    const trimmed = rawLine.trim();
-    if (!trimmed) continue;
-    const heading = trimmed.replace(/^\s*[-*]\s*/, "").replace(/^#+\s*/, "");
-    const matched = THESIS_SECTION_HEADINGS.find((h) => h.pattern.test(heading));
-    if (matched && /:|—|–/.test(heading) === false && /^[A-Za-z ]+$/.test(heading.split(/[:—–]/)[0])) {
-      // pure heading line like "Thesis" or "Value creation levers"
-      current = matched.key;
-      continue;
-    }
-    if (matched && /^[A-Za-z][^:]+:/.test(heading)) {
-      // heading with inline content e.g. "Thesis: foo" — switch section and treat the rest as the first bullet
-      current = matched.key;
-      const inline = heading.split(/:\s*/).slice(1).join(": ").trim();
-      if (inline) {
-        const sourceIdx = extractFirstSourceIdx(inline);
-        const text = inline.replace(/\[Source\s+\d+\]/gi, "").trim();
-        if (text && !/^not\s+found$/i.test(text)) sections[current].push({ text, sourceIdx });
-      }
-      continue;
-    }
-    if (!current) continue;
-    const bulletText = trimmed.replace(/^\s*(?:[-*]|\d+\.)\s*/, "").trim();
-    if (!bulletText || /^not\s+found$/i.test(bulletText)) continue;
-    const sourceIdx = extractFirstSourceIdx(bulletText);
-    const text = bulletText.replace(/\[Source\s+\d+\]/gi, "").replace(/\s+/g, " ").trim();
-    if (!text) continue;
-    const truncated = text.length > 180 ? text.slice(0, 177) + "..." : text;
-    sections[current].push({ text: truncated, sourceIdx });
-  }
-  return sections;
-}
-
-export function deriveActions(
-  formatted: QuestionResult["formatted"],
-  answer: string | undefined,
-  findings: Finding[]
-): ThesisBullet[] {
-  // Prefer the list cell's typed items; fall back to bullet-parsing the raw
-  // answer for old runs whose cells have no answer_formatted.
-  let explicit: ThesisBullet[] = [];
-  if (formatted && typeof formatted === "object" && !Array.isArray(formatted)) {
-    const items = (formatted as { items?: Array<{ text?: string } | string> }).items;
-    if (Array.isArray(items)) {
-      for (const item of items) {
-        const rawText = typeof item === "string" ? item : item?.text ?? "";
-        const sourceIdx = extractFirstSourceIdx(rawText);
-        const text = rawText.replace(/\[Source\s+\d+\]/gi, "").replace(/\s+/g, " ").trim();
-        if (text && !/^not\s+found$/i.test(text)) explicit.push({ text, sourceIdx });
-      }
-    }
-  }
-  if (explicit.length === 0) explicit = extractBulletsWithSources(answer);
-  explicit = explicit.slice(0, 5);
-  if (explicit.length > 0) return explicit;
-
-  const fallbacks: ThesisBullet[] = [];
-  if (findings.some((finding) => finding.sev === "deal-breaker")) {
-    fallbacks.push({ text: "Validate deal-breaker findings against source documents and size the potential downside." });
-  }
-  if (findings.some((finding) => finding.sev === "material")) {
-    fallbacks.push({ text: "Build mitigation asks for material findings before the next deal team discussion." });
-  }
-  if (findings.some(isGapFinding)) {
-    fallbacks.push({ text: "Request missing VDR materials and unresolved disclosures flagged by the scan." });
-  }
-  if (findings.some(isInconsistencyFinding)) {
-    fallbacks.push({ text: "Reconcile conflicting metrics across the CIM, financials, QoE, and model." });
-  }
-  if (fallbacks.length === 0 && findings.length > 0) {
-    fallbacks.push({ text: "Review scan findings and route each item to the relevant diligence workstream." });
-  }
-  return fallbacks;
-}
-
-export function countSources(results: Array<QuestionResult | undefined>): number {
-  const sources = new Set<string>();
-  for (const result of results) {
-    for (const citation of result?.citations || []) {
-      if (!citation) continue;
-      sources.add(`${citation.source_file}:${citation.page}`);
-    }
-  }
-  return sources.size;
-}
-
-export function compareFindingSeverity(a: Finding, b: Finding): number {
-  return severityRank(b.sev) - severityRank(a.sev);
-}
-
-export function severityRank(severity: FindingSeverity): number {
-  if (severity === "deal-breaker") return 3;
-  if (severity === "material") return 2;
-  return 1;
-}
-
-export function isGapFinding(finding: Finding): boolean {
-  return /gap|missing|absent|unprovided|incomplete|omission/i.test(`${finding.title} ${finding.detail}`);
-}
-
-export function isInconsistencyFinding(finding: Finding): boolean {
-  return /inconsisten|conflict|mismatch|reconcile|differ|contradict/i.test(`${finding.title} ${finding.detail}`);
-}
-
-export function normalizeValue(value: string): string {
-  return value.replace(/\s+/g, " ").replace(/^not\s+found$/i, "Not found").trim();
-}
-
-export function titleCase(value: string): string {
-  return value
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .replace(/\bEbitda\b/g, "EBITDA")
-    .replace(/\bArr\b/g, "ARR")
-    .replace(/\bMrr\b/g, "MRR");
-}
-
-export function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+// FE5.2: these moved out of DealBriefDashboard.tsx into brief/. Only this
+// import block changed — every assertion below is byte-identical to FE5.1, so
+// the suite staying green is evidence the extraction was behaviour-preserving.
 import {
   buildChartSeries,
   cleanText,
-  compareFindingSeverity,
   deriveActions,
-  diffPanel,
   escapeRegExp,
   extractBullets,
   extractBulletsWithSources,
@@ -14,24 +15,24 @@ import {
   extractThesisSections,
   inferMetricLabel,
   inferTableTitle,
-  isGapFinding,
-  isInconsistencyFinding,
   isMarkdownTableLine,
-  isNotFound,
-  mergeOverrides,
-  normalizeForCompare,
   normalizeTableCell,
   normalizeValue,
   pairsToFields,
   parseFinancialNumber,
   parseMarkdownTable,
-  severityRank,
   shortenLabel,
   shortenPeriod,
   titleCase,
-  type BriefField,
-  type FinancialTable,
-} from "./DealBriefDashboard";
+} from "./brief/parse";
+import { diffPanel, isNotFound, mergeOverrides, normalizeForCompare } from "./brief/diff";
+import {
+  compareFindingSeverity,
+  isGapFinding,
+  isInconsistencyFinding,
+  severityRank,
+} from "./brief/findings";
+import type { BriefField, FinancialTable } from "./brief/config";
 import type { Finding } from "./types";
 
 /**
