@@ -1,6 +1,6 @@
 # Plan: Design-system primitives — Modal, ddTheme retirement, Card
 
-**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (2 of ~23 file-groups converted: `tabular-run/`, `cells/` — 21 files left, `ddTheme` still referenced in 23); DS3 not started.
+**Status:** DS1 done on `feat/design-system-primitives`; DS2 in progress (3 of ~23 file-groups converted: `tabular-run/`, `cells/`, dd/workflows dialogs — `ddTheme` still referenced in 20 files); DS3 not started.
 
 ## DS2 audit + pilot (2026-07-24)
 
@@ -43,6 +43,14 @@ Techniques that generalise to the remaining files:
 One new technique: a Tailwind color-only utility (`border-edge`) sets `border-color` but not `border-style`/`width` — pairing it with the bare `border` utility is required or no edge renders at all. Confirmed by reading the generated CSS rule, not assumed.
 
 Verified in headless Edge, light + dark, against "QofE Bridge" (metric cells) and "Contract Stack Review" (bool/list/enum/text — the shape variety `tabular-run/` didn't exercise), plus "Contract Stack Review (Copy)"'s editor for `ShapePicker`/`ShapeOptionsInspector`/`CellRenderPreview`. Bool-badge hue and the pre-existing `--text-4` "Out of scope" styling came back pixel-identical to their prior inline-style values. tsc clean, lint unchanged, 76 tests, build green.
+
+**Group 3 — dd/workflows dialogs (`b8d6b9a`): done.** `PositionModal`, `DocumentsModal`, `DocumentSelectorModal` — the three remaining dialogs already on `<Modal>` from DS1 whose internal styling still ran through `ddTheme`. Added the 4 missing Tailwind aliases from the field→class table above (`accent-strong`, `accent-tint`, `accent-tint-border`, `on-accent`) to `tailwind.config.js`, since `PositionModal`'s computed-metrics tint box needed three of them and none had a class before.
+
+`DocumentsModal` keeps its `theme` prop — `categoryChipStyle`'s `FAMILY_STYLES` are hardcoded per-family hex pairs, not tokens, so `isDark` still branches on it. Where a token was mixed into a dynamic ternary (the scope-toggle button, the chip's neutral fallback), the `c.field` reference was substituted with a literal `var(--css-var)` string rather than forced into a class — identical output, since `ddTheme()` already returns the same `var()` ref; this avoids fighting the "class vs. class" stylesheet-order ambiguity for values that only ever appear inside inline-style ternaries. `PositionModal` and `DocumentSelectorModal` drop `theme` entirely; their callers (`DealWorkspacePage.tsx`, `WorkflowsView.tsx`) updated.
+
+**Gotcha:** a leftover vite dev server from an earlier turn predated the `tailwind.config.js` edit and kept serving the old Tailwind color palette — new classes existed in the DOM but resolved to no rule, so the first verification pass silently returned the wrong (default black) colors. Restarting the dev server fixed it. Any config-file change (not just component edits) invalidates an already-running dev server for verification purposes.
+
+Verified in headless Edge, light + dark: `DocumentsModal` via a live deal's document row list, scope toggle, and category/period fields; `DocumentSelectorModal` via a workflow's "Run extraction" flow; `PositionModal` against `hillpath_fund_iv` (the only fund-entity deal in the dev DB) with commitment/called/distributed/NAV filled in client-side only, never saved, to render the accent-tint computed-metrics box. All values matched their tokens exactly in both themes. tsc clean, lint unchanged, 76 tests, build green.
 
 ## Progress (2026-07-24)
 
