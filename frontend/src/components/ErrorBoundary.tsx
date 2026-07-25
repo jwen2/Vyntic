@@ -13,7 +13,7 @@ interface State {
 /**
  * Catches render/lifecycle exceptions in its subtree so one crashing surface
  * doesn't white-screen the app. Styled with plain Tailwind + dark: classes
- * (not ddTheme — that system is slated for retirement in Plan F3).
+ * (the old inline-style token shim it predates was retired in FE5.6).
  */
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };

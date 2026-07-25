@@ -1,6 +1,6 @@
 /**
  * Workflow-feature theme additions.
- * Reuses ddTheme tokens; adds the violet accent for tabular workflows
+ * Reuses the semantic CSS-var tokens; adds the violet accent for tabular workflows
  * and a few helpers for type-tag styling.
  */
 import type { WorkflowType } from "@/lib/workflows";

@@ -52,9 +52,8 @@
   --table-header: #e5e3d8;
 
   /* Semantic surface/text/border tokens — the single theming source (FE11).
-     Light values mirror the old DD_LIGHT; .dark overrides them below. Consumed
-     via ddTheme() (which now returns these var refs) and the Tailwind color
-     aliases (bg-surface, text-t1, border-edge, …). */
+     Light values here; .dark overrides them below. Consumed via the Tailwind
+     color aliases (bg-surface, text-t1, border-edge, …). */
   --surface: var(--landing-surface);
   --surface-alt: var(--landing-surface-alt);
   --bg: var(--landing-bg);
@@ -104,7 +103,7 @@
   --table-zebra: #1c1c1c;
   --table-header: #202020;
 
-  /* Dark overrides for the semantic tokens (mirror the old DD_DARK). */
+  /* Dark overrides for the semantic tokens. */
   --surface: #171717;
   --surface-alt: #111111;
   --bg: #0f0f0f;
