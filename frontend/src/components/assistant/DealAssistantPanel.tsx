@@ -7,7 +7,7 @@ import {
 } from "@/lib/api";
 import AnswerText from "@/components/dd/AnswerText";
 import { useTheme } from "@/components/ThemeProvider";
-import { ACCENT, ddTheme, tint } from "@/components/dd/types";
+import { ACCENT, tint } from "@/components/dd/types";
 import Button from "@/components/ui/Button";
 
 type ChatMessage = {
@@ -149,7 +149,6 @@ export default function DealAssistantPanel({
   pendingPromptSignal?: number;
 }) {
   const { theme } = useTheme();
-  const c = ddTheme(theme);
   const isDark = theme === "dark";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -400,7 +399,7 @@ export default function DealAssistantPanel({
               style={{ position: "fixed", inset: 0, zIndex: 19, background: "transparent", border: "none", cursor: "default" }}
             />
             <div
-              className="dd-scroll"
+              className="dd-scroll bg-surface border border-edge"
               style={{
                 position: "absolute",
                 ...(messages.length === 0
@@ -410,8 +409,6 @@ export default function DealAssistantPanel({
                 width: 300,
                 maxHeight: 280,
                 overflowY: "auto",
-                background: c.surface,
-                border: `1px solid ${c.border}`,
                 borderRadius: 12,
                 boxShadow: isDark ? "0 18px 44px rgba(0,0,0,.4)" : "0 18px 44px rgba(15,23,42,.12)",
                 zIndex: 20,
@@ -419,7 +416,7 @@ export default function DealAssistantPanel({
                 textAlign: "left",
               }}
             >
-              <div className="font-mono-plex" style={{ padding: "6px 8px", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: c.t3 }}>
+              <div className="font-mono-plex text-t3" style={{ padding: "6px 8px", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase" }}>
                 Search across
               </div>
               {documents.map((doc) => {
@@ -429,18 +426,18 @@ export default function DealAssistantPanel({
                     key={doc.doc_id}
                     type="button"
                     onClick={() => toggleDocument(doc.doc_id)}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = c.surfaceAlt)}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-alt)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "8px", borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", textAlign: "left" }}
                   >
-                    <span style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: `1.5px solid ${on ? ACCENT : c.border}`, background: on ? ACCENT : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: `1.5px solid ${on ? ACCENT : "var(--border)"}`, background: on ? ACCENT : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
                       {on && (
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--on-accent)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M5 13l4 4L19 7" />
                         </svg>
                       )}
                     </span>
-                    <span style={{ fontSize: 12.5, color: c.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span className="text-t1" style={{ fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {shortDocName(doc.filename)}
                     </span>
                   </button>
@@ -451,9 +448,9 @@ export default function DealAssistantPanel({
         )}
 
         <div
+          className="bg-surface"
           style={{
-            background: c.surface,
-            border: `1.5px solid ${c.border}`,
+            border: "1.5px solid var(--border)",
             borderRadius: 16,
             boxShadow: isDark
               ? "0 12px 32px -20px rgba(0,0,0,.55)"
@@ -476,6 +473,7 @@ export default function DealAssistantPanel({
             }}
             placeholder={`Ask anything about ${deal.name}…`}
             rows={1}
+            className="text-t1"
             style={{
               width: "100%",
               minHeight: 52,
@@ -485,13 +483,12 @@ export default function DealAssistantPanel({
               outline: "none",
               border: "none",
               background: "transparent",
-              color: c.t1,
               lineHeight: 1.55,
               fontSize: 15,
               textAlign: "left",
             }}
           />
-          <div className="flex items-center justify-between" style={{ padding: "8px 10px", gap: 8, borderTop: `1px solid ${c.borderLight}` }}>
+          <div className="flex items-center justify-between border-t border-t-edge-light" style={{ padding: "8px 10px", gap: 8 }}>
             <div className="flex items-center" style={{ gap: 6 }}>
               {documents.length > 0 && (
                 <Button
@@ -540,14 +537,14 @@ export default function DealAssistantPanel({
           </div>
         </div>
       </div>
-      <div style={{ textAlign: "center", fontSize: 11, color: c.t3, paddingTop: 8 }}>
+      <div className="text-t3" style={{ textAlign: "center", fontSize: 11, paddingTop: 8 }}>
         AI can make mistakes. Verify cited source documents.
       </div>
     </>
   );
 
   return (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: c.bg }}>
+    <div className="bg-appbg" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
       <div className="dd-scroll" style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ maxWidth: 820, margin: "0 auto", padding: "34px 24px 150px" }}>
           {messages.length === 0 ? (
@@ -557,7 +554,6 @@ export default function DealAssistantPanel({
               isFund={deal.entity_type === "fund"}
               onPrompt={submit}
               onProactiveScan={onProactiveScan}
-              theme={theme}
               composer={renderComposer()}
             />
           ) : (
@@ -569,7 +565,6 @@ export default function DealAssistantPanel({
                   activeCitId={activeCitId}
                   onCit={onCit}
                   onOpenDocument={onOpenDocument}
-                  theme={theme}
                 />
               ))}
               {error && (
@@ -585,7 +580,9 @@ export default function DealAssistantPanel({
         <div style={{
           flexShrink: 0,
           padding: "0 24px 18px",
-          background: `linear-gradient(to top, ${c.bg} 78%, ${isDark ? "rgba(15,15,15,0)" : "rgba(243,243,238,0)"})`,
+          // A CSS function call, not a rendered element — the fade color
+          // can't be a class, so the token stays a var() literal here.
+          background: `linear-gradient(to top, var(--bg) 78%, ${isDark ? "rgba(15,15,15,0)" : "rgba(243,243,238,0)"})`,
         }}>
           <div style={{ maxWidth: 820, margin: "0 auto" }}>
             {renderComposer()}
@@ -602,7 +599,6 @@ function InitialAssistantState({
   isFund,
   onPrompt,
   onProactiveScan,
-  theme,
   composer,
 }: {
   docCount: number;
@@ -610,35 +606,32 @@ function InitialAssistantState({
   isFund: boolean;
   onPrompt: (prompt: string) => void;
   onProactiveScan?: () => void;
-  theme: "light" | "dark";
   composer?: ReactNode;
 }) {
-  const c = ddTheme(theme);
   const scanTitle = isFund ? "Run Fund Brief" : "Run Proactive Scan";
   const cards = isFund ? FUND_CARDS : DEAL_CARDS;
   return (
     <div style={{ minHeight: "calc(100vh - 280px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 640, textAlign: "center" }}>
-        <div className="font-mono-plex" style={{
+        <div className="font-mono-plex text-t3" style={{
           fontSize: 10,
           letterSpacing: "0.18em",
           textTransform: "uppercase",
-          color: c.t3,
           marginBottom: 16,
         }}>
           {docCount} document{docCount === 1 ? "" : "s"} · isolated deal room
         </div>
-        <h1 style={{ fontSize: 31, lineHeight: 1.12, fontWeight: 700, letterSpacing: "-0.022em", color: c.t1, marginBottom: 10 }}>
+        <h1 className="text-t1" style={{ fontSize: 31, lineHeight: 1.12, fontWeight: 700, letterSpacing: "-0.022em", marginBottom: 10 }}>
           Begin your diligence
         </h1>
-        <p style={{ fontSize: 13.5, color: c.t2, lineHeight: 1.6, marginBottom: 24 }}>
+        <p className="text-t2" style={{ fontSize: 13.5, lineHeight: 1.6, marginBottom: 24 }}>
           Ask anything — every answer is cited to the exact page across this deal&rsquo;s documents.
         </p>
 
         {composer && <div style={{ marginBottom: 26, textAlign: "left" }}>{composer}</div>}
 
-        <div className="font-mono-plex" style={{
-          fontSize: 10, fontWeight: 600, color: c.t3,
+        <div className="font-mono-plex text-t3" style={{
+          fontSize: 10, fontWeight: 600,
           textTransform: "uppercase", letterSpacing: "0.16em",
           marginBottom: 12, textAlign: "center",
         }}>
@@ -656,9 +649,10 @@ function InitialAssistantState({
                 e.currentTarget.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = c.border;
+                e.currentTarget.style.borderColor = "var(--border)";
                 e.currentTarget.style.transform = "none";
               }}
+              className="bg-surface"
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -666,27 +660,24 @@ function InitialAssistantState({
                 textAlign: "left",
                 padding: "14px 15px",
                 borderRadius: 14,
-                border: `1px solid ${c.border}`,
-                background: c.surface,
+                border: "1px solid var(--border)",
                 cursor: loading ? "default" : "pointer",
                 transition: "border-color .12s, transform .12s",
               }}
             >
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: c.t1, lineHeight: 1.3 }}>
+              <span className="text-t1" style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.3 }}>
                 {card.title}
               </span>
-              <span style={{ fontSize: 12, color: c.t2, lineHeight: 1.5 }}>
+              <span className="text-t2" style={{ fontSize: 12, lineHeight: 1.5 }}>
                 {card.blurb}
               </span>
               <span style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
                 {card.chips.map((chip) => (
                   <span
                     key={chip}
+                    className="text-t3 bg-surface-alt border border-edge"
                     style={{
                       fontSize: 10.5,
-                      color: c.t3,
-                      background: c.surfaceAlt,
-                      border: `1px solid ${c.border}`,
                       borderRadius: 6,
                       padding: "3px 7px",
                     }}
@@ -706,15 +697,13 @@ function InitialAssistantState({
               onClick={onProactiveScan}
               disabled={loading}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = tint(ACCENT, 42))}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = c.border)}
-              className="flex items-center"
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+              className="flex items-center bg-surface text-t1"
               style={{
                 gap: 8,
                 padding: "9px 16px",
                 borderRadius: 10,
-                border: `1px solid ${c.border}`,
-                background: c.surface,
-                color: c.t1,
+                border: "1px solid var(--border)",
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: loading ? "default" : "pointer",
@@ -738,15 +727,12 @@ function ChatBubble({
   activeCitId,
   onCit,
   onOpenDocument,
-  theme,
 }: {
   message: ChatMessage;
   activeCitId: string | null;
   onCit: (citation: Citation, id: string) => void;
   onOpenDocument: (citation: Citation) => void;
-  theme: "light" | "dark";
 }) {
-  const c = ddTheme(theme);
   const isUser = message.role === "user";
 
   if (isUser) {
@@ -756,11 +742,8 @@ function ChatBubble({
           {message.documents && message.documents.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "flex-end" }}>
               {message.documents.map((doc) => (
-                <span key={doc} style={{
+                <span key={doc} className="text-t2 bg-surface border border-edge" style={{
                   fontSize: 10,
-                  color: c.t2,
-                  background: c.surface,
-                  border: `1px solid ${c.border}`,
                   borderRadius: 99,
                   padding: "2px 7px",
                 }}>
@@ -769,10 +752,7 @@ function ChatBubble({
               ))}
             </div>
           )}
-          <div style={{
-            background: c.surfaceAlt,
-            color: c.t1,
-            border: `1px solid ${c.border}`,
+          <div className="bg-surface-alt text-t1 border border-edge" style={{
             borderRadius: 12,
             padding: "11px 13px",
             fontSize: 14,
@@ -804,14 +784,18 @@ function ChatBubble({
         V
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          background: c.surface,
-          border: `1px solid ${message.status === "error" ? "var(--danger-tint-border)" : c.border}`,
-          borderRadius: 12,
-          padding: "14px 16px",
-          color: message.status === "error" ? "var(--danger)" : c.t1,
-          minHeight: 50,
-        }}>
+        <div
+          className="bg-surface"
+          // An error status tints the border/text with the danger token, not
+          // ddTheme, so the whole conditional stays inline together.
+          style={{
+            border: `1px solid ${message.status === "error" ? "var(--danger-tint-border)" : "var(--border)"}`,
+            borderRadius: 12,
+            padding: "14px 16px",
+            color: message.status === "error" ? "var(--danger)" : "var(--text-1)",
+            minHeight: 50,
+          }}
+        >
           {message.content ? (
             <AnswerText
               text={message.content}
@@ -820,8 +804,8 @@ function ChatBubble({
               onCit={onCit}
             />
           ) : (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color: c.t2, fontSize: 13 }}>
-              <span className="dd-spin" style={{ width: 13, height: 13, border: `2px solid ${c.border}`, borderTopColor: ACCENT, borderRadius: "50%" }} />
+            <span className="text-t2" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span className="dd-spin border-edge" style={{ width: 13, height: 13, borderWidth: 2, borderStyle: "solid", borderTopColor: ACCENT, borderRadius: "50%" }} />
               Reading the deal room...
             </span>
           )}
@@ -835,10 +819,8 @@ function ChatBubble({
                   key={`${cit.source_file}_${cit.page}_${index}`}
                   type="button"
                   onClick={() => onOpenDocument(cit)}
+                  className="border border-edge bg-surface-alt text-t2"
                   style={{
-                    border: `1px solid ${c.border}`,
-                    background: c.surfaceAlt,
-                    color: c.t2,
                     borderRadius: 99,
                     padding: "3px 8px",
                     fontSize: 10,
