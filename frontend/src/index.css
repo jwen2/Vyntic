@@ -144,12 +144,22 @@
   --accent: #c47a5f;
   --accent-strong: #d18f76;
   /* Authored as color-mix, not raw rgba(196,122,95,.18/.38) — same resolved
-     colour (color-mix against `transparent` preserves the RGB channels and
-     sets alpha to the mix percentage, verified: renders identically), but now
-     consistent with every sibling tint pair in this file (danger-tint,
-     status-critical-tint, and this pair's own light-mode values), all of
-     which already use color-mix. The raw-rgba form was this pair's one
-     inconsistency, not a different design decision. */
+     colour either way (color-mix against `transparent` preserves the source
+     RGB channels and sets alpha to the mix percentage; verified against the
+     raw-rgba form, renders identically, no visual change).
+     This does NOT make the value "on-palette" — it's a known limitation of
+     the off-palette scanner (scripts/scan-palette.mjs), not a fix: the
+     scanner's hex() only matches literal rgb()/rgba() computed strings, and
+     getComputedStyle serializes color-mix() as a color(srgb ...) function
+     instead, which hex() can't parse. So switching this pair from rgba() to
+     color-mix() makes it structurally invisible to the scanner rather than
+     legal by it. The same is true of every other color-mix()-based tint token
+     in this file (danger-tint, status-critical-tint, --violet-tint-border,
+     this pair's own light-mode values) — none of them are actually verified
+     by the scanner; they've just never been raw rgba() literals, so they were
+     never in a position to be caught. Only this pair was, because it was the
+     one authored as raw rgba() instead of color-mix() like its siblings —
+     that inconsistency, not a different design decision, is what this fixes. */
   --accent-tint: color-mix(in srgb, #c47a5f 18%, transparent);
   --accent-tint-border: color-mix(in srgb, #c47a5f 38%, transparent);
   --on-accent: #0e1a17;

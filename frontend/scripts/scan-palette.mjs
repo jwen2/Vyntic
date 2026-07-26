@@ -45,6 +45,14 @@ const ROUTES = [
   ["portfolio", "/portfolio"],
 ];
 
+// KNOWN LIMITATION: this only matches literal rgb()/rgba() computed strings.
+// A CSS var authored via color-mix() (e.g. `color-mix(in srgb, #c47a5f 18%,
+// transparent)`) serializes in getComputedStyle as `color(srgb ...)`, not
+// rgb()/rgba(), so hex() returns null for it and it is silently skipped —
+// never reported, never checked, regardless of whether it's on- or
+// off-palette. A "PASS — zero off-palette colours" run does not verify any
+// color-mix()-authored token; treat that class of token as unaudited by this
+// script, not as confirmed legal.
 const hex = (s) => {
   const m = /^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/.exec(s || "");
   if (!m) return null;

@@ -2,25 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
 import { stageBadge } from "@/lib/stageBadges";
-import { toneVars, type BadgeTone } from "@/lib/badgePalette";
+import { toneVars } from "@/lib/badgePalette";
+import { SECTOR_TONES } from "@/lib/sectorTones";
 import Button from "@/components/ui/Button";
 
-// Sector tags route through the curated badge palette (lib/badgePalette.ts) —
-// same theme-aware CSS vars as stage chips, so there's no separate light/dark
-// map to keep in sync. Hue picked per sector to stay close to its pre-reskin
-// assignment (see the retired SECTOR_STYLES this replaced); each of the 8
-// tones is used exactly once so no two sector chips ever read identically.
-// Unknown tags fall back to the neutral chip.
-const SECTOR_TONES: Record<string, BadgeTone> = {
-  Technology: "slate",
-  Healthcare: "oxblood",
-  Industrials: "teal",
-  Consumer: "plum",
-  "Financial Services": "sage",
-  Energy: "ochre",
-  "Real Estate": "clay",
-  Infrastructure: "moss",
-};
+// Sector tag tone assignments live in lib/sectorTones.ts (see that file for
+// the full rationale — pre-reskin hue mapping, the stage-tone-collision
+// caveat, and the oxblood-vs-wash contrast check). Unknown tags fall back to
+// the neutral chip.
 const SECTOR_TAGS = [
   "Technology",
   "Healthcare",
