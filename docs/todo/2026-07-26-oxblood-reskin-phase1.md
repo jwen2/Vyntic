@@ -1083,7 +1083,7 @@ git commit -m "test(frontend): check in the off-palette scanner, phase 1 at zero
 ## Done when
 
 - `npm run scan:palette` exits 0 — zero off-palette colours on `/app`, `/deal/:id` and `/portfolio` in both themes.
-- `npx vitest run` passes (188 existing + 20 new = 208).
+- `npx vitest run` passes (214 tests).
 - `npx tsc --noEmit` and `npm run build` pass.
 - ESLint warnings at or below baseline.
 

@@ -2,8 +2,21 @@
  * Off-palette colour scanner. Walks every visible element on the app routes in
  * both themes and reports any computed colour that is not in the design system.
  *
+ * This is the oxblood-reskin phase's completion gate, not a diagnostic — a
+ * clean "PASS — zero off-palette colours" run is the phase's exit criterion
+ * (see docs/todo/2026-07-26-oxblood-reskin-phase1.md), not merely informative
+ * output. It requires Microsoft Edge installed locally (launched via the
+ * "msedge" Playwright channel) and a running dev server with seeded demo data
+ * (the acme_saas deal) to log into and walk /app, /deal/acme_saas and
+ * /portfolio. It is a local/dev gate, not a CI-portable script.
+ *
  * Alpha is kept in the comparison key on purpose: rgba(255,255,255,.14) is the
  * dark --border, and collapsing it to #ffffff would report a false positive.
+ *
+ * playwright-core is pinned to an exact version (no caret) in package.json —
+ * deliberately, not an oversight. Its driver protocol is coupled to the
+ * installed Edge build's automation protocol, so a floating range is riskier
+ * here than for the other devDependencies. Do not "fix" it into a caret range.
  *
  * Usage: node scripts/scan-palette.mjs [baseUrl]
  */
@@ -30,13 +43,18 @@ const LIGHT_OK = [
   ...SHARED, ...BADGES_LIGHT,
   "#ffffff", "#faf8f3", "#f4f1ea", "#16202e", "#2b3646", "#6f6a5e",
   "#c9c4b8", "#efeae0",
-  "#141923@0.34", "#141923@0.1",
+  "#eceef1",             // --violet-tint (light, plain hex)
+  "#141923@0.35", "#141923@0.1",
+  "#141923@0.55",        // --modal-scrim (light)
 ];
 const DARK_OK = [
   ...SHARED, ...BADGES_DARK,
   "#0e1a17", "#14231e", "#12201c", "#eaf0ec", "#c5d0ca", "#7f938a",
   "#c47a5f", "#d18f76", "#d9614e", "#d9a854", "#5aa37d", "#16261f", "#2a3b35",
+  "#c5d0ca@0.12",        // --violet-tint (dark, rgba)
+  "#c5d0ca@0.32",        // --violet-tint-border (dark, rgba)
   "#ffffff@0.24", "#ffffff@0.08",
+  "#000000@0.62",        // --modal-scrim (dark)
 ];
 
 const ROUTES = [
@@ -102,6 +120,9 @@ for (const theme of ["light", "dark"]) {
     await page.goto(BASE + route, { waitUntil: "networkidle" });
     await page.waitForTimeout(2500);
     const rows = await page.evaluate(collect);
+    if (rows.length < 100) {
+      throw new Error(`${name}-${theme}: only ${rows.length} elements rendered — route did not load correctly`);
+    }
     const tally = {};
     for (const r of rows) {
       const h = hex(r.val);

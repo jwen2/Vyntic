@@ -15,9 +15,6 @@
   --landing-muted: #5e5e57;
   --landing-inverse: #111111;
   --landing-inverse-text: #ffffff;
-  /* ═══ SPIKE: oxblood/ivory reskin (artifact "Vyntic — Design System & Handoff
-     Spec"). Colors only — type + radius deliberately untouched so screenshots
-     isolate what the token layer alone can carry. Revert: git checkout main. ═══ */
   /* --oxblood / --oxblood-2. #a3402f ≈ 6.3:1 on white. --on-accent is ivory,
      per the artifact's .btn-primary { color:#f4f1ea }. */
   --accent: #a3402f;
@@ -35,7 +32,7 @@
      variant) and, over time, red status pills/badges. Burnt-orange from the
      finalized button-system artifact; reads as destructive without the bright
      #ef4444 alarm. Dark equivalent is a soft coral (below). */
-  /* SPIKE: the artifact has no separate destructive hue — it folds onto
+  /* The artifact itself has no separate destructive hue — it folds onto
      --sev-material. Burnt-orange retires. */
   --danger: #c0392b;
   --danger-tint: color-mix(in srgb, #c0392b 10%, transparent);
@@ -45,7 +42,7 @@
      Distinct from --danger (destructive-action burnt-orange): critical stays a
      truer red so it reads clearly apart from the amber --status-warning. Always
      paired with a numeric or text label — never color-alone. */
-  /* SPIKE: --sev-note (forest) / --sev-moderate / --sev-material. */
+  /* --sev-note (forest) / --sev-moderate / --sev-material. */
   --status-good: #2f6b4f;
   --status-warning: #c98a2b;
   --status-critical: #c0392b;
@@ -63,7 +60,7 @@
   --on-violet: #f4f1ea;
   /* Shared table striping — a second scanning channel beyond gridlines.
      Applied via the .dd-zebra class (see rule below). */
-  /* SPIKE: zebra = --sand; header derived one step deeper (artifact gives no
+  /* zebra = --sand; header derived one step deeper (artifact gives no
      table tokens — these two are interpolated, not specified). */
   --table-zebra: #faf8f3;
   --table-header: #efeae0;
@@ -82,18 +79,22 @@
   --b-plum-bg:    #f6eef4; --b-plum-fg:    #783662; --b-plum-ed:    #c7a3bb;
   /* Reserved: terminal stages invert so "done" reads at a glance. */
   --b-ink-bg: var(--text-1); --b-ink-fg: var(--bg); --b-ink-ed: var(--text-1);
+  /* Neutral fallback — unmatched/unrecognized values. Deliberately quiet,
+     unlike --b-ink-* which is reserved for terminal-state emphasis. */
+  --b-neutral-bg: var(--surface-alt); --b-neutral-fg: var(--text-3); --b-neutral-ed: var(--border);
 
   /* Semantic surface/text/border tokens — the single theming source (FE11).
      Light values here; .dark overrides them below. Consumed via the Tailwind
      color aliases (bg-surface, text-t1, border-edge, …). */
-  /* SPIKE: --paper / --sand / --ivory / --line-2 / --line / --ink / --ink-2 /
-     --muted. Landing keeps its own vars ("marketing stays ivory").
-     CONTRAST WATCH — two artifact values regress fixes this repo made on
-     purpose: --muted #8a8478 is ≈3.7:1 on white (AA body text wants 4.5:1;
-     the current --text-3 #6e6e66 is ≈5.1:1), and --line at 10% alpha is far
-     lighter than the #b0b0a3 border that was raised to ~2.2:1 so panel edges
-     survive washed-out displays. Both are shipped as-specified here so the
-     screenshots show the real thing. */
+  /* Semantic surface/text/border tokens — the single theming source (FE11).
+     Landing keeps its own vars ("marketing stays ivory"). Two values needed
+     correcting from the source artifact's spec to clear WCAG floors: the
+     artifact's --muted #8a8478 measures ≈3.7:1 on white (AA body text wants
+     4.5:1) — ships here as --text-3 #6f6a5e instead. The artifact's --line at
+     10% alpha is far lighter than the #b0b0a3 border this repo raised to
+     ~2.2:1 so panel edges survive washed-out displays — --border ships at a
+     corrected alpha (see below) to restore that weight; --border-light keeps
+     the artifact's 10% value as the deliberate decorative-only hairline. */
   --surface: #ffffff;
   --surface-alt: #faf8f3;
   --bg: #f4f1ea;
@@ -102,7 +103,7 @@
      6 decorative popover rules. Target is 2.2:1 (the legacy #b0b0a3), not the
      3:1 of SC 1.4.11 — the repo's own value never met 3:1 and grid lines that
      heavy read as rules in a dense table. See spec D2. */
-  --border: rgba(20, 25, 35, 0.34);
+  --border: rgba(20, 25, 35, 0.35);
   --border-light: rgba(20, 25, 35, 0.1);
   --text-1: #16202e;
   --text-2: #2b3646;
@@ -119,7 +120,7 @@
      black/35) and z-index (50/90/1000); these tokens are the single source now.
      --z-modal sits above app chrome but below the 9999 portaled popovers, so a
      popover opened from inside a dialog still paints over it. */
-  /* SPIKE: scrim/shadow rebased on the artifact's ink rgb(20,25,35). */
+  /* Scrim/shadow rebased on the artifact's ink rgb(20,25,35). */
   --modal-scrim: rgba(20, 25, 35, 0.55);
   --modal-shadow: rgba(20, 25, 35, 0.18);
   --z-modal: 1000;
@@ -127,7 +128,7 @@
      Unlike --modal-shadow, which is a colour, this holds the whole box-shadow
      value: the light treatment has two layers and the dark one has a single
      deeper layer, so they differ in shape, not just tint. */
-  /* SPIKE: the artifact's --sh-2 ("shadows are soft and rare"). */
+  /* The artifact's --sh-2 ("shadows are soft and rare"). */
   --card-hero-shadow: 0 8px 24px -10px rgba(20, 25, 35, 0.18);
 }
 
@@ -228,6 +229,7 @@
 .badge-tone-slate   { background: var(--b-slate-bg);   color: var(--b-slate-fg);   border-color: var(--b-slate-ed); }
 .badge-tone-plum    { background: var(--b-plum-bg);    color: var(--b-plum-fg);    border-color: var(--b-plum-ed); }
 .badge-tone-ink     { background: var(--b-ink-bg);     color: var(--b-ink-fg);     border-color: var(--b-ink-ed); }
+.badge-tone-neutral { background: var(--b-neutral-bg); color: var(--b-neutral-fg); border-color: var(--b-neutral-ed); }
 
 html {
   scroll-behavior: smooth;

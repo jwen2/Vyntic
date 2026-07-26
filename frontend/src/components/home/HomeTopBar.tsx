@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@/lib/api";
 import Button from "@/components/ui/Button";
+import { toneVars } from "@/lib/badgePalette";
 
 interface Props {
   user: User | null;
@@ -26,8 +27,8 @@ export default function HomeTopBar({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   // App chrome, not the landing page — semantic tokens flip with .dark on
-  // their own, same idiom as HomeSidebar/DealListItem (no isDark ternaries
-  // needed here beyond the inverse "V" mark / ADMIN chip below).
+  // their own, same idiom as HomeSidebar/DealListItem. The "V" mark and ADMIN
+  // chip use the reserved "ink" badge tone (via toneVars) for their inverse fill.
   const surface = "var(--surface)";
   const border = "var(--border)";
   const text = "var(--text-1)";
@@ -83,14 +84,14 @@ export default function HomeTopBar({
             height: 34,
             // Reserved "ink" badge tone — the app's existing inverse-chip
             // idiom (dark chip w/ light text in light mode, flips in dark).
-            background: "var(--b-ink-bg)",
+            background: toneVars("ink").bg,
             borderRadius: 8,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontWeight: 700,
             fontSize: 14,
-            color: "var(--b-ink-fg)",
+            color: toneVars("ink").fg,
           }}
         >
           V
@@ -159,8 +160,8 @@ export default function HomeTopBar({
                 fontWeight: 700,
                 padding: "2px 5px",
                 borderRadius: 5,
-                background: "var(--b-ink-bg)",
-                color: "var(--b-ink-fg)",
+                background: toneVars("ink").bg,
+                color: toneVars("ink").fg,
                 letterSpacing: "0.08em",
               }}
             >

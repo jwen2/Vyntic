@@ -24,7 +24,7 @@ describe("colour token contract", () => {
 
   it("restores the legacy border weight, not the artifact's hairline", () => {
     // Legacy #b0b0a3 was 2.19:1. alpha .10 = 1.22:1, .16 = 1.40:1 — both regress it.
-    expect(tokenValue("--border", "light")).toBe("rgba(20, 25, 35, 0.34)");
+    expect(tokenValue("--border", "light")).toBe("rgba(20, 25, 35, 0.35)");
     expect(tokenValue("--border", "dark")).toBe("rgba(255, 255, 255, 0.24)");
   });
 
@@ -36,5 +36,24 @@ describe("colour token contract", () => {
   it("resolves --violet to ink in both themes (spec D3)", () => {
     expect(tokenValue("--violet", "light")).toBe("#2b3646");
     expect(tokenValue("--violet", "dark")).toBe("#c5d0ca");
+  });
+});
+
+const scannerSrc = readFileSync(resolve(here, "../scripts/scan-palette.mjs"), "utf8");
+
+describe("scanner whitelist parity", () => {
+  it("includes every literal (non-color-mix) badge and violet tint value", () => {
+    // Literal hex/rgba values from index.css that are NOT authored via
+    // color-mix() and therefore must appear in the scanner's OK arrays.
+    const mustAppear = [
+      "#eceef1",        // --violet-tint (light)
+      "#c5d0ca@0.12",   // --violet-tint (dark)
+      "#c5d0ca@0.32",   // --violet-tint-border (dark)
+      "#141923@0.55",   // --modal-scrim (light)
+      "#000000@0.62",   // --modal-scrim (dark)
+    ];
+    for (const v of mustAppear) {
+      expect(scannerSrc.includes(v), `scanner is missing ${v}`).toBe(true);
+    }
   });
 });

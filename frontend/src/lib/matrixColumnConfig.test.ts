@@ -29,12 +29,9 @@ describe("getPillClass", () => {
     expect(getPillClass("No", { format: "yes_no" })).toBe("badge-tone-oxblood");
   });
 
-  it("falls back to badge-tone-ink for an unrecognized currency", () => {
-    expect(getPillClass("XYZ", { format: "currency" })).toBe("badge-tone-ink");
-  });
-
-  it("falls back to badge-tone-ink for unformatted content", () => {
-    expect(getPillClass("anything")).toBe("badge-tone-ink");
+  it("falls back to badge-tone-neutral, not the reserved ink tone", () => {
+    expect(getPillClass("XYZ", { format: "currency" })).toBe("badge-tone-neutral");
+    expect(getPillClass("anything")).toBe("badge-tone-neutral");
   });
 
   it("never returns a raw Tailwind colour utility", () => {

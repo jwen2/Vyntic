@@ -176,11 +176,11 @@ export function getPillClass(content: string, column?: Pick<MatrixColumnConfig, 
     if (lower === "no") return "badge-tone-oxblood";
   }
   if (column?.format === "currency") {
-    return CURRENCY_COLORS[content.toUpperCase()] ?? "badge-tone-ink";
+    return CURRENCY_COLORS[content.toUpperCase()] ?? "badge-tone-neutral";
   }
   if ((column?.format === "tag" || column?.format === "enum") && column.tags?.length) {
     const idx = column.tags.findIndex((tag) => tag.toLowerCase() === content.toLowerCase());
     if (idx >= 0) return TAG_COLORS[idx % TAG_COLORS.length];
   }
-  return "badge-tone-ink";
+  return "badge-tone-neutral";
 }
