@@ -51,15 +51,12 @@
   --status-critical: #c0392b;
   --status-critical-tint: color-mix(in srgb, #c0392b 10%, transparent);
   --status-critical-tint-border: color-mix(in srgb, #c0392b 28%, transparent);
-  /* Violet — the second semantic hue: tabular workflows, derived (vs
-     extracted) citations, KV cells. Coordinated with the IC Review badge
-     family. #7c3aed = 5.7:1 on white (AA); vivid enough to read as a clear
-     "wrap" color next to the cobalt accent (the deeper #6d28d9 read muted). */
-  /* SPIKE — FORCED DECISION: the artifact has NO second hue ("Ink, ivory, and a
-     single oxblood"). Violet has nowhere to map, so it collapses onto secondary
-     ink and reads as structural rather than semantic. Everywhere violet carried
-     meaning (tabular workflows, derived vs extracted citations, KV cells) now
-     loses that channel — a real design decision the artifact forces, not a swap. */
+  /* Violet — the second semantic hue (tabular workflows, derived vs extracted
+     citations, KV cells). Resolves to secondary ink: the artifact defines no
+     second hue, and ink measured a better separation from oxblood than any
+     plum that also passed surface contrast — 1.94:1 vs 1.54:1 normal, and
+     2.51:1 vs 1.73:1 under simulated deuteranopia. Deliberate, not forced.
+     See spec D3. */
   --violet: #2b3646;
   --violet-tint: #eceef1;
   --violet-tint-border: color-mix(in srgb, #2b3646 24%, transparent);
@@ -100,11 +97,19 @@
   --surface: #ffffff;
   --surface-alt: #faf8f3;
   --bg: #f4f1ea;
-  --border: rgba(20, 25, 35, 0.16);
+  /* --border carries the accessible weight and is the default for ~160 sites;
+     --border-light is the artifact's 10% hairline, a deliberate opt-in used by
+     6 decorative popover rules. Target is 2.2:1 (the legacy #b0b0a3), not the
+     3:1 of SC 1.4.11 — the repo's own value never met 3:1 and grid lines that
+     heavy read as rules in a dense table. See spec D2. */
+  --border: rgba(20, 25, 35, 0.34);
   --border-light: rgba(20, 25, 35, 0.1);
   --text-1: #16202e;
   --text-2: #2b3646;
-  --text-3: #8a8478;
+  /* Artifact value #8a8478 is 3.29:1 on sand — below the AA floor, and sand is
+     both the app background and the neutral chip fill. Darkened to clear 4.5:1
+     on white (5.39), surface-alt (5.07) and sand (4.77) while staying muted. */
+  --text-3: #6f6a5e;
   --text-4: #c9c4b8;
   --zebra: var(--table-zebra);
   --grid-header: var(--table-header);
@@ -128,16 +133,14 @@
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
 .dark {
-  /* ═══ SPIKE: the artifact's dark product theme ("light marketing, dark
-     workspace") — a deep ink-green ground, not neutral near-black.
-
-     The artifact SPECIFIES only 6 dark values (--ivory/--paper/--ink/--oxblood/
-     --sand/--line). Four more are harvested from its dark demo markup, which is
-     better than inventing them: --text-2 #c5d0ca, --text-3 #7f938a (its mono
-     meta line), accent tint rgba(196,122,95,.18), --on-accent #0e1a17. The rest
-     (text-4, zebra, grid-header, status scale, tints) are INTERPOLATED — the
-     artifact simply doesn't cover them, which is itself a finding: its dark
-     theme underspecifies this app by roughly 19 tokens. ═══ */
+  /* Dark theme. The artifact specifies only 6 dark values (--ivory/--paper/
+     --ink/--oxblood/--sand/--line); this app needs ~25. Four more are
+     harvested from its dark demo markup — --text-2 #c5d0ca, --text-3 #7f938a,
+     the accent tint, and --on-accent #0e1a17 — which beats inventing them.
+     The remainder (text-4, zebra, grid-header, status scale, tints, scrim,
+     shadows) are DERIVED: each from its light-mode role at matched contrast
+     against the #0e1a17 ground, then contrast-checked. Derived, not specified
+     — revisable without archaeology. See spec §5. */
   --accent: #c47a5f;
   --accent-strong: #d18f76;
   --accent-tint: rgba(196, 122, 95, 0.18);
@@ -153,7 +156,7 @@
   --status-critical: #d9614e;
   --status-critical-tint: color-mix(in srgb, #d9614e 16%, transparent);
   --status-critical-tint-border: color-mix(in srgb, #d9614e 32%, transparent);
-  /* Violet still has nowhere to go — neutral secondary text on dark. */
+  /* Violet resolves to secondary ink here too — see spec D3. */
   --violet: #c5d0ca;
   --violet-tint: rgba(197, 208, 202, 0.12);
   --violet-tint-border: rgba(197, 208, 202, 0.32);
@@ -175,7 +178,7 @@
   --surface: #14231e;
   --surface-alt: #12201c;
   --bg: #0e1a17;
-  --border: rgba(255, 255, 255, 0.14);
+  --border: rgba(255, 255, 255, 0.24);
   --border-light: rgba(255, 255, 255, 0.08);
   --text-1: #eaf0ec;
   --text-2: #c5d0ca;
