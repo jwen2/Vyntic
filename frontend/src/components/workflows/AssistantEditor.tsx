@@ -9,6 +9,7 @@ import type {
   WorkflowStageInput,
   WorkflowUpdatePayload,
 } from "@/lib/workflows";
+import SectionLabel from "@/components/ui/SectionLabel";
 import { ACCENT, AMBER } from "./theme";
 import Button from "@/components/ui/Button";
 
@@ -292,7 +293,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
             overflowY: "auto",
           }}
         >
-          <SectionLabel>Stages</SectionLabel>
+          <SectionLabel className="mb-2">Stages</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
             {stages.map((stage, i) => (
               <StageRailItem
@@ -333,7 +334,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
           )}
 
           <div style={{ marginTop: 24 }}>
-            <SectionLabel>Settings</SectionLabel>
+            <SectionLabel className="mb-2">Settings</SectionLabel>
             <div className="text-t3" style={{ fontSize: 11, marginBottom: 6 }}>Output format</div>
             <div
               className="bg-surface border border-edge"
@@ -472,7 +473,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
             overflowY: "auto",
           }}
         >
-          <SectionLabel>Flow</SectionLabel>
+          <SectionLabel className="mb-2">Flow</SectionLabel>
           <FlowStep label="Upload docs" />
           {stages.flatMap((stage, i) => {
             const items = [
@@ -499,7 +500,7 @@ export default function AssistantEditor(props: AssistantEditorProps) {
           <FlowStep label={`Output (${outputFormat})`} />
 
           <div style={{ marginTop: 28 }}>
-            <SectionLabel>Test context</SectionLabel>
+            <SectionLabel className="mb-2">Test context</SectionLabel>
             <div
               className="text-t2 bg-surface border border-edge"
               style={{
@@ -527,23 +528,6 @@ export default function AssistantEditor(props: AssistantEditorProps) {
           onCancel={() => setConfirmingDelete(false)}
         />
       )}
-    </div>
-  );
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="text-t3"
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: 8,
-      }}
-    >
-      {children}
     </div>
   );
 }

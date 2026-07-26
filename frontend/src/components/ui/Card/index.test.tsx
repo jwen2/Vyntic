@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { createRef } from "react";
-import Card from "./Card";
+import Card from "./index";
 
 afterEach(() => {
   cleanup();

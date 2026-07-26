@@ -21,6 +21,12 @@
   --accent-tint: #e7edfb;
   --accent-tint-border: #b6c6ee;
   --on-accent: #ffffff;
+  /* Focus indicator. Follows --accent, so it flips with the theme: #1d4ed8
+     (6.7:1 on white) light, #8ab4ff (8.6:1 on #171717) dark — both clear the
+     3:1 WCAG 2.2 SC 1.4.11 floor for non-text indicators. Replaces a hardcoded
+     `blue-400`, which this config retunes to #8ab4ff for *both* themes and so
+     measured only 2.09:1 against a white input surface. */
+  --focus: var(--accent);
   /* Danger — the destructive semantic hue for the shared <Button> (danger
      variant) and, over time, red status pills/badges. Burnt-orange from the
      finalized button-system artifact; reads as destructive without the bright
@@ -66,7 +72,7 @@
   --zebra: var(--table-zebra);
   --grid-header: var(--table-header);
 
-  /* Modal chrome — the shared <Modal> overlay/panel (see ui/modal.css). Before
+  /* Modal chrome — the shared <Modal> overlay/panel (see ui/Modal/index.css). Before
      DS1 each dialog picked its own scrim (rgba(15,23,42,.55/.58), rgba(0,0,0,.55),
      black/35) and z-index (50/90/1000); these tokens are the single source now.
      --z-modal sits above app chrome but below the 9999 portaled popovers, so a
@@ -74,7 +80,7 @@
   --modal-scrim: rgba(15, 23, 42, 0.55);
   --modal-shadow: rgba(15, 23, 42, 0.18);
   --z-modal: 1000;
-  /* Hero-card elevation — the brief's outermost card (see ui/card.css).
+  /* Hero-card elevation — the brief's outermost card (see ui/Card/index.css).
      Unlike --modal-shadow, which is a colour, this holds the whole box-shadow
      value: the light treatment has two layers and the dark one has a single
      deeper layer, so they differ in shape, not just tint. */

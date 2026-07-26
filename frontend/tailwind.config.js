@@ -35,6 +35,7 @@ export default {
         t2: "var(--text-2)",
         t3: "var(--text-3)",
         t4: "var(--text-4)",
+        focus: "var(--focus)",
         zebra: "var(--zebra)",
         "grid-header": "var(--grid-header)",
         accent: "var(--accent)",

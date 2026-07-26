@@ -1,12 +1,7 @@
 import { RED } from "../theme";
 
 // Small presentational primitives shared across the tabular-run subcomponents.
-
-export function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-t3">{children}</div>
-  );
-}
+// `SectionLabel` now lives in components/ui — import it from there directly.
 
 export function RetryIcon({ spinning = false }: { spinning?: boolean }) {
   return (

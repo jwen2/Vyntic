@@ -10,6 +10,7 @@ import {
 } from "@/lib/workflows";
 import DocumentViewer from "@/components/DocumentViewer";
 import AnswerText from "@/components/dd/AnswerText";
+import SectionLabel from "@/components/ui/SectionLabel";
 import { ACCENT, GREEN, RED, tint } from "./theme";
 
 interface MemoOutputProps {
@@ -291,7 +292,7 @@ export default function MemoOutput({
             padding: 16,
           }}
         >
-          <SectionLabel>Contents</SectionLabel>
+          <SectionLabel className="mb-2.5">Contents</SectionLabel>
           {stages.map((s) => (
             <a
               key={s.id}
@@ -317,7 +318,7 @@ export default function MemoOutput({
           ))}
 
           <div style={{ marginTop: 20 }}>
-            <SectionLabel>Sources</SectionLabel>
+            <SectionLabel className="mb-2.5">Sources</SectionLabel>
             {run.document_ids.map((docId) => {
               const doc = docs.find((d) => d.doc_id === docId);
               const filename = doc?.filename ?? docId;
@@ -413,14 +414,6 @@ function MemoSection({
           onCit={onCitationClick}
         />
       </div>
-    </div>
-  );
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-t3" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
-      {children}
     </div>
   );
 }

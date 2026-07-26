@@ -1,7 +1,7 @@
 import type { DocumentMetadata } from "@/lib/api";
 import type { CellStatus, TabularCell, WorkflowColumn } from "@/lib/workflows";
 import { AMBER, GREEN, RED } from "../theme";
-import { SectionLabel } from "./parts";
+import SectionLabel from "@/components/ui/SectionLabel";
 import { cellKey, type RunLogEntry } from "./useTabularRun";
 
 // The left rail: the per-document roll-up (status derived from its cells) and
