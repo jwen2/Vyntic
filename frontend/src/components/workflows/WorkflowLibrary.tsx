@@ -147,7 +147,7 @@ export default function WorkflowLibrary({
                 </div>
 
                 <Button
-                  variant="primary"
+                  variant="secondary"
                   onClick={() => setShowNewMenu((value) => !value)}
                 >
                   New workflow
