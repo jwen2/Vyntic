@@ -154,12 +154,14 @@
      instead, which hex() can't parse. So switching this pair from rgba() to
      color-mix() makes it structurally invisible to the scanner rather than
      legal by it. The same is true of every other color-mix()-based tint token
-     in this file (danger-tint, status-critical-tint, --violet-tint-border,
-     this pair's own light-mode values) — none of them are actually verified
-     by the scanner; they've just never been raw rgba() literals, so they were
-     never in a position to be caught. Only this pair was, because it was the
-     one authored as raw rgba() instead of color-mix() like its siblings —
-     that inconsistency, not a different design decision, is what this fixes. */
+     in this file (danger-tint, status-critical-tint, this pair's own
+     light-mode --accent-tint-border) — none of them are actually verified by
+     the scanner. Dark --violet-tint/--violet-tint-border are raw rgba() too
+     and equally unverified; they just never rendered on one of the scanner's
+     3 scanned routes (/app, /deal/acme_saas, /portfolio), so they were never
+     in a position to be caught. This pair was, in dark mode — that's a
+     visibility difference, not a difference in how any of these tokens were
+     authored. */
   --accent-tint: color-mix(in srgb, #c47a5f 18%, transparent);
   --accent-tint-border: color-mix(in srgb, #c47a5f 38%, transparent);
   --on-accent: #0e1a17;
