@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Deal, UploadProgress, User } from "@/lib/api";
-import { useTheme } from "@/components/ThemeProvider";
 import DealListItem from "./DealListItem";
 
 /** Group funds under their manager; plain deals form a trailing group. */
@@ -73,15 +72,16 @@ export default function HomeSidebar({
   user,
   onClose,
 }: Props) {
-  const { theme } = useTheme();
   const navigate = useNavigate();
-  const isDark = theme === "dark";
   const groups = useMemo(() => groupByManager(filteredDeals), [filteredDeals]);
-  const surface = isDark ? "#151515" : "#f8f8f4";
-  const surfaceAlt = isDark ? "#101010" : "#ffffff";
-  const border = isDark ? "#262626" : "var(--landing-border)";
-  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
-  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+  // Deliberate inversion vs. the other four app-surface files: this
+  // sidebar's light-mode `surface` is the recessed tone and `surfaceAlt` is
+  // the raised one. Preserve it — don't normalise to match the others.
+  const surface = "var(--surface-alt)";
+  const surfaceAlt = "var(--surface)";
+  const border = "var(--border)";
+  const text = "var(--text-1)";
+  const muted = "var(--text-3)";
 
   return (
     <aside

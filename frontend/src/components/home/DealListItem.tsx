@@ -73,11 +73,11 @@ export default function DealListItem({
   const [showStageMenu, setShowStageMenu] = useState(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
 
-  const surface = isDark ? "#151515" : "#ffffff";
-  const surfaceAlt = isDark ? "#101010" : "#f8f8f4";
-  const border = isDark ? "#262626" : "var(--landing-border)";
-  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
-  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+  const surface = "var(--surface)";
+  const surfaceAlt = "var(--surface-alt)";
+  const border = "var(--border)";
+  const text = "var(--text-1)";
+  const muted = "var(--text-3)";
   // Selection = accent tint wash + accent border (same idiom as the workspace);
   // text stays at normal contrast on the wash, so no inverse overrides needed.
   const selectedBg = "var(--accent-tint)";

@@ -1,4 +1,3 @@
-import { useTheme } from "@/components/ThemeProvider";
 import type { Citation } from "@/lib/api";
 import CitationSnippet, { SPREADSHEET_FILE_RE } from "./CitationSnippet";
 
@@ -9,13 +8,11 @@ interface Props {
 }
 
 export default function CitationPanel({ citation, onClose, onOpenDocument }: Props) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const surface = isDark ? "#151515" : "#ffffff";
-  const surfaceAlt = isDark ? "#101010" : "#f8f8f4";
-  const border = isDark ? "#262626" : "var(--landing-border)";
-  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
-  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+  const surface = "var(--surface)";
+  const surfaceAlt = "var(--surface-alt)";
+  const border = "var(--border)";
+  const text = "var(--text-1)";
+  const muted = "var(--text-3)";
 
   const isSpreadsheet = SPREADSHEET_FILE_RE.test(citation.source_file);
   const locatorLabel = isSpreadsheet ? "Sheet" : "Page";
@@ -178,8 +175,8 @@ export default function CitationPanel({ citation, onClose, onOpenDocument }: Pro
           onClick={() => onOpenDocument(citation)}
           className="mt-4 w-full rounded-full px-4 py-3 text-sm font-medium"
           style={{
-            background: isDark ? "#f5f5f5" : "#111111",
-            color: isDark ? "#111111" : "#ffffff",
+            background: "var(--text-1)",
+            color: "var(--bg)",
             border: "none",
             cursor: "pointer",
           }}
