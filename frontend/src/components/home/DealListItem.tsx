@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
-import { STAGE_STYLES, DARK_STAGE_STYLES } from "@/lib/stageBadges";
+import { stageBadge } from "@/lib/stageBadges";
 import Button from "@/components/ui/Button";
 
 // Sector tags carry fixed hues (same contrast targets as the stage chips);
@@ -81,10 +81,10 @@ export default function DealListItem({
   // Selection = accent tint wash + accent border (same idiom as the workspace);
   // text stays at normal contrast on the wash, so no inverse overrides needed.
   const selectedBg = "var(--accent-tint)";
-  const stageMap = isDark ? DARK_STAGE_STYLES : STAGE_STYLES;
   const sectorMap = isDark ? DARK_SECTOR_STYLES : SECTOR_STYLES;
+  const badge = stageBadge(deal.stage);
   const stage =
-    stageMap[deal.stage] || {
+    badge || {
       bg: surfaceAlt,
       fg: text,
       border,

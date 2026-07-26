@@ -26,7 +26,7 @@ export default function TopBar({
 }: TopBarProps) {
   const isDark = theme === "dark";
   const chip = isDark ? "#1a1a1a" : "rgba(255,255,255,0.78)";
-  const badge = stageBadge(deal.stage, isDark);
+  const badge = stageBadge(deal.stage);
 
   return (
     <div className="flex flex-shrink-0 items-center gap-3 border-b border-b-edge bg-surface px-4 py-3">

@@ -86,7 +86,7 @@ export default function ManagerPage() {
           {fundsQuery.error ? <ErrorCard message={fundsQuery.error instanceof Error ? fundsQuery.error.message : "Could not load funds."} /> : funds.length === 0 ? <EmptyCard text="No accessible funds are linked to this manager." /> : (
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {funds.map((fund) => {
-                const badge = stageBadge(fund.stage, isDark);
+                const badge = stageBadge(fund.stage);
                 return (
                   <button
                     key={fund.deal_id}
