@@ -15,7 +15,14 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    // Only index.tokens.test.ts needs Node builtins (fs/path/url) to read
+    // index.css from disk. There's no narrower scope without a second
+    // tsconfig for tests (over-engineering at this project's size), so this
+    // is a documented, intentional exposure rather than an implicit side
+    // effect of installing @types/node — it also forecloses some other
+    // @types/* package silently doing the same later unnoticed.
+    "types": ["node"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
