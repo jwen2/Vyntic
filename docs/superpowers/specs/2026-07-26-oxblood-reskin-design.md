@@ -44,7 +44,56 @@ Everything that broke was code that bypassed both.
 
 Six decisions were settled during design. Each is binding for implementation.
 
-### D1 — Stage badges go ink-neutral; colour means severity only
+### D1 — Badge colour becomes admin-configurable from a curated palette
+
+**Superseded the original D1** (ink-neutral stages, colour reserved for
+severity) after review: users need visual differentiation between funds and
+stages, and flattening every chip to sand removes a real scanning aid.
+
+Badge colour becomes **data an admin sets**, chosen from a fixed palette of 8
+tokenized colours — not a free hex picker. The curated set is what keeps this
+from dissolving the design system:
+
+- every option is a token with light + dark values, so dark mode works by
+  construction rather than by runtime derivation from arbitrary input;
+- contrast is verified once at design time instead of computed per badge;
+- the palette is finite and known, so the Phase 1 zero-off-palette gate
+  survives — the scanner whitelists 48 known values, not "whatever users pick".
+
+**The palette.** Hues spread around the wheel but held desaturated and warm
+enough to sit beside oxblood, which leads the set. All values derived and
+verified programmatically; **worst label contrast 7.01:1, worst border 2.2:1,
+zero failures** across 16 theme/colour combinations.
+
+| name | light bg / fg / edge | dark bg / fg / edge |
+|---|---|---|
+| oxblood | `#f8efed` `#8d3020` `#db9f95` | `#401d17` `#e5a59a` `#894134` |
+| clay | `#f8f2ed` `#6f4725` `#c9a98d` | `#302318` `#d2a884` `#6c5037` |
+| ochre | `#f7f5ed` `#5e4f21` `#bdac7a` | `#2c2617` `#c9b373` `#605534` |
+| moss | `#f2f6ee` `#3e5b29` `#9ab587` | `#20281a` `#99bf7d` `#4a5c3d` |
+| sage | `#eff6f2` `#2d5c45` `#91b6a3` | `#1d2a24` `#88bfa3` `#425c4f` |
+| teal | `#eef5f6` `#2c5963` `#90b4bb` | `#1c292c` `#87bac4` `#3f5a5f` |
+| slate | `#eef2f6` `#365278` `#a0b0c5` | `#202832` `#9fb4d0` `#47576b` |
+| plum | `#f6eef4` `#783662` `#c7a3bb` | `#32202c` `#d2a3c2` `#714b65` |
+
+**Known limitation.** moss, sage, and teal sit at effectively identical
+luminance (1:1), so they separate by hue alone — indistinguishable under
+deuteranopia if an admin happens to pick two of them for adjacent items. This
+is accepted because a badge always carries a text label, making colour a
+*redundant* channel rather than the sole one. Luminance was deliberately kept
+uniform across the palette so no colour reads as louder than another; staggering
+it would fix the CVD case at the cost of making some chips visually dominant.
+Revisit if users report confusion.
+
+**Scope consequence.** This is no longer purely a reskin. Colour-as-data needs
+storage, an admin route, and a picker UI. Per CLAUDE.md, mutations are
+admin-only behind `require_admin`, and migrations are additive-only. The
+palette and the `stageBadges.ts` refactor belong to this plan; **the persistence
+layer and picker UI are a separate feature plan** that builds on them. The
+refactor is identical either way — what changes is only whether the value comes
+from a constant or from a row.
+
+### D1-orig — superseded: ink-neutral stages (retained for rationale)
 
 The artifact is **not** single-hue. It defines a four-level badge system:
 
@@ -69,12 +118,19 @@ docs)"* and *"Active doc uses soft-oxblood fill."* In this system oxblood tint
 means **active/selected**. Rendering `DUE DILIGENCE` as `#f2e5e1` would make
 "this row is selected" and "this deal is in diligence" the same colour.
 
-**Consequence, accepted knowingly:** this is the only part of the plan users
-will experience as a functional change rather than a restyle. Stage and
-currency hues are a real scanning aid, and no contrast argument justifies
-removing them — it follows from the decision to honour the artifact's
-information model. Reversible by scoping D1 to stage badges and leaving
-`matrixColumnConfig` hued.
+**Why it was superseded:** the reasoning above is sound about the *artifact*
+but wrong about the *product*. Stage and currency hues are a real scanning aid,
+and no contrast argument justified removing them. The curated palette in D1
+honours the artifact's discipline (finite, tokenized, contrast-verified) without
+paying that cost.
+
+**One constraint that survives.** The `--soft` collision is still real: oxblood
+tint means *active/selected* throughout the app. The palette's `oxblood` option
+(`#f8efed` light) is close to `--soft` (`#f2e5e1`), so an oxblood badge sitting
+in a selected row may read ambiguously. Either drop `oxblood` from the
+selectable set and keep it reserved for interaction state, or verify the two
+read distinctly in situ before shipping. Flagged for implementation, not
+resolved here.
 
 ### D2 — Text always ≥4.5:1; borders split decorative vs. data
 
@@ -262,17 +318,22 @@ Four categorical palettes collapse to two vocabularies.
 / neutral, per the artifact's `.b-*` classes. `theme.ts`'s `AMBER` and `GREEN`
 retokenize here.
 
-**Identity — goes ink-neutral.** `lib/stageBadges.ts` collapses from 9 stages ×
-2 themes × 3 properties (54 hand-tuned values) to two chip styles: sand/ink for
-active stages, inverted ink for terminal ones (`Closed`, `Committed`).
-Consumers: `dd/TopBar.tsx`, `home/DealListItem.tsx`, `pages/ManagerPage.tsx`.
+**Identity — becomes palette-driven.** `lib/stageBadges.ts` stops owning colour
+values. Its 54 hand-tuned constants (9 stages × 2 themes × 3 properties) are
+replaced by a lookup from a stage to one of the 8 palette tokens in D1, with the
+`{bg, fg, edge}` triple resolved from CSS vars rather than hardcoded per theme.
+Defaults preserve today's rough hue assignments where a palette colour is close
+(Screening→sage, Diligence→slate, IC→plum, Monitoring→moss, terminal→ink), so
+nothing shifts unrecognisably before an admin customises anything. Consumers:
+`dd/TopBar.tsx`, `home/DealListItem.tsx`, `pages/ManagerPage.tsx`.
 
-`lib/matrixColumnConfig.ts` loses its currency hues (USD green, EUR blue, GBP
-purple, CAD teal, CNY amber) and column-type hues (blue/amber/rose) in favour
-of neutral chips. Nine consumer files: `docmatrix/{AddQuestionBar,
-ColumnConfigPopover, DocMatrixCell, DocMatrixTable, MatrixAskHero}`,
-`workflows/cells/ShapeControls`, `workflows/tabular-run/{ColumnEditMenu,
-RunTable}`, `workflows/TabularEditor`.
+`lib/matrixColumnConfig.ts` moves its currency and column-type chips onto the
+same palette tokens, replacing raw Tailwind utility strings (`bg-blue-100
+text-blue-700 dark:…`) with palette classes. The hues stay — they just come from
+the system instead of from Tailwind's default scale. Nine consumer files:
+`docmatrix/{AddQuestionBar, ColumnConfigPopover, DocMatrixCell, DocMatrixTable,
+MatrixAskHero}`, `workflows/cells/ShapeControls`,
+`workflows/tabular-run/{ColumnEditMenu, RunTable}`, `workflows/TabularEditor`.
 
 The existing contrast documentation in `stageBadges.ts` (≥7.3:1 label-on-chip)
 must be preserved and re-verified for the replacement styles, not dropped.
@@ -298,9 +359,10 @@ Derivation rule, applied in order:
 Tokens resolved by rule 3 — `--text-4`, `--table-zebra`, `--table-header`, the
 status scale and its tints, the danger tints, `--accent-strong`,
 `--accent-tint-border`, `--modal-scrim`, `--modal-shadow`,
-`--card-hero-shadow` — are **marked in `index.css` as derived and awaiting the
-design author's sign-off**. They must stay visibly provisional rather than
-passing as specification.
+`--card-hero-shadow` — **ship as implemented values**, not as blockers. Each is
+commented in `index.css` as derived rather than specified, so the provenance
+stays honest and the design author can revise any of them later without
+archaeology. Phase 1 does not wait on sign-off.
 
 ---
 
@@ -311,6 +373,12 @@ computed-style scanner must report **0 off-palette colours** on `/app`,
 `/deal/:id`, and `/portfolio` in both themes. The scanner must keep its
 alpha-aware key — collapsing `rgba(255,255,255,.14)` to `#ffffff` produces
 false positives against the new `--border`.
+
+The scanner's whitelist grows by the **48 badge-palette values** from D1 (8
+colours × 2 themes × 3 properties). This is exactly why the palette is curated
+rather than free-form: the gate stays enforceable because the set of legal
+colours remains finite and known. A free hex picker would make the badge
+surface permanently unscannable.
 
 **Phase 2 (typography) is not.** Family swaps change metrics, which no colour
 scanner detects. Verification is before/after screenshots on the four
@@ -330,13 +398,14 @@ methods and different risk profiles. Phase 1 is shippable alone.
 
 **Phase 1 — colour**
 
-1. `index.css` token values (D1–D3), `tailwind.config.js` already done in `03e6a9d`
-2. The five files hardcoding old neutrals (§3)
-3. `theme.ts` — retokenize `AMBER` / `GREEN`
-4. `lib/stageBadges.ts` — ink-neutral chips
-5. `lib/matrixColumnConfig.ts` — neutral chips
-6. Dark-theme gap resolution (§5)
-7. Scan to zero
+1. `index.css` token values (D2, D3), `tailwind.config.js` already done in `03e6a9d`
+2. The 8-colour badge palette as tokens (D1), light + dark
+3. The five files hardcoding old neutrals (§3)
+4. `theme.ts` — retokenize `AMBER` / `GREEN`
+5. `lib/stageBadges.ts` — palette-driven lookup replacing 54 constants
+6. `lib/matrixColumnConfig.ts` — palette classes replacing Tailwind utilities
+7. Dark-theme gap resolution (§5) — implemented, commented as derived
+8. Scan to zero, with the 48 palette values whitelisted
 
 **Phase 2 — typography**
 
@@ -354,10 +423,17 @@ one. That optionality is the reason for the split.
 
 ## 8. Open items
 
-- **~19 derived dark tokens** (§5) need the design author's sign-off. They are
-  implementable now and marked provisional in source; this is not a blocker.
-- **D1's scanning cost** is a product judgement that may want validation
-  against real usage — whether people scan the deal list by stage hue. The
-  artifact cannot answer it and it did not block the decision.
+- **Badge persistence and picker UI** are deliberately out of this plan. D1
+  delivers the palette and makes `stageBadges.ts` data-shaped; storing an
+  admin's choice needs a store, an additive migration, an admin-only route, and
+  a picker — a separate feature plan. Until it exists, stage→colour mapping
+  stays a constant in the frontend, just one that reads from palette tokens.
+- **The `oxblood` palette option vs. `--soft`** (see D1-orig) — decide at
+  implementation whether to reserve oxblood for interaction state and ship 7
+  selectable colours instead of 8.
+- **moss / sage / teal share luminance** and separate by hue alone. Accepted
+  because badges always carry text labels. Revisit if users report confusion.
+- **~19 derived dark tokens** (§5) ship implemented and commented as derived.
+  The design author can revise them later; nothing blocks on that.
 - **`spike/oxblood-token-swap`** is retained as the measurement record and
   should not be merged.
