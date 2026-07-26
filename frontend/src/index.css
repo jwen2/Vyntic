@@ -71,6 +71,21 @@
   --table-zebra: #faf8f3;
   --table-header: #efeae0;
 
+  /* ── Badge palette (spec D1) ────────────────────────────────────────────
+     Eight admin-selectable tones plus reserved `ink` for terminal stages.
+     Derived and verified: worst label contrast 7.01:1, worst border 2.2:1.
+     Consumed via lib/badgePalette.ts — never reference these directly. */
+  --b-oxblood-bg: #f8efed; --b-oxblood-fg: #8d3020; --b-oxblood-ed: #db9f95;
+  --b-clay-bg:    #f8f2ed; --b-clay-fg:    #6f4725; --b-clay-ed:    #c9a98d;
+  --b-ochre-bg:   #f7f5ed; --b-ochre-fg:   #5e4f21; --b-ochre-ed:   #bdac7a;
+  --b-moss-bg:    #f2f6ee; --b-moss-fg:    #3e5b29; --b-moss-ed:    #9ab587;
+  --b-sage-bg:    #eff6f2; --b-sage-fg:    #2d5c45; --b-sage-ed:    #91b6a3;
+  --b-teal-bg:    #eef5f6; --b-teal-fg:    #2c5963; --b-teal-ed:    #90b4bb;
+  --b-slate-bg:   #eef2f6; --b-slate-fg:   #365278; --b-slate-ed:   #a0b0c5;
+  --b-plum-bg:    #f6eef4; --b-plum-fg:    #783662; --b-plum-ed:    #c7a3bb;
+  /* Reserved: terminal stages invert so "done" reads at a glance. */
+  --b-ink-bg: var(--text-1); --b-ink-fg: var(--bg); --b-ink-ed: var(--text-1);
+
   /* Semantic surface/text/border tokens — the single theming source (FE11).
      Light values here; .dark overrides them below. Consumed via the Tailwind
      color aliases (bg-surface, text-t1, border-edge, …). */
@@ -146,6 +161,16 @@
   --table-zebra: #12201c;
   --table-header: #16261f;
 
+  /* Badge palette (dark). Same roles, lifted for the ink-green ground. */
+  --b-oxblood-bg: #401d17; --b-oxblood-fg: #e5a59a; --b-oxblood-ed: #894134;
+  --b-clay-bg:    #302318; --b-clay-fg:    #d2a884; --b-clay-ed:    #6c5037;
+  --b-ochre-bg:   #2c2617; --b-ochre-fg:   #c9b373; --b-ochre-ed:   #605534;
+  --b-moss-bg:    #20281a; --b-moss-fg:    #99bf7d; --b-moss-ed:    #4a5c3d;
+  --b-sage-bg:    #1d2a24; --b-sage-fg:    #88bfa3; --b-sage-ed:    #425c4f;
+  --b-teal-bg:    #1c292c; --b-teal-fg:    #87bac4; --b-teal-ed:    #3f5a5f;
+  --b-slate-bg:   #202832; --b-slate-fg:   #9fb4d0; --b-slate-ed:   #47576b;
+  --b-plum-bg:    #32202c; --b-plum-fg:    #d2a3c2; --b-plum-ed:    #714b65;
+
   /* Dark overrides for the semantic tokens. */
   --surface: #14231e;
   --surface-alt: #12201c;
@@ -168,6 +193,19 @@
 .dd-zebra tbody tr:nth-child(even) td {
   background: var(--table-zebra);
 }
+
+/* Badge tone utilities — className counterpart to lib/badgePalette.ts.
+   Kept beside .dd-zebra because both are shared table/chip utilities that
+   predate any Badge primitive. */
+.badge-tone-oxblood { background: var(--b-oxblood-bg); color: var(--b-oxblood-fg); border-color: var(--b-oxblood-ed); }
+.badge-tone-clay    { background: var(--b-clay-bg);    color: var(--b-clay-fg);    border-color: var(--b-clay-ed); }
+.badge-tone-ochre   { background: var(--b-ochre-bg);   color: var(--b-ochre-fg);   border-color: var(--b-ochre-ed); }
+.badge-tone-moss    { background: var(--b-moss-bg);    color: var(--b-moss-fg);    border-color: var(--b-moss-ed); }
+.badge-tone-sage    { background: var(--b-sage-bg);    color: var(--b-sage-fg);    border-color: var(--b-sage-ed); }
+.badge-tone-teal    { background: var(--b-teal-bg);    color: var(--b-teal-fg);    border-color: var(--b-teal-ed); }
+.badge-tone-slate   { background: var(--b-slate-bg);   color: var(--b-slate-fg);   border-color: var(--b-slate-ed); }
+.badge-tone-plum    { background: var(--b-plum-bg);    color: var(--b-plum-fg);    border-color: var(--b-plum-ed); }
+.badge-tone-ink     { background: var(--b-ink-bg);     color: var(--b-ink-fg);     border-color: var(--b-ink-ed); }
 
 html {
   scroll-behavior: smooth;
