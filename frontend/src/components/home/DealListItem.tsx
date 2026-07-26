@@ -1,33 +1,25 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
 import { stageBadge } from "@/lib/stageBadges";
+import { toneVars, type BadgeTone } from "@/lib/badgePalette";
 import Button from "@/components/ui/Button";
 
-// Sector tags carry fixed hues (same contrast targets as the stage chips);
-// hues were picked to stay clear of the stage set so a card row never shows
-// two near-identical chips. Unknown tags fall back to the neutral chip.
-const SECTOR_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Technology: { bg: "#e1edfa", fg: "#1b4d7e", border: "#7099c2" },
-  Healthcare: { bg: "#f8e2e7", fg: "#822638", border: "#b87a87" },
-  Industrials: { bg: "#e9eef2", fg: "#3a4d59", border: "#839daf" },
-  Consumer: { bg: "#f8e3f2", fg: "#7d2667", border: "#b67ca7" },
-  "Financial Services": { bg: "#e3f7ed", fg: "#1d583b", border: "#70a98c" },
-  Energy: { bg: "#faf5e1", fg: "#5d4e14", border: "#b19b43" },
-  "Real Estate": { bg: "#f9e7e2", fg: "#7a361f", border: "#bd8775" },
-  Infrastructure: { bg: "#eef5e5", fg: "#3f5223", border: "#8ea470" },
-};
-
-const DARK_SECTOR_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Technology: { bg: "#151c23", fg: "#89add2", border: "#2c3844" },
-  Healthcare: { bg: "#231518", fg: "#d897a4", border: "#442c31" },
-  Industrials: { bg: "#151d23", fg: "#85b1d1", border: "#2c3a44" },
-  Consumer: { bg: "#231520", fg: "#d694c6", border: "#442c3e" },
-  "Financial Services": { bg: "#15231c", fg: "#5cc18f", border: "#2c4438" },
-  Energy: { bg: "#232015", fg: "#c3af60", border: "#44402c" },
-  "Real Estate": { bg: "#231915", fg: "#d49e8c", border: "#44322c" },
-  Infrastructure: { bg: "#1d2315", fg: "#95c059", border: "#3a442c" },
+// Sector tags route through the curated badge palette (lib/badgePalette.ts) —
+// same theme-aware CSS vars as stage chips, so there's no separate light/dark
+// map to keep in sync. Hue picked per sector to stay close to its pre-reskin
+// assignment (see the retired SECTOR_STYLES this replaced); each of the 8
+// tones is used exactly once so no two sector chips ever read identically.
+// Unknown tags fall back to the neutral chip.
+const SECTOR_TONES: Record<string, BadgeTone> = {
+  Technology: "slate",
+  Healthcare: "oxblood",
+  Industrials: "teal",
+  Consumer: "plum",
+  "Financial Services": "sage",
+  Energy: "ochre",
+  "Real Estate": "clay",
+  Infrastructure: "moss",
 };
 const SECTOR_TAGS = [
   "Technology",
@@ -67,8 +59,6 @@ export default function DealListItem({
   readOnly,
 }: Props) {
   const navigate = useNavigate();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const [hovered, setHovered] = useState(false);
   const [showStageMenu, setShowStageMenu] = useState(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
@@ -81,7 +71,6 @@ export default function DealListItem({
   // Selection = accent tint wash + accent border (same idiom as the workspace);
   // text stays at normal contrast on the wash, so no inverse overrides needed.
   const selectedBg = "var(--accent-tint)";
-  const sectorMap = isDark ? DARK_SECTOR_STYLES : SECTOR_STYLES;
   const badge = stageBadge(deal.stage);
   const stage =
     badge || {
@@ -283,7 +272,8 @@ export default function DealListItem({
         </div>
 
         {deal.tags.map((tag) => {
-          const sector = sectorMap[tag];
+          const tone = SECTOR_TONES[tag];
+          const sector = tone ? toneVars(tone) : null;
           return (
             <button
               key={tag}
@@ -302,7 +292,7 @@ export default function DealListItem({
                 background: sector ? sector.bg : selected ? "transparent" : surfaceAlt,
                 color: sector ? sector.fg : cardMuted,
                 borderColor: sector
-                  ? sector.border
+                  ? sector.edge
                   : selected
                     ? "var(--accent-tint-border)"
                     : border,

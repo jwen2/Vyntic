@@ -25,13 +25,15 @@ export default function HomeTopBar({
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const isDark = theme === "dark";
-  const surface = isDark ? "#111111" : "rgba(243,243,238,0.94)";
-  const border = isDark ? "#242424" : "var(--landing-border)";
-  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
-  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
-  const chip = isDark ? "#1a1a1a" : "rgba(255,255,255,0.72)";
-  const chipBorder = isDark ? "#2d2d2d" : "var(--landing-border)";
+  // App chrome, not the landing page — semantic tokens flip with .dark on
+  // their own, same idiom as HomeSidebar/DealListItem (no isDark ternaries
+  // needed here beyond the inverse "V" mark / ADMIN chip below).
+  const surface = "var(--surface)";
+  const border = "var(--border)";
+  const text = "var(--text-1)";
+  const muted = "var(--text-3)";
+  const chip = "var(--surface-alt)";
+  const chipBorder = "var(--border)";
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -79,14 +81,16 @@ export default function HomeTopBar({
           style={{
             width: 34,
             height: 34,
-            background: isDark ? "#f5f5f5" : "#111111",
+            // Reserved "ink" badge tone — the app's existing inverse-chip
+            // idiom (dark chip w/ light text in light mode, flips in dark).
+            background: "var(--b-ink-bg)",
             borderRadius: 8,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontWeight: 700,
             fontSize: 14,
-            color: isDark ? "#111111" : "#ffffff",
+            color: "var(--b-ink-fg)",
           }}
         >
           V
@@ -155,8 +159,8 @@ export default function HomeTopBar({
                 fontWeight: 700,
                 padding: "2px 5px",
                 borderRadius: 5,
-                background: isDark ? "#f5f5f5" : "#111111",
-                color: isDark ? "#111111" : "#ffffff",
+                background: "var(--b-ink-bg)",
+                color: "var(--b-ink-fg)",
                 letterSpacing: "0.08em",
               }}
             >
@@ -176,7 +180,7 @@ export default function HomeTopBar({
               right: 0,
               width: 220,
               padding: 6,
-              background: isDark ? "#151515" : "#ffffff",
+              background: surface,
               borderColor: chipBorder,
               borderRadius: 10,
               boxShadow: "0 18px 44px rgba(0,0,0,0.14)",

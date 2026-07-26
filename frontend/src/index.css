@@ -143,8 +143,15 @@
      — revisable without archaeology. See spec §5. */
   --accent: #c47a5f;
   --accent-strong: #d18f76;
-  --accent-tint: rgba(196, 122, 95, 0.18);
-  --accent-tint-border: rgba(196, 122, 95, 0.38);
+  /* Authored as color-mix, not raw rgba(196,122,95,.18/.38) — same resolved
+     colour (color-mix against `transparent` preserves the RGB channels and
+     sets alpha to the mix percentage, verified: renders identically), but now
+     consistent with every sibling tint pair in this file (danger-tint,
+     status-critical-tint, and this pair's own light-mode values), all of
+     which already use color-mix. The raw-rgba form was this pair's one
+     inconsistency, not a different design decision. */
+  --accent-tint: color-mix(in srgb, #c47a5f 18%, transparent);
+  --accent-tint-border: color-mix(in srgb, #c47a5f 38%, transparent);
   --on-accent: #0e1a17;
   /* Destructive folds onto the severity scale here too. */
   --danger: #d9614e;

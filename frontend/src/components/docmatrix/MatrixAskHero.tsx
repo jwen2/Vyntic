@@ -3,13 +3,15 @@ import { DocumentMetadata } from "@/lib/api";
 import { PE_COLUMN_PRESETS, type ColumnFormat } from "@/lib/matrixColumnConfig";
 import Button from "@/components/ui/Button";
 
-// Small colour cue per file type for the scope chips (muted, not the loud grid chips).
+// Small colour cue per file type for the scope chips (muted, not the loud grid
+// chips) — routed through the curated badge palette (lib/badgePalette.ts) so
+// it stays theme-aware instead of a fixed literal per type.
 function extDot(filename: string): string {
   const ext = filename.split(".").pop()?.toLowerCase();
-  if (ext === "pdf") return "#c2564d";
-  if (ext === "xlsx" || ext === "xls") return "#3f8f68";
-  if (ext === "csv") return "#3f6fb0";
-  return "#9a9a90";
+  if (ext === "pdf") return "var(--b-oxblood-fg)";
+  if (ext === "xlsx" || ext === "xls") return "var(--b-sage-fg)";
+  if (ext === "csv") return "var(--b-slate-fg)";
+  return "var(--text-3)";
 }
 
 interface Props {

@@ -24,8 +24,7 @@ export default function TopBar({
   onToggleTheme,
   theme,
 }: TopBarProps) {
-  const isDark = theme === "dark";
-  const chip = isDark ? "#1a1a1a" : "rgba(255,255,255,0.78)";
+  const chip = "var(--surface-alt)";
   const badge = stageBadge(deal.stage);
 
   return (
@@ -111,8 +110,8 @@ export default function TopBar({
         </button>
       )}
 
-      <IconButton title={theme === "dark" ? "Light mode" : "Dark mode"} onClick={onToggleTheme} theme={theme}>
-        {isDark ? (
+      <IconButton title={theme === "dark" ? "Light mode" : "Dark mode"} onClick={onToggleTheme}>
+        {theme === "dark" ? (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="5" />
             <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
@@ -130,15 +129,12 @@ export default function TopBar({
 function IconButton({
   title,
   onClick,
-  theme,
   children,
 }: {
   title: string;
   onClick: () => void;
-  theme: "light" | "dark";
   children: React.ReactNode;
 }) {
-  const isDark = theme === "dark";
   return (
     <button
       type="button"
@@ -150,9 +146,9 @@ function IconButton({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: isDark ? "#1a1a1a" : "rgba(255,255,255,0.78)",
-        color: isDark ? "rgba(255,255,255,0.68)" : "var(--landing-muted)",
-        border: `1px solid ${isDark ? "#2d2d2d" : "var(--landing-border)"}`,
+        background: "var(--surface-alt)",
+        color: "var(--text-3)",
+        border: "1px solid var(--border)",
         borderRadius: 8,
         cursor: "pointer",
       }}
