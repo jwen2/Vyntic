@@ -120,7 +120,11 @@ for (const theme of ["light", "dark"]) {
     await page.goto(BASE + route, { waitUntil: "networkidle" });
     await page.waitForTimeout(2500);
     const rows = await page.evaluate(collect);
-    if (rows.length < 100) {
+    // Floor is intentionally low (not "typical" element count) — a legitimately
+    // sparse route (e.g. a portfolio with one fund and all-zero figures) can
+    // render as few as ~50 elements, so the floor only needs to catch a route
+    // that rendered essentially nothing (a blank page, a 404, a crashed shell).
+    if (rows.length < 20) {
       throw new Error(`${name}-${theme}: only ${rows.length} elements rendered — route did not load correctly`);
     }
     const tally = {};
