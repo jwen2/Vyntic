@@ -24,8 +24,8 @@ export function EmptyBrief({ onOpenProactiveScan, config }: { onOpenProactiveSca
 
       <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div style={{ maxWidth: 700 }}>
-          <div className="text-t1" style={{ fontSize: 28, lineHeight: 1.05, fontWeight: 600 }}>No {config.runLabel.toLowerCase()} yet</div>
-          <div className="text-t2" style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7 }}>
+          <div className="text-t1" style={{ font: "var(--text-h2)" }}>No {config.runLabel.toLowerCase()} yet</div>
+          <div className="text-t2" style={{ marginTop: 10, font: "var(--text-body)" }}>
             {blurb}
           </div>
         </div>

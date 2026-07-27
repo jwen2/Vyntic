@@ -63,7 +63,7 @@ export default function TopBar({
           )}
         </div>
         <div className="mt-0.5 flex items-center gap-2" style={{ minWidth: 0 }}>
-          <h1 className="text-t1" style={{ margin: 0, fontSize: 18, lineHeight: 1.2, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <h1 className="text-t1" style={{ margin: 0, font: "var(--text-h3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {deal.name}
           </h1>
           <span

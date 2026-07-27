@@ -621,10 +621,10 @@ function InitialAssistantState({
         }}>
           {docCount} document{docCount === 1 ? "" : "s"} · isolated deal room
         </div>
-        <h1 className="text-t1" style={{ fontSize: 31, lineHeight: 1.12, fontWeight: 700, letterSpacing: "-0.022em", marginBottom: 10 }}>
+        <h1 className="text-t1" style={{ font: "var(--text-h2)", letterSpacing: "-0.022em", marginBottom: 10 }}>
           Begin your diligence
         </h1>
-        <p className="text-t2" style={{ fontSize: 13.5, lineHeight: 1.6, marginBottom: 24 }}>
+        <p className="text-t2" style={{ font: "var(--text-sm)", marginBottom: 24 }}>
           Ask anything — every answer is cited to the exact page across this deal&rsquo;s documents.
         </p>
 

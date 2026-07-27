@@ -48,10 +48,10 @@ export default function MonitoringPanel({ dealId, dealName, isAdmin }: Props) {
         <div className="font-mono-plex text-t3" style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase" }}>
           Monitoring · {dealName}
         </div>
-        <h2 className="text-t1" style={{ margin: "6px 0 4px", fontSize: 26, fontWeight: 600 }}>
+        <h2 className="text-t1" style={{ margin: "6px 0 4px", font: "var(--text-h2)" }}>
           Post-commitment tracking
         </h2>
-        <p className="text-t2" style={{ margin: 0, fontSize: 14 }}>
+        <p className="text-t2" style={{ margin: 0, font: "var(--text-body)" }}>
           Process capital calls and verify side-letter obligations against each quarterly package.
         </p>
 

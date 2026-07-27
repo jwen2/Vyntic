@@ -294,8 +294,7 @@ export default function HomePage() {
                           padding: 0,
                           background: "transparent",
                           border: "none",
-                          fontSize: 21,
-                          fontWeight: 600,
+                          font: "var(--text-h3)",
                           color: text,
                           cursor: "pointer",
                           textAlign: "left",
@@ -318,8 +317,7 @@ export default function HomePage() {
                     ) : (
                       <div
                         style={{
-                          fontSize: 21,
-                          fontWeight: 600,
+                          font: "var(--text-h3)",
                           color: text,
                           overflow: "hidden",
                           textOverflow: "ellipsis",

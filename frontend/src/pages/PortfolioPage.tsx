@@ -52,7 +52,7 @@ export default function PortfolioPage() {
           <Button variant="secondary" size="sm" onClick={() => navigate("/app")}>← Funds</Button>
           <div>
             <div className="font-mono-plex text-t3" style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase" }}>Portfolio</div>
-            <h1 style={{ fontSize: 20, fontWeight: 600 }}>Monitoring across all funds</h1>
+            <h1 style={{ font: "var(--text-h3)" }}>Monitoring across all funds</h1>
           </div>
         </div>
         <Button variant="secondary" size="sm" onClick={toggleTheme}>{theme === "dark" ? "Light" : "Dark"}</Button>
@@ -140,7 +140,7 @@ function Panel({ title, subtitle, children }: { title: string; subtitle: string;
   return (
     <section className="mb-5 rounded-[1.4rem] border border-edge bg-surface p-5">
       <div className="font-mono-plex text-t3" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase" }}>{title}</div>
-      <p className="text-t2" style={{ margin: "4px 0 12px", fontSize: 13 }}>{subtitle}</p>
+      <p className="text-t2" style={{ margin: "4px 0 12px", font: "var(--text-sm)" }}>{subtitle}</p>
       {children}
     </section>
   );

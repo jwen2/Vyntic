@@ -82,10 +82,10 @@ export default function WorkflowLibrary({
 
           <div className="mt-3 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div style={{ maxWidth: 720 }}>
-              <h2 className="text-t1" style={{ margin: 0, fontSize: 20, lineHeight: 1.2, fontWeight: 600 }}>
+              <h2 className="text-t1" style={{ margin: 0, font: "var(--text-h3)" }}>
                 Templates that turn diligence into repeatable output
               </h2>
-              <p className="text-t2" style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.6 }}>
+              <p className="text-t2" style={{ margin: "6px 0 0", font: "var(--text-sm)" }}>
                 Start from built-ins, then clone or create custom workflows for your own memo, extraction, and synthesis patterns.
               </p>
               <div className="text-t2" style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 12.5 }}>
