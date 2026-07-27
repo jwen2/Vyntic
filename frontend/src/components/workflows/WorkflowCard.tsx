@@ -76,7 +76,7 @@ export default function WorkflowCard({
           </div>
           <div style={{ minWidth: 0 }}>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="text-t1" style={{ fontSize: 15, fontWeight: 600 }}>{workflow.name}</div>
+              <div className="text-t1" style={{ font: "var(--text-body)", fontWeight: 600 }}>{workflow.name}</div>
               <WorkflowBadge
                 label={workflow.is_builtin ? "Built-in" : "Custom"}
                 color={workflow.is_builtin ? "var(--text-3)" : typeColor}
@@ -104,13 +104,13 @@ export default function WorkflowCard({
         </div>
       </div>
 
-      <p className="text-t2" style={{ margin: 0, fontSize: 13, lineHeight: 1.7, minHeight: 66 }}>
+      <p className="text-t2" style={{ margin: 0, font: "var(--text-sm)", minHeight: 66 }}>
         {workflow.description || "No description yet."}
       </p>
 
       <div
         className="font-mono-plex text-t3"
-        style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 10.5, letterSpacing: "0.03em" }}
+        style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, font: "var(--text-meta-sm)", letterSpacing: "0.03em" }}
       >
         {meta.map((m, i) => (
           <span key={m} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>

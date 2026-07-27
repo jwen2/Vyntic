@@ -4,6 +4,7 @@ import type { DocumentMetadata, UploadProgress } from "@/lib/api";
 import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
 import { ACCENT, tint } from "./types";
 import Button from "@/components/ui/Button";
+import Input, { Select } from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 
 // The 14 doc categories collapse into three color families so a document's
@@ -364,19 +365,18 @@ export default function DocumentsModal({
                       border: "var(--border)",
                     });
                     return (
-                  <select
+                  <Select
                     value={doc.doc_category || "other"}
                     onChange={(e) => handleCategoryChange(doc, e.target.value)}
                     aria-label={`Category for ${doc.filename}`}
+                    fieldSize="sm"
                     style={{
                       flexShrink: 0,
-                      padding: "4px 6px",
                       fontSize: 11,
                       fontWeight: 600,
                       background: chip.bg,
                       color: chip.fg,
                       border: `1px solid ${chip.border}`,
-                      borderRadius: 6,
                       cursor: "pointer",
                       maxWidth: 150,
                     }}
@@ -386,10 +386,10 @@ export default function DocumentsModal({
                         {DOC_CATEGORY_LABELS[cat] ?? cat}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                     );
                   })()}
-                  <input
+                  <Input
                     defaultValue={doc.period ?? ""}
                     key={`period-${doc.doc_id}-${doc.period ?? ""}`}
                     placeholder="Period"
@@ -399,11 +399,10 @@ export default function DocumentsModal({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                     }}
-                    className="border border-edge bg-surface text-t2 rounded-md"
+                    fieldSize="sm"
                     style={{
                       flexShrink: 0,
                       width: 78,
-                      padding: "4px 6px",
                       fontSize: 11,
                       fontWeight: 600,
                     }}

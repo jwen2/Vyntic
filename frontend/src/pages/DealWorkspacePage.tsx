@@ -226,8 +226,8 @@ export default function DealWorkspacePage() {
     return (
       <div className="bg-appbg text-t1" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center" }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Deal not found</h2>
-          <p className="text-t2" style={{ fontSize: 13, marginBottom: 16 }}>
+          <h2 style={{ font: "var(--text-h3)", marginBottom: 8 }}>Deal not found</h2>
+          <p className="text-t2" style={{ font: "var(--text-sm)", marginBottom: 16 }}>
             {dealQuery.error instanceof Error
               ? dealQuery.error.message
               : `No deal with ID "${dealId}" exists.`}

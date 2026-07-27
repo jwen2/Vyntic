@@ -7,24 +7,24 @@ import LandingText from "./ui/LandingText";
 
 const USE_CASES = [
   {
-    title: "Initial screening",
+    title: "Screen one new CIM",
     body:
-      "Run the same operating and diligence questions across new opportunities before the pipeline meeting.",
+      "Turn a fresh CIM and supporting materials into a cited matrix before the first internal readout.",
   },
   {
-    title: "Diligence preparation",
+    title: "Pressure-test a QoE pack",
     body:
-      "Collect the source support behind the core underwriting questions without rebuilding the review from scratch.",
+      "Extract adjustments, working capital notes, revenue quality, and open questions with links back to source pages.",
   },
   {
-    title: "IC memo support",
+    title: "Prepare for IC",
     body:
-      "Turn the document set into cited points of view, tradeoffs, and unresolved issues for decision-makers.",
+      "Convert document findings into a source-backed view of thesis support, risks, and unresolved diligence items.",
   },
   {
-    title: "Portfolio monitoring",
+    title: "Reuse a question set",
     body:
-      "Reuse structured question sets across existing investments when new materials or updates arrive.",
+      "Test whether recurring prompts can become reusable templates across deals, updates, or portfolio reviews.",
   },
 ];
 
@@ -33,13 +33,13 @@ export default function UseCases() {
     <LandingSection id="use-cases">
       <div className="grid gap-8 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <LandingScrollReveal className="max-w-xl">
-          <LandingEyebrow>Use Cases</LandingEyebrow>
+          <LandingEyebrow>Pilot Use Cases</LandingEyebrow>
           <LandingHeading className="mt-6">
-            Built for the main points where deal teams lose time.
+            Start with one workflow where analyst time is easy to measure.
           </LandingHeading>
           <LandingText className="mt-5">
-            The product is most useful when teams need to move quickly without
-            letting the reasoning detach from the underlying material.
+            The best pilots are narrow: one deal room, a known review pattern,
+            and a concrete output your team already produces.
           </LandingText>
         </LandingScrollReveal>
 

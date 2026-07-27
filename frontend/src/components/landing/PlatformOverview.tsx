@@ -8,27 +8,27 @@ import LandingText from "./ui/LandingText";
 const PILLARS = [
   {
     index: "01",
-    title: "Ingest",
+    title: "Bring one deal room",
     body:
-      "Bring CIMs, financials, and supporting diligence materials into one structured workspace.",
+      "Use a live opportunity, a recently closed deal, or a representative sample pack to test the workflow.",
   },
   {
     index: "02",
-    title: "Compare",
+    title: "Configure diligence questions",
     body:
-      "Run the same question set across multiple opportunities and inspect the answers in one view.",
+      "Start from PE-shaped question sets, then adapt prompts to your team, mandate, and IC process.",
   },
   {
     index: "03",
-    title: "Verify",
+    title: "Review cited outputs",
     body:
-      "Trace claims back to source material with citations and document context before sharing conclusions.",
+      "Inspect answer matrices, citations, source snippets, and open questions before anything leaves the workspace.",
   },
   {
     index: "04",
-    title: "Synthesize",
+    title: "Decide what sticks",
     body:
-      "Turn fragmented findings into summaries and red-flag views aligned to investment committee work.",
+      "Use the pilot to identify which diligence workflows save time and should become repeatable templates.",
   },
 ];
 
@@ -36,14 +36,14 @@ export default function PlatformOverview() {
   return (
     <LandingSection id="platform" className="pt-6">
       <LandingScrollReveal className="max-w-3xl">
-        <LandingEyebrow>Platform</LandingEyebrow>
+        <LandingEyebrow>Pilot Structure</LandingEyebrow>
         <LandingHeading className="mt-6">
-          One system for ingestion, comparison, verification, and synthesis.
+          A focused pilot around one real diligence workflow.
         </LandingHeading>
         <LandingText className="mt-5 max-w-2xl">
-          The product is designed around how deal teams actually work: moving
-          from raw documents to a defensible point of view without rebuilding
-          the workflow for every opportunity.
+          We are not asking teams to rip out their process. The pilot is scoped
+          to one deal room, one set of recurring questions, and one concrete
+          output that your team can evaluate.
         </LandingText>
       </LandingScrollReveal>
 

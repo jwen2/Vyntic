@@ -154,21 +154,14 @@ export function FinancialTableView({ table }: { table: FinancialTable }) {
       <div className="border-b border-edge bg-grid-header text-t1" style={{ padding: "9px 12px", fontSize: 11, fontWeight: 700 }}>
         {table.title}
       </div>
-      <div style={{ overflowX: "auto" }}>
-        <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}>
+      <div className="data-table-wrap">
+        <table className="data-table data-table--dense" style={{ minWidth: 420 }}>
           <thead>
             <tr>
               {table.headers.map((header, idx) => (
                 <th
                   key={`${table.title}-h-${idx}`}
-                  className="border-b border-edge bg-grid-header text-t3"
-                  style={{
-                    padding: "7px 8px",
-                    textAlign: idx === 0 ? "left" : "right",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                  }}
+                  className={idx === 0 ? undefined : "data-table__num"}
                 >
                   {header}
                 </th>
@@ -182,19 +175,10 @@ export function FinancialTableView({ table }: { table: FinancialTable }) {
                   <td
                     key={`${table.title}-r-${rIdx}-${cIdx}`}
                     className={[
-                      cIdx > 0 ? "font-mono-dm" : "",
-                      cIdx === 0 ? "text-t1" : "text-t2",
-                      rIdx === table.rows.length - 1 ? "" : "border-b border-edge",
+                      cIdx > 0 ? "data-table__num data-table__muted" : "data-table__strong",
                     ]
                       .filter(Boolean)
                       .join(" ")}
-                    style={{
-                      padding: "7px 8px",
-                      textAlign: cIdx === 0 ? "left" : "right",
-                      fontSize: 11,
-                      whiteSpace: "nowrap",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
                   >
                     {row[cIdx] || "-"}
                   </td>
@@ -211,20 +195,20 @@ export function FinancialTableView({ table }: { table: FinancialTable }) {
 export function MetricsTable({ metrics }: { metrics: Metric[] }) {
   return (
     <Card level="inner" padding={0} className="overflow-hidden">
-      <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse" }}>
+      <table className="data-table">
         <thead>
           <tr>
             {["Metric", "Value", "Context"].map((header, idx) => (
-              <th key={header} className="border-b border-edge bg-grid-header text-t3" style={{ padding: "9px 10px", textAlign: idx === 1 ? "right" : "left", fontSize: 10, fontWeight: 700 }}>{header}</th>
+              <th key={header} className={idx === 1 ? "data-table__num" : undefined}>{header}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {metrics.slice(0, 8).map((metric, idx) => (
             <tr key={`${metric.label}-${idx}`}>
-              <td className="border-b border-edge text-t1" style={{ padding: "9px 10px", fontSize: 11, fontWeight: 700 }}>{metric.label}</td>
-              <td className="font-mono-dm border-b border-edge text-t1" style={{ padding: "9px 10px", fontSize: 11, textAlign: "right", whiteSpace: "nowrap" }}>{metric.value}</td>
-              <td className="border-b border-edge text-t2" style={{ padding: "9px 10px", fontSize: 10 }}>{metric.context}</td>
+              <td className="data-table__strong">{metric.label}</td>
+              <td className="data-table__num">{metric.value}</td>
+              <td className="data-table__muted">{metric.context}</td>
             </tr>
           ))}
         </tbody>
@@ -236,14 +220,14 @@ export function MetricsTable({ metrics }: { metrics: Metric[] }) {
 export function SimpleFinancialTable({ items }: { items: string[] }) {
   return (
     <Card level="inner" padding={0} className="overflow-hidden">
-      <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse" }}>
+      <table className="data-table">
         <tbody>
           {items.map((item, idx) => {
             const [label, ...rest] = item.split(":");
             return (
               <tr key={`${item}-${idx}`}>
-                <td className="border-b border-edge text-t1" style={{ padding: "9px 10px", fontSize: 11, fontWeight: 700, width: "34%" }}>{rest.length ? label : `Item ${idx + 1}`}</td>
-                <td className="border-b border-edge text-t2" style={{ padding: "9px 10px", fontSize: 11 }}>{rest.length ? rest.join(":").trim() : item}</td>
+                <td className="data-table__strong" style={{ width: "34%" }}>{rest.length ? label : `Item ${idx + 1}`}</td>
+                <td className="data-table__muted">{rest.length ? rest.join(":").trim() : item}</td>
               </tr>
             );
           })}

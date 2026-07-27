@@ -6,32 +6,33 @@ import LandingSection from "./ui/LandingSection";
 import LandingText from "./ui/LandingText";
 
 const PROOF_POINTS = [
-  "Side-by-side comparison across active deals",
-  "Cited outputs tied back to source material",
-  "Summaries shaped for IC preparation",
+  "Pilot on one live or sample deal room",
+  "Run cited diligence questions across PDFs and Excel",
+  "Shape the workflow directly with the product team",
 ];
 
 export default function HeroSection() {
   return (
     <LandingSection className="overflow-hidden pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pb-20 lg:pt-24">
-      <div className="grid gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-14">
-        <div className="max-w-3xl">
-          <LandingEyebrow>Vyntic Platform</LandingEyebrow>
+      <div className="grid min-w-0 gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-14">
+        <div className="min-w-0 max-w-3xl">
+          <LandingEyebrow>Pilot Program</LandingEyebrow>
           <LandingHeading as="h1" size="hero" className="mt-6 max-w-4xl">
-            Deal work, compressed into hours.
+            Pilot an AI diligence workspace on one deal room.
           </LandingHeading>
           <LandingText className="mt-5 max-w-2xl text-base sm:text-lg">
-            Vyntic helps private equity teams ingest CIMs and diligence
-            materials, compare opportunities side by side, and produce cited
-            outputs for investment committee review.
+            Vyntic helps private equity teams turn CIMs, QoE reports, models,
+            and diligence materials into cited matrices and IC-ready summaries.
+            We are onboarding pilot teams now to shape the workflow around real
+            deal review.
           </LandingText>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <LandingButton href="#contact" className="w-full sm:w-auto">
-              Request a demo
+              Pilot one deal
             </LandingButton>
             <LandingButton href="#product" variant="secondary" className="w-full sm:w-auto">
-              View platform
+              View workflow
             </LandingButton>
           </div>
 
@@ -42,7 +43,7 @@ export default function HeroSection() {
                 className="rounded-2xl border border-[var(--landing-border)] bg-white px-4 py-4"
               >
                 <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-                  Workflow
+                  Pilot
                 </div>
                 <div className="mt-2 text-sm leading-6 text-[var(--landing-text)]">
                   {item}
@@ -57,14 +58,14 @@ export default function HeroSection() {
             <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
               <div>
                 <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-                  Comparison Workspace
+                  Pilot Workspace
                 </div>
                 <div className="mt-1 text-sm font-medium text-[var(--landing-text)]">
-                  Pipeline review
+                  Diligence review
                 </div>
               </div>
               <div className="rounded-full border border-[var(--landing-border)] px-3 py-1 font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-                Live documents
+                Cited outputs
               </div>
             </div>
           </div>
@@ -72,20 +73,20 @@ export default function HeroSection() {
           <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-6">
             <div className="rounded-[1.25rem] border border-[var(--landing-border)] bg-white p-3 sm:rounded-[1.5rem] sm:p-4">
               <div className="overflow-x-auto">
-                <div className="grid min-w-[640px] grid-cols-[1.3fr_repeat(3,1fr)] gap-px overflow-hidden rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-border)] text-xs">
+                <div className="grid grid-cols-[1.05fr_1.15fr_0.9fr_1.1fr] gap-px overflow-hidden rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-border)] text-[11px] sm:text-xs">
                   {[
                     "Deal",
-                    "Growth",
+                    "Revenue quality",
                     "Risk",
-                    "Summary",
-                    "North Peak",
-                    "Expansion driven by enterprise pipeline",
-                    "Concentration in top two accounts",
-                    "Best top-line momentum in current set",
-                    "Harbor Health",
-                    "Stable retention, slower new logo motion",
-                    "Reimbursement timing exposure",
-                    "Defensive profile, less upside",
+                    "IC note",
+                    "Brightwater IV",
+                    "Enterprise upsell supports FY26",
+                    "Top customers concentrated",
+                    "Advance after retention checks",
+                    "Glenmoor III",
+                    "Stable renewal base, slower new logos",
+                    "Vendor savings drive margin",
+                    "Cleaner downside, less upside",
                   ].map((cell, index) => (
                     <div
                       key={cell + index}
@@ -110,7 +111,7 @@ export default function HeroSection() {
                 <div className="mt-3 rounded-[1.25rem] border border-[var(--landing-border)] bg-[var(--landing-surface-alt)] p-3 text-sm text-[var(--landing-text)] sm:rounded-2xl sm:p-4">
                   <div className="font-medium">Customer concentration</div>
                   <div className="mt-2 leading-6 text-[var(--landing-muted)]">
-                    “Top two accounts represented 38% of FY25 revenue...”
+                    "Top two accounts represented 38% of FY25 revenue..."
                   </div>
                   <div className="mt-3 font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
                     CIM • Page 27
@@ -124,12 +125,12 @@ export default function HeroSection() {
                 </div>
                 <div className="mt-3 space-y-3 text-sm leading-6 text-white/78">
                   <p>
-                    North Peak shows the strongest near-term growth profile, but
+                    Brightwater shows the strongest near-term growth profile, but
                     carries concentration exposure that should be resolved before
                     advancing.
                   </p>
                   <p>
-                    Harbor Health is lower-volatility and easier to underwrite,
+                    Glenmoor is lower-volatility and easier to underwrite,
                     though current upside appears more limited.
                   </p>
                 </div>

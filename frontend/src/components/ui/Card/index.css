@@ -15,18 +15,18 @@
    `padding` prop (inline style), never a Tailwind utility: this file loads
    after the utility layer and would win. */
 .card--hero {
-  border-radius: 28px;
+  border-radius: var(--r-lg);
   padding: 20px;
   box-shadow: var(--card-hero-shadow);
 }
 
 .card--panel {
-  border-radius: 24px;
+  border-radius: var(--r-md);
   padding: 16px;
 }
 
 .card--inner {
-  border-radius: 18px;
+  border-radius: var(--r-sm);
   padding: 12px;
 }
 

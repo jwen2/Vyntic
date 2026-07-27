@@ -10,7 +10,8 @@ interface LandingHeadingProps {
 }
 
 const SIZE_CLASSES: Record<Size, string> = {
-  hero: "text-[2.7rem] font-semibold leading-[0.94] tracking-[-0.05em] sm:text-5xl lg:text-[4.5rem] lg:leading-[0.92]",
+  hero:
+    "text-[2.35rem] font-semibold leading-[0.96] tracking-[-0.035em] sm:text-5xl sm:tracking-[-0.05em] lg:text-[4.5rem] lg:leading-[0.92]",
   section: "text-[2rem] font-semibold leading-[1] tracking-[-0.04em] sm:text-4xl",
   card: "text-xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-2xl",
 };
@@ -21,5 +22,9 @@ export default function LandingHeading({
   size = "section",
   className = "",
 }: LandingHeadingProps) {
-  return <Tag className={`${SIZE_CLASSES[size]} ${className}`.trim()}>{children}</Tag>;
+  return (
+    <Tag className={`max-w-full break-words ${SIZE_CLASSES[size]} ${className}`.trim()}>
+      {children}
+    </Tag>
+  );
 }

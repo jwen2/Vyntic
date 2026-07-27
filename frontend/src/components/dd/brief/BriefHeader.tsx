@@ -72,7 +72,7 @@ export default function BriefHeader({
     <div className="mt-3 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
       <div style={{ maxWidth: 760 }}>
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-t1" style={{ margin: 0, fontSize: 30, lineHeight: 1.05, fontWeight: 600 }}>
+          <h2 className="text-t1" style={{ margin: 0, font: "var(--text-h2)" }}>
             {brief.runLabel}
           </h2>
           <StatusPill completed={completed} total={total} loading={isLoading || rerunning} theme={theme} />

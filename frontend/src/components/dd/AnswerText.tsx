@@ -187,10 +187,6 @@ function renderInline(
 export default function AnswerText({ text, citations, activeCitId, onCit }: Props) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const textColor = isDark ? "#cbd5e1" : "#334155";
-  const headerText = isDark ? "#cbd5e1" : "#475569";
-  const tableHeadBg = isDark ? "#1e293b" : "#f8fafc";
-  const tableBorder = isDark ? "#334155" : "#e2e8f0";
   const rowBorder = isDark ? "#1e293b" : "#f1f5f9";
   const headingColor = isDark ? "#f8fafc" : "#0f172a";
   const lines = text.split("\n");
@@ -315,24 +311,12 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
         }
         // table
         return (
-          <div key={idx} style={{ overflowX: "auto", margin: "10px 0" }}>
-            <table className="dd-zebra" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <div key={idx} className="data-table-wrap" style={{ margin: "10px 0" }}>
+            <table className="data-table data-table--dense">
               <thead>
                 <tr>
                   {b.heads.map((h, j) => (
-                    <th
-                      key={j}
-                      style={{
-                        padding: "6px 10px",
-                        textAlign: "left",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: headerText,
-                        background: tableHeadBg,
-                        borderBottom: `1px solid ${tableBorder}`,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <th key={j}>
                       {h}
                     </th>
                   ))}
@@ -340,16 +324,11 @@ export default function AnswerText({ text, citations, activeCitId, onCit }: Prop
               </thead>
               <tbody>
                 {b.rows.map((row, j) => (
-                  <tr key={j} style={{ borderBottom: `1px solid ${rowBorder}` }}>
+                  <tr key={j}>
                     {row.map((cell, k) => (
                       <td
                         key={k}
-                        style={{
-                          padding: "5px 10px",
-                          fontSize: 12,
-                          color: textColor,
-                          fontWeight: k === 0 ? 500 : 400,
-                        }}
+                        className={k === 0 ? "data-table__strong" : undefined}
                       >
                         {cell}
                       </td>

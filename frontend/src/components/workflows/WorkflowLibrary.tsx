@@ -3,6 +3,7 @@ import type { Workflow, WorkflowType } from "@/lib/workflows";
 import { ACCENT, VIOLET } from "./theme";
 import WorkflowCard from "./WorkflowCard";
 import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 
 type Theme = "light" | "dark";
 
@@ -88,7 +89,7 @@ export default function WorkflowLibrary({
               <p className="text-t2" style={{ margin: "6px 0 0", font: "var(--text-sm)" }}>
                 Start from built-ins, then clone or create custom workflows for your own memo, extraction, and synthesis patterns.
               </p>
-              <div className="text-t2" style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 12.5 }}>
+              <div className="text-t2" style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, font: "var(--text-xs)" }}>
                 {([
                   [builtIns.length + customs.length, "workflows"],
                   [workflows.filter((workflow) => workflow.is_builtin).length, "built-in"],
@@ -108,41 +109,26 @@ export default function WorkflowLibrary({
 
             <div style={{ position: "relative", width: "100%", maxWidth: 460 }}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                <div style={{ position: "relative", flex: 1 }}>
-                  <svg
-                    className="text-t3"
-                    style={{
-                      position: "absolute",
-                      left: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      width: 14,
-                      height: 14,
-                    }}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-                    />
-                  </svg>
-                  <input
+                <div style={{ flex: 1 }}>
+                  <Input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search workflows"
-                    className="border border-edge bg-surface-alt text-t1"
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px 9px 36px",
-                      borderRadius: 9,
-                      fontSize: 13,
-                      outline: "none",
-                      fontFamily: "inherit",
-                    }}
+                    fullWidth
+                    iconLeft={
+                      <svg
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                        />
+                      </svg>
+                    }
                   />
                 </div>
 
@@ -197,7 +183,7 @@ export default function WorkflowLibrary({
           title="Built-in Templates"
           subtitle="Start here when you need a known workflow shape with proven prompts and structure."
           right={
-            <span className="text-t3" style={{ fontSize: 11 }}>
+            <span className="text-t3" style={{ font: "var(--text-meta)" }}>
               {builtIns.length} workflow{builtIns.length === 1 ? "" : "s"}
             </span>
           }
@@ -311,7 +297,7 @@ function Section({
           >
             {title}
           </div>
-          <div className="text-t2" style={{ marginTop: 6, fontSize: 14, lineHeight: 1.65 }}>{subtitle}</div>
+          <div className="text-t2" style={{ marginTop: 6, font: "var(--text-sm)" }}>{subtitle}</div>
         </div>
         {right}
       </div>
@@ -338,8 +324,8 @@ function EmptyState({
         textAlign: "center",
       }}
     >
-      <div className="text-t1" style={{ fontSize: 16, fontWeight: 600 }}>{title}</div>
-      <div className="text-t2" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>{text}</div>
+      <div className="text-t1" style={{ font: "var(--text-body)", fontWeight: 600 }}>{title}</div>
+      <div className="text-t2" style={{ marginTop: 8, font: "var(--text-sm)" }}>{text}</div>
       {action}
     </div>
   );
@@ -364,7 +350,7 @@ function QuickCreateButton({
         color: accent === ACCENT ? "var(--on-accent)" : "var(--on-violet)",
         border: "none",
         borderRadius: 9,
-        fontSize: 12,
+        font: "var(--text-xs)",
         fontWeight: 600,
         cursor: "pointer",
       }}
@@ -417,7 +403,7 @@ function NewMenuButton({
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 12,
+            font: "var(--text-xs)",
             fontWeight: 700,
             flexShrink: 0,
           }}
@@ -425,8 +411,8 @@ function NewMenuButton({
           {title.startsWith("Assistant") ? "A" : "T"}
         </span>
         <span style={{ minWidth: 0 }}>
-          <span style={{ display: "block", fontSize: 13, fontWeight: 600 }}>{title}</span>
-          <span className="text-t2" style={{ display: "block", marginTop: 3, fontSize: 12, lineHeight: 1.6 }}>
+          <span style={{ display: "block", font: "var(--text-sm)", fontWeight: 600 }}>{title}</span>
+          <span className="text-t2" style={{ display: "block", marginTop: 3, font: "var(--text-xs)" }}>
             {subtitle}
           </span>
         </span>

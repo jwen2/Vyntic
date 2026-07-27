@@ -2,10 +2,10 @@ import { Link } from "react-router-dom";
 import LandingContainer from "./ui/LandingContainer";
 
 const FOOTER_LINKS = [
-  { label: "Platform", href: "#platform" },
-  { label: "Product", href: "#product" },
+  { label: "Pilot", href: "#platform" },
+  { label: "Workflow", href: "#product" },
   { label: "Use Cases", href: "#use-cases" },
-  { label: "Security", href: "#security" },
+  { label: "Controls", href: "#security" },
 ];
 
 export default function LandingFooter() {
@@ -22,8 +22,8 @@ export default function LandingFooter() {
             </div>
           </Link>
           <p className="mt-4 text-sm leading-6 text-[var(--landing-muted)]">
-            Document intelligence for private equity teams that need faster
-            comparisons, reviewable outputs, and cleaner IC preparation.
+            An AI diligence workspace for private equity teams piloting faster,
+            cited review across one real deal workflow.
           </p>
         </div>
 

@@ -71,8 +71,8 @@ export default function ManagerPage() {
           <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-t3">Fund manager</div>
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-3xl font-semibold sm:text-4xl">{manager.name}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-t2">{manager.description || "No manager description has been added yet."}</p>
+              <h1 style={{ font: "var(--text-h1)" }}>{manager.name}</h1>
+              <p className="mt-3 max-w-3xl text-t2" style={{ font: "var(--text-sm)" }}>{manager.description || "No manager description has been added yet."}</p>
             </div>
             <div className="rounded-full border border-accent-tint-border bg-accent-tint px-4 py-3 text-center">
               <div className="font-mono-plex text-[9px] uppercase tracking-[0.14em] text-t3">Funds</div>
@@ -82,7 +82,7 @@ export default function ManagerPage() {
         </section>
 
         <section className="mt-10">
-          <div className="flex items-end justify-between"><div><div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-t3">Portfolio</div><h2 className="mt-2 text-2xl font-semibold">Funds</h2></div><span className="text-sm text-t2">{funds.length} visible</span></div>
+          <div className="flex items-end justify-between"><div><div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-t3">Portfolio</div><h2 className="mt-2" style={{ font: "var(--text-h2)" }}>Funds</h2></div><span className="text-sm text-t2">{funds.length} visible</span></div>
           {fundsQuery.error ? <ErrorCard message={fundsQuery.error instanceof Error ? fundsQuery.error.message : "Could not load funds."} /> : funds.length === 0 ? <EmptyCard text="No accessible funds are linked to this manager." /> : (
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {funds.map((fund) => {
@@ -127,8 +127,8 @@ export default function ManagerPage() {
         {!documentsForbidden && (
           <section className="mt-12">
             <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-t3">Manager scope</div>
-            <h2 className="mt-2 text-2xl font-semibold">Shared documents</h2>
-            <p className="mt-2 text-sm text-t2">Documents shared across sibling funds for this manager.</p>
+            <h2 className="mt-2" style={{ font: "var(--text-h2)" }}>Shared documents</h2>
+            <p className="mt-2 text-t2" style={{ font: "var(--text-sm)" }}>Documents shared across sibling funds for this manager.</p>
             {documentsQuery.error ? <ErrorCard message={documentsQuery.error instanceof Error ? documentsQuery.error.message : "Could not load shared documents."} /> : (documentsQuery.data?.length ?? 0) === 0 ? <EmptyCard text="No manager-scoped documents yet." /> : (
               <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-edge bg-surface">
                 {documentsQuery.data!.map((doc) => (

@@ -136,7 +136,7 @@ export default function DocMatrixTable({
     <>
       <div className="min-h-[360px] overflow-auto rounded-lg shadow dark:shadow-gray-900/50 bg-surface max-h-[calc(100vh-220px)]">
         <table
-          className="border-separate border-spacing-0"
+          className="border-separate border-spacing-0 text-[13px]"
           style={{
             tableLayout: "fixed",
             width: tableWidth,
@@ -153,7 +153,7 @@ export default function DocMatrixTable({
             <tr>
               {/* Document column header with Excel-like dropdown — sticky top + left (corner) */}
               <th
-                className={`p-3 text-left font-semibold text-t2 border-r border-edge border-b border-b-edge sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-surface-alt transition-colors shadow-[8px_0_16px_-12px_rgba(0,0,0,0.28)] ${sortConfig?.col === "doc" ? "bg-blue-50 dark:bg-blue-950/40" : "bg-grid-header"}`}
+                className={`p-3 text-left font-mono-dm text-[11px] font-normal text-t3 border-r border-edge border-b border-b-edge sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-surface-alt transition-colors shadow-[8px_0_16px_-12px_rgba(0,0,0,0.28)] ${sortConfig?.col === "doc" ? "bg-accent-tint" : "bg-grid-header"}`}
                 onClick={(e) => openColMenu(e.currentTarget)}
               >
                 <DocColumnHeaderLabel label="Document" sortConfig={sortConfig} />
@@ -173,16 +173,16 @@ export default function DocMatrixTable({
                     onDragOver={(e) => handleColDragOver(e, i)}
                     onDrop={() => handleColDrop(i)}
                     onDragEnd={handleColDragEnd}
-                    className={`p-3 text-left font-medium text-t2 border-b border-b-edge sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
+                    className={`p-3 text-left font-mono-dm text-[11px] font-normal text-t3 border-b border-b-edge sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
                       dragColIndex === i ? "opacity-50" : ""
                     } ${
                       dragOverColIndex === i && dragColIndex !== i
-                        ? "bg-blue-50 dark:bg-blue-950/40"
+                        ? "bg-accent-tint"
                         : "bg-grid-header"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-1">
-                      <div className="text-sm leading-snug flex-1 min-w-0">
+                      <div className="leading-snug flex-1 min-w-0">
                         <div className="truncate">{column.label}</div>
                         <div className="mt-1 flex items-center gap-1.5">
                           <span className="rounded bg-surface-alt px-1.5 py-0.5 text-[10px] font-medium text-t3">
@@ -300,7 +300,7 @@ function DocMatrixRowImpl({
           <div className="min-w-0 flex-1">
             <button
               onClick={() => onOpenViewer(doc)}
-              className="text-sm font-medium text-t1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate block max-w-full text-left"
+              className="text-[13px] font-medium text-t1 hover:text-accent-strong transition-colors truncate block max-w-full text-left"
               title={doc.filename}
             >
               {doc.filename}
@@ -406,7 +406,7 @@ function DocColumnHeaderLabel({
       <div className="flex items-center gap-1.5">
         {label}
         {sortConfig && (
-          <span className="text-blue-500 text-xs">
+          <span className="text-accent text-xs">
             {sortConfig.dir === "asc" ? "▲" : "▼"}
           </span>
         )}
@@ -439,13 +439,13 @@ const DocColumnSortMenu = forwardRef<
       <div>
         <button
           onClick={() => onSort(isSortedAsc ? null : "asc")}
-          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-surface-alt transition-colors ${isSortedAsc ? "text-blue-600 font-medium bg-blue-50" : "text-t2"}`}
+          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-surface-alt transition-colors ${isSortedAsc ? "text-accent-strong font-medium bg-accent-tint" : "text-t2"}`}
         >
           <span className="text-sm">{"▲"}</span> Sort A to Z
         </button>
         <button
           onClick={() => onSort(isSortedDesc ? null : "desc")}
-          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-surface-alt transition-colors ${isSortedDesc ? "text-blue-600 font-medium bg-blue-50" : "text-t2"}`}
+          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-surface-alt transition-colors ${isSortedDesc ? "text-accent-strong font-medium bg-accent-tint" : "text-t2"}`}
         >
           <span className="text-sm">{"▼"}</span> Sort Z to A
         </button>

@@ -1,0 +1,145 @@
+.input-shell,
+.textarea-control,
+.select-control {
+  color: var(--text-1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-1);
+  transition: border-color 0.16s, box-shadow 0.16s, background 0.16s, color 0.16s;
+}
+
+.input-shell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.input-shell--full,
+.textarea-control--full,
+.select-control--full {
+  width: 100%;
+}
+
+.input-control,
+.textarea-control,
+.select-control {
+  font-family: var(--sans);
+  font-weight: 400;
+}
+
+.input-control {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.input-control::placeholder,
+.textarea-control::placeholder {
+  color: var(--text-3);
+}
+
+.input-shell--sm,
+.select-control--sm {
+  min-height: 32px;
+  padding: 6px 9px;
+  font: var(--text-xs);
+}
+
+.input-shell--md,
+.select-control--md {
+  min-height: 38px;
+  padding: 8px 11px;
+  font: var(--text-sm);
+}
+
+.input-shell--lg,
+.select-control--lg {
+  min-height: 46px;
+  padding: 11px 13px;
+  font: var(--text-body);
+}
+
+.textarea-control {
+  display: block;
+  min-width: 0;
+  outline: none;
+  resize: vertical;
+}
+
+.textarea-control--sm {
+  min-height: 72px;
+  padding: 7px 9px;
+  font: var(--text-xs);
+}
+
+.textarea-control--md {
+  min-height: 96px;
+  padding: 9px 11px;
+  font: var(--text-sm);
+}
+
+.textarea-control--lg {
+  min-height: 128px;
+  padding: 12px 13px;
+  font: var(--text-body);
+}
+
+.select-control {
+  appearance: none;
+  outline: none;
+  padding-right: 32px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) 50%,
+    calc(100% - 11px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.input-adornment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+
+.input-adornment svg {
+  width: 15px;
+  height: 15px;
+}
+
+.input-shell:focus-within,
+.textarea-control:focus,
+.select-control:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.input-shell--invalid,
+.textarea-control--invalid,
+.select-control--invalid {
+  border-color: var(--danger);
+}
+
+.input-shell--invalid:focus-within,
+.textarea-control--invalid:focus,
+.select-control--invalid:focus {
+  box-shadow: 0 0 0 3px var(--danger-tint);
+}
+
+.input-shell[data-disabled="true"],
+.textarea-control:disabled,
+.select-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  box-shadow: none;
+}

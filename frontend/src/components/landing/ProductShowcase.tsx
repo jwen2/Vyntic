@@ -8,24 +8,24 @@ import LandingText from "./ui/LandingText";
 
 const SHOWCASES = [
   {
-    label: "Comparison Matrix",
-    title: "Ask one question across the full pipeline.",
+    label: "Step 01",
+    title: "Upload the diligence pack.",
     body:
-      "Vyntic organizes answers in a matrix so teams can compare operating performance, risks, and thesis support without stitching together slides by hand.",
+      "Bring the materials analysts already review: CIMs, QoE reports, legal summaries, operating updates, and Excel files. The pilot starts with the documents your team actually uses.",
     visual: <MatrixMock />,
   },
   {
-    label: "Cited Review",
-    title: "Keep every answer reviewable.",
+    label: "Step 02",
+    title: "Run the same diligence questions across the set.",
     body:
-      "Outputs stay linked to the underlying document context, so an associate or principal can move from answer to source without leaving the workflow.",
+      "Vyntic returns a matrix of cited answers so an associate can compare findings, spot missing support, and open the source behind any answer.",
     visual: <CitationMock />,
   },
   {
-    label: "Investment Summary",
-    title: "Produce summaries shaped for committee work.",
+    label: "Step 03",
+    title: "Turn findings into a committee-ready view.",
     body:
-      "When comparisons resolve into a point of view, the platform surfaces the underlying support, unresolved issues, and the core tradeoffs to carry forward.",
+      "The pilot output should be practical: an IC-style summary, unresolved diligence questions, red flags, and the source trail behind the recommendation.",
     visual: <SummaryMock />,
   },
 ];
@@ -34,13 +34,13 @@ export default function ProductShowcase() {
   return (
     <LandingSection id="product" tone="muted">
       <LandingScrollReveal className="max-w-3xl">
-        <LandingEyebrow>Product</LandingEyebrow>
+        <LandingEyebrow>Workflow</LandingEyebrow>
         <LandingHeading className="mt-6">
-          The product surfaces are built around the actual review loop.
+          What the pilot looks like inside the product.
         </LandingHeading>
         <LandingText className="mt-5 max-w-2xl">
-          Compare, inspect, and summarize in one flow rather than moving across
-          disconnected tools.
+          The goal is to prove whether Vyntic can shorten one real review loop:
+          document intake, question execution, citation review, and synthesis.
         </LandingText>
       </LandingScrollReveal>
 
@@ -48,7 +48,7 @@ export default function ProductShowcase() {
         {SHOWCASES.map((item, index) => (
           <div
             key={item.label}
-            className={`grid gap-4 sm:gap-5 lg:grid-cols-[0.88fr_1.12fr] lg:items-center ${
+            className={`grid min-w-0 gap-4 sm:gap-5 lg:grid-cols-[0.88fr_1.12fr] lg:items-center ${
               index % 2 === 1 ? "lg:grid-cols-[1.12fr_0.88fr]" : ""
             }`}
           >
@@ -72,7 +72,7 @@ export default function ProductShowcase() {
                 <LandingText className="mt-4">{item.body}</LandingText>
                 <div className="mt-8">
                   <LandingButton href="#contact" variant="secondary" className="w-full sm:w-auto">
-                    Request a walkthrough
+                    Discuss a pilot
                   </LandingButton>
                 </div>
               </LandingPanel>
@@ -85,31 +85,34 @@ export default function ProductShowcase() {
 }
 
 function MatrixMock() {
-  const headers = ["Deal", "Growth", "Margin", "Key issue"];
+  const headers = ["Document", "Type", "Pages", "Status"];
   const rows = [
-    ["North Peak", "Enterprise pipeline inflecting", "Improving with mix shift", "Customer concentration"],
-    ["Harbor Health", "Stable, less aggressive", "High retention quality", "Payer timing"],
-    ["Summit Works", "Project-led variability", "Compressed by input costs", "Cyclicality"],
+    ["CIM", "PDF", "84", "Indexed"],
+    ["QoE report", "PDF", "142", "Indexed"],
+    ["Operating model", "XLSX", "18 tabs", "Indexed"],
   ];
 
   return (
     <LandingPanel className="h-full p-3 sm:p-4">
       <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-        Shared question set
+        Uploaded diligence pack
       </div>
       <div className="mt-4 overflow-x-auto">
-        <div className="grid min-w-[620px] grid-cols-4 gap-px overflow-hidden rounded-[1.5rem] border border-[var(--landing-border)] bg-[var(--landing-border)] text-xs">
+        <div className="grid min-w-0 grid-cols-[1.1fr_0.7fr_0.75fr_0.9fr] gap-px overflow-hidden rounded-[1.5rem] border border-[var(--landing-border)] bg-[var(--landing-border)] text-[11px] sm:min-w-[620px] sm:grid-cols-4 sm:text-xs">
           {headers.map((header) => (
             <div
               key={header}
-              className="bg-[var(--landing-surface-alt)] px-4 py-3 font-mono-plex text-[10px] uppercase tracking-[0.14em] text-[var(--landing-muted)]"
+              className="bg-[var(--landing-surface-alt)] px-3 py-3 font-mono-plex text-[10px] uppercase tracking-[0.14em] text-[var(--landing-muted)] sm:px-4"
             >
               {header}
             </div>
           ))}
           {rows.flatMap((row) =>
             row.map((cell) => (
-              <div key={row[0] + cell} className="bg-white px-4 py-3 leading-5 text-[var(--landing-text)]">
+              <div
+                key={row[0] + cell}
+                className="bg-white px-3 py-3 leading-5 text-[var(--landing-text)] sm:px-4"
+              >
                 {cell}
               </div>
             ))
@@ -126,11 +129,11 @@ function CitationMock() {
       <div className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr]">
         <div className="rounded-[1.25rem] border border-[var(--landing-border)] bg-[var(--landing-surface-alt)] p-3 sm:rounded-[1.5rem] sm:p-4">
           <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-            Answer
+            Matrix answer
           </div>
           <p className="mt-3 text-sm leading-6 text-[var(--landing-text)]">
-            Management expects 22% growth from enterprise upsell and channel
-            expansion, though the customer base remains concentrated.
+            FY26 growth depends on enterprise upsell and channel expansion, but
+            the customer base remains concentrated.
           </p>
           <div className="mt-4 inline-flex rounded-full border border-[var(--landing-border)] px-3 py-1 font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
             Citation linked
@@ -143,11 +146,11 @@ function CitationMock() {
               Source context
             </div>
             <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-              CIM · Page 27
+              QoE · Page 31
             </div>
           </div>
           <div className="mt-4 rounded-[1.25rem] border border-[var(--landing-border)] bg-[var(--landing-surface-alt)] p-3 text-sm leading-6 text-[var(--landing-muted)] sm:p-4">
-            The company’s top two accounts represented 38% of FY25 revenue. The
+            The company's top two accounts represented 38% of FY25 revenue. The
             next phase of growth assumes broader enterprise adoption within the
             existing customer base.
           </div>
@@ -161,28 +164,28 @@ function SummaryMock() {
   return (
     <LandingPanel variant="inverse" className="h-full p-3 sm:p-4">
       <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white/55">
-        Memo-ready synthesis
+        Pilot output
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-3 sm:rounded-[1.5rem] sm:p-4">
           <div className="text-sm font-medium text-white">Current read</div>
           <ul className="mt-4 space-y-3 text-sm leading-6 text-white/75">
-            <li>North Peak leads on growth but requires concentration diligence.</li>
-            <li>Harbor Health is cleaner to underwrite with lower upside.</li>
-            <li>Summit Works is more cyclical than the current mandate favors.</li>
+            <li>Growth case is attractive but depends on concentration diligence.</li>
+            <li>Margin bridge needs source-backed validation against the model.</li>
+            <li>Open questions are ready for management follow-up.</li>
           </ul>
         </div>
         <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-3 sm:rounded-[1.5rem] sm:p-4">
           <div className="text-sm font-medium text-white">Open items</div>
           <div className="mt-4 space-y-2 font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white/55">
             <div className="rounded-full border border-white/10 px-3 py-2">
-              Customer concentration
+              Revenue concentration
             </div>
             <div className="rounded-full border border-white/10 px-3 py-2">
-              Payer timing
+              EBITDA bridge
             </div>
             <div className="rounded-full border border-white/10 px-3 py-2">
-              Cost volatility
+              Legal open items
             </div>
           </div>
         </div>

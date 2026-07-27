@@ -17,6 +17,7 @@ import {
   type ObligationDraft,
 } from "@/lib/api";
 import Button from "@/components/ui/Button";
+import Input, { Select } from "@/components/ui/Input";
 import SectionLabel from "@/components/ui/SectionLabel";
 
 type Sub = "calls" | "sideletters";
@@ -172,24 +173,24 @@ function CallsSection({ dealId, isAdmin, documents }: { dealId: string; isAdmin:
         {notices.length === 0 ? (
           <Empty>No notices processed yet.</Empty>
         ) : (
-          <div className="mt-2 overflow-x-auto">
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <div className="data-table-wrap mt-2">
+            <table className="data-table data-table--dense">
               <thead>
-                <tr className="text-t3" style={{ textAlign: "left" }}>
+                <tr>
                   {["Due", "Kind", "Amount", "Purpose", "Status", ""].map((h) => (
-                    <th key={h} className="border-b border-b-edge" style={{ padding: "6px 8px", fontWeight: 600 }}>{h}</th>
+                    <th key={h} className={h === "Amount" ? "data-table__num" : undefined}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {notices.map((n) => (
-                  <tr key={n.id} className="text-t1">
-                    <td className="border-b border-b-edge" style={{ padding: "8px" }}>{n.due_date ?? "—"}</td>
-                    <td className="border-b border-b-edge" style={{ padding: "8px" }}>{n.kind}</td>
-                    <td className="border-b border-b-edge" style={{ padding: "8px", fontVariantNumeric: "tabular-nums" }}>{n.amount != null ? `${n.currency} ${n.amount.toLocaleString()}` : "—"}</td>
-                    <td className="border-b border-b-edge text-t2" style={{ padding: "8px" }}>{n.purpose || "—"}</td>
-                    <td className="border-b border-b-edge" style={{ padding: "8px" }}><StatusPill status={n.status} /></td>
-                    <td className="border-b border-b-edge" style={{ padding: "8px" }}>
+                  <tr key={n.id}>
+                    <td>{n.due_date ?? "—"}</td>
+                    <td>{n.kind}</td>
+                    <td className="data-table__num">{n.amount != null ? `${n.currency} ${n.amount.toLocaleString()}` : "—"}</td>
+                    <td className="data-table__muted">{n.purpose || "—"}</td>
+                    <td><StatusPill status={n.status} /></td>
+                    <td>
                       {isAdmin && n.status !== "paid" && n.status !== "dismissed" && (
                         <span className="flex gap-1">
                           <MiniBtn onClick={() => setStatus(n.id, "paid")}>Mark paid</MiniBtn>
@@ -380,10 +381,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <label className="flex flex-col gap-1"><span className="font-mono-plex text-[9px] uppercase tracking-[0.12em] text-t3">{label}</span>{children}</label>;
 }
 function InputMini({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="rounded-lg border border-edge px-2.5 py-1.5 text-sm outline-none bg-surface-alt text-t1" />;
+  return <Input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} fieldSize="sm" fullWidth />;
 }
 function SelectMini({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
-  return <select value={value} onChange={(e) => onChange(e.target.value)} className="rounded-lg border border-edge px-2.5 py-1.5 text-sm outline-none bg-surface-alt text-t1">{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
+  return <Select value={value} onChange={(e) => onChange(e.target.value)} fieldSize="sm" fullWidth>{options.map((o) => <option key={o} value={o}>{o}</option>)}</Select>;
 }
 function MiniBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return <Button variant="secondary" size="xs" onClick={onClick}>{children}</Button>;

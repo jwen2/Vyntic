@@ -71,6 +71,9 @@ export default function AddDealDialog({ onAdd, onClose }: Props) {
       ? "border-white/10 bg-white/5 text-white focus:border-white/40"
       : "border-[var(--landing-border)] bg-[var(--landing-surface)] text-[var(--landing-text)] focus:border-[var(--landing-inverse)]"
   }`;
+  const selectCaret = isDark
+    ? "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")"
+    : "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23111111' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")";
 
   return (
     // Only the dialog shell moves onto <Modal> here — this fixes the missing
@@ -141,6 +144,15 @@ export default function AddDealDialog({ onAdd, onClose }: Props) {
                   value={managerId}
                   onChange={(e) => setManagerId(e.target.value)}
                   className={selectClass}
+                  style={{
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                    backgroundImage: selectCaret,
+                    backgroundPosition: "right 18px center",
+                    backgroundRepeat: "no-repeat",
+                    backgroundSize: "18px 18px",
+                    paddingRight: 52,
+                  }}
                 >
                   {managers.map((m) => (
                     <option key={m.manager_id} value={m.manager_id}>

@@ -42,8 +42,8 @@ export function BriefStatCard({
       >
         {label}
       </div>
-      <div className="text-t1" style={{ marginTop: 6, fontSize: 24, lineHeight: 1, fontWeight: 600 }}>{value}</div>
-      <div className="text-t2" style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}>{detail}</div>
+      <div className="text-t1" style={{ marginTop: 6, font: "var(--text-h3)" }}>{value}</div>
+      <div className="text-t2" style={{ marginTop: 6, font: "var(--text-xs)" }}>{detail}</div>
     </Card>
   );
 }

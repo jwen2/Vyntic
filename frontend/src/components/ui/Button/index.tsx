@@ -6,6 +6,7 @@ import {
 
 export type ButtonVariant =
   | "primary"
+  | "ink"
   | "violet"
   | "tint"
   | "secondary"

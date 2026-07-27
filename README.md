@@ -146,6 +146,7 @@ Compact **📄 N** button in the TopBar of every deal page. Opens a modal listin
 - **Per-deal isolation** — context is always loaded per deal (and per document via `doc_id`); in RAG mode each deal additionally gets its own ChromaDB collection. Zero cross-deal context bleed either way.
 - **JWT auth + RBAC** — `admin` and `analyst` roles, per-deal access control via `DealAccessRow`. Admin-only actions (create deals, delete deals, upload docs, edit stage) enforced in the API (`require_admin`) and reflected in the UI.
 - **Typed cells** — every workflow column declares a shape; the executor appends a JSON/format directive to the LLM prompt and parses the structured response into `answer_formatted`. Renderers consume the typed shape directly. The `markdown` shape skips the JSON directive for columns whose prompts need rich markdown (tables, multi-section narrative).
+- **Design-system primitives** — app chrome flows through shared Button, Card, Modal, Input/Select/Textarea, tokenized radius/shadow values, and read-only `.data-table` utilities. The remaining UI normalization work is limited to the two behavior-heavy interactive grids (Doc Matrix and Tabular Run), tracked in `docs/todo/2026-07-27-interactive-grid-chrome.md`.
 - **Built-in reconciliation** — `seed_builtin_workflows` runs on every startup and patches existing built-in workflow rows in place when source code drifts. Column IDs preserved → existing run history keeps working.
 - **Run lifecycle is DB-truth** — cells/stages are claimed atomically (`queued → running`), cancel stops all queued work and the run stays `cancelled`, and a startup reconciler marks runs stranded by a restart as errored (checkpoint-paused runs survive restarts and resume via approve).
 - **Docling in subprocess** — PDF parsing runs in a spawned process with conservative CPU/thread/timeout defaults so local startup ingestion never crashes the API process.
@@ -168,7 +169,7 @@ Compact **📄 N** button in the TopBar of every deal page. Opens a modal listin
 | **DOCX generation** | python-docx |
 | **Backend** | FastAPI (Python 3.12) |
 | **Auth** | JWT (python-jose, bcrypt) |
-| **Frontend** | Vite 5, React 18, react-router, TailwindCSS, DM Sans / DM Mono |
+| **Frontend** | Vite 5, React 18, react-router, TailwindCSS, Hanken Grotesk / Playfair Display / DM Mono |
 | **Streaming** | Server-Sent Events (SSE) |
 
 ---

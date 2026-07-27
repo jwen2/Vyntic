@@ -1,5 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
+import Input, { Textarea } from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { listDocuments, type DocumentMetadata } from "@/lib/api";
 import type { RowSource } from "@/lib/workflows";
@@ -109,16 +110,12 @@ export default function DocumentSelectorModal({
     >
 
         <div className="border-b border-b-edge flex items-center gap-2 px-5 py-3">
-          <input
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search documents..."
-            className="flex-1 rounded-[7px] border border-edge bg-surface-alt text-t1 outline-none"
-            style={{
-              padding: "6px 10px",
-              fontSize: 12,
-              fontFamily: "inherit",
-            }}
+            className="flex-1"
+            fieldSize="sm"
           />
           <button onClick={selectAll} className={smallBtnClass}>
             Select all
@@ -146,18 +143,13 @@ export default function DocumentSelectorModal({
               <div className="text-t2" style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
                 Synthesis rows
               </div>
-              <textarea
+              <Textarea
                 value={questionsText}
                 onChange={(e) => setQuestionsText(e.target.value)}
                 placeholder={"One question per line, e.g.\nRevenue bridge by period\nCustomer concentration and churn risk\nAdjusted EBITDA add-backs"}
-                className="w-full rounded-[7px] border border-edge bg-appbg text-t1 outline-none resize-y"
-                style={{
-                  minHeight: 96,
-                  padding: "8px 10px",
-                  fontSize: 12,
-                  lineHeight: 1.45,
-                  fontFamily: "inherit",
-                }}
+                className="resize-y"
+                fieldSize="sm"
+                fullWidth
               />
               <div className="text-t3" style={{ fontSize: 10, marginTop: 6 }}>
                 {synthesisQuestions.length} row{synthesisQuestions.length === 1 ? "" : "s"} will run across all selected documents.

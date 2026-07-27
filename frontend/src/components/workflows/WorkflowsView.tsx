@@ -192,7 +192,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 13,
+          font: "var(--text-sm)",
         }}
       >
         <div
@@ -224,8 +224,8 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
           padding: 32,
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 600 }}>Couldn’t load workflows</div>
-        <div className="text-t2" style={{ fontSize: 12, textAlign: "center", maxWidth: 480 }}>{error}</div>
+        <div style={{ font: "var(--text-sm)", fontWeight: 600 }}>Couldn’t load workflows</div>
+        <div className="text-t2" style={{ font: "var(--text-xs)", textAlign: "center", maxWidth: 480 }}>{error}</div>
         <button
           onClick={refresh}
           style={{
@@ -234,7 +234,7 @@ export default function WorkflowsView({ dealId, theme }: WorkflowsViewProps) {
             color: "var(--on-accent)",
             border: "none",
             borderRadius: 6,
-            fontSize: 12,
+            font: "var(--text-xs)",
             cursor: "pointer",
           }}
         >
@@ -518,8 +518,8 @@ function RunHistoryModal({
       >
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
           <div>
-            <div className="text-t1" style={{ fontSize: 14, fontWeight: 700 }}>Run history</div>
-            <div className="text-t2" style={{ fontSize: 12, marginTop: 2 }}>{workflow.name}</div>
+            <div className="text-t1" style={{ font: "var(--text-sm)", fontWeight: 700 }}>Run history</div>
+            <div className="text-t2" style={{ font: "var(--text-xs)", marginTop: 2 }}>{workflow.name}</div>
           </div>
           <button
             onClick={onClose}
@@ -536,11 +536,11 @@ function RunHistoryModal({
         </div>
 
         {loading ? (
-          <div className="text-t2" style={{ fontSize: 12 }}>Loading runs...</div>
+          <div className="text-t2" style={{ font: "var(--text-xs)" }}>Loading runs...</div>
         ) : error ? (
-          <div style={{ color: "var(--danger)", fontSize: 12 }}>{error}</div>
+          <div style={{ color: "var(--danger)", font: "var(--text-xs)" }}>{error}</div>
         ) : runs.length === 0 ? (
-          <div className="text-t3" style={{ fontSize: 12 }}>No runs yet.</div>
+          <div className="text-t3" style={{ font: "var(--text-xs)" }}>No runs yet.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {runs.map((run) => (
@@ -556,12 +556,12 @@ function RunHistoryModal({
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>Run #{run.run_number}</span>
-                  <span style={{ fontSize: 10, color: statusColor(run.status), fontWeight: 700, textTransform: "uppercase" }}>
+                  <span style={{ font: "var(--text-xs)", fontWeight: 700 }}>Run #{run.run_number}</span>
+                  <span style={{ font: "var(--text-meta-sm)", color: statusColor(run.status), fontWeight: 700, textTransform: "uppercase" }}>
                     {run.status}
                   </span>
                 </div>
-                <div className="text-t3" style={{ fontSize: 11, marginTop: 4 }}>
+                <div className="text-t3" style={{ font: "var(--text-meta)", marginTop: 4 }}>
                   {formatRunDate(run.completed_at ?? run.started_at)} · {run.document_ids.length} doc
                   {run.document_ids.length === 1 ? "" : "s"}
                 </div>

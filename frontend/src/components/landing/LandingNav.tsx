@@ -4,10 +4,10 @@ import LandingContainer from "./ui/LandingContainer";
 import LandingButton from "./ui/LandingButton";
 
 const NAV_ITEMS = [
-  { label: "Platform", href: "#platform" },
-  { label: "Product", href: "#product" },
+  { label: "Pilot", href: "#platform" },
+  { label: "Workflow", href: "#product" },
   { label: "Use Cases", href: "#use-cases" },
-  { label: "Security", href: "#security" },
+  { label: "Controls", href: "#security" },
 ];
 
 export default function LandingNav() {
@@ -22,10 +22,10 @@ export default function LandingNav() {
             className="flex max-w-3xl flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center"
           >
             <span className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white/55">
-              New
+              Pilot
             </span>
-            <span className="text-xs text-white/88 sm:text-sm">
-              Vyntic agents execute deal work with Gemini-powered reasoning.
+            <span className="min-w-0 break-words text-xs text-white/88 sm:text-sm">
+              We are onboarding PE teams to test Vyntic on one diligence workflow.
             </span>
             <span className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white">
               Learn more
@@ -65,7 +65,7 @@ export default function LandingNav() {
           <LandingButton variant="ghost" to="/login">
             Sign in
           </LandingButton>
-          <LandingButton href="#contact">Request a demo</LandingButton>
+          <LandingButton href="#contact">Pilot one deal</LandingButton>
         </div>
 
         <button
@@ -95,7 +95,7 @@ export default function LandingNav() {
               <LandingButton variant="secondary" to="/login">
                 Sign in
               </LandingButton>
-              <LandingButton href="#contact">Request a demo</LandingButton>
+              <LandingButton href="#contact">Pilot one deal</LandingButton>
             </div>
           </LandingContainer>
         </div>

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Deal, UploadProgress, User } from "@/lib/api";
 import DealListItem from "./DealListItem";
+import Input from "@/components/ui/Input";
 
 /** Group funds under their manager; plain deals form a trailing group. */
 function groupByManager(deals: Deal[]): { label: string | null; managerId: string | null; deals: Deal[] }[] {
@@ -135,39 +136,27 @@ export default function HomeSidebar({
       </div>
 
       <div className="border-b px-4 py-3" style={{ borderBottomColor: border }}>
-        <div style={{ position: "relative" }}>
-          <svg
-            style={{
-              position: "absolute",
-              left: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: 14,
-              height: 14,
-              color: muted,
-            }}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-            />
-          </svg>
-          <input
+        <div>
+          <Input
             type="text"
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Search deals"
-            className="w-full rounded-lg border px-10 py-2.5 text-sm outline-none"
-            style={{
-              background: surfaceAlt,
-              borderColor: border,
-              color: text,
-            }}
+            fullWidth
+            iconLeft={
+              <svg
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                />
+              </svg>
+            }
           />
           {search && (
             <button

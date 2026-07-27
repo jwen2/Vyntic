@@ -504,7 +504,7 @@ export default function HomePage() {
                 >
                   No deal selected
                 </div>
-                <div style={{ marginTop: 12, fontSize: 20, fontWeight: 600, color: text }}>
+                <div style={{ marginTop: 12, font: "var(--text-h3)", color: text }}>
                   Select or add a deal to start reviewing documents.
                 </div>
               </div>

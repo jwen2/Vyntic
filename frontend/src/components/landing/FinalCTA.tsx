@@ -9,22 +9,23 @@ export default function FinalCTA() {
     <LandingSection id="contact" tone="inverse" className="overflow-hidden">
       <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
         <div className="max-w-3xl">
-          <LandingEyebrow className="text-white/55">Request A Demo</LandingEyebrow>
+          <LandingEyebrow className="text-white/55">Pilot With Us</LandingEyebrow>
           <LandingHeading className="mt-6 text-white">
-            See how Vyntic fits into your deal process.
+            Bring us one diligence workflow.
           </LandingHeading>
           <LandingText tone="inverseMuted" className="mt-5 max-w-2xl">
-            We’ll walk through the platform, your review workflow, and where
-            cited analysis can shorten screening and IC preparation.
+            We will walk through the product, scope a pilot around one deal
+            room or sample pack, and show what cited analysis can produce for
+            screening or IC preparation.
           </LandingText>
         </div>
 
         <div className="flex flex-col gap-3 lg:items-end">
           <LandingButton
-            href="mailto:hello@vyntic.com?subject=Request%20a%20Vyntic%20demo"
+            href="mailto:hello@vyntic.com?subject=Vyntic%20pilot"
             className="w-full bg-white text-black hover:bg-white/90 sm:w-auto"
           >
-            Request a demo
+            Discuss a pilot
           </LandingButton>
           <LandingButton
             to="/login"
