@@ -39,3 +39,6 @@ Thumbs.db
 
 # superpowers subagent-driven-development scratch workspace (ledgers, briefs, review packages)
 .superpowers/
+
+# Typography phase-2 spike: reflow measurement screenshots + metrics (regenerable)
+frontend/.reflow-snapshots/

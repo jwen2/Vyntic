@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint src",
     "test": "vitest run",
-    "scan:palette": "node scripts/scan-palette.mjs"
+    "scan:palette": "node scripts/scan-palette.mjs",
+    "measure:reflow": "node scripts/measure-reflow.mjs"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
