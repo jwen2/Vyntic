@@ -176,7 +176,7 @@ export default function HomePage() {
     <div
       className="flex h-screen flex-col overflow-hidden"
       style={{
-        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontFamily: "var(--sans)",
         background: pageBg,
       }}
     >

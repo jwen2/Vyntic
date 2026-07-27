@@ -267,7 +267,7 @@ html {
 
 body {
   margin: 0;
-  font-family: "IBM Plex Sans", "Aptos", "Segoe UI", sans-serif;
+  font-family: var(--sans);
   color: var(--landing-text);
   background: var(--landing-bg);
 }

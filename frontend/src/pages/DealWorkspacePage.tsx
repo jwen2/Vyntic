@@ -261,7 +261,7 @@ export default function DealWorkspacePage() {
     <div
       className="flex h-screen overflow-hidden bg-appbg text-t1"
       style={{
-        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontFamily: "var(--sans)",
       }}
     >
       <div className="hidden lg:block">{rail()}</div>

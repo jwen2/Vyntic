@@ -58,7 +58,7 @@ export default function ManagerPage() {
 
   const manager = managerQuery.data;
   return (
-    <div className="min-h-screen bg-appbg text-t1" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="min-h-screen bg-appbg text-t1" style={{ fontFamily: "var(--sans)" }}>
       <header className="border-b border-b-edge bg-surface px-5 py-4 sm:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <Button variant="secondary" size="sm" onClick={() => navigate("/app")}>← All funds</Button>
