@@ -1,34 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTheme } from "@/components/ThemeProvider";
 import { Deal, UploadProgress, stagesForEntity } from "@/lib/api";
-import { STAGE_STYLES, DARK_STAGE_STYLES } from "@/lib/stageBadges";
+import { stageBadge } from "@/lib/stageBadges";
+import { toneVars } from "@/lib/badgePalette";
+import { SECTOR_TONES } from "@/lib/sectorTones";
 import Button from "@/components/ui/Button";
 
-// Sector tags carry fixed hues (same contrast targets as the stage chips);
-// hues were picked to stay clear of the stage set so a card row never shows
-// two near-identical chips. Unknown tags fall back to the neutral chip.
-const SECTOR_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Technology: { bg: "#e1edfa", fg: "#1b4d7e", border: "#7099c2" },
-  Healthcare: { bg: "#f8e2e7", fg: "#822638", border: "#b87a87" },
-  Industrials: { bg: "#e9eef2", fg: "#3a4d59", border: "#839daf" },
-  Consumer: { bg: "#f8e3f2", fg: "#7d2667", border: "#b67ca7" },
-  "Financial Services": { bg: "#e3f7ed", fg: "#1d583b", border: "#70a98c" },
-  Energy: { bg: "#faf5e1", fg: "#5d4e14", border: "#b19b43" },
-  "Real Estate": { bg: "#f9e7e2", fg: "#7a361f", border: "#bd8775" },
-  Infrastructure: { bg: "#eef5e5", fg: "#3f5223", border: "#8ea470" },
-};
-
-const DARK_SECTOR_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
-  Technology: { bg: "#151c23", fg: "#89add2", border: "#2c3844" },
-  Healthcare: { bg: "#231518", fg: "#d897a4", border: "#442c31" },
-  Industrials: { bg: "#151d23", fg: "#85b1d1", border: "#2c3a44" },
-  Consumer: { bg: "#231520", fg: "#d694c6", border: "#442c3e" },
-  "Financial Services": { bg: "#15231c", fg: "#5cc18f", border: "#2c4438" },
-  Energy: { bg: "#232015", fg: "#c3af60", border: "#44402c" },
-  "Real Estate": { bg: "#231915", fg: "#d49e8c", border: "#44322c" },
-  Infrastructure: { bg: "#1d2315", fg: "#95c059", border: "#3a442c" },
-};
+// Sector tag tone assignments live in lib/sectorTones.ts (see that file for
+// the full rationale — pre-reskin hue mapping, the stage-tone-collision
+// caveat, and the oxblood-vs-wash contrast check). Unknown tags fall back to
+// the neutral chip.
 const SECTOR_TAGS = [
   "Technology",
   "Healthcare",
@@ -67,24 +48,21 @@ export default function DealListItem({
   readOnly,
 }: Props) {
   const navigate = useNavigate();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const [hovered, setHovered] = useState(false);
   const [showStageMenu, setShowStageMenu] = useState(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
 
-  const surface = isDark ? "#151515" : "#ffffff";
-  const surfaceAlt = isDark ? "#101010" : "#f8f8f4";
-  const border = isDark ? "#262626" : "var(--landing-border)";
-  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
-  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+  const surface = "var(--surface)";
+  const surfaceAlt = "var(--surface-alt)";
+  const border = "var(--border)";
+  const text = "var(--text-1)";
+  const muted = "var(--text-3)";
   // Selection = accent tint wash + accent border (same idiom as the workspace);
   // text stays at normal contrast on the wash, so no inverse overrides needed.
   const selectedBg = "var(--accent-tint)";
-  const stageMap = isDark ? DARK_STAGE_STYLES : STAGE_STYLES;
-  const sectorMap = isDark ? DARK_SECTOR_STYLES : SECTOR_STYLES;
+  const badge = stageBadge(deal.stage);
   const stage =
-    stageMap[deal.stage] || {
+    badge || {
       bg: surfaceAlt,
       fg: text,
       border,
@@ -283,7 +261,8 @@ export default function DealListItem({
         </div>
 
         {deal.tags.map((tag) => {
-          const sector = sectorMap[tag];
+          const tone = SECTOR_TONES[tag];
+          const sector = tone ? toneVars(tone) : null;
           return (
             <button
               key={tag}
@@ -302,7 +281,7 @@ export default function DealListItem({
                 background: sector ? sector.bg : selected ? "transparent" : surfaceAlt,
                 color: sector ? sector.fg : cardMuted,
                 borderColor: sector
-                  ? sector.border
+                  ? sector.edge
                   : selected
                     ? "var(--accent-tint-border)"
                     : border,

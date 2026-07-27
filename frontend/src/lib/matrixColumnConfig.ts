@@ -51,23 +51,27 @@ export const FORMAT_OPTIONS: Array<{ value: ColumnFormat; label: string; short: 
   { value: "tag", label: "Tag", short: "Tag" },
 ];
 
+// Tag chips cycle through six palette tones. Distinct tones matter more than
+// specific hues here — the index is stable per tag, not semantic.
 export const TAG_COLORS = [
-  "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
-  "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300",
-  "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
-  "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-  "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
-  "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300",
+  "badge-tone-slate",
+  "badge-tone-plum",
+  "badge-tone-sage",
+  "badge-tone-ochre",
+  "badge-tone-oxblood",
+  "badge-tone-teal",
 ];
 
-const CURRENCY_COLORS: Record<string, string> = {
-  USD: "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300",
-  EUR: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
-  GBP: "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300",
-  JPY: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
-  CAD: "bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300",
-  AUD: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300",
-  CNY: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+// Currency chips keep hue-coding, sourced from the palette rather than from
+// Tailwind's default scale. Exported so the colour contract can be tested.
+export const CURRENCY_COLORS: Record<string, string> = {
+  USD: "badge-tone-moss",
+  EUR: "badge-tone-slate",
+  GBP: "badge-tone-plum",
+  JPY: "badge-tone-oxblood",
+  CAD: "badge-tone-teal",
+  AUD: "badge-tone-sage",
+  CNY: "badge-tone-ochre",
 };
 
 export const PE_COLUMN_PRESETS: ColumnPreset[] = [
@@ -168,15 +172,15 @@ export function createColumnId(): string {
 export function getPillClass(content: string, column?: Pick<MatrixColumnConfig, "format" | "tags">): string {
   if (column?.format === "yes_no" || column?.format === "bool") {
     const lower = content.toLowerCase();
-    if (lower === "yes") return "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300";
-    if (lower === "no") return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300";
+    if (lower === "yes") return "badge-tone-moss";
+    if (lower === "no") return "badge-tone-oxblood";
   }
   if (column?.format === "currency") {
-    return CURRENCY_COLORS[content.toUpperCase()] ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+    return CURRENCY_COLORS[content.toUpperCase()] ?? "badge-tone-neutral";
   }
   if ((column?.format === "tag" || column?.format === "enum") && column.tags?.length) {
     const idx = column.tags.findIndex((tag) => tag.toLowerCase() === content.toLowerCase());
     if (idx >= 0) return TAG_COLORS[idx % TAG_COLORS.length];
   }
-  return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+  return "badge-tone-neutral";
 }

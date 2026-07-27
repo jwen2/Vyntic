@@ -105,7 +105,7 @@ export default function LeftSidebar({
       {/* New chat + nav */}
       <div className="px-3 pt-3">
         <Button
-          variant="tint"
+          variant="primary"
           fullWidth
           onClick={onNewAssistantChat}
           iconLeft={

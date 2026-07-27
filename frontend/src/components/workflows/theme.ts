@@ -10,8 +10,11 @@ import type { WorkflowType } from "@/lib/workflows";
 // so any *fill* using VIOLET must pair text with var(--on-violet).
 export const VIOLET = "var(--violet)";
 export const ACCENT = "var(--accent)";
-export const AMBER = "#f59e0b";
-export const GREEN = "#22c55e";
+// Amber and green fold onto the shared status scale so workflow severity uses
+// the same three colours as findings, coverage and confidence. Both were raw
+// hex before the reskin and were among the workspace's off-palette hits.
+export const AMBER = "var(--status-warning)";
+export const GREEN = "var(--status-good)";
 // RED resolves to the shared --danger token (burnt-orange in light, soft coral
 // in dark) so workflow error/risk surfaces share one red with the danger
 // <Button>. tint(RED, n) still works: tint() uses color-mix, which accepts

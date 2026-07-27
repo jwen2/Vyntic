@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useTheme } from "@/components/ThemeProvider";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { getDocumentViewToken } from "@/lib/api";
 import CitationSnippet from "./dd/CitationSnippet";
@@ -19,13 +18,11 @@ export default function DocumentViewer({
   snippet,
   onClose,
 }: Props) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const surface = isDark ? "#151515" : "#ffffff";
-  const surfaceAlt = isDark ? "#101010" : "#f8f8f4";
-  const border = isDark ? "#262626" : "var(--landing-border)";
-  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
-  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+  const surface = "var(--surface)";
+  const surfaceAlt = "var(--surface-alt)";
+  const border = "var(--border)";
+  const text = "var(--text-1)";
+  const muted = "var(--text-3)";
   const lower = filename.toLowerCase();
   const isPdf = lower.endsWith(".pdf");
   const isExcel = lower.endsWith(".xlsx") || lower.endsWith(".xls");
@@ -190,8 +187,8 @@ export default function DocumentViewer({
                 download={filename}
                 className="inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium"
                 style={{
-                  background: isDark ? "#f5f5f5" : "#111111",
-                  color: isDark ? "#111111" : "#ffffff",
+                  background: "var(--text-1)",
+                  color: "var(--bg)",
                 }}
               >
                 <svg

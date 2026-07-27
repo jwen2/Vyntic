@@ -122,7 +122,7 @@ export default function WorkflowCard({
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "auto" }}>
         <Button
-          variant="tint"
+          variant="primary"
           size="sm"
           onClick={onRun}
           disabled={!onRun}

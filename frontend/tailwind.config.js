@@ -7,21 +7,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Cobalt accent scale (spec 2026-07-09-cobalt-accent-design.md).
-        // Existing blue-* usages retune to the brand accent; 900/950 stay
-        // near Tailwind defaults (used only as dark washes).
+        // SPIKE: oxblood ramp replacing the cobalt scale. This one declarative
+        // file is what carries the ~140 raw `blue-*` utility sites through a
+        // reskin without touching a single component — the same trick the
+        // cobalt spec used. Everything NOT routed through here (raw hex,
+        // slate/amber literals, the categorical badge palettes) is what the
+        // screenshots expose as genuinely untokenized.
         blue: {
-          50: "#eef3fc",
-          100: "#e7edfb",
-          200: "#b6c6ee",
-          300: "#93aee4",
-          400: "#8ab4ff",
-          500: "#1d4ed8",
-          600: "#1d4ed8",
-          700: "#1e40af",
-          800: "#1e40af",
-          900: "#1e3a8a",
-          950: "#172554",
+          50: "#fdf6f4",
+          100: "#f2e5e1",
+          200: "#e4c9c1",
+          300: "#d0a294",
+          400: "#c47a5f",
+          500: "#a3402f",
+          600: "#a3402f",
+          700: "#8a3223",
+          800: "#8a3223",
+          900: "#6d2718",
+          950: "#4a1a10",
         },
         // Semantic theming tokens → the CSS vars in index.css (FE11). Usable as
         // bg-surface / text-t1 / border-edge / bg-zebra etc.; theme-aware via

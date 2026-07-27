@@ -15,12 +15,13 @@
   --landing-muted: #5e5e57;
   --landing-inverse: #111111;
   --landing-inverse-text: #ffffff;
-  /* Cobalt accent scale — measured: #1d4ed8 6.7:1 w/ white, #1e40af 8.7:1 on white */
-  --accent: #1d4ed8;
-  --accent-strong: #1e40af;
-  --accent-tint: #e7edfb;
-  --accent-tint-border: #b6c6ee;
-  --on-accent: #ffffff;
+  /* --oxblood / --oxblood-2. #a3402f ≈ 6.3:1 on white. --on-accent is ivory,
+     per the artifact's .btn-primary { color:#f4f1ea }. */
+  --accent: #a3402f;
+  --accent-strong: #8a3223;
+  --accent-tint: #f2e5e1;
+  --accent-tint-border: color-mix(in srgb, #a3402f 32%, transparent);
+  --on-accent: #f4f1ea;
   /* Focus indicator. Follows --accent, so it flips with the theme: #1d4ed8
      (6.7:1 on white) light, #8ab4ff (8.6:1 on #171717) dark — both clear the
      3:1 WCAG 2.2 SC 1.4.11 floor for non-text indicators. Replaces a hardcoded
@@ -31,44 +32,86 @@
      variant) and, over time, red status pills/badges. Burnt-orange from the
      finalized button-system artifact; reads as destructive without the bright
      #ef4444 alarm. Dark equivalent is a soft coral (below). */
-  --danger: #c2410c;
-  --danger-tint: color-mix(in srgb, #c2410c 10%, transparent);
-  --danger-tint-border: color-mix(in srgb, #c2410c 28%, transparent);
+  /* The artifact itself has no separate destructive hue — it folds onto
+     --sev-material. Burnt-orange retires. */
+  --danger: #c0392b;
+  --danger-tint: color-mix(in srgb, #c0392b 10%, transparent);
+  --danger-tint-border: color-mix(in srgb, #c0392b 28%, transparent);
   /* Status scale — good / warning / critical for traffic-light indicators
      (finding severity, page coverage, confidence) and diverging chart marks.
      Distinct from --danger (destructive-action burnt-orange): critical stays a
      truer red so it reads clearly apart from the amber --status-warning. Always
      paired with a numeric or text label — never color-alone. */
-  --status-good: #16a34a;
-  --status-warning: #f59e0b;
-  --status-critical: #dc2626;
-  --status-critical-tint: color-mix(in srgb, #dc2626 10%, transparent);
-  --status-critical-tint-border: color-mix(in srgb, #dc2626 28%, transparent);
-  /* Violet — the second semantic hue: tabular workflows, derived (vs
-     extracted) citations, KV cells. Coordinated with the IC Review badge
-     family. #7c3aed = 5.7:1 on white (AA); vivid enough to read as a clear
-     "wrap" color next to the cobalt accent (the deeper #6d28d9 read muted). */
-  --violet: #7c3aed;
-  --violet-tint: #f1eafd;
-  --violet-tint-border: #c4b0ea;
-  --on-violet: #ffffff;
+  /* --sev-note (forest) / --sev-moderate / --sev-material. */
+  --status-good: #2f6b4f;
+  --status-warning: #c98a2b;
+  --status-critical: #c0392b;
+  --status-critical-tint: color-mix(in srgb, #c0392b 10%, transparent);
+  --status-critical-tint-border: color-mix(in srgb, #c0392b 28%, transparent);
+  /* Violet — the second semantic hue (tabular workflows, derived vs extracted
+     citations, KV cells). Resolves to secondary ink: the artifact defines no
+     second hue, and ink measured a better separation from oxblood than any
+     plum that also passed surface contrast — 1.94:1 vs 1.54:1 normal, and
+     2.51:1 vs 1.73:1 under simulated deuteranopia. Deliberate, not forced.
+     See spec D3. */
+  --violet: #2b3646;
+  --violet-tint: #eceef1;
+  --violet-tint-border: color-mix(in srgb, #2b3646 24%, transparent);
+  --on-violet: #f4f1ea;
   /* Shared table striping — a second scanning channel beyond gridlines.
      Applied via the .dd-zebra class (see rule below). */
-  --table-zebra: #f6f5ef;
-  --table-header: #e5e3d8;
+  /* zebra = --sand; header derived one step deeper (artifact gives no
+     table tokens — these two are interpolated, not specified). */
+  --table-zebra: #faf8f3;
+  --table-header: #efeae0;
+
+  /* ── Badge palette (spec D1) ────────────────────────────────────────────
+     Eight admin-selectable tones plus reserved `ink` for terminal stages.
+     Derived and verified: worst label contrast 7.01:1, worst border 2.2:1.
+     Consumed via lib/badgePalette.ts — never reference these directly. */
+  --b-oxblood-bg: #f8efed; --b-oxblood-fg: #8d3020; --b-oxblood-ed: #db9f95;
+  --b-clay-bg:    #f8f2ed; --b-clay-fg:    #6f4725; --b-clay-ed:    #c9a98d;
+  --b-ochre-bg:   #f7f5ed; --b-ochre-fg:   #5e4f21; --b-ochre-ed:   #bdac7a;
+  --b-moss-bg:    #f2f6ee; --b-moss-fg:    #3e5b29; --b-moss-ed:    #9ab587;
+  --b-sage-bg:    #eff6f2; --b-sage-fg:    #2d5c45; --b-sage-ed:    #91b6a3;
+  --b-teal-bg:    #eef5f6; --b-teal-fg:    #2c5963; --b-teal-ed:    #90b4bb;
+  --b-slate-bg:   #eef2f6; --b-slate-fg:   #365278; --b-slate-ed:   #a0b0c5;
+  --b-plum-bg:    #f6eef4; --b-plum-fg:    #783662; --b-plum-ed:    #c7a3bb;
+  /* Reserved: terminal stages invert so "done" reads at a glance. */
+  --b-ink-bg: var(--text-1); --b-ink-fg: var(--bg); --b-ink-ed: var(--text-1);
+  /* Neutral fallback — unmatched/unrecognized values. Deliberately quiet,
+     unlike --b-ink-* which is reserved for terminal-state emphasis. */
+  --b-neutral-bg: var(--surface-alt); --b-neutral-fg: var(--text-3); --b-neutral-ed: var(--border);
 
   /* Semantic surface/text/border tokens — the single theming source (FE11).
      Light values here; .dark overrides them below. Consumed via the Tailwind
      color aliases (bg-surface, text-t1, border-edge, …). */
-  --surface: var(--landing-surface);
-  --surface-alt: var(--landing-surface-alt);
-  --bg: var(--landing-bg);
-  --border: var(--landing-border);
-  --border-light: #d2d2c5;
-  --text-1: var(--landing-text);
-  --text-2: var(--landing-muted);
-  --text-3: #6e6e66;
-  --text-4: #c8c8bd;
+  /* Semantic surface/text/border tokens — the single theming source (FE11).
+     Landing keeps its own vars ("marketing stays ivory"). Two values needed
+     correcting from the source artifact's spec to clear WCAG floors: the
+     artifact's --muted #8a8478 measures ≈3.7:1 on white (AA body text wants
+     4.5:1) — ships here as --text-3 #6f6a5e instead. The artifact's --line at
+     10% alpha is far lighter than the #b0b0a3 border this repo raised to
+     ~2.2:1 so panel edges survive washed-out displays — --border ships at a
+     corrected alpha (see below) to restore that weight; --border-light keeps
+     the artifact's 10% value as the deliberate decorative-only hairline. */
+  --surface: #ffffff;
+  --surface-alt: #faf8f3;
+  --bg: #f4f1ea;
+  /* --border carries the accessible weight and is the default for ~160 sites;
+     --border-light is the artifact's 10% hairline, a deliberate opt-in used by
+     6 decorative popover rules. Target is 2.2:1 (the legacy #b0b0a3), not the
+     3:1 of SC 1.4.11 — the repo's own value never met 3:1 and grid lines that
+     heavy read as rules in a dense table. See spec D2. */
+  --border: rgba(20, 25, 35, 0.35);
+  --border-light: rgba(20, 25, 35, 0.1);
+  --text-1: #16202e;
+  --text-2: #2b3646;
+  /* Artifact value #8a8478 is 3.29:1 on sand — below the AA floor, and sand is
+     both the app background and the neutral chip fill. Darkened to clear 4.5:1
+     on white (5.39), surface-alt (5.07) and sand (4.77) while staying muted. */
+  --text-3: #6f6a5e;
+  --text-4: #c9c4b8;
   --zebra: var(--table-zebra);
   --grid-header: var(--table-header);
 
@@ -77,55 +120,92 @@
      black/35) and z-index (50/90/1000); these tokens are the single source now.
      --z-modal sits above app chrome but below the 9999 portaled popovers, so a
      popover opened from inside a dialog still paints over it. */
-  --modal-scrim: rgba(15, 23, 42, 0.55);
-  --modal-shadow: rgba(15, 23, 42, 0.18);
+  /* Scrim/shadow rebased on the artifact's ink rgb(20,25,35). */
+  --modal-scrim: rgba(20, 25, 35, 0.55);
+  --modal-shadow: rgba(20, 25, 35, 0.18);
   --z-modal: 1000;
   /* Hero-card elevation — the brief's outermost card (see ui/Card/index.css).
      Unlike --modal-shadow, which is a colour, this holds the whole box-shadow
      value: the light treatment has two layers and the dark one has a single
      deeper layer, so they differ in shape, not just tint. */
-  --card-hero-shadow: 0 12px 30px rgba(17, 17, 17, 0.11), 0 1px 2px rgba(17, 17, 17, 0.05);
+  /* The artifact's --sh-2 ("shadows are soft and rare"). */
+  --card-hero-shadow: 0 8px 24px -10px rgba(20, 25, 35, 0.18);
 }
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
 .dark {
-  --accent: #8ab4ff;
-  --accent-strong: #8ab4ff;
-  --accent-tint: rgba(138, 180, 255, 0.12);
-  --accent-tint-border: rgba(138, 180, 255, 0.35);
-  --on-accent: #0f0f0f;
-  /* Soft coral danger for dark — matches the artifact; easier on the eyes than
-     a saturated red on near-black. */
-  --danger: #e8836a;
-  --danger-tint: color-mix(in srgb, #e8836a 14%, transparent);
-  --danger-tint-border: color-mix(in srgb, #e8836a 30%, transparent);
-  /* Status scale (dark) — brighter steps for near-black surfaces; same roles as
-     the light values above. */
-  --status-good: #22c55e;
-  --status-warning: #f59e0b;
-  --status-critical: #f87171;
-  --status-critical-tint: color-mix(in srgb, #f87171 16%, transparent);
-  --status-critical-tint-border: color-mix(in srgb, #f87171 32%, transparent);
-  /* #b19fdb: 7.6:1 on #171717. Tint/border mirror the accent's alpha idiom. */
-  --violet: #b19fdb;
-  --violet-tint: rgba(177, 159, 219, 0.12);
-  --violet-tint-border: rgba(177, 159, 219, 0.35);
-  --on-violet: #0f0f0f;
-  --table-zebra: #1c1c1c;
-  --table-header: #202020;
+  /* Dark theme. The artifact specifies only 6 dark values (--ivory/--paper/
+     --ink/--oxblood/--sand/--line); this app needs ~25. Four more are
+     harvested from its dark demo markup — --text-2 #c5d0ca, --text-3 #7f938a,
+     the accent tint, and --on-accent #0e1a17 — which beats inventing them.
+     The remainder (text-4, zebra, grid-header, status scale, tints, scrim,
+     shadows) are DERIVED: each from its light-mode role at matched contrast
+     against the #0e1a17 ground, then contrast-checked. Derived, not specified
+     — revisable without archaeology. See spec §5. */
+  --accent: #c47a5f;
+  --accent-strong: #d18f76;
+  /* Authored as color-mix, not raw rgba(196,122,95,.18/.38) — same resolved
+     colour either way (color-mix against `transparent` preserves the source
+     RGB channels and sets alpha to the mix percentage; verified against the
+     raw-rgba form, renders identically, no visual change).
+     This does NOT make the value "on-palette" — it's a known limitation of
+     the off-palette scanner (scripts/scan-palette.mjs), not a fix: the
+     scanner's hex() only matches literal rgb()/rgba() computed strings, and
+     getComputedStyle serializes color-mix() as a color(srgb ...) function
+     instead, which hex() can't parse. So switching this pair from rgba() to
+     color-mix() makes it structurally invisible to the scanner rather than
+     legal by it. The same is true of every other color-mix()-based tint token
+     in this file (danger-tint, status-critical-tint, this pair's own
+     light-mode --accent-tint-border) — none of them are actually verified by
+     the scanner. Dark --violet-tint/--violet-tint-border are raw rgba() too
+     and equally unverified; they just never rendered on one of the scanner's
+     3 scanned routes (/app, /deal/acme_saas, /portfolio), so they were never
+     in a position to be caught. This pair was, in dark mode — that's a
+     visibility difference, not a difference in how any of these tokens were
+     authored. */
+  --accent-tint: color-mix(in srgb, #c47a5f 18%, transparent);
+  --accent-tint-border: color-mix(in srgb, #c47a5f 38%, transparent);
+  --on-accent: #0e1a17;
+  /* Destructive folds onto the severity scale here too. */
+  --danger: #d9614e;
+  --danger-tint: color-mix(in srgb, #d9614e 16%, transparent);
+  --danger-tint-border: color-mix(in srgb, #d9614e 32%, transparent);
+  /* Status scale (dark) — lifted for a near-black ground, same roles. */
+  --status-good: #5aa37d;
+  --status-warning: #d9a854;
+  --status-critical: #d9614e;
+  --status-critical-tint: color-mix(in srgb, #d9614e 16%, transparent);
+  --status-critical-tint-border: color-mix(in srgb, #d9614e 32%, transparent);
+  /* Violet resolves to secondary ink here too — see spec D3. */
+  --violet: #c5d0ca;
+  --violet-tint: rgba(197, 208, 202, 0.12);
+  --violet-tint-border: rgba(197, 208, 202, 0.32);
+  --on-violet: #0e1a17;
+  --table-zebra: #12201c;
+  --table-header: #16261f;
+
+  /* Badge palette (dark). Same roles, lifted for the ink-green ground. */
+  --b-oxblood-bg: #401d17; --b-oxblood-fg: #e5a59a; --b-oxblood-ed: #894134;
+  --b-clay-bg:    #302318; --b-clay-fg:    #d2a884; --b-clay-ed:    #6c5037;
+  --b-ochre-bg:   #2c2617; --b-ochre-fg:   #c9b373; --b-ochre-ed:   #605534;
+  --b-moss-bg:    #20281a; --b-moss-fg:    #99bf7d; --b-moss-ed:    #4a5c3d;
+  --b-sage-bg:    #1d2a24; --b-sage-fg:    #88bfa3; --b-sage-ed:    #425c4f;
+  --b-teal-bg:    #1c292c; --b-teal-fg:    #87bac4; --b-teal-ed:    #3f5a5f;
+  --b-slate-bg:   #202832; --b-slate-fg:   #9fb4d0; --b-slate-ed:   #47576b;
+  --b-plum-bg:    #32202c; --b-plum-fg:    #d2a3c2; --b-plum-ed:    #714b65;
 
   /* Dark overrides for the semantic tokens. */
-  --surface: #171717;
-  --surface-alt: #111111;
-  --bg: #0f0f0f;
-  --border: #424242;
-  --border-light: #2e2e2e;
-  --text-1: #f5f5f5;
-  --text-2: rgba(255, 255, 255, 0.68);
-  --text-3: rgba(255, 255, 255, 0.55);
-  --text-4: #303030;
+  --surface: #14231e;
+  --surface-alt: #12201c;
+  --bg: #0e1a17;
+  --border: rgba(255, 255, 255, 0.24);
+  --border-light: rgba(255, 255, 255, 0.08);
+  --text-1: #eaf0ec;
+  --text-2: #c5d0ca;
+  --text-3: #7f938a;
+  --text-4: #2a3b35;
 
-  /* Deeper scrim/shadow on near-black surfaces (the light values wash out). */
+  /* Deeper scrim/shadow on the dark ground (the light values wash out). */
   --modal-scrim: rgba(0, 0, 0, 0.62);
   --modal-shadow: rgba(0, 0, 0, 0.5);
   --card-hero-shadow: 0 16px 34px rgba(0, 0, 0, 0.44);
@@ -136,6 +216,20 @@
 .dd-zebra tbody tr:nth-child(even) td {
   background: var(--table-zebra);
 }
+
+/* Badge tone utilities — className counterpart to lib/badgePalette.ts.
+   Kept beside .dd-zebra because both are shared table/chip utilities that
+   predate any Badge primitive. */
+.badge-tone-oxblood { background: var(--b-oxblood-bg); color: var(--b-oxblood-fg); border-color: var(--b-oxblood-ed); }
+.badge-tone-clay    { background: var(--b-clay-bg);    color: var(--b-clay-fg);    border-color: var(--b-clay-ed); }
+.badge-tone-ochre   { background: var(--b-ochre-bg);   color: var(--b-ochre-fg);   border-color: var(--b-ochre-ed); }
+.badge-tone-moss    { background: var(--b-moss-bg);    color: var(--b-moss-fg);    border-color: var(--b-moss-ed); }
+.badge-tone-sage    { background: var(--b-sage-bg);    color: var(--b-sage-fg);    border-color: var(--b-sage-ed); }
+.badge-tone-teal    { background: var(--b-teal-bg);    color: var(--b-teal-fg);    border-color: var(--b-teal-ed); }
+.badge-tone-slate   { background: var(--b-slate-bg);   color: var(--b-slate-fg);   border-color: var(--b-slate-ed); }
+.badge-tone-plum    { background: var(--b-plum-bg);    color: var(--b-plum-fg);    border-color: var(--b-plum-ed); }
+.badge-tone-ink     { background: var(--b-ink-bg);     color: var(--b-ink-fg);     border-color: var(--b-ink-ed); }
+.badge-tone-neutral { background: var(--b-neutral-bg); color: var(--b-neutral-fg); border-color: var(--b-neutral-ed); }
 
 html {
   scroll-behavior: smooth;

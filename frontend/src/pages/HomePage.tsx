@@ -163,13 +163,14 @@ export default function HomePage() {
     });
   }
 
-  const isDark = theme === "dark";
-  const pageBg = isDark ? "#0f0f0f" : "var(--landing-bg)";
-  const border = isDark ? "#262626" : "var(--landing-border)";
-  const surface = isDark ? "#151515" : "#ffffff";
-  const surfaceAlt = isDark ? "#111111" : "#f8f8f4";
-  const text = isDark ? "#f5f5f5" : "var(--landing-text)";
-  const muted = isDark ? "rgba(255,255,255,0.58)" : "var(--landing-muted)";
+  // Semantic tokens flip with the theme themselves — no isDark branching, and
+  // no marketing-page tokens on an app surface (those stay with the landing page).
+  const pageBg = "var(--bg)";
+  const border = "var(--border)";
+  const surface = "var(--surface)";
+  const surfaceAlt = "var(--surface-alt)";
+  const text = "var(--text-1)";
+  const muted = "var(--text-3)";
 
   return (
     <div
