@@ -60,7 +60,7 @@ export default function LandingScrollReveal({
     <div
       ref={ref}
       className={[
-        "landing-reveal",
+        "landing-reveal min-w-0",
         `landing-reveal--${direction}`,
         `landing-reveal--${variant}`,
         visible ? "landing-reveal--visible" : "",

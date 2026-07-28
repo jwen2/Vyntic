@@ -11,7 +11,7 @@ export default function LandingContainer({
 }: LandingContainerProps) {
   return (
     <div
-      className={`mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-10 ${className}`.trim()}
+      className={`mx-auto w-full min-w-0 max-w-7xl px-4 sm:px-6 lg:px-10 ${className}`.trim()}
     >
       {children}
     </div>

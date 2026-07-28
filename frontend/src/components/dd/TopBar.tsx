@@ -1,6 +1,7 @@
 import type React from "react";
 import type { Deal } from "@/lib/api";
 import { stageBadge } from "@/lib/stageBadges";
+import Button from "@/components/ui/Button";
 
 export type DealWorkspaceMode = "agent" | "workflows" | "brief" | "monitoring";
 
@@ -28,7 +29,7 @@ export default function TopBar({
   const badge = stageBadge(deal.stage);
 
   return (
-    <div className="flex flex-shrink-0 items-center gap-3 border-b border-b-edge bg-surface px-4 py-3">
+    <div className="flex flex-shrink-0 items-center gap-3 border-b border-b-edge-light bg-surface px-4 py-3">
       {onOpenSidebar && (
         <button
           type="button"
@@ -63,7 +64,7 @@ export default function TopBar({
           )}
         </div>
         <div className="mt-0.5 flex items-center gap-2" style={{ minWidth: 0 }}>
-          <h1 className="text-t1" style={{ margin: 0, fontSize: 18, lineHeight: 1.2, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <h1 className="text-t1" style={{ margin: 0, font: "var(--text-h3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {deal.name}
           </h1>
           <span
@@ -100,14 +101,9 @@ export default function TopBar({
       )}
 
       {deal.entity_type === "fund" && onOpenPosition && (
-        <button
-          type="button"
-          onClick={onOpenPosition}
-          className="rounded-lg bg-accent-tint text-accent-strong border border-accent-tint-border"
-          style={{ padding: "8px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
-        >
+        <Button type="button" variant="tint" size="sm" onClick={onOpenPosition}>
           Position
-        </button>
+        </Button>
       )}
 
       <IconButton title={theme === "dark" ? "Light mode" : "Dark mode"} onClick={onToggleTheme}>
@@ -149,7 +145,7 @@ function IconButton({
         background: "var(--surface-alt)",
         color: "var(--text-3)",
         border: "1px solid var(--border)",
-        borderRadius: 8,
+        borderRadius: "var(--r-sm)",
         cursor: "pointer",
       }}
     >

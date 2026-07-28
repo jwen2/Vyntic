@@ -2,6 +2,7 @@ import { useState } from "react";
 import { DocumentMetadata } from "@/lib/api";
 import { PE_COLUMN_PRESETS, type ColumnFormat } from "@/lib/matrixColumnConfig";
 import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 import { toneVars } from "@/lib/badgePalette";
 
 // Small colour cue per file type for the scope chips (muted, not the loud grid
@@ -57,45 +58,41 @@ export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate }: 
           </svg>
         </div>
 
-        <h2 className="text-2xl font-semibold tracking-tight text-t1">
+        <h2 className="text-t1" style={{ font: "var(--text-h2)" }}>
           Ask anything across {documents.length} document{documents.length !== 1 ? "s" : ""}
         </h2>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-t3">
+        <p className="mx-auto mt-2 max-w-md text-t3" style={{ font: "var(--text-sm)" }}>
           Every answer cites the exact page and snippet — never the model&rsquo;s memory. Your first
           question becomes a column you can compare across all documents.
         </p>
 
-        <div
-          className="mt-6 flex items-center gap-2 rounded-lg border bg-surface py-2 pl-4 pr-2 text-left"
-          style={{
-            borderColor: "var(--accent-tint-border)",
-            boxShadow: "0 4px 18px color-mix(in srgb, var(--accent) 10%, transparent)",
-          }}
-        >
-          <input
+        <Input
             autoFocus
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
             placeholder="e.g. What was FY2025 revenue and YoY growth?"
-            className="min-w-0 flex-1 bg-transparent text-[15px] text-t1 placeholder:text-t3 focus:outline-none"
+            className="mt-6 text-left"
+            fieldSize="lg"
+            fullWidth
             aria-label="Ask a question across all documents"
-          />
-          <Button
-            variant="primary"
-            onClick={submit}
-            disabled={!value.trim()}
-            style={{ flexShrink: 0 }}
-            iconRight={
-              <svg className="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
+            actionRight={
+              <Button
+                variant="primary"
+                onClick={submit}
+                disabled={!value.trim()}
+                style={{ flexShrink: 0 }}
+                iconRight={
+                  <svg className="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                }
+              >
+                Ask
+              </Button>
             }
-          >
-            Ask
-          </Button>
-        </div>
+          />
 
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           {presets.map((preset) => (

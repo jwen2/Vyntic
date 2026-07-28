@@ -176,7 +176,7 @@ export default function HomePage() {
     <div
       className="flex h-screen flex-col overflow-hidden"
       style={{
-        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontFamily: "var(--sans)",
         background: pageBg,
       }}
     >
@@ -294,8 +294,7 @@ export default function HomePage() {
                           padding: 0,
                           background: "transparent",
                           border: "none",
-                          fontSize: 21,
-                          fontWeight: 600,
+                          font: "var(--text-h3)",
                           color: text,
                           cursor: "pointer",
                           textAlign: "left",
@@ -318,8 +317,7 @@ export default function HomePage() {
                     ) : (
                       <div
                         style={{
-                          fontSize: 21,
-                          fontWeight: 600,
+                          font: "var(--text-h3)",
                           color: text,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -506,7 +504,7 @@ export default function HomePage() {
                 >
                   No deal selected
                 </div>
-                <div style={{ marginTop: 12, fontSize: 20, fontWeight: 600, color: text }}>
+                <div style={{ marginTop: 12, font: "var(--text-h3)", color: text }}>
                   Select or add a deal to start reviewing documents.
                 </div>
               </div>

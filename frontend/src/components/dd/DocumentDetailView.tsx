@@ -89,7 +89,7 @@ export default function DocumentDetailView({
         </button>
 
         <div style={{ marginBottom: 18 }}>
-          <h2 className="text-t1" style={{ fontSize: 20, fontWeight: 700, marginBottom: 4, lineHeight: 1.3, wordBreak: "break-word" }}>
+          <h2 className="text-t1" style={{ font: "var(--text-h3)", marginBottom: 4, wordBreak: "break-word" }}>
             {doc.short}
           </h2>
           <div className="text-t3" style={{ fontSize: 12, marginBottom: 12 }}>{doc.name}</div>

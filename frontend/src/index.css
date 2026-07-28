@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -130,6 +130,35 @@
      deeper layer, so they differ in shape, not just tint. */
   /* The artifact's --sh-2 ("shadows are soft and rare"). */
   --card-hero-shadow: 0 8px 24px -10px rgba(20, 25, 35, 0.18);
+  --r-sm: 7px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --sh-1: 0 1px 2px rgba(20, 25, 35, 0.06);
+  --sh-2: 0 8px 24px -10px rgba(20, 25, 35, 0.18);
+  --sh-3: 0 24px 60px -20px rgba(20, 25, 35, 0.3);
+
+  /* ── Typography (spec D5/D6, Phase 2 spike) ─────────────────────────────
+     Families and scale from the oxblood-reskin design artifact. Inert until
+     something references them — see docs/superpowers/plans/
+     2026-07-26-typography-phase2-spike.md for what does and doesn't yet. */
+  --sans: 'Hanken Grotesk', 'IBM Plex Sans', 'Aptos', 'Segoe UI', sans-serif;
+  --serif: 'Playfair Display', Georgia, serif;
+  --mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* D6 scale, spec-verbatim. */
+  --text-display: 600 52px/54px var(--serif);
+  --text-h1: 600 38px/40px var(--serif);
+  --text-h2: 600 28px/32px var(--serif);
+  --text-h3: 600 22px/28px var(--serif);
+  --text-body: 400 15px/24px var(--sans);
+  --text-sm: 400 13.5px/20px var(--sans);
+  --text-meta: 400 11px/16px var(--mono);
+
+  /* D6 app-side extensions for the dense data UI — not in the artifact,
+     documented here so nothing is passed off as spec. */
+  --text-xs: 400 12px/16px var(--sans);
+  --text-2xs: 400 10px/14px var(--sans);
+  --text-meta-sm: 400 10px/14px var(--mono);
 }
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
@@ -209,6 +238,9 @@
   --modal-scrim: rgba(0, 0, 0, 0.62);
   --modal-shadow: rgba(0, 0, 0, 0.5);
   --card-hero-shadow: 0 16px 34px rgba(0, 0, 0, 0.44);
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --sh-2: 0 12px 28px -14px rgba(0, 0, 0, 0.55);
+  --sh-3: 0 24px 60px -20px rgba(0, 0, 0, 0.72);
 }
 
 /* Zebra striping for any data table — opt in with class="dd-zebra". Cells
@@ -231,6 +263,89 @@
 .badge-tone-ink     { background: var(--b-ink-bg);     color: var(--b-ink-fg);     border-color: var(--b-ink-ed); }
 .badge-tone-neutral { background: var(--b-neutral-bg); color: var(--b-neutral-fg); border-color: var(--b-neutral-ed); }
 
+/* Shared data tables — DS-aligned read-only table chrome. Interactive grids
+   should opt in deliberately so selection/focus behavior stays local. */
+.data-table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  min-width: var(--data-table-min-width, 0);
+  border-collapse: collapse;
+  background: var(--surface);
+  color: var(--text-1);
+  font: var(--text-sm);
+}
+
+.data-table th {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--grid-header);
+  color: var(--text-3);
+  font: var(--text-meta);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-1);
+  vertical-align: top;
+}
+
+.data-table tbody tr:nth-child(even) td {
+  background: var(--zebra);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.data-table--dense th,
+.data-table--dense td {
+  padding: 7px 8px;
+}
+
+.data-table__num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.data-table__muted {
+  color: var(--text-2);
+}
+
+.data-table__strong {
+  color: var(--text-1);
+  font-weight: 700;
+}
+
+.data-table .data-table__num {
+  text-align: right;
+}
+
+.data-table .data-table__muted {
+  color: var(--text-2);
+}
+
+.data-table .data-table__strong {
+  color: var(--text-1);
+  font-weight: 700;
+}
+
+.data-table--interactive tbody tr {
+  cursor: pointer;
+}
+
+.data-table--interactive tbody tr:hover td {
+  background: var(--accent-tint);
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -244,7 +359,7 @@ html {
 
 body {
   margin: 0;
-  font-family: "IBM Plex Sans", "Aptos", "Segoe UI", sans-serif;
+  font-family: var(--sans);
   color: var(--landing-text);
   background: var(--landing-bg);
 }

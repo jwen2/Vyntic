@@ -386,6 +386,15 @@ export default function DealAssistantPanel({
   // Single composer, rendered either in the empty-state hero or docked at the
   // bottom during an active chat (only one mounts at a time).
   const activeSources = selectedDocIds.length === 0 ? documents.length : selectedDocIds.length;
+  const recentCitations = useMemo(
+    () =>
+      messages
+        .flatMap((message) => message.citations || [])
+        .filter(Boolean)
+        .slice(-8)
+        .reverse() as Citation[],
+    [messages],
+  );
 
   const renderComposer = () => (
     <>
@@ -409,8 +418,8 @@ export default function DealAssistantPanel({
                 width: 300,
                 maxHeight: 280,
                 overflowY: "auto",
-                borderRadius: 12,
-                boxShadow: isDark ? "0 18px 44px rgba(0,0,0,.4)" : "0 18px 44px rgba(15,23,42,.12)",
+                borderRadius: "var(--r-md)",
+                boxShadow: "var(--sh-2)",
                 zIndex: 20,
                 padding: 6,
                 textAlign: "left",
@@ -451,10 +460,8 @@ export default function DealAssistantPanel({
           className="bg-surface"
           style={{
             border: "1.5px solid var(--border)",
-            borderRadius: 16,
-            boxShadow: isDark
-              ? "0 12px 32px -20px rgba(0,0,0,.55)"
-              : "0 12px 32px -20px rgba(15,23,42,.12)",
+            borderRadius: "var(--r-lg)",
+            boxShadow: "var(--sh-2)",
             overflow: "hidden",
           }}
         >
@@ -544,51 +551,89 @@ export default function DealAssistantPanel({
   );
 
   return (
-    <div className="bg-appbg" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-      <div className="dd-scroll" style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ maxWidth: 820, margin: "0 auto", padding: "34px 24px 150px" }}>
-          {messages.length === 0 ? (
-            <InitialAssistantState
-              docCount={documents.length}
-              loading={false}
-              isFund={deal.entity_type === "fund"}
-              onPrompt={submit}
-              onProactiveScan={onProactiveScan}
-              composer={renderComposer()}
-            />
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-              {messages.map((msg) => (
-                <ChatBubble
-                  key={msg.id}
-                  message={msg}
-                  activeCitId={activeCitId}
-                  onCit={onCit}
-                  onOpenDocument={onOpenDocument}
-                />
-              ))}
-              {error && (
-                <div style={{ color: "var(--danger)", fontSize: 12, paddingLeft: 44 }}>{error}</div>
-              )}
-            </div>
-          )}
-          <div ref={endRef} />
-        </div>
-      </div>
-
-      {messages.length > 0 && (
-        <div style={{
-          flexShrink: 0,
-          padding: "0 24px 18px",
-          // A CSS function call, not a rendered element — the fade color
-          // can't be a class, so the token stays a var() literal here.
-          background: `linear-gradient(to top, var(--bg) 78%, ${isDark ? "rgba(15,15,15,0)" : "rgba(243,243,238,0)"})`,
-        }}>
-          <div style={{ maxWidth: 820, margin: "0 auto" }}>
-            {renderComposer()}
+    <div className="bg-appbg" style={{ flex: 1, minWidth: 0, display: "flex", overflow: "hidden" }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <div className="dd-scroll" style={{ flex: 1, overflowY: "auto" }}>
+          <div style={{ maxWidth: 820, margin: "0 auto", padding: "34px 24px 150px" }}>
+            {messages.length === 0 ? (
+              <InitialAssistantState
+                docCount={documents.length}
+                loading={false}
+                isFund={deal.entity_type === "fund"}
+                onPrompt={submit}
+                onProactiveScan={onProactiveScan}
+                composer={renderComposer()}
+              />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+                {messages.map((msg) => (
+                  <ChatBubble
+                    key={msg.id}
+                    message={msg}
+                    activeCitId={activeCitId}
+                    onCit={onCit}
+                    onOpenDocument={onOpenDocument}
+                  />
+                ))}
+                {error && (
+                  <div style={{ color: "var(--danger)", fontSize: 12, paddingLeft: 44 }}>{error}</div>
+                )}
+              </div>
+            )}
+            <div ref={endRef} />
           </div>
         </div>
-      )}
+
+        {messages.length > 0 && (
+          <div style={{
+            flexShrink: 0,
+            padding: "0 24px 18px",
+            background: `linear-gradient(to top, var(--bg) 78%, ${isDark ? "rgba(15,15,15,0)" : "rgba(243,243,238,0)"})`,
+          }}>
+            <div style={{ maxWidth: 820, margin: "0 auto" }}>
+              {renderComposer()}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <aside className="dd-scroll hidden 2xl:flex bg-surface-alt border-l border-l-edge-light" style={{ width: 260, flexShrink: 0, overflowY: "auto", padding: "16px 12px", flexDirection: "column", gap: 9 }}>
+        <div className="font-mono-dm text-t3" style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          Sources · {recentCitations.length}
+        </div>
+        {recentCitations.length === 0 ? (
+          <div className="border border-edge-light bg-surface" style={{ borderRadius: "var(--r-sm)", padding: "11px 12px" }}>
+            <div className="text-t1" style={{ fontSize: 12.5, fontWeight: 600 }}>Citations appear here</div>
+            <div className="text-t3" style={{ fontSize: 11, lineHeight: 1.45, marginTop: 4 }}>
+              Every answer should resolve back to page-level source evidence.
+            </div>
+          </div>
+        ) : (
+          recentCitations.map((citation, index) => (
+            <button
+              key={`${citation.source_file}_${citation.page}_${index}`}
+              type="button"
+              onClick={() => onOpenDocument(citation)}
+              className="bg-surface text-t1"
+              style={{
+                border: "1px solid var(--border)",
+                borderLeft: "3px solid var(--accent)",
+                borderRadius: "var(--r-sm)",
+                padding: "9px 10px",
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {shortDocName(citation.source_file)}
+              </div>
+              <div className="font-mono-dm text-t3" style={{ fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", marginTop: 3 }}>
+                Page {citation.page}
+              </div>
+            </button>
+          ))
+        )}
+      </aside>
     </div>
   );
 }
@@ -621,10 +666,10 @@ function InitialAssistantState({
         }}>
           {docCount} document{docCount === 1 ? "" : "s"} · isolated deal room
         </div>
-        <h1 className="text-t1" style={{ fontSize: 31, lineHeight: 1.12, fontWeight: 700, letterSpacing: "-0.022em", marginBottom: 10 }}>
+        <h1 className="text-t1" style={{ font: "var(--text-h2)", marginBottom: 10 }}>
           Begin your diligence
         </h1>
-        <p className="text-t2" style={{ fontSize: 13.5, lineHeight: 1.6, marginBottom: 24 }}>
+        <p className="text-t2" style={{ font: "var(--text-sm)", marginBottom: 24 }}>
           Ask anything — every answer is cited to the exact page across this deal&rsquo;s documents.
         </p>
 
@@ -659,7 +704,7 @@ function InitialAssistantState({
                 gap: 7,
                 textAlign: "left",
                 padding: "14px 15px",
-                borderRadius: 14,
+                borderRadius: "var(--r-lg)",
                 border: "1px solid var(--border)",
                 cursor: loading ? "default" : "pointer",
                 transition: "border-color .12s, transform .12s",
@@ -744,7 +789,7 @@ function ChatBubble({
               {message.documents.map((doc) => (
                 <span key={doc} className="text-t2 bg-surface border border-edge" style={{
                   fontSize: 10,
-                  borderRadius: 99,
+                  borderRadius: "var(--r-sm)",
                   padding: "2px 7px",
                 }}>
                   {shortDocName(doc)}
@@ -753,7 +798,7 @@ function ChatBubble({
             </div>
           )}
           <div className="bg-surface-alt text-t1 border border-edge" style={{
-            borderRadius: 12,
+            borderRadius: "var(--r-md)",
             padding: "11px 13px",
             fontSize: 14,
             lineHeight: 1.55,
@@ -771,7 +816,7 @@ function ChatBubble({
       <div style={{
         width: 28,
         height: 28,
-        borderRadius: 8,
+        borderRadius: "var(--r-sm)",
         background: ACCENT,
         color: "var(--on-accent)",
         display: "flex",
@@ -790,7 +835,7 @@ function ChatBubble({
           // ddTheme, so the whole conditional stays inline together.
           style={{
             border: `1px solid ${message.status === "error" ? "var(--danger-tint-border)" : "var(--border)"}`,
-            borderRadius: 12,
+            borderRadius: "var(--r-md)",
             padding: "14px 16px",
             color: message.status === "error" ? "var(--danger)" : "var(--text-1)",
             minHeight: 50,
@@ -821,7 +866,7 @@ function ChatBubble({
                   onClick={() => onOpenDocument(cit)}
                   className="border border-edge bg-surface-alt text-t2"
                   style={{
-                    borderRadius: 99,
+                    borderRadius: "var(--r-sm)",
                     padding: "3px 8px",
                     fontSize: 10,
                     fontWeight: 700,

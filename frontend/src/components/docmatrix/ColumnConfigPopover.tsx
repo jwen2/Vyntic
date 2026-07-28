@@ -10,6 +10,7 @@ import {
   type MatrixColumnConfig,
 } from "@/lib/matrixColumnConfig";
 import Button from "@/components/ui/Button";
+import Input, { Select, Textarea } from "@/components/ui/Input";
 
 interface ColumnDraft {
   label: string;
@@ -190,7 +191,7 @@ export default function ColumnConfigPopover({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="sticky top-0 z-10 mb-1 flex items-center justify-between border-b border-edge-light bg-surface px-4 py-3">
-            <div className="text-sm font-semibold text-t1">Edit column</div>
+            <div className="font-semibold text-t1" style={{ font: "var(--text-sm)" }}>Edit column</div>
             <button
               type="button"
               onClick={() => setOpen(false)}
@@ -204,8 +205,8 @@ export default function ColumnConfigPopover({
           </div>
 
           <div className="px-4 py-3">
-          <label className="text-xs font-medium text-t2">Label</label>
-          <input
+          <label className="font-medium text-t2" style={{ font: "var(--text-xs)" }}>Label</label>
+          <Input
             value={draft.label}
             onChange={(event) => {
               const label = event.target.value;
@@ -217,13 +218,15 @@ export default function ColumnConfigPopover({
                   : {}),
               });
             }}
-            className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-focus focus:outline-none"
+            className="mt-1"
+            fieldSize="sm"
+            fullWidth
           />
 
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-t2">Format</label>
-              <select
+              <label className="font-medium text-t2" style={{ font: "var(--text-xs)" }}>Format</label>
+              <Select
                 value={draft.format}
                 onChange={(event) =>
                   updateDraft({
@@ -231,23 +234,27 @@ export default function ColumnConfigPopover({
                     tags: event.target.value === "tag" ? draft.tags : [],
                   })
                 }
-                className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-focus focus:outline-none"
+                className="mt-1"
+                fieldSize="sm"
+                fullWidth
               >
                 {FORMAT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
-              <label className="text-xs font-medium text-t2">Preset</label>
-              <select
+              <label className="font-medium text-t2" style={{ font: "var(--text-xs)" }}>Preset</label>
+              <Select
                 value=""
                 onChange={(event) => {
                   if (event.target.value) applyPreset(event.target.value);
                 }}
-                className="mt-1 w-full rounded-md border border-edge bg-surface px-2 py-1.5 text-xs text-t1 focus:border-focus focus:outline-none"
+                className="mt-1"
+                fieldSize="sm"
+                fullWidth
               >
                 <option value="">Choose...</option>
                 {PE_COLUMN_PRESETS.map((preset) => (
@@ -255,18 +262,19 @@ export default function ColumnConfigPopover({
                     {preset.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 
           {draft.format === "tag" && (
             <div className="mt-3">
-              <label className="text-xs font-medium text-t2">Tags</label>
+              <label className="font-medium text-t2" style={{ font: "var(--text-xs)" }}>Tags</label>
               <div className="mt-1 flex min-h-[32px] flex-wrap gap-1 rounded-md border border-edge px-2 py-1.5">
                 {draft.tags.map((tag, tagIdx) => (
                   <span
                     key={tag}
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${TAG_COLORS[tagIdx % TAG_COLORS.length]}`}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${TAG_COLORS[tagIdx % TAG_COLORS.length]}`}
+                    style={{ font: "var(--text-2xs)" }}
                   >
                     {tag}
                     <button
@@ -284,28 +292,32 @@ export default function ColumnConfigPopover({
                   onKeyDown={handleTagKeyDown}
                   onBlur={commitTag}
                   placeholder={draft.tags.length === 0 ? "Add tag..." : ""}
-                  className="min-w-[70px] flex-1 bg-transparent text-xs text-t1 outline-none placeholder:text-t3"
+                  className="min-w-[70px] flex-1 bg-transparent text-t1 outline-none placeholder:text-t3"
+                  style={{ font: "var(--text-xs)" }}
                 />
               </div>
             </div>
           )}
 
           <div className="mt-3 flex items-center justify-between">
-            <label className="text-xs font-medium text-t2">Prompt</label>
+            <label className="font-medium text-t2" style={{ font: "var(--text-xs)" }}>Prompt</label>
             <button
               type="button"
               onClick={autoGeneratePrompt}
               disabled={!draft.label.trim()}
-              className="text-xs text-blue-600 hover:text-blue-700 disabled:text-t4 dark:text-blue-400"
+              className="text-blue-600 hover:text-blue-700 disabled:text-t4 dark:text-blue-400"
+              style={{ font: "var(--text-xs)" }}
             >
               Auto-generate
             </button>
           </div>
-          <textarea
+          <Textarea
             rows={8}
             value={draft.prompt}
             onChange={(event) => updateDraft({ prompt: event.target.value })}
-            className="mt-1 w-full resize-none rounded-md border border-edge bg-surface px-2 py-2 text-xs leading-relaxed text-t1 focus:border-focus focus:outline-none"
+            className="mt-1 resize-none"
+            fieldSize="sm"
+            fullWidth
           />
           </div>
 

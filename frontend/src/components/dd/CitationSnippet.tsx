@@ -107,14 +107,15 @@ export default function CitationSnippet({ sourceFile, text, variant = "panel" }:
 
   return (
     <div
-      className={isViewer ? "mt-2 max-h-40 overflow-auto rounded-md border border-amber-200 bg-white/80 dark:bg-gray-950/35 dark:border-amber-900" : undefined}
+      className={isViewer ? "mt-2 max-h-40 overflow-auto rounded-md border border-edge bg-surface" : undefined}
     >
       <div style={{ padding: isViewer ? "8px 10px 6px" : 0, marginBottom: isViewer ? 0 : 8 }}>
         <div
+          className={isViewer ? "text-t1" : undefined}
           style={{
             fontSize: isViewer ? 12.5 : 12,
             fontWeight: 700,
-            color: isViewer ? "inherit" : "#1e293b",
+            color: isViewer ? undefined : "var(--text-1)",
           }}
         >
           {parsed.title}
@@ -122,44 +123,23 @@ export default function CitationSnippet({ sourceFile, text, variant = "panel" }:
         {parsed.subtitle ? (
           <div
             className={isViewer ? "text-t3" : undefined}
-            style={{ fontSize: isViewer ? 11 : 10.5, color: isViewer ? undefined : "#64748b", marginTop: 2 }}
+            style={{ fontSize: isViewer ? 11 : 10.5, color: isViewer ? undefined : "var(--text-3)", marginTop: 2 }}
           >
             {parsed.subtitle}
           </div>
         ) : null}
       </div>
-      <div style={{ overflowX: "auto", border: isViewer ? "none" : "1px solid #fde68a", borderRadius: isViewer ? 0 : 5 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isViewer ? 420 : 280 }}>
+      <div className="data-table-wrap" style={{ border: isViewer ? "none" : "1px solid var(--border-light)", borderRadius: isViewer ? 0 : "var(--r-sm)" }}>
+        <table className="data-table data-table--dense" style={{ minWidth: isViewer ? 420 : 280 }}>
           <thead>
             <tr>
-              <th
-                style={{
-                  textAlign: "left",
-                  padding: isViewer ? "7px 10px" : "6px 7px",
-                  background: isViewer ? "#fffbeb" : "#fffbeb",
-                  color: "#92400e",
-                  fontSize: isViewer ? 11 : 10,
-                  fontWeight: 700,
-                  borderTop: isViewer ? "1px solid #fde68a" : "none",
-                  borderBottom: "1px solid #fde68a",
-                }}
-              >
+              <th>
                 Line item
               </th>
               {parsed.headers.map((header) => (
                 <th
                   key={header}
-                  style={{
-                    textAlign: "right",
-                    padding: isViewer ? "7px 10px" : "6px 7px",
-                    background: "#fffbeb",
-                    color: "#92400e",
-                    fontSize: isViewer ? 11 : 10,
-                    fontWeight: 700,
-                    borderTop: isViewer ? "1px solid #fde68a" : "none",
-                    borderBottom: "1px solid #fde68a",
-                    whiteSpace: "nowrap",
-                  }}
+                  className="data-table__num"
                 >
                   {header}
                 </th>
@@ -170,12 +150,8 @@ export default function CitationSnippet({ sourceFile, text, variant = "panel" }:
             {parsed.rows.map((row, rowIndex) => (
               <tr key={`${row[0]}-${rowIndex}`}>
                 <td
+                  className="data-table__strong"
                   style={{
-                    padding: isViewer ? "7px 10px" : "6px 7px",
-                    color: isViewer ? "inherit" : "#1e293b",
-                    fontSize: isViewer ? 12 : 10.5,
-                    lineHeight: 1.35,
-                    borderTop: rowIndex === 0 ? "none" : "1px solid #fef3c7",
                     maxWidth: isViewer ? 220 : 130,
                   }}
                 >
@@ -184,15 +160,7 @@ export default function CitationSnippet({ sourceFile, text, variant = "panel" }:
                 {parsed.headers.map((header, index) => (
                   <td
                     key={`${row[0]}-${header}`}
-                    style={{
-                      padding: isViewer ? "7px 10px" : "6px 7px",
-                      color: isViewer ? "inherit" : "#334155",
-                      fontSize: isViewer ? 12 : 10.5,
-                      textAlign: "right",
-                      fontVariantNumeric: "tabular-nums",
-                      borderTop: rowIndex === 0 ? "none" : "1px solid #fef3c7",
-                      whiteSpace: "nowrap",
-                    }}
+                    className="data-table__num data-table__muted"
                   >
                     {formatCell(row[index + 1] || "")}
                   </td>
@@ -207,14 +175,10 @@ export default function CitationSnippet({ sourceFile, text, variant = "panel" }:
 }
 
 function MarkdownSnippet({ text, isViewer }: { text: string; isViewer: boolean }) {
-  const cellPad = isViewer ? "6px 9px" : "4px 7px";
-  const fontSize = isViewer ? 12 : 10.5;
-  const headerFontSize = isViewer ? 11 : 9.5;
-
   return (
     <div
       className={isViewer ? "text-t2 leading-relaxed" : undefined}
-      style={!isViewer ? { fontSize: 11.5, color: "#1e293b", lineHeight: 1.55 } : undefined}
+      style={!isViewer ? { fontSize: 11.5, color: "var(--text-1)", lineHeight: 1.55 } : undefined}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
@@ -232,31 +196,19 @@ function MarkdownSnippet({ text, isViewer }: { text: string; isViewer: boolean }
             <li style={{ marginBottom: 2, lineHeight: 1.5 }} {...props} />
           ),
           table: ({ node, ...props }) => (
-            <div style={{ overflowX: "auto", margin: "4px 0", border: "1px solid #fde68a", borderRadius: 4 }}>
+            <div className="data-table-wrap" style={{ margin: "4px 0", border: "1px solid var(--border-light)", borderRadius: "var(--r-sm)" }}>
               <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize,
-                  fontVariantNumeric: "tabular-nums",
-                }}
+                className="data-table data-table--dense"
                 {...props}
               />
             </div>
           ),
           thead: ({ node, ...props }) => (
-            <thead style={{ background: "#fffbeb" }} {...props} />
+            <thead {...props} />
           ),
           th: ({ node, style, ...props }) => (
             <th
               style={{
-                padding: cellPad,
-                textAlign: "left",
-                fontSize: headerFontSize,
-                fontWeight: 700,
-                color: "#92400e",
-                borderBottom: "1px solid #fde68a",
-                whiteSpace: "nowrap",
                 ...(style || {}),
               }}
               {...props}
@@ -265,10 +217,6 @@ function MarkdownSnippet({ text, isViewer }: { text: string; isViewer: boolean }
           td: ({ node, style, ...props }) => (
             <td
               style={{
-                padding: cellPad,
-                color: isViewer ? "inherit" : "#334155",
-                borderTop: "1px solid #fef3c7",
-                whiteSpace: "nowrap",
                 ...(style || {}),
               }}
               {...props}

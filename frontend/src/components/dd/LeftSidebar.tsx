@@ -1,7 +1,6 @@
 import { type ReactNode } from "react";
 import type { ConversationEntry, Deal } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { ACCENT, tint } from "./types";
 import type { DealWorkspaceMode } from "./TopBar";
 import Button from "@/components/ui/Button";
 
@@ -68,7 +67,7 @@ export default function LeftSidebar({
 
   return (
     <aside
-      className="dd-scroll flex h-full min-h-0 flex-col overflow-hidden bg-surface border-r border-r-edge"
+      className="dd-scroll flex h-full min-h-0 flex-col overflow-hidden bg-surface-alt border-r border-r-edge-light"
       style={{ width: 264, flexShrink: 0 }}
     >
       {/* Brand + back */}
@@ -94,10 +93,10 @@ export default function LeftSidebar({
           )}
         </div>
         <div className="mt-2.5 flex items-center gap-2.5">
-          <div className="bg-t1 text-surface" style={{ width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>V</div>
+          <div className="bg-t1 text-surface" style={{ width: 30, height: 30, borderRadius: "var(--r-sm)", display: "grid", placeItems: "center", fontFamily: "var(--serif)", fontWeight: 600, fontSize: 17, flexShrink: 0 }}>V</div>
           <div style={{ minWidth: 0 }}>
-            <div className="text-t1" style={{ fontWeight: 600, fontSize: 14 }}>Vyntic</div>
-            <div className="font-mono-plex text-t3" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase" }}>Deal workspace</div>
+            <div className="text-t1" style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 17, lineHeight: 1 }}>Vyntic</div>
+            <div className="font-mono-dm text-t3" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", marginTop: 3 }}>Workspace</div>
           </div>
         </div>
       </div>
@@ -124,13 +123,13 @@ export default function LeftSidebar({
               type="button"
               onClick={item.onClick}
               className={`flex items-center border ${
-                item.active ? "border-edge bg-surface-alt text-t1" : "border-transparent bg-transparent text-t2"
+                item.active ? "border-accent-tint-border bg-accent-tint text-accent-strong" : "border-transparent bg-transparent text-t2"
               }`}
               style={{
                 gap: 10,
                 width: "100%",
                 padding: "8px 10px",
-                borderRadius: 9,
+                borderRadius: "var(--r-sm)",
                 fontSize: 13.5,
                 fontWeight: item.active ? 500 : 400,
                 cursor: "pointer",
@@ -153,7 +152,7 @@ export default function LeftSidebar({
           {!assistantHistoryLoaded ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "2px 0" }}>
               {[52, 75, 63].map((width, index) => (
-                <div key={index} style={{ height: 40, borderRadius: 10, background: isDark ? "#1e1e1e" : "#e4e4da", opacity: 0.65, width: `${Math.max(width, 88)}%` }} />
+                <div key={index} style={{ height: 40, borderRadius: "var(--r-md)", background: isDark ? "var(--surface)" : "color-mix(in srgb, var(--border) 18%, transparent)", opacity: 0.65, width: `${Math.max(width, 88)}%` }} />
               ))}
             </div>
           ) : assistantHistory.length === 0 ? (
@@ -167,7 +166,6 @@ export default function LeftSidebar({
                   key={entry.id}
                   entry={entry}
                   active={entry.id === activeAssistantEntryId}
-                  theme={theme}
                   onSelect={onSelectAssistantHistory}
                 />
               ))}
@@ -195,16 +193,13 @@ export default function LeftSidebar({
 function AssistantHistoryRow({
   entry,
   active,
-  theme,
   onSelect,
 }: {
   entry: ConversationEntry;
   active: boolean;
-  theme: "light" | "dark";
   onSelect: (entry: ConversationEntry) => void;
 }) {
-  const isDark = theme === "dark";
-  const bg = active ? (isDark ? "#1d1d1d" : "#ffffff") : "transparent";
+  const bg = active ? "var(--accent-tint)" : "transparent";
   const title = entry.question.replace(/^Focus on these document\(s\):[\s\S]+?\n\n/, "").trim() || "Untitled chat";
   return (
     <button
@@ -214,7 +209,7 @@ function AssistantHistoryRow({
       aria-current={active ? "true" : undefined}
       onClick={() => onSelect(entry)}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = isDark ? "#1d1d1d" : "#ffffff";
+        e.currentTarget.style.background = active ? "var(--accent-tint)" : "var(--surface)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = bg;
@@ -224,8 +219,8 @@ function AssistantHistoryRow({
         display: "block",
         padding: "8px 10px",
         background: bg,
-        border: `1px solid ${active ? tint(ACCENT, 20) : "transparent"}`,
-        borderRadius: 9,
+        border: `1px solid ${active ? "var(--accent-tint-border)" : "transparent"}`,
+        borderRadius: "var(--r-sm)",
         cursor: "pointer",
         textAlign: "left",
         transition: "background .1s, border-color .1s",

@@ -82,7 +82,7 @@ function DocMatrixCellImpl({
 
   if (!cell || cell.status === "idle") {
     return (
-      <td className="p-3 text-t3 text-sm border-b border-b-edge-light transition-colors group-hover:bg-[var(--accent-tint)]">
+      <td className="p-3 text-t3 text-[13px] border-b border-b-edge-light transition-colors group-hover:bg-[var(--accent-tint)]">
         &mdash;
       </td>
     );
@@ -104,7 +104,7 @@ function DocMatrixCellImpl({
   if (cell.status === "loading" && cleanAnswer.length > 0) {
     if (!cleanAnswer) {
       return (
-        <td className="p-3 border-b border-b-edge-light text-sm align-top max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
+        <td className="p-3 border-b border-b-edge-light text-[13px] align-top max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
           <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <div className="animate-pulse text-xs">Reasoning...</div>
           </div>
@@ -112,7 +112,7 @@ function DocMatrixCellImpl({
       );
     }
     return (
-      <td className="p-3 border-b border-b-edge-light text-sm align-top max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
+      <td className="p-3 border-b border-b-edge-light text-[13px] align-top max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
         <div className="max-w-none text-t1 line-clamp-6">
           <AnswerText
             text={cleanAnswer}
@@ -152,7 +152,7 @@ function DocMatrixCellImpl({
   // Complete
   const clampClass = expanded ? "" : "line-clamp-4";
   return (
-    <td className="p-3 border-b border-b-edge-light text-sm max-w-xs align-top group relative transition-colors group-hover:bg-[var(--accent-tint)]">
+    <td className="p-3 border-b border-b-edge-light text-[13px] max-w-xs align-top group relative transition-colors group-hover:bg-[var(--accent-tint)]">
       <Button
         variant="subtle"
         size="xs"

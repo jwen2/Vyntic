@@ -52,7 +52,7 @@ export default function PortfolioPage() {
           <Button variant="secondary" size="sm" onClick={() => navigate("/app")}>← Funds</Button>
           <div>
             <div className="font-mono-plex text-t3" style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase" }}>Portfolio</div>
-            <h1 style={{ fontSize: 20, fontWeight: 600 }}>Monitoring across all funds</h1>
+            <h1 style={{ font: "var(--text-h3)" }}>Monitoring across all funds</h1>
           </div>
         </div>
         <Button variant="secondary" size="sm" onClick={toggleTheme}>{theme === "dark" ? "Light" : "Dark"}</Button>
@@ -64,12 +64,12 @@ export default function PortfolioPage() {
           {notices.isPending ? <Spinner /> : (notices.data ?? []).length === 0 ? (
             <Empty>No pending capital calls or distributions across your funds.</Empty>
           ) : (
-            <Table head={["Due", "Days", "Fund", "Manager", "Kind", "Amount", "Purpose"]}>
+            <Table head={["Due", "Days", "Fund", "Manager", "Kind", "Amount", "Purpose"]} numericColumns={[5]} interactive>
               {(notices.data ?? []).map((n: PortfolioCallNotice) => {
                 const days = daysUntil(n.due_date);
                 const u = urgencyColor(days);
                 return (
-                  <tr key={n.id} onClick={() => navigate(`/deal/${n.deal_id}`)} style={{ cursor: "pointer" }}>
+                  <tr key={n.id} onClick={() => navigate(`/deal/${n.deal_id}`)}>
                     <Td>{n.due_date ?? "—"}</Td>
                     <Td><span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: u.bg, color: u.fg }}>{days == null ? "—" : `${days}d`}</span></Td>
                     <Td>{n.fund_name}</Td>
@@ -89,9 +89,9 @@ export default function PortfolioPage() {
           {positions.isPending ? <Spinner /> : (positions.data ?? []).length === 0 ? (
             <Empty>No fund positions yet. Set commitments in each fund's Position panel.</Empty>
           ) : (
-            <Table head={["Fund", "Manager", "Commitment", "Called", "Distributed", "NAV", "Unfunded"]}>
+            <Table head={["Fund", "Manager", "Commitment", "Called", "Distributed", "NAV", "Unfunded"]} numericColumns={[2, 3, 4, 5, 6]} interactive>
               {(positions.data ?? []).map((p) => (
-                <tr key={p.deal_id} onClick={() => navigate(`/deal/${p.deal_id}`)} style={{ cursor: "pointer" }}>
+                <tr key={p.deal_id} onClick={() => navigate(`/deal/${p.deal_id}`)}>
                   <Td>{p.fund_name}</Td>
                   <Td muted>{p.manager_name ?? "—"}</Td>
                   <Td mono>{money(p.commitment_amount, p.currency)}</Td>
@@ -118,9 +118,9 @@ export default function PortfolioPage() {
           {compliance.isPending ? <Spinner /> : (compliance.data ?? []).length === 0 ? (
             <Empty>No flagged obligations. Everything verified is compliant (or nothing verified yet).</Empty>
           ) : (
-            <Table head={["Fund", "Manager", "Obligation", "Period", "Verdict"]}>
+            <Table head={["Fund", "Manager", "Obligation", "Period", "Verdict"]} interactive>
               {(compliance.data ?? []).map((o) => (
-                <tr key={o.id} onClick={() => navigate(`/deal/${o.deal_id}`)} style={{ cursor: "pointer" }}>
+                <tr key={o.id} onClick={() => navigate(`/deal/${o.deal_id}`)}>
                   <Td>{o.fund_name}</Td>
                   <Td muted>{o.manager_name ?? "—"}</Td>
                   <Td>{o.text}</Td>
@@ -140,23 +140,41 @@ function Panel({ title, subtitle, children }: { title: string; subtitle: string;
   return (
     <section className="mb-5 rounded-[1.4rem] border border-edge bg-surface p-5">
       <div className="font-mono-plex text-t3" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase" }}>{title}</div>
-      <p className="text-t2" style={{ margin: "4px 0 12px", fontSize: 13 }}>{subtitle}</p>
+      <p className="text-t2" style={{ margin: "4px 0 12px", font: "var(--text-sm)" }}>{subtitle}</p>
       {children}
     </section>
   );
 }
-function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
+function Table({
+  head,
+  children,
+  numericColumns = [],
+  interactive = false,
+}: {
+  head: string[];
+  children: React.ReactNode;
+  numericColumns?: number[];
+  interactive?: boolean;
+}) {
   return (
-    <div className="overflow-x-auto">
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-        <thead><tr className="text-t3" style={{ textAlign: "left" }}>{head.map((h) => <th key={h} className="border-b border-b-edge" style={{ padding: "6px 8px", fontWeight: 600 }}>{h}</th>)}</tr></thead>
+    <div className="data-table-wrap">
+      <table className={`data-table data-table--dense ${interactive ? "data-table--interactive" : ""}`}>
+        <thead>
+          <tr>
+            {head.map((h, index) => (
+              <th key={h} className={numericColumns.includes(index) ? "data-table__num" : undefined}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
         <tbody>{children}</tbody>
       </table>
     </div>
   );
 }
 function Td({ children, mono, muted }: { children?: React.ReactNode; mono?: boolean; muted?: boolean }) {
-  return <td className={`border-b border-b-edge ${muted ? "text-t2" : "text-t1"}`} style={{ padding: "8px", fontVariantNumeric: mono ? "tabular-nums" : undefined }}>{children}</td>;
+  return <td className={`${mono ? "data-table__num" : ""} ${muted ? "data-table__muted" : ""}`}>{children}</td>;
 }
 function Empty({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl border border-dashed border-edge p-5 text-sm text-t3">{children}</div>;

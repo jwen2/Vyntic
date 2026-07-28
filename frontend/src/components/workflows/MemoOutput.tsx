@@ -235,14 +235,13 @@ export default function MemoOutput({
               <h1
                 className="text-t1"
                 style={{
-                  fontSize: 24,
-                  fontWeight: 700,
+                  font: "var(--text-h3)",
                   marginBottom: 6,
                 }}
               >
                 {workflow.name}
               </h1>
-              <div className="text-t2" style={{ fontSize: 12 }}>
+              <div className="text-t2" style={{ font: "var(--text-xs)" }}>
                 Generated {formatDate(run.completed_at ?? run.started_at)} · Run #
                 {run.run_number} · {run.document_ids.length} document
                 {run.document_ids.length === 1 ? "" : "s"} analyzed

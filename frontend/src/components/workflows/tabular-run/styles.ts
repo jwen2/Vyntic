@@ -11,7 +11,7 @@
 
 const HEADER_BASE =
   "pt-[7px] pr-3 pb-[7px] pl-[9px] border-b border-b-edge bg-grid-header " +
-  "text-t2 text-[10px] font-semibold uppercase tracking-[0.05em] text-left align-top";
+  "font-mono-dm text-t3 text-[11px] font-normal text-left align-top";
 
 /**
  * Body-cell chrome minus padding/background, for cells that paint their own —

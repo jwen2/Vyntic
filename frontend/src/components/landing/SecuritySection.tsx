@@ -7,24 +7,24 @@ import LandingText from "./ui/LandingText";
 
 const CONTROLS = [
   {
-    title: "Deal-level separation",
+    title: "Scoped workspace",
     body:
-      "Keep each opportunity in its own workspace so review stays scoped to the relevant materials.",
+      "Run the pilot in a single deal workspace so analysis stays bounded to the documents you provide.",
   },
   {
-    title: "Controlled access",
+    title: "Role-based access",
     body:
-      "Limit who can view, update, and operate inside the workspace based on team roles.",
+      "Limit who can upload, edit, and review outputs during the pilot.",
   },
   {
-    title: "Traceable outputs",
+    title: "Source-backed review",
     body:
-      "Preserve the path from answer to source so teams can inspect what supports each conclusion.",
+      "Keep every answer tied to citations and source context so the team can challenge the output.",
   },
   {
-    title: "Human-verifiable citations",
+    title: "Security review ready",
     body:
-      "Support fast review by keeping the document context visible rather than hiding it behind generated text.",
+      "We can work through data-handling, deployment, and access requirements before any live pilot.",
   },
 ];
 
@@ -32,14 +32,14 @@ export default function SecuritySection() {
   return (
     <LandingSection id="security" tone="muted">
       <LandingScrollReveal className="max-w-3xl">
-        <LandingEyebrow>Security And Controls</LandingEyebrow>
+        <LandingEyebrow>Pilot Controls</LandingEyebrow>
         <LandingHeading className="mt-6">
-          Built for faster analysis without losing control over attribution and review.
+          Keep the pilot narrow, reviewable, and source-backed.
         </LandingHeading>
         <LandingText className="mt-5 max-w-2xl">
-          The trust model here is operational: keep workspaces separated, make
-          outputs inspectable, and keep the source trail visible throughout the
-          workflow.
+          We are building toward enterprise readiness, but the first evaluation
+          should be simple: bounded data, clear access, cited outputs, and a
+          security conversation before live materials are used.
         </LandingText>
       </LandingScrollReveal>
 

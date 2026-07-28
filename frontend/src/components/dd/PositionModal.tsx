@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { getPosition, upsertPosition, type Position } from "@/lib/api";
 import Button from "@/components/ui/Button";
+import Input, { Select } from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 
 type FormState = {
@@ -169,10 +170,9 @@ export default function PositionModal({ dealId, dealName, isAdmin, onClose }: Po
 }
 
 function Label({ children }: { children: React.ReactNode }) { return <span className="font-mono-plex text-[9px] uppercase tracking-[0.12em]">{children}</span>; }
-const fieldClass = "rounded-xl border border-edge bg-surface-alt px-3 py-2.5 text-sm text-t1 outline-none read-only:opacity-70";
 function MoneyField({ label, value, readOnly, onChange, hint }: { label: string; value: string; readOnly: boolean; onChange: (value: string) => void; hint?: string }) {
-  return <label className="flex flex-col gap-2 text-t1"><Label>{label}</Label><input inputMode="decimal" value={value} readOnly={readOnly} onFocus={(event) => { if (!readOnly) onChange(event.currentTarget.value.replace(/,/g, "")); }} onBlur={(event) => { const parsed = parseNumber(event.currentTarget.value); onChange(parsed == null ? event.currentTarget.value : formatNumber(parsed)); }} onChange={(event) => onChange(event.target.value)} className={fieldClass} />{hint ? <span className="text-[10px] opacity-[0.55]">{hint}</span> : null}</label>;
+  return <label className="flex flex-col gap-2 text-t1"><Label>{label}</Label><Input inputMode="decimal" value={value} readOnly={readOnly} onFocus={(event) => { if (!readOnly) onChange(event.currentTarget.value.replace(/,/g, "")); }} onBlur={(event) => { const parsed = parseNumber(event.currentTarget.value); onChange(parsed == null ? event.currentTarget.value : formatNumber(parsed)); }} onChange={(event) => onChange(event.target.value)} fullWidth />{hint ? <span className="text-[10px] opacity-[0.55]">{hint}</span> : null}</label>;
 }
-function TextField({ label, value, placeholder, readOnly, onChange }: { label: string; value: string; placeholder: string; readOnly: boolean; onChange: (value: string) => void }) { return <label className="flex flex-col gap-2 text-t1"><Label>{label}</Label><input value={value} placeholder={placeholder} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} className={fieldClass} /></label>; }
-function SelectField({ label, value, options, disabled, onChange }: { label: string; value: string; options: string[]; disabled: boolean; onChange: (value: string) => void }) { return <label className="flex flex-col gap-2 text-t1"><Label>{label}</Label><select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} className={`${fieldClass} disabled:opacity-70`}>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>; }
+function TextField({ label, value, placeholder, readOnly, onChange }: { label: string; value: string; placeholder: string; readOnly: boolean; onChange: (value: string) => void }) { return <label className="flex flex-col gap-2 text-t1"><Label>{label}</Label><Input value={value} placeholder={placeholder} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} fullWidth /></label>; }
+function SelectField({ label, value, options, disabled, onChange }: { label: string; value: string; options: string[]; disabled: boolean; onChange: (value: string) => void }) { return <label className="flex flex-col gap-2 text-t1"><Label>{label}</Label><Select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} fullWidth>{options.map((option) => <option key={option} value={option}>{option}</option>)}</Select></label>; }
 function Metric({ label, value }: { label: string; value: string }) { return <div><div className="text-xs text-accent-strong">{label}</div><div className="mt-1 text-xl font-semibold text-accent-strong">{value}</div></div>; }

@@ -36,3 +36,9 @@ Thumbs.db
 
 # Claude Code local settings (personal, machine-specific)
 .claude/settings.local.json
+
+# superpowers subagent-driven-development scratch workspace (ledgers, briefs, review packages)
+.superpowers/
+
+# Typography phase-2 spike: reflow measurement screenshots + metrics (regenerable)
+frontend/.reflow-snapshots/

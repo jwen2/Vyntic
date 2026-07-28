@@ -9,6 +9,7 @@ import CellRenderer, {
   type ProseValue,
 } from "./cells/CellRenderer";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "./theme";
+import { Select } from "@/components/ui/Input";
 
 interface CompareViewProps {
   workflowId: string;
@@ -164,13 +165,11 @@ export default function CompareView({
       >
         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span className="text-t3">Anchor:</span>
-          <select
+          <Select
             value={anchorRowKey}
             onChange={(e) => setAnchorRowKey(e.target.value)}
-            className="bg-surface-alt text-t1 border border-edge"
+            fieldSize="sm"
             style={{
-              borderRadius: 5,
-              padding: "3px 6px",
               fontSize: 11,
               fontFamily: "var(--font-mono, monospace)",
               maxWidth: 260,
@@ -179,7 +178,7 @@ export default function CompareView({
             {rowKeys.map((rk) => (
               <option key={rk} value={rk}>{rowLabel(rk, docs, rowSourceIsDoc)}</option>
             ))}
-          </select>
+          </Select>
         </label>
         <button
           type="button"

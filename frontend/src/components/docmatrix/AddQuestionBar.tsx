@@ -83,7 +83,8 @@ export default function AddQuestionBar({ onAddQuery, onAddTemplate, loading }: P
         onChange={(e) => setNewQuery(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleAddQuery()}
         placeholder="Ask a question to add a column across all documents…"
-        className="min-w-0 flex-1 bg-transparent text-sm text-t1 placeholder:text-t3 focus:outline-none"
+        className="min-w-0 flex-1 bg-transparent text-t1 placeholder:text-t3 focus:outline-none"
+        style={{ font: "var(--text-sm)" }}
         disabled={loading}
       />
 
@@ -127,12 +128,12 @@ export default function AddQuestionBar({ onAddQuery, onAddTemplate, loading }: P
             style={{ top: dropdownPos.top, left: dropdownPos.left }}
           >
             <div className="sticky top-0 z-10 border-b border-edge-light bg-surface p-2.5">
-              <span className="text-xs font-semibold uppercase tracking-wide text-t3">
+              <span className="font-semibold uppercase tracking-wide text-t3" style={{ font: "var(--text-xs)" }}>
                 Column Templates
               </span>
             </div>
             <div>
-              <div className="sticky top-10 z-[2] flex items-center gap-1.5 border-b border-edge bg-grid-header px-3 py-1.5 text-xs font-semibold text-t2">
+              <div className="sticky top-10 z-[2] flex items-center gap-1.5 border-b border-edge bg-grid-header px-3 py-1.5 font-semibold text-t2" style={{ font: "var(--text-xs)" }}>
                 <span>PE</span>
                 Diligence columns
               </div>
@@ -145,18 +146,18 @@ export default function AddQuestionBar({ onAddQuery, onAddTemplate, loading }: P
                   className="w-full border-b border-edge-light px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-[var(--accent-tint)]"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-t1">{preset.name}</span>
-                    <span className="rounded bg-grid-header px-1.5 py-0.5 text-[10px] text-t2">
+                    <span className="font-medium text-t1" style={{ font: "var(--text-sm)" }}>{preset.name}</span>
+                    <span className="rounded bg-grid-header px-1.5 py-0.5 text-t2" style={{ font: "var(--text-2xs)" }}>
                       {getFormatShort(preset.format)}
                     </span>
                   </div>
-                  <div className="mt-0.5 text-xs leading-relaxed text-t3">{preset.prompt}</div>
+                  <div className="mt-0.5 text-t3" style={{ font: "var(--text-xs)" }}>{preset.prompt}</div>
                 </button>
               ))}
             </div>
             {QUERY_TEMPLATES.map((cat) => (
               <div key={cat.name}>
-                <div className="sticky top-10 z-[2] flex items-center gap-1.5 border-b border-edge bg-grid-header px-3 py-1.5 text-xs font-semibold text-t2">
+                <div className="sticky top-10 z-[2] flex items-center gap-1.5 border-b border-edge bg-grid-header px-3 py-1.5 font-semibold text-t2" style={{ font: "var(--text-xs)" }}>
                   <span>{cat.icon}</span>
                   {cat.name}
                 </div>
@@ -166,8 +167,8 @@ export default function AddQuestionBar({ onAddQuery, onAddTemplate, loading }: P
                     onClick={() => handleTemplateSelect(t.label, t.query)}
                     className="w-full border-b border-edge-light px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-[var(--accent-tint)]"
                   >
-                    <div className="text-sm font-medium text-t1">{t.label}</div>
-                    <div className="mt-0.5 text-xs leading-relaxed text-t3">{t.query}</div>
+                    <div className="font-medium text-t1" style={{ font: "var(--text-sm)" }}>{t.label}</div>
+                    <div className="mt-0.5 text-t3" style={{ font: "var(--text-xs)" }}>{t.query}</div>
                   </button>
                 ))}
               </div>

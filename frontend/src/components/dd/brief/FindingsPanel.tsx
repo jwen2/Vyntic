@@ -4,7 +4,7 @@
 import { useCallback, useState } from "react";
 import Card from "@/components/ui/Card";
 import { SEV_COLOR, type Finding } from "../types";
-import { CountBadge, Placeholder, SeverityDot, lineClamp } from "./parts";
+import { CountBadge, Placeholder, lineClamp } from "./parts";
 
 export function FindingsPanel({
   findings,
@@ -58,12 +58,14 @@ export function FindingsPanel({
               <Card
                 key={finding.id}
                 level="inner"
-                tone="alt"
-                style={{ minWidth: 0 }}
+                tone="surface"
+                style={{
+                  minWidth: 0,
+                  borderLeft: `3px solid ${SEV_COLOR[finding.sev].dot}`,
+                }}
               >
                 <div className="flex items-center" style={{ gap: 6, marginBottom: 6 }}>
-                  <SeverityDot severity={finding.sev} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: SEV_COLOR[finding.sev].color }}>{SEV_COLOR[finding.sev].label}</span>
+                  <span className="font-mono-dm text-t3" style={{ fontSize: 10, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase" }}>{SEV_COLOR[finding.sev].label}</span>
                   <span className="text-t3" style={{ fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
                     {finding.src}
                   </span>

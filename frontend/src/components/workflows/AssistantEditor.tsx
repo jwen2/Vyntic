@@ -12,6 +12,7 @@ import type {
 import SectionLabel from "@/components/ui/SectionLabel";
 import { ACCENT, AMBER } from "./theme";
 import Button from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Input";
 
 type EditorMode =
   | { mode: "create"; onCreate: (payload: WorkflowCreatePayload) => void | Promise<void> }
@@ -414,17 +415,14 @@ export default function AssistantEditor(props: AssistantEditorProps) {
               >
                 System Prompt
               </div>
-              <textarea
+              <Textarea
                 value={activeStage.prompt_md}
                 disabled={isReadOnly}
                 onChange={(e) => patchActiveStage({ prompt_md: e.target.value })}
                 placeholder="Write the system prompt for this stage. Use {variables} for placeholders that get filled at run time."
-                className="bg-surface border border-edge text-t1"
+                fullWidth
                 style={{
-                  width: "100%",
                   minHeight: 280,
-                  borderRadius: 10,
-                  padding: 16,
                   fontSize: 12,
                   fontFamily: "'DM Mono', monospace",
                   lineHeight: 1.6,

@@ -23,7 +23,7 @@ export default function LandingText({
 }: LandingTextProps) {
   return (
     <Tag
-      className={`text-[15px] leading-7 sm:text-lg ${TONE_CLASSES[tone]} ${className}`.trim()}
+      className={`max-w-full break-words text-[15px] leading-7 sm:text-lg ${TONE_CLASSES[tone]} ${className}`.trim()}
     >
       {children}
     </Tag>

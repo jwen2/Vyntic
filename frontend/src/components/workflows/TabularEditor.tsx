@@ -16,6 +16,7 @@ import type {
 import { ACCENT, RED, VIOLET, tint } from "./theme";
 import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
+import Input, { Textarea } from "@/components/ui/Input";
 import {
   CellRenderPreview,
   ShapeOptionsInspector,
@@ -535,11 +536,12 @@ export default function TabularEditor(props: TabularEditorProps) {
                 }}
               >
                 <Field label="Label">
-                  <input
+                  <Input
                     value={activeColumn.label}
                     disabled={isReadOnly}
                     onChange={(e) => patchActiveColumn({ label: e.target.value })}
-                    className={inputClass}
+                    fieldSize="sm"
+                    fullWidth
                   />
                 </Field>
                 {!activeColumn.is_derived ? (
@@ -580,7 +582,7 @@ export default function TabularEditor(props: TabularEditorProps) {
                   </Field>
                 ) : (
                   <Field label="Format">
-                    <input value="Formula" disabled className={inputClass} />
+                    <Input value="Formula" disabled fieldSize="sm" fullWidth />
                   </Field>
                 )}
                 {(activeColumn.format === "tag" || activeColumn.format === "enum") && (
@@ -599,22 +601,24 @@ export default function TabularEditor(props: TabularEditorProps) {
                 )}
                 {!activeColumn.is_derived ? (
                   <Field label="Extraction prompt">
-                    <textarea
+                    <Textarea
                       value={activeColumn.prompt}
                       disabled={isReadOnly}
                       onChange={(e) => patchActiveColumn({ prompt: e.target.value })}
-                      className={inputClass}
+                      fieldSize="sm"
+                      fullWidth
                       style={{ minHeight: 120, resize: "vertical" }}
                     />
                   </Field>
                 ) : (
                   <Field label="Formula">
-                    <textarea
+                    <Textarea
                       value={activeColumn.formula ?? ""}
                       disabled={isReadOnly}
                       onChange={(e) => patchActiveColumn({ formula: e.target.value })}
                       placeholder='= IF(CoC="No" AND Exclusivity="Yes", "High", "Low")'
-                      className={inputClass}
+                      fieldSize="sm"
+                      fullWidth
                       style={{
                         minHeight: 80,
                         resize: "vertical",
@@ -668,7 +672,6 @@ export default function TabularEditor(props: TabularEditorProps) {
 }
 
 /** Shared text-input chrome for the column-detail fields. */
-const inputClass = "w-full px-2.5 py-[7px] rounded-[7px] outline-none border border-edge bg-surface-alt text-t1 text-xs";
 
 function Field({
   label,
@@ -810,13 +813,13 @@ function GridPreview({ columns }: { columns: DraftColumn[] }) {
   const sortedCols = [...columns].sort((a, b) => a.order_index - b.order_index);
   const sampleRows = ["Document A.pdf", "Document B.pdf", "Document C.pdf"];
   return (
-    <div className="bg-surface border border-edge" style={{ borderRadius: 10, overflow: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+    <div className="data-table-wrap bg-surface border border-edge" style={{ borderRadius: 10 }}>
+      <table className="data-table data-table--dense">
         <thead>
           <tr>
-            <th style={cellStyle(true)}>Document</th>
+            <th>Document</th>
             {sortedCols.map((col) => (
-              <th key={col.uid} style={cellStyle(true)}>
+              <th key={col.uid}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span>{col.label}</span>
                   <span
@@ -841,9 +844,9 @@ function GridPreview({ columns }: { columns: DraftColumn[] }) {
         <tbody>
           {sampleRows.map((doc) => (
             <tr key={doc}>
-              <td style={cellStyle()}>{doc}</td>
+              <td className="data-table__strong">{doc}</td>
               {sortedCols.map((col) => (
-                <td key={col.uid} style={cellStyle()}>
+                <td key={col.uid}>
                   <div
                     className="bg-edge"
                     style={{
@@ -861,15 +864,4 @@ function GridPreview({ columns }: { columns: DraftColumn[] }) {
       </table>
     </div>
   );
-}
-
-function cellStyle(header = false): React.CSSProperties {
-  return {
-    padding: "8px 10px",
-    borderBottom: "1px solid var(--border)",
-    color: header ? "var(--text-2)" : "var(--text-1)",
-    fontWeight: header ? 600 : 400,
-    textAlign: "left",
-    whiteSpace: "nowrap",
-  };
 }

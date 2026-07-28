@@ -14,6 +14,7 @@ import {
   ShapePicker,
   detectShape,
 } from "../cells/ShapeControls";
+import Input, { Select, Textarea } from "@/components/ui/Input";
 
 export interface ColumnDraft {
   label: string;
@@ -204,7 +205,7 @@ export default function ColumnEditMenu({
             </div>
             <div style={{ padding: 16 }}>
               <Field label="Label">
-                <input
+                <Input
                   value={draft.label}
                   onChange={(e) => {
                     const label = e.target.value;
@@ -216,7 +217,8 @@ export default function ColumnEditMenu({
                         : {}),
                     });
                   }}
-                  className={inputClass}
+                  fieldSize="sm"
+                  fullWidth
                 />
               </Field>
 
@@ -255,7 +257,7 @@ export default function ColumnEditMenu({
                   )}
                 </Field>
                 <Field label="Preset">
-                  <select
+                  <Select
                     value=""
                     onChange={(e) => {
                       const name = e.target.value;
@@ -269,7 +271,8 @@ export default function ColumnEditMenu({
                         tags: preset.tags || [],
                       });
                     }}
-                    className={inputClass}
+                    fieldSize="sm"
+                    fullWidth
                   >
                     <option value="">Choose…</option>
                     {PE_COLUMN_PRESETS.map((preset) => (
@@ -277,7 +280,7 @@ export default function ColumnEditMenu({
                         {preset.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </Field>
               </div>
 
@@ -310,12 +313,13 @@ export default function ColumnEditMenu({
                   Auto-generate
                 </button>
               </div>
-              <textarea
+              <Textarea
                 rows={8}
                 value={draft.prompt}
                 onChange={(e) => updateDraft({ prompt: e.target.value })}
-                className={`${inputClass} mt-1 resize-none leading-[1.55]`}
-                style={{ fontFamily: "inherit" }}
+                className="mt-1 resize-none leading-[1.55]"
+                fieldSize="sm"
+                fullWidth
               />
               <div style={{ marginTop: 12 }}>
                 <Field label="Cell preview">
@@ -401,7 +405,3 @@ function Field({
     </label>
   );
 }
-
-/** Shared text-input chrome for this menu's fields. */
-const inputClass =
-  "w-full px-2 py-1.5 border border-edge rounded-md bg-appbg text-t1 text-xs outline-none";
