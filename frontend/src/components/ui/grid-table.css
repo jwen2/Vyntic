@@ -1,0 +1,83 @@
+/* Shared chrome for the interactive grids (Doc Matrix, Tabular Run).
+   Plain CSS with explicit selectors, not composed Tailwind utility strings:
+   `workflows/tabular-run/styles.ts` documents why — competing utilities in
+   one class string resolve by stylesheet order, not string order, since this
+   project has no tailwind-merge. A composed sticky/zebra/selected layer
+   would hit that hazard head-on.
+
+   This file defines the layer only. Nothing consumes it yet — Doc Matrix and
+   Tabular Run migrate onto it in later tasks. Geometry values are Tabular
+   Run's current values (the chosen target for both grids); `.data-table` in
+   ../../index.css stays at its own `9px 10px` read-only-table density and is
+   not reconciled with this file.
+
+   Selection tint and other tint()-derived washes have no CSS token and stay
+   inline at each call site (project convention — see
+   docs/todo/2026-07-24-design-system-primitives.md, "Status hues stay
+   inline"); there is no `.grid-table__cell--selected` class here. */
+
+.grid-table__th {
+  padding: 7px 12px 7px 9px;
+  font: var(--text-meta);
+  color: var(--text-3);
+  background: var(--grid-header);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  position: relative;
+}
+
+.grid-table__td {
+  padding: 8px 10px;
+  height: 38px;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: middle;
+  background: var(--surface);
+}
+
+/* Zebra striping — overrides the default surface background above. Must
+   stay after `.grid-table__td` in this file: same specificity, later wins. */
+.grid-table__td--zebra {
+  background: var(--zebra);
+}
+
+/* Sticky/pinned "document" column — header and body variants. Each is
+   standalone (position + border + z-index + shadow); background still comes
+   from `.grid-table__th` / `.grid-table__td` (+ `--zebra`) so it composes
+   the same way `styles.ts`'s DOC_PIN composes onto HEADER_BASE/BODY_BASE. */
+.grid-table__th--pinned {
+  position: sticky;
+  left: 0;
+  border-right: 1px solid var(--border);
+  z-index: 3;
+  box-shadow: 8px 0 16px -12px rgba(0, 0, 0, 0.22);
+}
+
+.grid-table__td--pinned {
+  position: sticky;
+  left: 0;
+  border-right: 1px solid var(--border);
+  z-index: 2;
+  box-shadow: 8px 0 16px -12px rgba(0, 0, 0, 0.18);
+}
+
+/* Column resize handle — thin draggable strip on a header cell's right edge.
+   Hover treatment is intentionally not included here: the two grids
+   currently disagree on it (see task-1-report.md). */
+.grid-table__resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  user-select: none;
+  background: transparent;
+  transition: background 120ms;
+  z-index: 5;
+}
+
+.grid-table__resize-handle--active {
+  background: var(--accent);
+}

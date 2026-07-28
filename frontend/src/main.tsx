@@ -7,6 +7,7 @@ import "./components/ui/Button/index.css";
 import "./components/ui/Modal/index.css";
 import "./components/ui/Card/index.css";
 import "./components/ui/Input/index.css";
+import "./components/ui/grid-table.css";
 
 // Conservative defaults: server data is considered fresh for 30s (matrix/run
 // results don't change under the user mid-screen), and one retry is enough —
