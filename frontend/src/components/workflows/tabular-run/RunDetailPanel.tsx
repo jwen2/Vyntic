@@ -1,12 +1,12 @@
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn, WorkflowRun } from "@/lib/workflows";
-import AnswerText from "@/components/dd/AnswerText";
 import CitationSnippet from "@/components/dd/CitationSnippet";
 import { ACCENT, AMBER, RED, VIOLET, tint } from "../theme";
 import { asShape } from "@/lib/cellShapes";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { RetryIcon } from "./parts";
-import { demoteHeadings, formatRunDate } from "./format";
+import CellDetailBody from "./CellDetailBody";
+import { formatRunDate } from "./format";
 
 // The right rail: the selected cell's answer + source spans, and recent run
 // history.
@@ -32,15 +32,10 @@ export default function RunDetailPanel({
   retrying: boolean;
 }) {
   const citations = selectedCell?.citations ?? [];
-  // Every JSON-directive column (prose/list/kv) has a JSON blob for its raw
-  // `answer`, so the panel renders `answer_display` — the server-flattened
-  // text — and only falls back to `answer` for columns with no shape at all
-  // (text/markdown). This used to special-case prose alone, which is why kv
-  // cells rendered their raw `{"pairs": […]}` payload here.
-  const rawAnswer = selectedCell?.answer ?? "";
+  // The answer region is shape-aware (see CellDetailBody): kv and list render
+  // as typed field panels, everything else as a single cited body. Caveats are
+  // prose-only and stay here, below the body.
   const shape = asShape(selectedCell?.answer_formatted);
-  const displayed = selectedCell?.answer_display?.trim() || rawAnswer;
-  const answer = demoteHeadings(displayed).trim();
   const caveats = shape?.kind === "prose" ? shape.caveats ?? [] : [];
   return (
     <aside className="border-l border-l-edge bg-surface-alt min-h-0 overflow-y-auto p-4">
@@ -79,7 +74,6 @@ export default function RunDetailPanel({
           cell={selectedCell}
           column={selectedColumn}
           rowLabel={selectedRowLabel}
-          answer={answer}
           caveats={caveats}
           citations={citations}
           activeCitId={activeCitId}
@@ -122,7 +116,6 @@ function CellSourcesPanel({
   cell,
   column,
   rowLabel,
-  answer,
   caveats,
   citations,
   activeCitId,
@@ -131,7 +124,6 @@ function CellSourcesPanel({
   cell: TabularCell | null;
   column: WorkflowColumn | null;
   rowLabel: string;
-  answer: string;
   caveats: Array<{ text: string; severity: "info" | "warn" | "risk" }>;
   citations: (Citation | null)[];
   activeCitId: string | null;
@@ -153,16 +145,12 @@ function CellSourcesPanel({
         {rowLabel} → {column.label}
       </div>
       <div className="text-xs text-t1 leading-[1.6]">
-        {answer ? (
-          <AnswerText
-            text={answer}
-            citations={citations}
-            activeCitId={activeCitId}
-            onCit={onCitationClick}
-          />
-        ) : (
-          <span className="text-t3">No answer captured for this cell yet.</span>
-        )}
+        <CellDetailBody
+          cell={cell}
+          citations={citations}
+          activeCitId={activeCitId}
+          onCitationClick={onCitationClick}
+        />
       </div>
       {caveats.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

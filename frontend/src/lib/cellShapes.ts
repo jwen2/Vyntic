@@ -111,11 +111,16 @@ const UNIT_SYNONYMS: Record<string, string[]> = {
 };
 
 /** True when the value already conveys the unit. Mirrors `_unit_is_redundant`. */
-function unitIsRedundant(value: string | number, unit: string): boolean {
-  if (!unit) return true;
+export function unitIsRedundant(value: string | number, unit: string | null | undefined): boolean {
+  const key = (unit ?? "").trim().toLowerCase();
+  if (!key) return true;
   const text = String(value).toLowerCase();
-  const key = unit.trim().toLowerCase();
   return (UNIT_SYNONYMS[key] ?? [key]).some((token) => token && text.includes(token));
+}
+
+/** A kv pair as one string, dropping a unit the value already conveys. */
+export function pairText(value: string | number, unit?: string | null): string {
+  return unitIsRedundant(value, unit) ? String(value) : `${value} ${(unit ?? "").trim()}`;
 }
 
 /**
@@ -213,11 +218,7 @@ export function displayText(input: unknown, compact = false, stripSources = fals
     case "kv": {
       const lines = (shape.pairs ?? [])
         .filter((pair) => pair?.key && pair?.value != null)
-        .map((pair) => {
-          const unit = (pair.unit ?? "").trim();
-          const suffix = unitIsRedundant(pair.value, unit) ? "" : ` ${unit}`;
-          return `${pair.key}: ${pair.value}${suffix}`;
-        });
+        .map((pair) => `${pair.key}: ${pairText(pair.value, pair.unit)}`);
       if (lines.length === 0) return "";
       return compact ? lines.join("; ") : lines.map((line) => `- ${line}`).join("\n");
     }

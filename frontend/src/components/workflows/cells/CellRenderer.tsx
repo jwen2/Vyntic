@@ -4,7 +4,7 @@ import AnswerText from "@/components/dd/AnswerText";
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
 import type { Caveat, CellShape } from "@/lib/cellShapes";
-import { asShape, displayText, stripSourceMarkers } from "@/lib/cellShapes";
+import { asShape, displayText, pairText, stripSourceMarkers } from "@/lib/cellShapes";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "../theme";
 import { demoteHeadings } from "../tabular-run/format";
 
@@ -283,7 +283,7 @@ function KVCell({
         <div key={`${pair.key}-${index}`} style={{ display: "grid", gridTemplateColumns: "minmax(48px, 0.75fr) minmax(64px, 1fr)", gap: 8, alignItems: "baseline", fontSize: 10.5, lineHeight: 1.35 }}>
           <span className="text-t3 overflow-hidden text-ellipsis whitespace-nowrap">{stripSourceMarkers(pair.key)}</span>
           <span className="text-t1 text-right tabular-nums" style={{ fontFamily: "var(--font-mono, monospace)" }}>
-            {stripSourceMarkers([pair.value, pair.unit].filter(Boolean).join(" "))}
+            {stripSourceMarkers(pairText(pair.value, pair.unit))}
           </span>
         </div>
       ))}
