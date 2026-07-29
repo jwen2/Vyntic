@@ -153,7 +153,7 @@ export default function DocMatrixTable({
             <tr>
               {/* Document column header with Excel-like dropdown — sticky top + left (corner) */}
               <th
-                className={`p-3 text-left font-mono-dm text-[11px] font-normal text-t3 border-r border-edge border-b border-b-edge sticky top-0 left-0 z-30 cursor-pointer select-none hover:bg-surface-alt transition-colors shadow-[8px_0_16px_-12px_rgba(0,0,0,0.28)] ${sortConfig?.col === "doc" ? "bg-accent-tint" : "bg-grid-header"}`}
+                className={`grid-table__th--chrome grid-table__th--sticky-top border-r border-edge left-0 z-30 cursor-pointer select-none hover:bg-surface-alt transition-colors shadow-[8px_0_16px_-12px_rgba(0,0,0,0.28)] ${sortConfig?.col === "doc" ? "bg-accent-tint" : "bg-grid-header"}`}
                 onClick={(e) => openColMenu(e.currentTarget)}
               >
                 <DocColumnHeaderLabel label="Document" sortConfig={sortConfig} />
@@ -173,7 +173,7 @@ export default function DocMatrixTable({
                     onDragOver={(e) => handleColDragOver(e, i)}
                     onDrop={() => handleColDrop(i)}
                     onDragEnd={handleColDragEnd}
-                    className={`p-3 text-left font-mono-dm text-[11px] font-normal text-t3 border-b border-b-edge sticky top-0 z-20 group cursor-grab active:cursor-grabbing transition-colors ${
+                    className={`grid-table__th--chrome grid-table__th--sticky-top z-20 group cursor-grab active:cursor-grabbing transition-colors ${
                       dragColIndex === i ? "opacity-50" : ""
                     } ${
                       dragOverColIndex === i && dragColIndex !== i
@@ -212,7 +212,7 @@ export default function DocMatrixTable({
                 );
               })}
               {/* Spacer column — the add-question composer now lives above the grid */}
-              <th className="border-b border-b-edge sticky top-0 z-20 bg-grid-header" aria-hidden />
+              <th className="grid-table__th--chrome grid-table__th--sticky-top z-20 bg-grid-header" aria-hidden />
             </tr>
           </thead>
           <tbody>
@@ -347,7 +347,7 @@ function DocMatrixRowImpl({
         />
       ))}
       {/* Empty cell under add-query column */}
-      <td className="border-b border-b-edge-light transition-colors group-hover:bg-[var(--accent-tint)]" />
+      <td className="grid-table__td--chrome transition-colors group-hover:bg-[var(--accent-tint)]" />
     </tr>
   );
 }
@@ -375,19 +375,12 @@ function ColResizeHandle({
       }}
       draggable={false}
       title="Drag to resize"
-      style={{
-        position: "absolute",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: 6,
-        cursor: "col-resize",
-        userSelect: "none",
-        background: active ? "var(--accent)" : "transparent",
-        transition: "background 120ms",
-        zIndex: 5,
-      }}
-      className="hover:bg-[var(--accent-tint-border)]"
+      // Hover and active-drag backgrounds both live in grid-table.css, not as
+      // a Tailwind `hover:` utility here — see that file's comment on
+      // `.grid-table__resize-handle:hover` / `--active` for why: a Tailwind
+      // hover utility class would outrank a single `--active` class by
+      // specificity and paint over the drag-active accent mid-drag.
+      className={`grid-table__resize-handle${active ? " grid-table__resize-handle--active" : ""}`}
     />
   );
 }

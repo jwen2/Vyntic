@@ -104,7 +104,7 @@ function DocMatrixCellImpl({
   if (cell.status === "loading" && cleanAnswer.length > 0) {
     if (!cleanAnswer) {
       return (
-        <td className="p-3 border-b border-b-edge-light text-[13px] align-top max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
+        <td className="p-3 grid-table__td--chrome text-[13px] max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
           <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <div className="animate-pulse text-xs">Reasoning...</div>
           </div>
@@ -112,7 +112,7 @@ function DocMatrixCellImpl({
       );
     }
     return (
-      <td className="p-3 border-b border-b-edge-light text-[13px] align-top max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
+      <td className="p-3 grid-table__td--chrome text-[13px] max-w-xs transition-colors group-hover:bg-[var(--accent-tint)]">
         <div className="max-w-none text-t1 line-clamp-6">
           <AnswerText
             text={cleanAnswer}
@@ -129,7 +129,7 @@ function DocMatrixCellImpl({
   // Error
   if (cell.status === "error") {
     return (
-      <td className="p-3 border-b border-b-edge-light bg-red-50 dark:bg-red-950/30 text-sm align-top group">
+      <td className="p-3 grid-table__td--chrome bg-red-50 dark:bg-red-950/30 text-sm group">
         <div className="flex items-start justify-between gap-2">
           <div className="text-red-700 dark:text-red-400 flex-1 min-w-0">
             {cell.answer}
@@ -152,7 +152,7 @@ function DocMatrixCellImpl({
   // Complete
   const clampClass = expanded ? "" : "line-clamp-4";
   return (
-    <td className="p-3 border-b border-b-edge-light text-[13px] max-w-xs align-top group relative transition-colors group-hover:bg-[var(--accent-tint)]">
+    <td className="p-3 grid-table__td--chrome text-[13px] max-w-xs group relative transition-colors group-hover:bg-[var(--accent-tint)]">
       <Button
         variant="subtle"
         size="xs"
