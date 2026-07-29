@@ -105,7 +105,8 @@ def _export_value(cell: TabularCell | None) -> Any:
 
     Numeric metrics export as real numbers so Excel can sum them; every other
     shape goes through the shared `display_text` flattener rather than a
-    private copy of it.
+    private copy of it. Markers are stripped — a spreadsheet cell cannot render
+    a citation anchor.
     """
     if cell is None or cell.status == "error":
         return ""
@@ -114,7 +115,7 @@ def _export_value(cell: TabularCell | None) -> Any:
         return _strip_sources(cell.answer)
     if shape["kind"] == "metric" and not shape.get("raw") and shape.get("value") is not None:
         return shape["value"]
-    return display_text(shape, compact=True)
+    return display_text(shape, compact=True, strip_sources=True)
 
 
 def _strip_sources(value: str) -> str:

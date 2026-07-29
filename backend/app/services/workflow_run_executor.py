@@ -518,7 +518,7 @@ def _cell_value(cell) -> Any:
         return cell.answer
     if shape["kind"] == "metric" and shape.get("value") is not None:
         return shape["value"]
-    text = display_text(shape, compact=True)
+    text = display_text(shape, compact=True, strip_sources=True)
     return text if text else cell.answer
 
 

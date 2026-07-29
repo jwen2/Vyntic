@@ -15,6 +15,16 @@ Every non-None return of `parse_answer` is a dict carrying a `kind`
 discriminant. Scalars are boxed rather than returned bare (`12.5` becomes
 `{"kind": "metric", "value": 12.5, …}`) so that consumers can switch on `kind`
 without first testing the Python/JS type of the payload.
+
+`[Source N]` markers are **preserved** in the text-bearing shapes (list item
+text, kv keys/values, prose summary/body/caveats) and stripped only at the
+display boundary (`workflow_shapes.display_text(..., strip_sources=True)`, or
+the frontend's render sites). Stripping them here used to silently break
+citation attribution: the brief's `deriveActions` and the proactive scan's
+`findCitationForItem` both look for a marker in the item text to map a finding
+back to its source page, and always came up empty. The scalar shapes (metric
+`raw`, enum `value`, date, currency) stay stripped — they are display values,
+not prose, and a marker inside them would corrupt the rendered badge.
 """
 from __future__ import annotations
 
@@ -202,7 +212,9 @@ def _load_json_object(answer: str) -> dict[str, Any] | None:
 
 
 def _first_sentence(answer: str) -> str:
-    cleaned = " ".join(_strip_sources(answer).split())
+    # Faithful to the input: a marker sitting inside the first sentence is kept.
+    # One trailing the final period simply falls outside the match.
+    cleaned = " ".join(answer.split())
     if not cleaned:
         return ""
     match = re.search(r"(.+?[.!?])(?:\s|$)", cleaned)
@@ -384,11 +396,13 @@ def _parse_bulleted_list(answer: str) -> list[str]:
 
 
 def _normalize_list_item(item: Any) -> dict[str, Any] | None:
+    # `[Source N]` markers are preserved in shape text — see the module
+    # docstring. Stripping happens at the display boundary, not here.
     if isinstance(item, str):
-        text = _strip_sources(item)
+        text = item.strip()
         return {"text": text} if text else None
     if isinstance(item, dict):
-        text = _strip_sources(str(item.get("text") or ""))
+        text = str(item.get("text") or "").strip()
         if not text:
             return None
         citation_ids = item.get("citation_ids")
@@ -414,18 +428,18 @@ def _parse_list_shape(answer: str) -> dict | None:
     legacy_items = _parse_bulleted_list(answer)
     numbered = any(re.match(r"^\s*\d+\.\s+", line) for line in answer.splitlines())
     return list_shape(
-        [{"text": _strip_sources(item)} for item in legacy_items if _strip_sources(item)],
+        [{"text": item.strip()} for item in legacy_items if item.strip()],
         numbered,
     )
 
 
 def _normalize_caveat(item: Any) -> dict[str, Any] | None:
     if isinstance(item, str):
-        text = _strip_sources(item)
+        text = item.strip()
         return {"text": text, "severity": "info"} if text else None
     if not isinstance(item, dict):
         return None
-    text = _strip_sources(str(item.get("text") or ""))
+    text = str(item.get("text") or "").strip()
     if not text:
         return None
     severity = str(item.get("severity") or "info").lower()
@@ -441,8 +455,8 @@ def _normalize_caveat(item: Any) -> dict[str, Any] | None:
 def _parse_prose(answer: str) -> dict:
     obj = _load_json_object(answer)
     if obj is not None:
-        summary = _strip_sources(str(obj.get("summary") or ""))
-        body = _strip_sources(str(obj.get("body") or ""))
+        summary = str(obj.get("summary") or "").strip()
+        body = str(obj.get("body") or "").strip()
         caveats_raw = obj.get("caveats") if isinstance(obj.get("caveats"), list) else []
         caveats = []
         for caveat in caveats_raw:
@@ -455,7 +469,7 @@ def _parse_prose(answer: str) -> dict:
             summary = _first_sentence(body)
         return prose_shape(summary, body, caveats)
 
-    cleaned = _strip_sources(answer)
+    cleaned = answer.strip()
     caveats = []
     if _looks_list_shaped(cleaned):
         caveats.append({
@@ -492,13 +506,13 @@ def _parse_enum(answer: str, tags: list[str] | None) -> dict | None:
 def _normalize_kv_pair(item: Any) -> dict[str, Any] | None:
     if not isinstance(item, dict):
         return None
-    key = _strip_sources(str(item.get("key") or ""))
+    key = str(item.get("key") or "").strip()
     value = item.get("value")
     if not key or value is None:
         return None
     normalized: dict[str, Any] = {
         "key": key,
-        "value": _strip_sources(value) if isinstance(value, str) else value,
+        "value": value.strip() if isinstance(value, str) else value,
     }
     unit = item.get("unit")
     if unit is not None and str(unit).strip():
@@ -521,8 +535,8 @@ def _parse_kv(answer: str) -> dict | None:
         if ":" not in part:
             continue
         key, value = part.split(":", 1)
-        key = _strip_sources(key)
-        value = _strip_sources(value)
+        key = key.strip()
+        value = value.strip()
         if key and value:
             pairs.append({"key": key, "value": value})
     return kv_shape(pairs) if pairs else None
@@ -572,9 +586,9 @@ def parse_answer(answer: str, fmt: str, tags: list[str] | None = None) -> dict[s
         return _parse_date_shape(answer)
     if fmt == "bulleted_list":
         items = [
-            {"text": _strip_sources(item)}
+            {"text": item.strip()}
             for item in _parse_bulleted_list(answer)
-            if _strip_sources(item)
+            if item.strip()
         ]
         numbered = any(re.match(r"^\s*\d+\.\s+", line) for line in answer.splitlines())
         return list_shape(items, numbered) if items else None

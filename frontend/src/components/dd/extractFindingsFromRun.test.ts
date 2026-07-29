@@ -88,6 +88,32 @@ describe("extractFindingsFromRun", () => {
     expect(note.sev).toBe("noteworthy");
   });
 
+  it("maps the [Source N] marker to a citation, then hides it from the text", () => {
+    // The backend preserves markers in list shapes precisely so this lookup
+    // works; it used to strip them, so every finding silently fell back to the
+    // column label with confidence 68 instead of a real doc + page.
+    const findings = extractFindingsFromRun(
+      [
+        cell({
+          answer_formatted: {
+            kind: "list",
+            ordered: false,
+            items: [{ text: "[MATERIAL] Working capital peg is unfunded. [Source 1]" }],
+          },
+          citations: [QOE_CITATION],
+        }),
+      ],
+      [column({})]
+    );
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0].sourceCitation).toBe(QOE_CITATION);
+    expect(findings[0].conf).toBe(86);
+    // The marker did its job and must not leak into what the analyst reads.
+    expect(findings[0].title).toBe("Working capital peg is unfunded.");
+    expect(findings[0].detail).not.toMatch(/\[Source/);
+  });
+
   it("infers severity from keywords when no tag is present", () => {
     const cells = [
       cell({

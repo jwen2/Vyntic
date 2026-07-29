@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from app.services.workflow_format import format_prompt_suffix, parse_answer
 from app.services.workflow_run_store import _row_to_cell
-from app.services.workflow_shapes import display_text, normalize_shape
+from app.services.workflow_shapes import display_text, kv_shape, normalize_shape
 
 
 def test_metric_parser_extracts_value_unit_period():
@@ -49,11 +49,15 @@ def test_prose_parser_accepts_json_and_normalizes_caveats():
         "prose",
     )
 
+    # Markers are preserved — they are what maps a claim back to its source page.
     assert parsed == {
         "kind": "prose",
-        "summary": "MAE carveouts are broad.",
-        "body": "The clause excludes market, industry, announcement, and force majeure impacts.",
-        "caveats": [{"text": "Buyer walk-right may be limited.", "severity": "risk"}],
+        "summary": "MAE carveouts are broad. [Source 1]",
+        "body": (
+            "The clause excludes market, industry, announcement, and force majeure "
+            "impacts. [Source 1]"
+        ),
+        "caveats": [{"text": "Buyer walk-right may be limited. [Source 1]", "severity": "risk"}],
     }
 
 
@@ -64,8 +68,12 @@ def test_prose_parser_falls_back_for_plain_text():
     )
 
     assert parsed["kind"] == "prose"
+    # The marker trails the final period, so it falls outside the first sentence
+    # but is kept in the body.
     assert parsed["summary"] == "The clause is buyer-friendly, but survival is limited to 12 months."
-    assert parsed["body"] == "The clause is buyer-friendly, but survival is limited to 12 months."
+    assert parsed["body"] == (
+        "The clause is buyer-friendly, but survival is limited to 12 months. [Source 1]"
+    )
     assert parsed["caveats"] == [
         {"text": "Review caveat language in the answer.", "severity": "warn"}
     ]
@@ -80,7 +88,7 @@ def test_list_parser_accepts_json_and_plain_bullets():
 
     assert json_parsed == {
         "kind": "list",
-        "items": [{"text": "Drop-dead date"}, {"text": "HSR failure"}],
+        "items": [{"text": "Drop-dead date [Source 1]"}, {"text": "HSR failure [Source 2]"}],
         "ordered": False,
     }
     assert bullet_parsed == json_parsed
@@ -97,7 +105,14 @@ def test_kv_parser_accepts_json_and_colon_pairs():
         "kind": "kv",
         "pairs": [{"key": "Cap", "value": "10% EV"}, {"key": "Basket", "value": "$1.5M"}],
     }
-    assert plain_parsed == json_parsed
+    # The plain-text fallback keeps the marker it found on the trailing value.
+    assert plain_parsed == {
+        "kind": "kv",
+        "pairs": [
+            {"key": "Cap", "value": "10% EV"},
+            {"key": "Basket", "value": "$1.5M [Source 1]"},
+        ],
+    }
 
 
 def test_scalar_formats_are_boxed_into_tagged_shapes():
@@ -123,7 +138,7 @@ def test_scalar_formats_are_boxed_into_tagged_shapes():
     }
     assert parse_answer("- One [Source 1]\n- Two [Source 2]", "bulleted_list") == {
         "kind": "list",
-        "items": [{"text": "One"}, {"text": "Two"}],
+        "items": [{"text": "One [Source 1]"}, {"text": "Two [Source 2]"}],
         "ordered": False,
     }
     assert parse_answer("High [Source 1]", "tag", ["High", "Low"]) == {
@@ -246,12 +261,36 @@ def test_display_text_renders_every_shape_as_text_not_json():
         "kv",
     )
 
+    # The units are suppressed: "%" already conveys "percent", "$" conveys USD.
     full = display_text(kv)
-    assert full == "- Ongoing: 2.00% of commitments percent\n- One-time: $1.25 million cap USD"
+    assert full == "- Ongoing: 2.00% of commitments\n- One-time: $1.25 million cap"
     assert "{" not in full and "pairs" not in full
     assert display_text(kv, compact=True) == (
-        "Ongoing: 2.00% of commitments percent; One-time: $1.25 million cap USD"
+        "Ongoing: 2.00% of commitments; One-time: $1.25 million cap"
     )
+
+
+def test_display_text_keeps_a_unit_the_value_does_not_convey():
+    shape = kv_shape([
+        {"key": "Survival", "value": "18", "unit": "months"},
+        {"key": "Cap", "value": "10", "unit": "%"},
+    ])
+
+    assert display_text(shape) == "- Survival: 18 months\n- Cap: 10 %"
+
+
+def test_display_text_keeps_markers_by_default_and_strips_on_request():
+    """Markers survive into the shape so the panel can render them as anchors."""
+    shape = parse_answer(
+        '{"items": [{"text": "Drop-dead date [Source 1]"}, {"text": "HSR failure [Source 2]"}]}',
+        "list",
+    )
+
+    assert display_text(shape) == "- Drop-dead date [Source 1]\n- HSR failure [Source 2]"
+    # Stripping happens per field, before formatting — stripping the joined
+    # output would leave the separator's leading space ("date ; HSR failure").
+    assert display_text(shape, strip_sources=True) == "- Drop-dead date\n- HSR failure"
+    assert display_text(shape, compact=True, strip_sources=True) == "Drop-dead date; HSR failure"
 
 
 def test_display_text_list_uses_markdown_bullets_or_numbers():
@@ -326,7 +365,7 @@ def test_store_tags_legacy_rows_and_fills_answer_display():
     assert cell.answer.lstrip().startswith("{")
     assert "{" not in cell.answer_display
     assert cell.answer_display == (
-        "- Ongoing: 2.00% of commitments percent\n- One-time: $1.25 million cap USD"
+        "- Ongoing: 2.00% of commitments\n- One-time: $1.25 million cap"
     )
 
 

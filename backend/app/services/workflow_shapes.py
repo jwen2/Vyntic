@@ -55,6 +55,35 @@ _CURRENCY_CODES = {
 }
 _SOURCE_RE = re.compile(r"\[Source\s+\d+\]", re.IGNORECASE)
 
+# Symbols/words that mean the same thing as a kv pair's `unit`. The model often
+# writes the unit into the value *and* the unit field ("2.00% of commitments"
+# + unit "percent"), which reads as "…of commitments percent" when joined.
+_UNIT_SYNONYMS: dict[str, tuple[str, ...]] = {
+    "percent": ("%", "percent", "pct"),
+    "%": ("%", "percent", "pct"),
+    "usd": ("$", "usd", "dollar"),
+    "eur": ("€", "eur", "euro"),
+    "gbp": ("£", "gbp", "pound"),
+    "jpy": ("¥", "jpy", "yen"),
+}
+
+
+def _unit_is_redundant(value: Any, unit: str) -> bool:
+    """True when the value already conveys the unit.
+
+    Conservative by design: only suppresses a unit whose own text (or a known
+    symbol for it) is already present in the value. A unit the value doesn't
+    mention — "18" + "months" — is always kept.
+    """
+    if not unit:
+        return True
+    text = str(value).lower()
+    key = unit.strip().lower()
+    for token in _UNIT_SYNONYMS.get(key, (key,)):
+        if token and token in text:
+            return True
+    return False
+
 
 def _strip_sources(value: str) -> str:
     return _SOURCE_RE.sub("", value or "").strip()
@@ -133,6 +162,10 @@ def normalize_shape(value: Any) -> dict[str, Any] | None:
     `cell.answer`: column formats are editable after a run, so re-parsing an
     old answer under a since-changed format would silently rewrite run history.
 
+    Purely a re-tagging: it never rewrites the text it finds. In particular it
+    leaves `[Source N]` markers alone, so legacy `bulleted_list` rows (which
+    stored their markers) keep them and stay citable.
+
     Returns None for anything unrecognizable — callers fall back to the raw
     answer, exactly as they did before a shape existed.
     """
@@ -144,7 +177,7 @@ def normalize_shape(value: Any) -> dict[str, Any] | None:
     if isinstance(value, (int, float)):
         return metric_shape(float(value), raw=str(value))
     if isinstance(value, str):
-        cleaned = _strip_sources(value)
+        cleaned = value.strip()
         return enum_shape(cleaned) if cleaned else None
     if isinstance(value, list):
         strings = [str(item).strip() for item in value if item is not None and str(item).strip()]
@@ -152,7 +185,7 @@ def normalize_shape(value: Any) -> dict[str, Any] | None:
             return None
         if _looks_like_currency_codes(strings):
             return currency_shape([item.upper() for item in strings])
-        return list_shape([{"text": _strip_sources(item)} for item in strings])
+        return list_shape([{"text": item} for item in strings])
     if not isinstance(value, dict):
         return None
 
@@ -179,7 +212,7 @@ def normalize_shape(value: Any) -> dict[str, Any] | None:
                 if text:
                     items.append({k: v for k, v in item.items() if k != "kind"})
             elif item is not None and str(item).strip():
-                items.append({"text": _strip_sources(str(item))})
+                items.append({"text": str(item).strip()})
         return list_shape(items, bool(value.get("ordered", False)))
     if isinstance(value.get("pairs"), list):
         pairs = [pair for pair in value["pairs"] if isinstance(pair, dict) and pair.get("key")]
@@ -219,6 +252,52 @@ def normalize_shape(value: Any) -> dict[str, Any] | None:
 # ── Display text ──
 
 
+def strip_shape_sources(shape: Any) -> dict[str, Any] | None:
+    """A copy of the shape with `[Source N]` markers removed from its text.
+
+    Only the text-bearing shapes carry markers; scalar shapes pass through.
+    """
+    shape = normalize_shape(shape)
+    if shape is None:
+        return None
+    kind = shape.get("kind")
+    if kind == "prose":
+        return {
+            **shape,
+            "summary": _strip_sources(str(shape.get("summary") or "")),
+            "body": _strip_sources(str(shape.get("body") or "")),
+            "caveats": [
+                {**caveat, "text": _strip_sources(str(caveat.get("text") or ""))}
+                for caveat in shape.get("caveats") or []
+                if isinstance(caveat, dict)
+            ],
+        }
+    if kind == "list":
+        return {
+            **shape,
+            "items": [
+                {**item, "text": _strip_sources(str(item.get("text") or ""))}
+                for item in shape.get("items") or []
+                if isinstance(item, dict)
+            ],
+        }
+    if kind == "kv":
+        pairs = []
+        for pair in shape.get("pairs") or []:
+            if not isinstance(pair, dict):
+                continue
+            value = pair.get("value")
+            unit = pair.get("unit")
+            pairs.append({
+                **pair,
+                "key": _strip_sources(str(pair.get("key") or "")),
+                "value": _strip_sources(value) if isinstance(value, str) else value,
+                "unit": _strip_sources(unit) if isinstance(unit, str) else unit,
+            })
+        return {**shape, "pairs": pairs}
+    return shape
+
+
 def _metric_text(shape: dict[str, Any]) -> str:
     raw = str(shape.get("raw") or "").strip()
     if raw:
@@ -230,7 +309,7 @@ def _metric_text(shape: dict[str, Any]) -> str:
     return " ".join(part for part in [str(number), shape.get("unit")] if part)
 
 
-def display_text(shape: Any, compact: bool = False) -> str:
+def display_text(shape: Any, compact: bool = False, strip_sources: bool = False) -> str:
     """Flatten a tagged shape to analyst-readable text.
 
     `compact=True` yields the one-line form used by spreadsheet exports (a
@@ -238,13 +317,19 @@ def display_text(shape: Any, compact: bool = False) -> str:
     form used by the cell-detail panel, where list and kv shapes become
     markdown so `AnswerText` renders them as real bullets and lines.
 
-    Shapes never carry `[Source N]` markers — `parse_answer` strips them — so
-    neither does this text. Surfaces needing inline citation anchors read
-    `cell.answer` directly.
+    `strip_sources=True` removes `[Source N]` markers. The default keeps them,
+    because the text-bearing shapes carry markers by design and the panel's
+    markdown renderer turns them into clickable citation anchors. Destinations
+    that cannot render an anchor — spreadsheet cells, formula operands — pass
+    True.
     """
     shape = normalize_shape(shape)
     if shape is None:
         return ""
+    if strip_sources:
+        # Strip per field, before formatting — stripping the joined output
+        # would leave the separator's leading space ("Drop-dead date ; HSR").
+        return display_text(strip_shape_sources(shape), compact=compact)
     kind = shape.get("kind")
 
     if kind == "metric":
@@ -290,7 +375,8 @@ def display_text(shape: Any, compact: bool = False) -> str:
             if not key or value is None:
                 continue
             unit = str(pair.get("unit") or "").strip()
-            lines.append(f"{key}: {value}{' ' + unit if unit else ''}")
+            suffix = "" if _unit_is_redundant(value, unit) else f" {unit}"
+            lines.append(f"{key}: {value}{suffix}")
         if not lines:
             return ""
         return "; ".join(lines) if compact else "\n".join(f"- {line}" for line in lines)

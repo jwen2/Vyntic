@@ -4,7 +4,7 @@ import AnswerText from "@/components/dd/AnswerText";
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
 import type { Caveat, CellShape } from "@/lib/cellShapes";
-import { asShape, displayText } from "@/lib/cellShapes";
+import { asShape, displayText, stripSourceMarkers } from "@/lib/cellShapes";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "../theme";
 import { demoteHeadings } from "../tabular-run/format";
 
@@ -168,7 +168,7 @@ function ProseCell({
           textOverflow: density === "compact" ? "ellipsis" : undefined,
         }}
       >
-        {value.summary || value.body}
+        {stripSourceMarkers(value.summary || value.body)}
       </div>
       {value.caveats.length > 0 && (
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -254,7 +254,7 @@ function ListCell({
       {visibleItems.map((item, index) => (
         <div key={`${item.text}-${index}`} className="flex gap-1.5 text-t1 text-[11px] leading-[1.35]">
           <span style={{ color: AMBER, flexShrink: 0 }}>{value.ordered ? `${index + 1}.` : "•"}</span>
-          <span>{item.text}</span>
+          <span>{stripSourceMarkers(item.text)}</span>
         </div>
       ))}
       <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
@@ -281,9 +281,9 @@ function KVCell({
     <div className={cellShellClass}>
       {visiblePairs.map((pair, index) => (
         <div key={`${pair.key}-${index}`} style={{ display: "grid", gridTemplateColumns: "minmax(48px, 0.75fr) minmax(64px, 1fr)", gap: 8, alignItems: "baseline", fontSize: 10.5, lineHeight: 1.35 }}>
-          <span className="text-t3 overflow-hidden text-ellipsis whitespace-nowrap">{pair.key}</span>
+          <span className="text-t3 overflow-hidden text-ellipsis whitespace-nowrap">{stripSourceMarkers(pair.key)}</span>
           <span className="text-t1 text-right tabular-nums" style={{ fontFamily: "var(--font-mono, monospace)" }}>
-            {[pair.value, pair.unit].filter(Boolean).join(" ")}
+            {stripSourceMarkers([pair.value, pair.unit].filter(Boolean).join(" "))}
           </span>
         </div>
       ))}
@@ -363,7 +363,7 @@ function CaveatChip({ caveat }: { caveat: { text: string; severity: "info" | "wa
   const color = caveat.severity === "risk" ? RED : caveat.severity === "warn" ? AMBER : ACCENT;
   return (
     <span style={{ maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9.5, padding: "2px 6px", borderRadius: 4, background: tint(color, 16), color, fontWeight: 750 }}>
-      {caveat.text}
+      {stripSourceMarkers(caveat.text)}
     </span>
   );
 }
@@ -485,9 +485,10 @@ function str(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-export function stripSourceMarkers(value: string): string {
-  return value.replace(/\[Source\s+\d+\]/gi, "").trim();
-}
+// Re-exported from the shape contract so there is one implementation, not the
+// three near-copies this file, `tabular-run/format.ts`, and `cellShapes.ts`
+// used to carry independently.
+export { stripSourceMarkers } from "@/lib/cellShapes";
 
 function firstSentence(value: string): string {
   const cleaned = value.replace(/\s+/g, " ").trim();

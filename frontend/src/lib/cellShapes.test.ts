@@ -37,13 +37,41 @@ describe("displayText", () => {
       ],
     };
 
+    // The units are suppressed: "%" already carries "percent" and "$" carries
+    // "USD", so joining them verbatim read as "…of commitments percent".
     const full = displayText(shape);
-    expect(full).toBe("- Ongoing: 2.00% of commitments percent\n- One-time: $1.25 million cap USD");
+    expect(full).toBe("- Ongoing: 2.00% of commitments\n- One-time: $1.25 million cap");
     expect(full).not.toContain("{");
     expect(full).not.toContain("pairs");
     expect(displayText(shape, true)).toBe(
-      "Ongoing: 2.00% of commitments percent; One-time: $1.25 million cap USD"
+      "Ongoing: 2.00% of commitments; One-time: $1.25 million cap"
     );
+  });
+
+  it("keeps a unit the value does not already convey", () => {
+    expect(
+      displayText({
+        kind: "kv",
+        pairs: [
+          { key: "Survival", value: "18", unit: "months" },
+          { key: "Cap", value: "10", unit: "%" },
+        ],
+      })
+    ).toBe("- Survival: 18 months\n- Cap: 10 %");
+  });
+
+  it("keeps [Source N] markers by default and strips them on request", () => {
+    // Markers survive into the shape so the detail panel can render them as
+    // citation anchors; destinations that cannot (exports) pass stripSources.
+    const shape: CellShape = {
+      kind: "list",
+      ordered: false,
+      items: [{ text: "Drop-dead date [Source 1]" }, { text: "HSR failure [Source 2]" }],
+    };
+
+    expect(displayText(shape)).toBe("- Drop-dead date [Source 1]\n- HSR failure [Source 2]");
+    expect(displayText(shape, false, true)).toBe("- Drop-dead date\n- HSR failure");
+    expect(displayText(shape, true, true)).toBe("Drop-dead date; HSR failure");
   });
 
   it("renders list shapes as markdown bullets or numbers", () => {

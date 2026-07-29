@@ -90,7 +90,72 @@ export function assertNever(value: never): never {
 }
 
 export function stripSourceMarkers(value: string): string {
-  return value.replace(/\[Source\s+\d+\]/gi, "").trim();
+  return value
+    .replace(/\[Source\s+\d+\]/gi, "")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .trim();
+}
+
+// Symbols/words meaning the same as a kv pair's `unit`. The model often writes
+// the unit into the value *and* the unit field ("2.00% of commitments" + unit
+// "percent"), which reads as "…of commitments percent" when naively joined.
+const UNIT_SYNONYMS: Record<string, string[]> = {
+  percent: ["%", "percent", "pct"],
+  "%": ["%", "percent", "pct"],
+  usd: ["$", "usd", "dollar"],
+  eur: ["€", "eur", "euro"],
+  gbp: ["£", "gbp", "pound"],
+  jpy: ["¥", "jpy", "yen"],
+};
+
+/** True when the value already conveys the unit. Mirrors `_unit_is_redundant`. */
+function unitIsRedundant(value: string | number, unit: string): boolean {
+  if (!unit) return true;
+  const text = String(value).toLowerCase();
+  const key = unit.trim().toLowerCase();
+  return (UNIT_SYNONYMS[key] ?? [key]).some((token) => token && text.includes(token));
+}
+
+/**
+ * A copy of the shape with `[Source N]` markers removed from its text fields.
+ * Only the text-bearing shapes carry markers; the scalar ones are returned
+ * untouched.
+ */
+export function stripShapeSources(shape: CellShape): CellShape {
+  switch (shape.kind) {
+    case "prose":
+      return {
+        ...shape,
+        summary: stripSourceMarkers(shape.summary ?? ""),
+        body: stripSourceMarkers(shape.body ?? ""),
+        caveats: (shape.caveats ?? []).map((caveat) => ({
+          ...caveat,
+          text: stripSourceMarkers(caveat.text ?? ""),
+        })),
+      };
+    case "list":
+      return {
+        ...shape,
+        items: (shape.items ?? []).map((item) => ({
+          ...item,
+          text: stripSourceMarkers(item.text ?? ""),
+        })),
+      };
+    case "kv":
+      return {
+        ...shape,
+        pairs: (shape.pairs ?? []).map((pair) => ({
+          ...pair,
+          key: stripSourceMarkers(pair.key ?? ""),
+          value: typeof pair.value === "string" ? stripSourceMarkers(pair.value) : pair.value,
+          unit: typeof pair.unit === "string" ? stripSourceMarkers(pair.unit) : pair.unit,
+        })),
+      };
+    default:
+      return shape;
+  }
 }
 
 function metricText(shape: MetricShape): string {
@@ -109,9 +174,12 @@ function metricText(shape: MetricShape): string {
  * default yields the full form, with list/kv rendered as markdown so
  * `AnswerText` shows real bullets.
  */
-export function displayText(input: unknown, compact = false): string {
+export function displayText(input: unknown, compact = false, stripSources = false): string {
   const shape = asShape(input);
   if (!shape) return "";
+  // Strip per field, before formatting — stripping the joined output would
+  // leave the separator's leading space behind ("Drop-dead date ; HSR failure").
+  if (stripSources) return displayText(stripShapeSources(shape), compact);
   switch (shape.kind) {
     case "metric": {
       const text = metricText(shape);
@@ -147,7 +215,8 @@ export function displayText(input: unknown, compact = false): string {
         .filter((pair) => pair?.key && pair?.value != null)
         .map((pair) => {
           const unit = (pair.unit ?? "").trim();
-          return `${pair.key}: ${pair.value}${unit ? ` ${unit}` : ""}`;
+          const suffix = unitIsRedundant(pair.value, unit) ? "" : ` ${unit}`;
+          return `${pair.key}: ${pair.value}${suffix}`;
         });
       if (lines.length === 0) return "";
       return compact ? lines.join("; ") : lines.map((line) => `- ${line}`).join("\n");

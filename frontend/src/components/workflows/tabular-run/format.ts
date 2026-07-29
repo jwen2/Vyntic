@@ -1,5 +1,5 @@
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
-import { asShape, assertNever } from "@/lib/cellShapes";
+import { asShape, assertNever, stripSourceMarkers } from "@/lib/cellShapes";
 
 // ── Pure value formatting / string helpers (no React) ──
 
@@ -110,14 +110,7 @@ export function demoteHeadings(value: string): string {
   return value.replace(/^#{1,6}\s+(.+)$/gm, "**$1**");
 }
 
-export function stripSourceMarkers(value: string): string {
-  return value
-    .replace(/\[Source\s+\d+\]/gi, "")
-    .split("\n")
-    .map((line) => line.replace(/[ \t]+/g, " ").trim())
-    .join("\n")
-    .trim();
-}
+export { stripSourceMarkers } from "@/lib/cellShapes";
 
 export function formatRunDate(iso: string): string {
   const date = new Date(iso);
