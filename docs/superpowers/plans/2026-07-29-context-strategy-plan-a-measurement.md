@@ -69,7 +69,14 @@ Run from `D:\projects\Vyntic\backend`. `backend\data\` must exist. Delete `data\
 - Consumes: nothing.
 - Produces: `LLMCallMeta` gains `prompt_tokens: int`, `completion_tokens: int`, `cached_tokens: int`, all defaulting to `0`. Read via the existing `get_last_meta() -> LLMCallMeta | None`.
 
-**Background:** langchain-core >=0.3 attaches a `usage_metadata` dict to message chunks with keys `input_tokens`, `output_tokens`, `total_tokens`, and optionally `input_token_details` containing `cache_read`. **Which chunk carries it for Gemini, and whether values are cumulative or per-chunk, is not verified** — Step 6 verifies it against a live call. The implementation is defensive: take the last non-empty `usage_metadata` seen, which is correct under both cumulative and final-chunk-only semantics.
+**Background:** langchain-core >=0.3 attaches a `usage_metadata` dict to message chunks with keys `input_tokens`, `output_tokens`, `total_tokens`, and optionally `input_token_details` containing `cache_read`.
+
+> **CORRECTED DURING EXECUTION (2026-07-29).** This section originally guessed that "take the last non-empty `usage_metadata`" was safe under all semantics. **It is wrong twice**, and Step 6's live call is what caught it. Measured against `gemini-3.1-flash-lite`:
+>
+> 1. The stream's final chunk is an **empty-content terminator whose `usage_metadata` dict is present but all-zero**. That dict is truthy — it has keys — so a `if not usage: return` guard does not filter it, and it clobbers the real counts with zeros. The guard must test **token values, not dict truthiness**.
+> 2. Semantics are **mixed within one dict**: `output_tokens` is a **per-chunk increment** and must be **summed**; `input_tokens` is a **repeated total** and must use **last-non-zero-wins**. One rule for both under-reports completion tokens on every multi-chunk answer.
+>
+> `cache_read` → `cached_tokens` remains **unverified** — it was 0 on every chunk in both calibration runs because caching was inactive. Verifying it is part of Task 10. Raw per-chunk evidence is in the task-1 report.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -136,7 +143,9 @@ async def test_missing_usage_metadata_leaves_zeros(monkeypatch):
     assert meta.cached_tokens == 0
 
 
-async def test_last_usage_wins_when_multiple_chunks_report(monkeypatch):
+async def test_completion_tokens_accumulate_across_content_chunks(monkeypatch):
+    """output_tokens is a per-chunk increment, so it sums; input_tokens is a
+    repeated total, so it does not."""
     monkeypatch.setattr(
         llm,
         "get_llm",
@@ -148,7 +157,37 @@ async def test_last_usage_wins_when_multiple_chunks_report(monkeypatch):
 
     [c async for c in llm.stream_with_fallback([])]
 
-    assert llm.get_last_meta().completion_tokens == 7
+    meta = llm.get_last_meta()
+    assert meta.completion_tokens == 8   # 1 + 7, summed
+    assert meta.prompt_tokens == 10      # repeated total, not 20
+
+
+async def test_zeroed_terminator_chunk_does_not_clobber_real_usage(monkeypatch):
+    """The regression test for the bug this plan originally shipped: Gemini's
+    final empty-content chunk carries an all-zero-but-present usage_metadata
+    dict, which a dict-truthiness guard lets through."""
+    monkeypatch.setattr(
+        llm,
+        "get_llm",
+        lambda model=None: FakeLLM([
+            _chunk("real answer", {
+                "input_tokens": 7,
+                "output_tokens": 7,
+                "input_token_details": {"cache_read": 0},
+            }),
+            _chunk("", {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "input_token_details": {"cache_read": 0},
+            }),
+        ]),
+    )
+
+    [c async for c in llm.stream_with_fallback([])]
+
+    meta = llm.get_last_meta()
+    assert meta.prompt_tokens == 7
+    assert meta.completion_tokens == 7
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -180,20 +219,33 @@ class LLMCallMeta:
 
 In `backend/app/agents/llm.py`, add this helper above `stream_with_fallback`:
 
+This is the **corrected** body (see the CORRECTED note above; the docstring shipped in `llm.py` carries the full measured detail):
+
 ```python
 def _apply_usage(meta: LLMCallMeta, chunk: object) -> None:
-    """Copy langchain usage_metadata off a chunk into meta, if present.
+    """Copy langchain usage_metadata off a chunk into meta.
 
-    Last non-empty wins: correct whether the provider reports cumulative
-    counts on every chunk or a single total on the final one.
+    Guards on token VALUES, not dict truthiness: the stream's final
+    terminator chunk carries a present-but-all-zero usage_metadata dict
+    that would otherwise clobber the real counts.
+
+    input_tokens  -> prompt_tokens:     repeated total, last-non-zero wins
+    output_tokens -> completion_tokens: per-chunk increment, SUMMED
+    cache_read    -> cached_tokens:     assumed last-non-zero; UNVERIFIED
     """
     usage = getattr(chunk, "usage_metadata", None)
     if not usage:
         return
-    meta.prompt_tokens = usage.get("input_tokens", 0) or 0
-    meta.completion_tokens = usage.get("output_tokens", 0) or 0
-    details = usage.get("input_token_details") or {}
-    meta.cached_tokens = details.get("cache_read", 0) or 0
+    input_tokens = usage.get("input_tokens") or 0
+    output_tokens = usage.get("output_tokens") or 0
+    cache_read = (usage.get("input_token_details") or {}).get("cache_read") or 0
+
+    if input_tokens:
+        meta.prompt_tokens = input_tokens
+    if output_tokens:
+        meta.completion_tokens += output_tokens
+    if cache_read:
+        meta.cached_tokens = cache_read
 ```
 
 Then add `_apply_usage(meta, chunk)` immediately before each `yield chunk` in `stream_with_fallback` — both the primary loop (line ~91-93) and the fallback loop (line ~104-105):
