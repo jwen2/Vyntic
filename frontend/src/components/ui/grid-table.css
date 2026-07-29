@@ -5,11 +5,19 @@
    project has no tailwind-merge. A composed sticky/zebra/selected layer
    would hit that hazard head-on.
 
-   This file defines the layer only. Nothing consumes it yet — Doc Matrix and
-   Tabular Run migrate onto it in later tasks. Geometry values are Tabular
-   Run's current values (the chosen target for both grids); `.data-table` in
-   ../../index.css stays at its own `9px 10px` read-only-table density and is
-   not reconciled with this file.
+   Both grids consume this file (`docmatrix/DocMatrixTable.tsx`,
+   `docmatrix/DocMatrixCell.tsx`, `workflows/tabular-run/styles.ts` and the two
+   `ColResizeHandle`s), so a change here moves both at once. Geometry values are
+   Tabular Run's pre-migration values, adopted as the target for both grids;
+   `.data-table` in ../../index.css stays at its own `9px 10px` read-only-table
+   density and is deliberately not reconciled with this file.
+
+   The whole design rests on one ordering fact: main.tsx imports index.css
+   (which pulls in `@tailwind utilities`) BEFORE this file, so where a class
+   here and a Tailwind utility on the same element declare the same property at
+   equal specificity, THIS FILE WINS. That is why the `--chrome` variants exist
+   — a shared class must declare nothing its consumer needs to override
+   conditionally. Verified in the built bundle, not just asserted.
 
    Selection tint and other tint()-derived washes have no CSS token and stay
    inline at each call site (project convention — see
@@ -63,8 +71,11 @@
 /* Body-cell chrome minus padding and background — a standalone alternative
    to `.grid-table__td`, not a modifier meant to compose with it (applying
    both would fight over padding/background with no winner defined by
-   specificity). For cells that paint their own padding/background in the
-   same class string as this one — Tabular Run's `RunCell`/`ValueCell` hosts
+   specificity). Both grids use it, for the same reason from opposite ends:
+   Doc Matrix's cells supply their own `p-3` and a conditional
+   `group-hover:bg-[var(--accent-tint)]`, and Tabular Run's supply `padding: 0`
+   and a selection wash. For cells that paint their own padding/background in
+   the same class string as this one — Tabular Run's `RunCell`/`ValueCell` hosts
    a `tint(ACCENT, n)` selection wash and an absolutely positioned retry
    button, and needs `padding: 0` plus a conditional zebra/surface/selected
    background that this class must not fight over cascade order to win.
