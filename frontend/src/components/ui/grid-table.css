@@ -24,7 +24,23 @@
    docs/todo/2026-07-24-design-system-primitives.md, "Status hues stay
    inline"); there is no `.grid-table__cell--selected` class here. */
 
-.grid-table__th {
+/* ── Header cells ──────────────────────────────────────────────────────────
+   `.grid-table__th` and `.grid-table__th--chrome` are the same cell; the
+   variant just omits `background`. They share one rule rather than repeating
+   nine declarations, so a geometry edit necessarily lands on both grids at
+   once — two blocks drifting apart is the failure this whole layer exists to
+   prevent. The selectors are listed, not nested, so each keeps its own (0,1,0)
+   specificity exactly as when they were separate blocks.
+
+   Consumers: Tabular Run takes `.grid-table__th` (styles.ts). Doc Matrix takes
+   `--chrome`, because it swaps header background conditionally in the same
+   className string — sort-active/drag-over accent tint vs. the default
+   grid-header wash, plus a hover tint on the Document corner header — and per
+   the import-order fact at the top of this file, a baked `background` here
+   would beat those Tailwind classes rather than lose to them. The two are
+   alternatives, never composed. */
+.grid-table__th,
+.grid-table__th--chrome {
   padding: 7px 12px 7px 9px;
   /* Deliberately NOT `font: var(--text-meta)` (family/size/weight/line-height
      shorthand). Longhand family/size/weight only, line-height omitted on
@@ -46,80 +62,54 @@
   font-size: 11px;
   font-weight: 400;
   color: var(--text-3);
-  background: var(--grid-header);
   border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
   position: relative;
 }
 
-.grid-table__td {
-  padding: 8px 10px;
+/* The single property that separates the two header classes. */
+.grid-table__th {
+  background: var(--grid-header);
+}
+
+/* ── Body cells ────────────────────────────────────────────────────────────
+   Same arrangement as the header pair above: `.grid-table__td` and
+   `.grid-table__td--chrome` share what they agree on, then each adds what it
+   doesn't. `--chrome` deliberately omits BOTH `padding` and `background`,
+   because both grids override those in the same className string —
+   Tabular Run's `RunCell`/`ValueCell` needs `padding: 0` plus a conditional
+   zebra/surface/`tint(ACCENT, n)` selection background and hosts an absolutely
+   positioned retry button; Doc Matrix's cells supply their own `p-3` and a
+   conditional `group-hover:bg-[var(--accent-tint)]`. Per the import-order fact
+   at the top of this file, anything baked in here would beat those overrides
+   rather than lose to them, so the only safe move is to declare nothing.
+
+   The pair are alternatives, never composed — applying both would leave
+   `vertical-align` decided by source order rather than by intent. */
+.grid-table__td,
+.grid-table__td--chrome {
   height: 38px;
   color: var(--text-1);
   border-bottom: 1px solid var(--border-light);
-  vertical-align: middle;
+}
+
+.grid-table__td {
+  padding: 8px 10px;
   background: var(--surface);
+  vertical-align: middle;
+}
+
+/* `RunCell`'s content needs top-alignment for its retry-button anchor, and
+   Doc Matrix's populated cells were already `align-top` pre-migration. */
+.grid-table__td--chrome {
+  vertical-align: top;
 }
 
 /* Zebra striping — overrides the default surface background above. Must
    stay after `.grid-table__td` in this file: same specificity, later wins. */
 .grid-table__td--zebra {
   background: var(--zebra);
-}
-
-/* Body-cell chrome minus padding and background — a standalone alternative
-   to `.grid-table__td`, not a modifier meant to compose with it (applying
-   both would fight over padding/background with no winner defined by
-   specificity). Both grids use it, for the same reason from opposite ends:
-   Doc Matrix's cells supply their own `p-3` and a conditional
-   `group-hover:bg-[var(--accent-tint)]`, and Tabular Run's supply `padding: 0`
-   and a selection wash. For cells that paint their own padding/background in
-   the same class string as this one — Tabular Run's `RunCell`/`ValueCell` hosts
-   a `tint(ACCENT, n)` selection wash and an absolutely positioned retry
-   button, and needs `padding: 0` plus a conditional zebra/surface/selected
-   background that this class must not fight over cascade order to win.
-   `.grid-table__td`'s baked-in padding/background would beat a same-string
-   Tailwind override by stylesheet order (this file is imported after
-   Tailwind's utilities in main.tsx), not lose to it — see
-   `workflows/tabular-run/styles.ts`'s file comment for the general hazard.
-   This class only ever sets properties `.grid-table__td` also sets to the
-   same value (border-bottom, color, height) plus `vertical-align: top`
-   (`.grid-table__td` uses `middle`; `RunCell`'s content needs top-alignment
-   for its retry-button anchor), so there's nothing left to fight over. */
-.grid-table__td--chrome {
-  height: 38px;
-  color: var(--text-1);
-  border-bottom: 1px solid var(--border-light);
-  vertical-align: top;
-}
-
-/* Doc Matrix header chrome — like `.grid-table__th` but with no baked
-   `background`. Doc Matrix's headers set background conditionally (a
-   sort-active / drag-over accent tint vs. the default grid-header wash, plus
-   a hover tint on the Document corner header) via Tailwind classes in the
-   same className string. Baking background into a shared rule the way
-   `.grid-table__th` does would beat those Tailwind classes by stylesheet
-   order (this file loads after Tailwind's utilities in main.tsx) — the same
-   hazard `.grid-table__td--chrome` exists to avoid for body cells; see that
-   class's comment above for the general mechanism. Standalone alternative to
-   `.grid-table__th`, not a modifier meant to compose with it.
-
-   Keep the font declarations here as longhands with line-height omitted, for
-   exactly the reason spelled out on `.grid-table__th` above — collapsing them
-   into `font: var(--text-meta)` would pin line-height to a literal 16px and
-   inflate header row height via smaller-font descendants. Measured here too:
-   line-height stayed 16.5px across this migration. */
-.grid-table__th--chrome {
-  padding: 7px 12px 7px 9px;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-3);
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
-  position: relative;
 }
 
 /* Sticky-top-only header variant. Doc Matrix's query column headers pin to
@@ -132,7 +122,7 @@
    `--chrome`'s `relative` to `sticky` and pins `top: 0`; `left` is
    deliberately untouched so the Document corner header can add its own
    `left-0` and get sticky-on-both-axes without a third variant. Must be
-   written after `--th--chrome` in this file so it wins the `position` tie by
+   written after the shared header rule above so it wins the `position` tie by
    source order (both are single classes, equal 0,1,0 specificity). */
 .grid-table__th--sticky-top {
   position: sticky;
