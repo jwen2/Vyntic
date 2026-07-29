@@ -9,6 +9,7 @@ summed; and the stream's final (empty-content) terminator chunk carries
 a usage_metadata dict too, with every value zeroed, which must not
 clobber real values already captured.
 """
+import asyncio
 from types import SimpleNamespace
 
 from app.agents import llm
@@ -121,3 +122,39 @@ async def test_zeroed_terminator_chunk_does_not_clobber_real_usage(monkeypatch):
     meta = llm.get_last_meta()
     assert meta.prompt_tokens == 7
     assert meta.completion_tokens == 7
+
+
+async def test_call_context_defaults_to_unknown():
+    assert llm.get_call_context().surface == "unknown"
+    assert llm.get_call_context().deal_id is None
+
+
+async def test_call_context_sets_and_restores():
+    with llm.llm_call_context(surface="tabular_cell", deal_id="d1", run_id="r1", cell_id="c1"):
+        ctx = llm.get_call_context()
+        assert ctx.surface == "tabular_cell"
+        assert ctx.deal_id == "d1"
+        assert ctx.run_id == "r1"
+        assert ctx.cell_id == "c1"
+    assert llm.get_call_context().surface == "unknown"
+
+
+async def test_call_context_is_task_local():
+    """Concurrent cells must not see each other's attribution."""
+    seen = {}
+    start_b = asyncio.Event()
+
+    async def task_a():
+        with llm.llm_call_context(surface="chat_stream", deal_id="deal-a"):
+            start_b.set()
+            await asyncio.sleep(0.01)
+            seen["a"] = llm.get_call_context().deal_id
+
+    async def task_b():
+        await start_b.wait()
+        with llm.llm_call_context(surface="tabular_cell", deal_id="deal-b"):
+            seen["b"] = llm.get_call_context().deal_id
+
+    await asyncio.gather(task_a(), task_b())
+
+    assert seen == {"a": "deal-a", "b": "deal-b"}

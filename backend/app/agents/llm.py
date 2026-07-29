@@ -4,6 +4,7 @@ Shared LLM helper with automatic fallback from primary to backup model.
 import logging
 import os
 import time
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -29,6 +30,48 @@ class LLMCallMeta:
 # ContextVar — concurrent streams (cells, doc matrix, chat) must not stomp
 # each other's model/fallback/duration attribution.
 _last_meta: ContextVar[LLMCallMeta | None] = ContextVar("llm_last_meta", default=None)
+
+
+@dataclass(frozen=True)
+class LLMCallContext:
+    """Who is making this LLM call — for cost attribution.
+
+    Set at each calling surface via `llm_call_context`; read at record time.
+    Task-local like `_last_meta`, so concurrent cells attribute correctly.
+    """
+    surface: str = "unknown"
+    deal_id: str | None = None
+    run_id: str | None = None
+    cell_id: str | None = None
+
+
+_call_context: ContextVar[LLMCallContext] = ContextVar(
+    "llm_call_context", default=LLMCallContext()
+)
+
+
+def get_call_context() -> LLMCallContext:
+    return _call_context.get()
+
+
+@contextmanager
+def llm_call_context(
+    *,
+    surface: str,
+    deal_id: str | None = None,
+    run_id: str | None = None,
+    cell_id: str | None = None,
+):
+    """Attribute every LLM call made inside this block to `surface`."""
+    token = _call_context.set(
+        LLMCallContext(
+            surface=surface, deal_id=deal_id, run_id=run_id, cell_id=cell_id
+        )
+    )
+    try:
+        yield
+    finally:
+        _call_context.reset(token)
 
 
 class LLMConfigurationError(RuntimeError):
