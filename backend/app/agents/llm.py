@@ -100,21 +100,41 @@ def get_llm(model: str | None = None) -> ChatGoogleGenerativeAI:
     )
 
 
+def _record(meta: LLMCallMeta) -> None:
+    """Persist this call's usage. Deferred import breaks the llm <-> metrics cycle."""
+    try:
+        from app.services import llm_metrics
+
+        llm_metrics.record_call(meta, _call_context.get())
+    except Exception:
+        logger.exception("LLM metrics recording failed")
+
+
 async def invoke_with_fallback(messages: list[BaseMessage]) -> str:
     """Invoke the primary model; fall back to backup on rate-limit or error."""
+    meta = LLMCallMeta()
+    t0 = time.monotonic()
     try:
-        llm = get_llm(settings.gemini_model)
-        response = await llm.ainvoke(messages)
-        return response.content
-    except LLMConfigurationError:
-        raise
-    except Exception as e:
-        if settings.gemini_fallback_model:
+        try:
+            meta.model_used = settings.gemini_model
+            llm = get_llm(settings.gemini_model)
+            response = await llm.ainvoke(messages)
+        except LLMConfigurationError:
+            raise
+        except Exception as e:
+            if not settings.gemini_fallback_model:
+                raise
             logger.warning(f"Primary model failed ({e}), falling back to {settings.gemini_fallback_model}")
+            meta.model_used = settings.gemini_fallback_model
+            meta.fallback = True
+            meta.error = str(e)
             llm = get_llm(settings.gemini_fallback_model)
             response = await llm.ainvoke(messages)
-            return response.content
-        raise
+        _apply_usage(meta, response)
+        return response.content
+    finally:
+        meta.duration_ms = int((time.monotonic() - t0) * 1000)
+        _record(meta)
 
 
 def _apply_usage(meta: LLMCallMeta, chunk: object) -> None:
@@ -195,3 +215,4 @@ async def stream_with_fallback(messages: list[BaseMessage]):
     finally:
         meta.duration_ms = int((time.monotonic() - t0) * 1000)
         _last_meta.set(meta)
+        _record(meta)

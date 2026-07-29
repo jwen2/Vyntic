@@ -13,6 +13,7 @@ import asyncio
 from types import SimpleNamespace
 
 from app.agents import llm
+from app.services import llm_metrics
 
 
 class FakeLLM:
@@ -171,3 +172,35 @@ async def test_call_context_restores_after_exception():
     except ValueError:
         pass
     assert llm.get_call_context().surface == "unknown"
+
+
+async def test_stream_records_a_metrics_row(monkeypatch, clear_store):
+    monkeypatch.setattr(
+        llm,
+        "get_llm",
+        lambda model=None: FakeLLM([
+            _chunk("hi", {"input_tokens": 500, "output_tokens": 12}),
+        ]),
+    )
+
+    with llm.llm_call_context(surface="chat_stream", deal_id="deal-9", run_id="run-9"):
+        [c async for c in llm.stream_with_fallback([])]
+
+    summary = llm_metrics.summarize("deal-9")
+    assert summary.call_count == 1
+    assert summary.prompt_tokens == 500
+    assert summary.completion_tokens == 12
+    assert summary.by_surface == {"chat_stream": 1}
+
+
+async def test_recording_failure_does_not_break_the_stream(monkeypatch, clear_store):
+    monkeypatch.setattr(llm, "get_llm", lambda model=None: FakeLLM([_chunk("ok")]))
+
+    def boom(meta, ctx):
+        raise RuntimeError("metrics exploded")
+
+    monkeypatch.setattr(llm_metrics, "record_call", boom)
+
+    tokens = [c.content async for c in llm.stream_with_fallback([])]
+
+    assert tokens == ["ok"]
