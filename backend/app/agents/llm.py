@@ -77,25 +77,28 @@ async def invoke_with_fallback(messages: list[BaseMessage]) -> str:
 def _apply_usage(meta: LLMCallMeta, chunk: object) -> None:
     """Copy langchain usage_metadata off a chunk into meta.
 
-    Measured live against gemini-3.1-flash-lite (two calls: a short reply and
-    a ~200-word reply spanning 12 chunks) — usage_metadata is reported as
-    PER-CHUNK INCREMENTS, not a cumulative running total:
-      - input_tokens (prompt cost) is reported once, on the first
-        content-bearing chunk, and is 0 on every subsequent chunk.
-      - output_tokens (completion cost) is a small non-cumulative count on
-        EVERY content chunk (e.g. 15, 24, 28, 28, 26, ... across 11 chunks)
-        and must be SUMMED across the stream to get the true total.
-      - The stream's final chunk is an empty-content terminator that also
-        carries a usage_metadata dict — but with every value zeroed. That
-        dict is truthy (it has keys), so a guard of `if not usage: return`
-        does NOT filter it out and it clobbers real values with zeros. The
-        guard here checks individual token counts, not dict truthiness.
+    Measured live against gemini-3.1-flash-lite (see task-1-report.md for
+    the raw per-chunk output) — usage_metadata is reported as PER-CHUNK
+    INCREMENTS, not a cumulative running total, and the stream's final
+    chunk is an empty-content terminator whose usage_metadata dict is
+    present but has every value zeroed; that dict is truthy (it has keys),
+    so a guard of `if not usage: return` does NOT filter it out and it
+    clobbers real values with zeros. The guard here checks individual
+    token counts, not dict truthiness.
 
-    prompt_tokens and cached_tokens: last NON-ZERO value wins (each is
-    reported once per call; zeros from the terminator or repeat chunks are
-    ignored rather than overwriting a real value).
-    completion_tokens: accumulated (summed) across every chunk that reports
-    a non-zero output_tokens.
+    - input_tokens -> prompt_tokens: MEASURED (2 live runs). Reported once,
+      on the first content-bearing chunk, and 0 on every chunk after.
+      Captured as last-non-zero-wins.
+    - output_tokens -> completion_tokens: MEASURED (12-chunk run). A small
+      non-cumulative count on every content chunk. ACCUMULATED (summed)
+      across the stream to get the true total.
+    - input_token_details.cache_read -> cached_tokens: NOT MEASURED. Both
+      calibration runs had caching inactive, so cache_read was 0 on every
+      chunk in both — last-non-zero-wins here is an assumption by analogy
+      with input_tokens, not an observation. It could plausibly behave like
+      output_tokens (per-chunk increments) instead. Must be verified with
+      caching actually enabled before any caching measurement (Plan B)
+      relies on this field — that verification is Task 10's job.
     """
     usage = getattr(chunk, "usage_metadata", None)
     if not usage:
