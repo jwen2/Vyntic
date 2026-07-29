@@ -337,19 +337,9 @@ function ColResizeHandle({
       }}
       draggable={false}
       title="Drag to resize"
-      className="hover:bg-blue-400/40"
-      style={{
-        position: "absolute",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: 6,
-        cursor: "col-resize",
-        userSelect: "none",
-        background: active ? "var(--accent)" : "transparent",
-        transition: "background 120ms",
-        zIndex: 5,
-      }}
+      className={`grid-table__resize-handle hover:bg-[var(--accent-tint-border)]${
+        active ? " grid-table__resize-handle--active" : ""
+      }`}
     />
   );
 }

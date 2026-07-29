@@ -18,7 +18,25 @@
 
 .grid-table__th {
   padding: 7px 12px 7px 9px;
-  font: var(--text-meta);
+  /* Deliberately NOT `font: var(--text-meta)` (family/size/weight/line-height
+     shorthand). Longhand family/size/weight only, line-height omitted on
+     purpose: `--text-meta`'s shorthand pins line-height to a literal 16px,
+     which — because line-height set as a <length> inherits as that literal
+     value, not a ratio — forces every smaller-font descendant (the 8px
+     format badge, the 9px column-prompt subtitle in Tabular Run's header)
+     up to a 16px line box instead of their own natural ~1.5x line-height.
+     That inflated the header row height by 4px end to end (measured: 47px
+     -> 51px) when this class first migrated Tabular Run onto it — see
+     task-2-report.md in .superpowers/sdd/2026-07-27-interactive-grid-chrome/
+     for the full measurement. Omitting line-height here leaves it unset, so
+     it inherits the ambient unitless `line-height: 1.5` from Tailwind's
+     preflight (index.css has no override), which — being unitless — keeps
+     recomputing per descendant's own font-size, matching what both grids'
+     pre-migration header markup already relied on. Do not add line-height
+     back without re-measuring header row height on both grids. */
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
   color: var(--text-3);
   background: var(--grid-header);
   border-bottom: 1px solid var(--border);
