@@ -53,6 +53,18 @@ From `docs/assessments/2026-07-07-frontend-audit.md` (audited on `main` @ `19e6d
 | DS-Card | `2026-07-25-card-primitive.md` | `<Card level tone>` primitive (`components/ui/`) + `--card-hero-shadow` token; migrate the 18 card containers in `brief/` | FE5.6 | **done** — branch `feat/design-system-card`, spec `docs/superpowers/specs/2026-07-25-card-primitive-design.md`. All 18 `brief/` card containers migrated (8 hero/panel + 10 inner); the 14 unchanged sites proven byte-identical via computed-style A/B diff (30/30 checks, light+dark, zero mismatches) and the 6 spec-agreed visual deltas (`BriefStatCard` r20→18, `EditableField` r16→18 + pad 10→12, `DiffRow` pad 10→12, `EmptyBrief` pad 24→20 + gains the hero shadow, `BriefHeader` shadow moved to a token) screenshotted before/after and confirmed correct in both themes. `tsc`/182 tests/build/eslint all green. Brief-scoped by decision: the app's other surfaces are a tighter radius geometry (6–16px vs 18–28px) and unifying them is a look decision, not a refactor |
 | DS-Grid | `2026-07-27-interactive-grid-chrome.md` | Extract shared interactive-grid chrome for Doc Matrix and Tabular Run while preserving sticky columns, resize handles, reorder, selection, retry, streaming, and memoization behavior | DS app primitive rollout | **done** — branch `feat/ds-grid-chrome`, all 5 checkboxes closed. Both grids on `components/ui/grid-table.css`; the one approved visual delta was Doc Matrix header padding `p-3` → `7px 12px 7px 9px` (header row 61.9px → 51.9px). Measured, light+dark: header font/line-height and sticky position/z-index unchanged, body row heights byte-identical. Doc Matrix's resize handle also gains a hover tint it never had (its inline `style` made the `hover:` class inert). Three body cells stay unmigrated by design — no `align-top`, so the shared `vertical-align: top` would flip them. This closes the UI fidelity work |
 
+## Context strategy (hybrid full-context / RAG)
+
+Spec: `docs/superpowers/specs/2026-07-29-hybrid-context-strategy-design.md`. Implements **Plan 5 Phase B** and **decouples it from the Plan 4 Postgres gate** — the strategy interface and lazy embedding need nothing from Postgres, so this track is executable on the current SQLite + Chroma stack.
+
+| # | Plan | Scope | Depends on | Status |
+|---|---|---|---|---|
+| CS-A | `docs/superpowers/plans/2026-07-29-context-strategy-plan-a-measurement.md` | Per-call token accounting (`llm_calls` table, attribution ContextVar, cost route) + citation-accuracy eval harness (`backend/evals/`) + Gemini caching spike | — | not started |
+| CS-B | not yet written | Cost: context caching, column batching **only if** the caching residual justifies breaking the per-cell claim/SSE/retry model | CS-A (spike answer + baseline) | blocked on CS-A |
+| CS-C | not yet written | Capacity: `ContextSelection`, fail-loud coverage, lazy + batch embedding, the per-document allocator, `CONTEXT_STRATEGY` enum | CS-A (eval), CS-B | blocked on CS-A |
+
+CS-B and CS-C are deliberately unwritten: CS-B's shape depends on the spike's answer, and CS-C's thresholds are only tunable against CS-A's eval.
+
 ## Suggested order
 1. Resolve **Plan 4 D1 tenancy decision**, then implement **Plan 4** → 2. **Plan 5**.
 Frontend track (parallel): **F1 + F2 done** → **F3** (resolve D1–D3 first; align F3.4 with Plan 2).
