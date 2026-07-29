@@ -337,9 +337,12 @@ function ColResizeHandle({
       }}
       draggable={false}
       title="Drag to resize"
-      className={`grid-table__resize-handle hover:bg-[var(--accent-tint-border)]${
-        active ? " grid-table__resize-handle--active" : ""
-      }`}
+      // Hover and active-drag backgrounds both live in grid-table.css, not as
+      // a Tailwind `hover:` utility here — see that file's comment on
+      // `.grid-table__resize-handle:hover` / `--active` for why: a Tailwind
+      // hover utility class would outrank a single `--active` class by
+      // specificity and paint over the drag-active accent mid-drag.
+      className={`grid-table__resize-handle${active ? " grid-table__resize-handle--active" : ""}`}
     />
   );
 }

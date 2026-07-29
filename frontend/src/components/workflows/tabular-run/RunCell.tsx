@@ -44,7 +44,7 @@ function ValueCellImpl({
   return (
     <td
       onClick={() => onSelectKey(cellKeyStr)}
-      className={`group/cell ${cellBodyChromeClass} p-0 text-[11px] leading-[1.2] cursor-pointer relative align-top ${
+      className={`group/cell ${cellBodyChromeClass} p-0 text-[11px] leading-[1.2] cursor-pointer relative ${
         selected ? "" : zebra ? "bg-zebra" : "bg-surface"
       }`}
       // The selection tint is a color-mix wash over the accent, not a surface

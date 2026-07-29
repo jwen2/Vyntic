@@ -60,6 +60,29 @@
   background: var(--zebra);
 }
 
+/* Body-cell chrome minus padding and background — a standalone alternative
+   to `.grid-table__td`, not a modifier meant to compose with it (applying
+   both would fight over padding/background with no winner defined by
+   specificity). For cells that paint their own padding/background in the
+   same class string as this one — Tabular Run's `RunCell`/`ValueCell` hosts
+   a `tint(ACCENT, n)` selection wash and an absolutely positioned retry
+   button, and needs `padding: 0` plus a conditional zebra/surface/selected
+   background that this class must not fight over cascade order to win.
+   `.grid-table__td`'s baked-in padding/background would beat a same-string
+   Tailwind override by stylesheet order (this file is imported after
+   Tailwind's utilities in main.tsx), not lose to it — see
+   `workflows/tabular-run/styles.ts`'s file comment for the general hazard.
+   This class only ever sets properties `.grid-table__td` also sets to the
+   same value (border-bottom, color, height) plus `vertical-align: top`
+   (`.grid-table__td` uses `middle`; `RunCell`'s content needs top-alignment
+   for its retry-button anchor), so there's nothing left to fight over. */
+.grid-table__td--chrome {
+  height: 38px;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: top;
+}
+
 /* Sticky/pinned "document" column — header and body variants. Each is
    standalone (position + border + z-index + shadow); background still comes
    from `.grid-table__th` / `.grid-table__td` (+ `--zebra`) so it composes
@@ -81,8 +104,10 @@
 }
 
 /* Column resize handle — thin draggable strip on a header cell's right edge.
-   Hover treatment is intentionally not included here: the two grids
-   currently disagree on it (see task-1-report.md). */
+   Only Tabular Run consumes this class so far (Doc Matrix's own resize
+   handle is untouched pending Task 3), so the hover rule below only affects
+   Tabular Run today — it isn't yet a "pick one behavior for both grids"
+   decision. */
 .grid-table__resize-handle {
   position: absolute;
   top: 0;
@@ -96,6 +121,23 @@
   z-index: 5;
 }
 
-.grid-table__resize-handle--active {
+/* Hover and active-drag both paint `background`, and specificity alone
+   doesn't order them: a Tailwind `hover:` utility class is one class + one
+   pseudo-class (0,2,0), which beats a single `--active` modifier class
+   (0,1,0) — so a plain `hover:bg-[...]` utility on the consumer would paint
+   over the drag-active accent whenever the pointer sits on the handle at
+   drag start (very likely, since the mousedown that starts a drag has to
+   land on the handle). Both rules live here instead, in the same file, so
+   the active/hover precedence is a single explicit decision instead of
+   depending on cross-file import order: `--active` is written as a
+   two-class compound selector to match hover's (0,2,0) specificity, and
+   placed after `:hover` in this file so it wins the tie by source order —
+   both facts are true unconditionally within this one stylesheet, not
+   contingent on how main.tsx orders its CSS imports. */
+.grid-table__resize-handle:hover {
+  background: var(--accent-tint-border);
+}
+
+.grid-table__resize-handle.grid-table__resize-handle--active {
   background: var(--accent);
 }
