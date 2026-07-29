@@ -20,6 +20,9 @@ class LLMCallMeta:
     fallback: bool = False
     error: str | None = None
     duration_ms: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    cached_tokens: int = 0
 
 
 # Metadata for the most recent stream call, isolated per asyncio task via
@@ -71,6 +74,21 @@ async def invoke_with_fallback(messages: list[BaseMessage]) -> str:
         raise
 
 
+def _apply_usage(meta: LLMCallMeta, chunk: object) -> None:
+    """Copy langchain usage_metadata off a chunk into meta, if present.
+
+    Last non-empty wins: correct whether the provider reports cumulative
+    counts on every chunk or a single total on the final one.
+    """
+    usage = getattr(chunk, "usage_metadata", None)
+    if not usage:
+        return
+    meta.prompt_tokens = usage.get("input_tokens", 0) or 0
+    meta.completion_tokens = usage.get("output_tokens", 0) or 0
+    details = usage.get("input_token_details") or {}
+    meta.cached_tokens = details.get("cache_read", 0) or 0
+
+
 async def stream_with_fallback(messages: list[BaseMessage]):
     """Stream from the primary model; fall back to backup on pre-token error.
 
@@ -90,6 +108,7 @@ async def stream_with_fallback(messages: list[BaseMessage]):
         llm = get_llm(settings.gemini_model)
         async for chunk in llm.astream(messages):
             yielded_any = True
+            _apply_usage(meta, chunk)
             yield chunk
     except LLMConfigurationError:
         raise
@@ -102,6 +121,7 @@ async def stream_with_fallback(messages: list[BaseMessage]):
         meta.error = str(e)
         llm = get_llm(settings.gemini_fallback_model)
         async for chunk in llm.astream(messages):
+            _apply_usage(meta, chunk)
             yield chunk
     finally:
         meta.duration_ms = int((time.monotonic() - t0) * 1000)
