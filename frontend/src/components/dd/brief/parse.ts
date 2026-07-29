@@ -5,6 +5,7 @@
 // documented quirks — see that file before changing anything.
 
 import type { Finding } from "../types";
+import { asShape } from "@/lib/cellShapes";
 import {
   METRIC_KEYWORDS,
   VALUE_PATTERN,
@@ -60,9 +61,9 @@ export function extractFirstSourceIdx(text: string): number | undefined {
  * panel falls back to rendering `answer` as markdown.
  */
 export function pairsToFields(formatted: QuestionResult["formatted"], preferredLabels: string[]): BriefField[] {
-  if (!formatted || typeof formatted !== "object" || Array.isArray(formatted)) return [];
-  const pairs = (formatted as { pairs?: Array<{ key?: string; value?: string | number; unit?: string | null }> }).pairs;
-  if (!Array.isArray(pairs)) return [];
+  const shape = asShape(formatted);
+  if (shape?.kind !== "kv") return [];
+  const pairs = shape.pairs ?? [];
   const allow = new Set(preferredLabels.map((l) => l.toLowerCase()));
   const fields: BriefField[] = [];
   const seen = new Set<string>();
@@ -341,15 +342,13 @@ export function deriveActions(
   // Prefer the list cell's typed items; fall back to bullet-parsing the raw
   // answer for old runs whose cells have no answer_formatted.
   let explicit: ThesisBullet[] = [];
-  if (formatted && typeof formatted === "object" && !Array.isArray(formatted)) {
-    const items = (formatted as { items?: Array<{ text?: string } | string> }).items;
-    if (Array.isArray(items)) {
-      for (const item of items) {
-        const rawText = typeof item === "string" ? item : item?.text ?? "";
-        const sourceIdx = extractFirstSourceIdx(rawText);
-        const text = rawText.replace(/\[Source\s+\d+\]/gi, "").replace(/\s+/g, " ").trim();
-        if (text && !/^not\s+found$/i.test(text)) explicit.push({ text, sourceIdx });
-      }
+  const shape = asShape(formatted);
+  if (shape?.kind === "list") {
+    for (const item of shape.items ?? []) {
+      const rawText = item?.text ?? "";
+      const sourceIdx = extractFirstSourceIdx(rawText);
+      const text = rawText.replace(/\[Source\s+\d+\]/gi, "").replace(/\s+/g, " ").trim();
+      if (text && !/^not\s+found$/i.test(text)) explicit.push({ text, sourceIdx });
     }
   }
   if (explicit.length === 0) explicit = extractBulletsWithSources(answer);

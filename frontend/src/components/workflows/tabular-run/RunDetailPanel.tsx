@@ -3,7 +3,7 @@ import type { TabularCell, WorkflowColumn, WorkflowRun } from "@/lib/workflows";
 import AnswerText from "@/components/dd/AnswerText";
 import CitationSnippet from "@/components/dd/CitationSnippet";
 import { ACCENT, AMBER, RED, VIOLET, tint } from "../theme";
-import { proseValue } from "../cells/CellRenderer";
+import { asShape } from "@/lib/cellShapes";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { RetryIcon } from "./parts";
 import { demoteHeadings, formatRunDate } from "./format";
@@ -32,22 +32,16 @@ export default function RunDetailPanel({
   retrying: boolean;
 }) {
   const citations = selectedCell?.citations ?? [];
-  // Prose-shaped columns carry a structured {summary, body, caveats} payload,
-  // so their raw `answer` is a JSON blob. Render the parsed body (and surface
-  // the caveats) instead of dumping the JSON into the panel. Falls back to
-  // parsing `answer` itself when the formatted field isn't populated.
+  // Every JSON-directive column (prose/list/kv) has a JSON blob for its raw
+  // `answer`, so the panel renders `answer_display` — the server-flattened
+  // text — and only falls back to `answer` for columns with no shape at all
+  // (text/markdown). This used to special-case prose alone, which is why kv
+  // cells rendered their raw `{"pairs": […]}` payload here.
   const rawAnswer = selectedCell?.answer ?? "";
-  let shaped: unknown = selectedCell?.answer_formatted;
-  if (!isProseShaped(shaped) && rawAnswer.trim().startsWith("{")) {
-    try {
-      shaped = JSON.parse(rawAnswer);
-    } catch {
-      /* not JSON — fall through to the raw answer */
-    }
-  }
-  const prose = isProseShaped(shaped) ? proseValue(shaped, rawAnswer) : null;
-  const answer = demoteHeadings(prose ? prose.body || prose.summary : rawAnswer).trim();
-  const caveats = prose?.caveats ?? [];
+  const shape = asShape(selectedCell?.answer_formatted);
+  const displayed = selectedCell?.answer_display?.trim() || rawAnswer;
+  const answer = demoteHeadings(displayed).trim();
+  const caveats = shape?.kind === "prose" ? shape.caveats ?? [] : [];
   return (
     <aside className="border-l border-l-edge bg-surface-alt min-h-0 overflow-y-auto p-4">
       <div
@@ -122,13 +116,6 @@ export default function RunDetailPanel({
       </div>
     </aside>
   );
-}
-
-/** True when a value looks like the prose shape ({summary, body, caveats}). */
-function isProseShaped(value: unknown): boolean {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const obj = value as Record<string, unknown>;
-  return "summary" in obj || "body" in obj;
 }
 
 function CellSourcesPanel({

@@ -21,6 +21,7 @@
  */
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
+import { asShape } from "@/lib/cellShapes";
 import type { Finding, FindingSeverity } from "./types";
 
 // Column labels from `builtin_proactive_scan` whose outputs we mine.
@@ -85,19 +86,13 @@ function cleanText(text: string): string {
     .trim();
 }
 
-interface ListItemShape {
-  items?: Array<{ text?: string } | string>;
-}
-
 function getListItems(cell: TabularCell): string[] {
-  // The list-shape cell has answer_formatted = { items: [{text}], ordered }.
-  // Fall back to splitting answer text on newlines if formatted is missing.
-  const formatted = cell.answer_formatted as ListItemShape | null;
-  if (formatted && Array.isArray(formatted.items)) {
-    return formatted.items
-      .map((item) => (typeof item === "string" ? item : item?.text ?? ""))
-      .map((s) => s.trim())
-      .filter(Boolean);
+  // Findings columns are `list`-shaped. Fall back to splitting the answer text
+  // on newlines when the cell has no shape (parse failure, or a column whose
+  // format was changed after the run).
+  const shape = asShape(cell.answer_formatted);
+  if (shape?.kind === "list") {
+    return (shape.items ?? []).map((item) => (item?.text ?? "").trim()).filter(Boolean);
   }
   if (cell.answer) {
     return cell.answer

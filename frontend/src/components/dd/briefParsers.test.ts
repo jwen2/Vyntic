@@ -373,7 +373,7 @@ describe("extractThesisSections", () => {
 describe("pairsToFields", () => {
   it("keeps only whitelisted keys, title-cased, joined with unit", () => {
     const out = pairsToFields(
-      { pairs: [{ key: "sector", value: "Software" }, { key: "unlisted", value: "x" }] },
+      { kind: "kv", pairs: [{ key: "sector", value: "Software" }, { key: "unlisted", value: "x" }] },
       ["Sector"]
     );
     expect(out).toEqual([{ label: "Sector", value: "Software", sourceIdx: undefined }]);
@@ -382,7 +382,7 @@ describe("pairsToFields", () => {
   it("lifts a source marker that the model tucked into `unit`", () => {
     // Documented F3.3 quirk: the marker can arrive in `unit`, not `value`.
     const out = pairsToFields(
-      { pairs: [{ key: "revenue", value: "$12.5m", unit: "[Source 4]" }] },
+      { kind: "kv", pairs: [{ key: "revenue", value: "$12.5m", unit: "[Source 4]" }] },
       ["Revenue"]
     );
     expect(out).toEqual([{ label: "Revenue", value: "$12.5m", sourceIdx: 4 }]);
@@ -391,18 +391,24 @@ describe("pairsToFields", () => {
   it("de-duplicates repeated keys and caps at seven fields", () => {
     const pairs = Array.from({ length: 10 }, (_, i) => ({ key: `k${i}`, value: `v${i}` }));
     const labels = pairs.map((p) => p.key);
-    expect(pairsToFields({ pairs }, labels)).toHaveLength(7);
-    expect(pairsToFields({ pairs: [{ key: "a", value: "1" }, { key: "a", value: "2" }] }, ["a"])).toHaveLength(1);
+    expect(pairsToFields({ kind: "kv", pairs }, labels)).toHaveLength(7);
+    expect(
+      pairsToFields({ kind: "kv", pairs: [{ key: "a", value: "1" }, { key: "a", value: "2" }] }, ["a"])
+    ).toHaveLength(1);
   });
 
-  it("returns [] for untyped or missing payloads", () => {
+  it("returns [] for untagged, wrong-kind, or missing payloads", () => {
     expect(pairsToFields(undefined, ["Sector"])).toEqual([]);
     expect(pairsToFields({ notPairs: 1 } as never, ["Sector"])).toEqual([]);
     expect(pairsToFields([] as never, ["Sector"])).toEqual([]);
+    // An untagged payload no longer narrows to a shape — the backend tags every
+    // shape it stores, so anything untagged here is not a kv cell.
+    expect(pairsToFields({ pairs: [{ key: "sector", value: "Software" }] } as never, ["Sector"])).toEqual([]);
+    expect(pairsToFields({ kind: "list", ordered: false, items: [] }, ["Sector"])).toEqual([]);
   });
 
   it("skips pairs with empty values", () => {
-    expect(pairsToFields({ pairs: [{ key: "sector", value: "" }] }, ["Sector"])).toEqual([]);
+    expect(pairsToFields({ kind: "kv", pairs: [{ key: "sector", value: "" }] }, ["Sector"])).toEqual([]);
   });
 });
 
@@ -498,12 +504,24 @@ describe("finding helpers", () => {
 
 describe("deriveActions", () => {
   it("prefers typed list items", () => {
-    const out = deriveActions({ items: [{ text: "Request the QoE [Source 2]" }] }, undefined, []);
+    const out = deriveActions(
+      { kind: "list", ordered: false, items: [{ text: "Request the QoE [Source 2]" }] },
+      undefined,
+      []
+    );
     expect(out).toEqual([{ text: "Request the QoE", sourceIdx: 2 }]);
   });
 
-  it("accepts plain-string items", () => {
-    expect(deriveActions({ items: ["Reconcile the model"] }, undefined, [])[0].text).toBe("Reconcile the model");
+  it("ignores an untagged payload and falls back to the raw answer", () => {
+    // Pre-`kind` payloads no longer narrow to a list shape. The backend
+    // normalizes stored rows on read, so this only happens for genuinely
+    // malformed input — which must degrade to the answer text, not throw.
+    const out = deriveActions(
+      { items: [{ text: "Reconcile the model" }] } as never,
+      "- Confirm the working capital peg",
+      []
+    );
+    expect(out[0].text).toBe("Confirm the working capital peg");
   });
 
   it("falls back to parsing the raw answer", () => {
@@ -514,7 +532,7 @@ describe("deriveActions", () => {
 
   it("caps explicit actions at five", () => {
     const items = Array.from({ length: 8 }, (_, i) => ({ text: `Action number ${i}` }));
-    expect(deriveActions({ items }, undefined, [])).toHaveLength(5);
+    expect(deriveActions({ kind: "list", ordered: false, items }, undefined, [])).toHaveLength(5);
   });
 
   it("derives fallback actions from findings when nothing explicit exists", () => {

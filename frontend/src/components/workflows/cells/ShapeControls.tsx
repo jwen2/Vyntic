@@ -3,6 +3,8 @@ import { useState } from "react";
 import type { Citation } from "@/lib/api";
 import type { ColumnFormat } from "@/lib/matrixColumnConfig";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
+import type { CellShape } from "@/lib/cellShapes";
+import { displayText } from "@/lib/cellShapes";
 import { ACCENT, AMBER, GREEN, VIOLET, tint } from "../theme";
 import CellRenderer from "./CellRenderer";
 
@@ -291,41 +293,63 @@ function sampleCellForFormat(format: ColumnFormat, tags: string[]): TabularCell 
     completed_at: null,
     quality: null,
   };
+  // Previews are assembled the same way the API assembles a real cell: a
+  // tagged shape plus its flattened `answer_display`, so the preview exercises
+  // the same rendering path as production data.
+  const preview = (answer: string, formatted: CellShape): TabularCell => ({
+    ...base,
+    answer,
+    answer_formatted: formatted,
+    answer_display: displayText(formatted),
+  });
   const shape = normalizeShape(format);
   if (shape === "metric") {
-    return { ...base, answer: "$50.4M for LTM 2025 [Source 1]", answer_formatted: { value: 50.4, unit: "$M", period: "LTM 2025", raw: "$50.4M" } };
+    return preview("$50.4M for LTM 2025 [Source 1]", {
+      kind: "metric",
+      value: 50.4,
+      unit: "$M",
+      period: "LTM 2025",
+      raw: "$50.4M",
+    });
   }
   if (shape === "date") {
-    return { ...base, answer: "2026-03-31 [Source 1]", answer_formatted: { iso: "2026-03-31", granularity: "day" } };
+    return preview("2026-03-31 [Source 1]", { kind: "date", iso: "2026-03-31", granularity: "day" });
   }
   if (shape === "bool") {
-    return { ...base, answer: "Yes, consent is required. [Source 1]", answer_formatted: { value: true } };
+    return preview("Yes, consent is required. [Source 1]", { kind: "bool", value: true });
   }
   if (shape === "enum") {
     const value = tags[0] || "Medium";
-    return { ...base, answer: `${value}. [Source 1]`, answer_formatted: { value, allowed: tags.length ? tags : ["High", "Medium", "Low"] } };
+    return preview(`${value}. [Source 1]`, {
+      kind: "enum",
+      value,
+      allowed: tags.length ? tags : ["High", "Medium", "Low"],
+    });
   }
   if (shape === "list") {
-    return {
-      ...base,
-      answer: "- Customer concentration\n- Unsupported add-backs [Source 1]",
-      answer_formatted: { ordered: false, items: [{ text: "Customer concentration" }, { text: "Unsupported add-backs" }] },
-    };
+    return preview("- Customer concentration\n- Unsupported add-backs [Source 1]", {
+      kind: "list",
+      ordered: false,
+      items: [{ text: "Customer concentration" }, { text: "Unsupported add-backs" }],
+    });
   }
   if (shape === "kv") {
-    return {
-      ...base,
-      answer: "Basket: 1.0%; Cap: 10%; Survival: 18 months [Source 1]",
-      answer_formatted: { pairs: [{ key: "Basket", value: "1.0%" }, { key: "Cap", value: "10%" }, { key: "Survival", value: "18 months" }] },
-    };
+    return preview("Basket: 1.0%; Cap: 10%; Survival: 18 months [Source 1]", {
+      kind: "kv",
+      pairs: [
+        { key: "Basket", value: "1.0%" },
+        { key: "Cap", value: "10%" },
+        { key: "Survival", value: "18 months" },
+      ],
+    });
   }
-  return {
-    ...base,
-    answer: "Revenue quality is strong but depends on two large customers renewing their contracts. [Source 1]",
-    answer_formatted: {
+  return preview(
+    "Revenue quality is strong but depends on two large customers renewing their contracts. [Source 1]",
+    {
+      kind: "prose",
       summary: "Revenue quality is strong, with renewal concentration to monitor.",
       body: "Revenue quality is strong but depends on two large customers renewing their contracts.",
       caveats: [{ text: "Renewal timing is not fully disclosed.", severity: "warn" }],
-    },
-  };
+    }
+  );
 }

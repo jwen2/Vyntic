@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
+import type { CellShape } from "@/lib/cellShapes";
 import { extractFindingsFromRun } from "./extractFindingsFromRun";
 
 function column(overrides: Partial<WorkflowColumn>): WorkflowColumn {
@@ -24,6 +25,7 @@ function cell(overrides: Partial<TabularCell>): TabularCell {
     status: "complete",
     answer: "",
     answer_formatted: null,
+    answer_display: "",
     citations: [],
     model: "test-model",
     fallback: false,
@@ -34,6 +36,12 @@ function cell(overrides: Partial<TabularCell>): TabularCell {
     ...overrides,
   } as TabularCell;
 }
+
+const LIST_ONE_ITEM: CellShape = {
+  kind: "list",
+  ordered: false,
+  items: [{ text: "[MATERIAL] Ignored." }],
+};
 
 const QOE_CITATION: Citation = {
   source_file: "QoE Report.pdf",
@@ -46,6 +54,7 @@ describe("extractFindingsFromRun", () => {
     const cells = [
       cell({
         answer_formatted: {
+          kind: "list",
           items: [
             { text: "[DEAL-BREAKER] Revenue concentration: one customer is 78% of revenue. [Source 1]" },
             { text: "[MATERIAL] Deferred maintenance capex appears understated." },
@@ -83,9 +92,11 @@ describe("extractFindingsFromRun", () => {
     const cells = [
       cell({
         answer_formatted: {
+          kind: "list",
+          ordered: false,
           items: [
-            "This is a deal-breaker: change-of-control clause voids the top contract.",
-            "Significant risk of customer churn after transition.",
+            { text: "This is a deal-breaker: change-of-control clause voids the top contract." },
+            { text: "Significant risk of customer churn after transition." },
           ],
         },
       }),
@@ -107,9 +118,9 @@ describe("extractFindingsFromRun", () => {
 
   it("skips incomplete cells, unknown columns, and non-finding columns", () => {
     const cells = [
-      cell({ status: "queued", answer_formatted: { items: ["[MATERIAL] Ignored."] } }),
-      cell({ column_id: "col-unknown", answer_formatted: { items: ["[MATERIAL] Ignored."] } }),
-      cell({ column_id: "col-2", answer_formatted: { items: ["[MATERIAL] Ignored."] } }),
+      cell({ status: "queued", answer_formatted: LIST_ONE_ITEM }),
+      cell({ column_id: "col-unknown", answer_formatted: LIST_ONE_ITEM }),
+      cell({ column_id: "col-2", answer_formatted: LIST_ONE_ITEM }),
     ];
     const columns = [column({}), column({ id: "col-2", label: "Deal snapshot" })];
     expect(extractFindingsFromRun(cells, columns)).toEqual([]);
@@ -118,17 +129,19 @@ describe("extractFindingsFromRun", () => {
   it("dedupes identical items across cells", () => {
     const item = { text: "[MATERIAL] Same finding repeated." };
     const cells = [
-      cell({ answer_formatted: { items: [item] } }),
-      cell({ id: "cell-2", row_key: "doc-2", answer_formatted: { items: [item] } }),
+      cell({ answer_formatted: { kind: "list", ordered: false, items: [item] } }),
+      cell({ id: "cell-2", row_key: "doc-2", answer_formatted: { kind: "list", ordered: false, items: [item] } }),
     ];
     expect(extractFindingsFromRun(cells, [column({})])).toHaveLength(1);
   });
 
   it("returns [] (not a throw) for malformed runs", () => {
     const cells = [
+      // Untagged / unknown payloads never narrow to a shape, so the extractor
+      // falls back to the (empty) raw answer instead of throwing.
       cell({ answer_formatted: { unexpected: "shape" } as unknown as TabularCell["answer_formatted"] }),
-      cell({ id: "cell-2", answer_formatted: "just a string" }),
-      cell({ id: "cell-3", answer_formatted: { items: ["", "   "] } }),
+      cell({ id: "cell-2", answer_formatted: "just a string" as unknown as TabularCell["answer_formatted"] }),
+      cell({ id: "cell-3", answer_formatted: { kind: "list", ordered: false, items: [{ text: "" }, { text: "   " }] } }),
     ];
     expect(extractFindingsFromRun(cells, [column({})])).toEqual([]);
     expect(extractFindingsFromRun([], [])).toEqual([]);

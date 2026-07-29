@@ -22,20 +22,17 @@ import type { BriefWorkstreamShim, QuestionResult } from "./config";
 /**
  * The prose panels (financial highlights, investment thesis) parse the cell's
  * free-form text via extractMetrics / extractFinancialTables /
- * extractThesisSections. Prefer the typed `body`, then `summary`, then the raw
- * streamed answer. KV and list panels don't use this — they read the cell's
- * typed `answer_formatted` directly (see pairsToFields / deriveActions), so the
- * old JSON→fake-markdown→regex round-trip is gone.
+ * extractThesisSections. KV and list panels don't use this — they read the
+ * cell's typed `answer_formatted` directly (see pairsToFields / deriveActions).
+ *
+ * `answer_display` is the server-flattened text for whatever shape the cell
+ * carries, so this stays correct for every column format. It also doubles as
+ * the panels' `fallback` prop: a kv cell whose keys are all outside the panel's
+ * whitelist renders this instead, and it used to render the raw `answer` —
+ * which for a kv/list/prose column is the model's JSON blob.
  */
 export function briefProse(cell: TabularCell): string {
-  const raw = cell.answer || "";
-  const formatted = cell.answer_formatted;
-  if (formatted && typeof formatted === "object" && !Array.isArray(formatted)) {
-    const prose = formatted as { summary?: string; body?: string };
-    if (typeof prose.body === "string" && prose.body.trim()) return prose.body;
-    if (typeof prose.summary === "string" && prose.summary.trim()) return prose.summary;
-  }
-  return raw;
+  return cell.answer_display?.trim() || cell.answer || "";
 }
 
 export function cellToQuestionResult(cell: TabularCell): QuestionResult {
