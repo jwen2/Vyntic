@@ -27,11 +27,18 @@ The generic table work is done: read-only financial/monitoring/portfolio tables,
 
 ## Tasks
 
-- [ ] Extract shared interactive-grid chrome classes or constants for header cells, body cells, sticky document cells, selected state, zebra rows, and resize handles.
-- [ ] Migrate Doc Matrix to those classes without changing markup structure beyond class composition.
-- [ ] Migrate Tabular Run to those classes without changing memoization boundaries.
-- [ ] Verify light and dark mode screenshots for Doc Matrix and a completed Tabular Run.
-- [ ] Run `cd frontend && npx tsc --noEmit && npm run build && npm test && npm run lint`.
+- [x] Extract shared interactive-grid chrome classes or constants for header cells, body cells, sticky document cells, selected state, zebra rows, and resize handles.
+- [x] Migrate Doc Matrix to those classes without changing markup structure beyond class composition.
+- [x] Migrate Tabular Run to those classes without changing memoization boundaries.
+- [x] Verify light and dark mode screenshots for Doc Matrix and a completed Tabular Run.
+- [x] Run `cd frontend && npx tsc --noEmit && npm run build && npm test && npm run lint`.
+
+Selection tint stayed inline rather than becoming a class: `RunCell`'s selected
+state uses `tint(ACCENT, n)`, a JS `color-mix()` with no CSS token, so it falls
+under the project's "status hues stay inline" rule. Two chrome-only variants
+(`.grid-table__td--chrome`, `.grid-table__th--chrome`) exist because this project
+has no `tailwind-merge` and `grid-table.css` loads after `@tailwind utilities` —
+a shared class must not declare any property its consumer overrides conditionally.
 
 ## Done when
 
