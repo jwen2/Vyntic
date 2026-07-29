@@ -83,6 +83,51 @@
   vertical-align: top;
 }
 
+/* Doc Matrix header chrome — like `.grid-table__th` but with no baked
+   `background`. Doc Matrix's headers set background conditionally (a
+   sort-active / drag-over accent tint vs. the default grid-header wash, plus
+   a hover tint on the Document corner header) via Tailwind classes in the
+   same className string. Baking background into a shared rule the way
+   `.grid-table__th` does would beat those Tailwind classes by stylesheet
+   order (this file loads after Tailwind's utilities in main.tsx) — the same
+   hazard `.grid-table__td--chrome` exists to avoid for body cells; see that
+   class's comment above for the general mechanism. Standalone alternative to
+   `.grid-table__th`, not a modifier meant to compose with it.
+
+   Keep the font declarations here as longhands with line-height omitted, for
+   exactly the reason spelled out on `.grid-table__th` above — collapsing them
+   into `font: var(--text-meta)` would pin line-height to a literal 16px and
+   inflate header row height via smaller-font descendants. Measured here too:
+   line-height stayed 16.5px across this migration. */
+.grid-table__th--chrome {
+  padding: 7px 12px 7px 9px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  position: relative;
+}
+
+/* Sticky-top-only header variant. Doc Matrix's query column headers pin to
+   the top of the scroll container but, unlike the Document column, are not
+   pinned left — and Doc Matrix's own z-index scheme (z-20/z-30) and its
+   Document corner header's box-shadow must stay exactly as they are
+   (task-3-brief.md hazard 1: Doc Matrix's sticky/z-order is its own, not
+   this layer's `--pinned` z-3/z-2 scheme), so those stay as Doc Matrix's own
+   Tailwind classes alongside this one. This only flips `position` from
+   `--chrome`'s `relative` to `sticky` and pins `top: 0`; `left` is
+   deliberately untouched so the Document corner header can add its own
+   `left-0` and get sticky-on-both-axes without a third variant. Must be
+   written after `--th--chrome` in this file so it wins the `position` tie by
+   source order (both are single classes, equal 0,1,0 specificity). */
+.grid-table__th--sticky-top {
+  position: sticky;
+  top: 0;
+}
+
 /* Sticky/pinned "document" column — header and body variants. Each is
    standalone (position + border + z-index + shadow); background still comes
    from `.grid-table__th` / `.grid-table__td` (+ `--zebra`) so it composes
@@ -104,10 +149,12 @@
 }
 
 /* Column resize handle — thin draggable strip on a header cell's right edge.
-   Only Tabular Run consumes this class so far (Doc Matrix's own resize
-   handle is untouched pending Task 3), so the hover rule below only affects
-   Tabular Run today — it isn't yet a "pick one behavior for both grids"
-   decision. */
+   Both grids consume this class, so the hover/active rules below ARE the
+   single "pick one behavior for both grids" decision — changing them changes
+   Doc Matrix and Tabular Run together. Note Doc Matrix's pre-migration handle
+   set these backgrounds via an inline `style`, so its `hover:` class was
+   inert (inline styles beat stylesheet rules) and it showed no hover tint at
+   all; adopting this class restores that affordance. */
 .grid-table__resize-handle {
   position: absolute;
   top: 0;
