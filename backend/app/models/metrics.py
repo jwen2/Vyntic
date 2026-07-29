@@ -1,0 +1,13 @@
+"""Cost-accounting models."""
+from pydantic import BaseModel, Field
+
+
+class CostSummary(BaseModel):
+    """Aggregated token spend for a deal, optionally narrowed to one run."""
+    deal_id: str
+    run_id: str | None = None
+    call_count: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    cached_tokens: int = 0
+    by_surface: dict[str, int] = Field(default_factory=dict)

@@ -481,6 +481,29 @@ class BriefOverrideRow(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class LLMCallRow(Base):
+    """One row per LLM call, for token/cost accounting.
+
+    Deliberately has no FK to deals: metrics are the cost record and must
+    survive deal deletion. New table, so create_all handles it — no
+    migration shim needed (invariant 3).
+    """
+    __tablename__ = "llm_calls"
+
+    id = Column(String, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    surface = Column(String, nullable=False, index=True)
+    deal_id = Column(String, nullable=True, index=True)
+    run_id = Column(String, nullable=True, index=True)
+    cell_id = Column(String, nullable=True)
+    model = Column(String, default="")
+    fallback = Column(Boolean, default=False)
+    prompt_tokens = Column(Integer, default=0)
+    completion_tokens = Column(Integer, default=0)
+    cached_tokens = Column(Integer, default=0)
+    duration_ms = Column(Integer, default=0)
+
+
 def init_db():
     """Create all tables if they don't exist."""
     Base.metadata.create_all(bind=engine)
