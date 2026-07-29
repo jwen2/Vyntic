@@ -21,6 +21,7 @@
  */
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
+import { asShape, stripSourceMarkers } from "@/lib/cellShapes";
 import type { Finding, FindingSeverity } from "./types";
 
 // Column labels from `builtin_proactive_scan` whose outputs we mine.
@@ -85,19 +86,13 @@ function cleanText(text: string): string {
     .trim();
 }
 
-interface ListItemShape {
-  items?: Array<{ text?: string } | string>;
-}
-
 function getListItems(cell: TabularCell): string[] {
-  // The list-shape cell has answer_formatted = { items: [{text}], ordered }.
-  // Fall back to splitting answer text on newlines if formatted is missing.
-  const formatted = cell.answer_formatted as ListItemShape | null;
-  if (formatted && Array.isArray(formatted.items)) {
-    return formatted.items
-      .map((item) => (typeof item === "string" ? item : item?.text ?? ""))
-      .map((s) => s.trim())
-      .filter(Boolean);
+  // Findings columns are `list`-shaped. Fall back to splitting the answer text
+  // on newlines when the cell has no shape (parse failure, or a column whose
+  // format was changed after the run).
+  const shape = asShape(cell.answer_formatted);
+  if (shape?.kind === "list") {
+    return (shape.items ?? []).map((item) => (item?.text ?? "").trim()).filter(Boolean);
   }
   if (cell.answer) {
     return cell.answer
@@ -130,16 +125,22 @@ function itemToFinding(
     : inferSeverity(cleaned);
 
   // Strip the severity tag from the title/detail (so it doesn't show twice).
-  const display = cleaned.replace(SEVERITY_TAG, "").replace(/^[\s\-—–:]+/, "").trim();
+  const tagged = cleaned.replace(SEVERITY_TAG, "").replace(/^[\s\-—–:]+/, "").trim();
+  if (!tagged) return null;
+
+  // Citation lookup runs BEFORE the marker is stripped: the [Source N] marker
+  // is what maps this finding back to a document page. (Shapes used to arrive
+  // pre-stripped, so this lookup silently never matched and every finding fell
+  // back to the column label.)
+  const sourceCitation = findCitationForItem(tagged, cellCitations);
+
+  const display = stripSourceMarkers(tagged);
   if (!display) return null;
 
   const firstSentence = display.split(/(?<=[.!?])\s+/)[0] ?? display;
   const title = firstSentence.trim();
   const detail = display;
 
-  // Citation lookup: find a [Source N] marker in the item, map to the cell's
-  // citations array.
-  const sourceCitation = findCitationForItem(display, cellCitations);
   const src = sourceCitation
     ? `${shortDocName(sourceCitation.source_file)} · p.${sourceCitation.page}`
     : columnLabel;

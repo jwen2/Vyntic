@@ -39,7 +39,7 @@ function ValueCellImpl({
   // JSON, so run it through proseValue rather than dumping the blob into the
   // hover tooltip. Non-prose shapes fall back to the raw answer unchanged.
   const tooltipProse = proseValue(cell.answer_formatted, stripSourceMarkers(cell.answer || ""));
-  const fullAnswer = (tooltipProse.body || tooltipProse.summary || "").trim();
+  const fullAnswer = stripSourceMarkers(tooltipProse.body || tooltipProse.summary || "");
 
   return (
     <td

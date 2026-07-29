@@ -25,6 +25,7 @@ from app.models.workflow_run import (
     TabularCell,
     WorkflowRun,
 )
+from app.services.workflow_shapes import display_text, normalize_shape
 
 
 def _new_id() -> str:
@@ -49,14 +50,20 @@ def _row_to_cell(row: TabularCellRow) -> TabularCell:
         formatted = json.loads(row.answer_formatted_json) if row.answer_formatted_json else None
     except json.JSONDecodeError:
         formatted = None
+    # The single normalization point: rows written before shapes carried a
+    # `kind` discriminant are upgraded here, so no consumer ever has to
+    # key-sniff and no backfill migration is needed.
+    formatted = normalize_shape(formatted)
+    answer = row.answer or ""
     return TabularCell(
         id=row.id,
         run_id=row.run_id,
         row_key=row.row_key,
         column_id=row.column_id,
         status=row.status,
-        answer=row.answer or "",
+        answer=answer,
         answer_formatted=formatted,
+        answer_display=display_text(formatted) if formatted is not None else answer,
         citations=citations,
         model=row.model or "",
         fallback=bool(row.fallback),

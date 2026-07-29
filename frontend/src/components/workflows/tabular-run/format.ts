@@ -1,62 +1,47 @@
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
+import { asShape, assertNever, stripSourceMarkers } from "@/lib/cellShapes";
 
 // ── Pure value formatting / string helpers (no React) ──
 
+/**
+ * The cell's value for compact, text-only surfaces (tooltips, CSV-ish views,
+ * the risk scan). List-ish shapes return an array so callers can render one
+ * line per item; everything else returns a single string.
+ *
+ * The `switch` is exhaustive — adding a `CellShape` kind breaks this build
+ * rather than silently falling through to the raw-answer branch, which is how
+ * shapes used to leak JSON into text surfaces.
+ */
 export function formatCellValue(cell: TabularCell, column: WorkflowColumn): string | string[] {
-  const formatted = cell.answer_formatted;
-  if (Array.isArray(formatted)) {
-    return formatted.map((item) => String(item)).filter(Boolean);
-  }
-  if (typeof formatted === "boolean") {
-    return formatted ? "Yes" : "No";
-  }
-  if (typeof formatted === "number") {
-    if (column.format === "percentage") return `${formatted}%`;
-    return Number.isInteger(formatted) ? String(formatted) : String(formatted);
-  }
-  if (typeof formatted === "string" && formatted.trim()) {
-    return formatted.trim();
-  }
-  if (formatted && typeof formatted === "object") {
-    const maybeRaw = (formatted as { raw?: unknown }).raw;
-    if (typeof maybeRaw === "string" && maybeRaw.trim()) {
-      return compactScalar(maybeRaw, column.format);
-    }
-    const summary = (formatted as { summary?: unknown }).summary;
-    if (typeof summary === "string" && summary.trim()) return summary.trim();
-    const body = (formatted as { body?: unknown }).body;
-    if (typeof body === "string" && body.trim()) return body.trim().split(/\n+/)[0].trim();
-    const items = (formatted as { items?: unknown }).items;
-    if (Array.isArray(items)) {
-      return items
-        .map((item) =>
-          typeof item === "object" && item !== null && "text" in item
-            ? String((item as { text?: unknown }).text ?? "")
-            : String(item)
-        )
-        .filter(Boolean);
-    }
-    const pairs = (formatted as { pairs?: unknown }).pairs;
-    if (Array.isArray(pairs)) {
-      return pairs
-        .map((pair) => {
-          if (!pair || typeof pair !== "object") return "";
-          const p = pair as { key?: unknown; value?: unknown; unit?: unknown };
-          return [p.key, [p.value, p.unit].filter(Boolean).join(" ")].filter(Boolean).join(": ");
-        })
-        .filter(Boolean);
-    }
-    const iso = (formatted as { iso?: unknown }).iso;
-    if (typeof iso === "string" && iso.trim()) return iso.trim();
-    const shapedValue = (formatted as { value?: unknown }).value;
-    const unit = (formatted as { unit?: unknown }).unit;
-    if (typeof shapedValue === "boolean") return shapedValue ? "Yes" : "No";
-    if (typeof shapedValue === "string" && shapedValue.trim()) return shapedValue.trim();
-    if (typeof shapedValue === "number") return [shapedValue, unit].filter(Boolean).join(" ");
-    const amount = (formatted as { amount?: unknown }).amount;
-    const currency = (formatted as { currency?: unknown }).currency;
-    if (amount != null || currency != null) {
-      return [currency, amount].filter(Boolean).join(" ");
+  const shape = asShape(cell.answer_formatted);
+  if (shape) {
+    switch (shape.kind) {
+      case "metric":
+        if (shape.raw?.trim()) return compactScalar(shape.raw, column.format);
+        if (shape.value == null) return "";
+        return [String(shape.value), shape.unit].filter(Boolean).join(" ");
+      case "date":
+        return shape.iso?.trim() ?? "";
+      case "bool":
+        return shape.value ? "Yes" : "No";
+      case "enum":
+        return shape.value?.trim() ?? "";
+      case "currency":
+        return (shape.codes ?? []).join(", ");
+      case "prose": {
+        const summary = shape.summary?.trim();
+        if (summary) return summary;
+        const body = shape.body?.trim();
+        return body ? body.split(/\n+/)[0].trim() : "";
+      }
+      case "list":
+        return (shape.items ?? []).map((item) => (item?.text ?? "").trim()).filter(Boolean);
+      case "kv":
+        return (shape.pairs ?? [])
+          .filter((pair) => pair?.key && pair?.value != null)
+          .map((pair) => `${pair.key}: ${[pair.value, pair.unit].filter(Boolean).join(" ")}`);
+      default:
+        return assertNever(shape);
     }
   }
 
@@ -125,14 +110,7 @@ export function demoteHeadings(value: string): string {
   return value.replace(/^#{1,6}\s+(.+)$/gm, "**$1**");
 }
 
-export function stripSourceMarkers(value: string): string {
-  return value
-    .replace(/\[Source\s+\d+\]/gi, "")
-    .split("\n")
-    .map((line) => line.replace(/[ \t]+/g, " ").trim())
-    .join("\n")
-    .trim();
-}
+export { stripSourceMarkers } from "@/lib/cellShapes";
 
 export function formatRunDate(iso: string): string {
   const date = new Date(iso);

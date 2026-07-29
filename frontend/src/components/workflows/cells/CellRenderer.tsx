@@ -3,12 +3,15 @@ import type React from "react";
 import AnswerText from "@/components/dd/AnswerText";
 import type { Citation } from "@/lib/api";
 import type { TabularCell, WorkflowColumn } from "@/lib/workflows";
+import type { Caveat, CellShape } from "@/lib/cellShapes";
+import { asShape, displayText, pairText, stripSourceMarkers } from "@/lib/cellShapes";
 import { ACCENT, AMBER, GREEN, RED, VIOLET, tint } from "../theme";
 import { demoteHeadings } from "../tabular-run/format";
 
 function noopCit() {}
 
 export type CellDensity = "compact" | "comfortable";
+
 
 interface CellRendererProps {
   cell: TabularCell;
@@ -18,8 +21,6 @@ interface CellRendererProps {
   citationIdPrefix?: string;
 }
 
-type AnyRecord = Record<string, unknown>;
-
 export default function CellRenderer({
   cell,
   column,
@@ -27,9 +28,9 @@ export default function CellRenderer({
   onCitationClick,
   citationIdPrefix,
 }: CellRendererProps) {
-  const formatted = cell.answer_formatted;
+  const formatted = asShape(cell.answer_formatted);
   const raw = stripSourceMarkers(cell.answer || "").trim();
-  const shape = normalizeFormat(column.format);
+  const renderAs = normalizeFormat(column.format);
 
   if (cell.status === "error") {
     return <EmptyCell reason="Error" tone="error" />;
@@ -38,25 +39,25 @@ export default function CellRenderer({
     return <EmptyCell reason={cell.status === "complete" ? "Out of scope" : "—"} />;
   }
 
-  if (shape === "metric") {
+  if (renderAs === "metric") {
     return <MetricCell value={metricValue(formatted, raw)} citations={cell.citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
-  if (shape === "date") {
+  if (renderAs === "date") {
     return <DateCell value={dateValue(formatted, raw)} citations={cell.citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
-  if (shape === "bool") {
+  if (renderAs === "bool") {
     return <BoolCell value={boolValue(formatted, raw)} citations={cell.citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
-  if (shape === "enum") {
+  if (renderAs === "enum") {
     return <EnumCell value={enumValue(formatted, raw)} citations={cell.citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
-  if (shape === "list") {
+  if (renderAs === "list") {
     return <ListCell value={listValue(formatted, raw)} citations={cell.citations} density={density} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
-  if (shape === "kv") {
+  if (renderAs === "kv") {
     return <KVCell value={kvValue(formatted, raw)} citations={cell.citations} density={density} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
-  if (shape === "markdown") {
+  if (renderAs === "markdown") {
     return <MarkdownCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
   }
   return <ProseCell value={proseValue(formatted, raw)} citations={cell.citations} density={density} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />;
@@ -167,7 +168,7 @@ function ProseCell({
           textOverflow: density === "compact" ? "ellipsis" : undefined,
         }}
       >
-        {value.summary || value.body}
+        {stripSourceMarkers(value.summary || value.body)}
       </div>
       {value.caveats.length > 0 && (
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -253,7 +254,7 @@ function ListCell({
       {visibleItems.map((item, index) => (
         <div key={`${item.text}-${index}`} className="flex gap-1.5 text-t1 text-[11px] leading-[1.35]">
           <span style={{ color: AMBER, flexShrink: 0 }}>{value.ordered ? `${index + 1}.` : "•"}</span>
-          <span>{item.text}</span>
+          <span>{stripSourceMarkers(item.text)}</span>
         </div>
       ))}
       <CitationRow citations={citations} onCitationClick={onCitationClick} citationIdPrefix={citationIdPrefix} />
@@ -280,9 +281,9 @@ function KVCell({
     <div className={cellShellClass}>
       {visiblePairs.map((pair, index) => (
         <div key={`${pair.key}-${index}`} style={{ display: "grid", gridTemplateColumns: "minmax(48px, 0.75fr) minmax(64px, 1fr)", gap: 8, alignItems: "baseline", fontSize: 10.5, lineHeight: 1.35 }}>
-          <span className="text-t3 overflow-hidden text-ellipsis whitespace-nowrap">{pair.key}</span>
+          <span className="text-t3 overflow-hidden text-ellipsis whitespace-nowrap">{stripSourceMarkers(pair.key)}</span>
           <span className="text-t1 text-right tabular-nums" style={{ fontFamily: "var(--font-mono, monospace)" }}>
-            {[pair.value, pair.unit].filter(Boolean).join(" ")}
+            {stripSourceMarkers(pairText(pair.value, pair.unit))}
           </span>
         </div>
       ))}
@@ -362,7 +363,7 @@ function CaveatChip({ caveat }: { caveat: { text: string; severity: "info" | "wa
   const color = caveat.severity === "risk" ? RED : caveat.severity === "warn" ? AMBER : ACCENT;
   return (
     <span style={{ maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9.5, padding: "2px 6px", borderRadius: 4, background: tint(color, 16), color, fontWeight: 750 }}>
-      {caveat.text}
+      {stripSourceMarkers(caveat.text)}
     </span>
   );
 }
@@ -391,68 +392,65 @@ function normalizeFormat(format: WorkflowColumn["format"]): "metric" | "date" | 
   return "prose";
 }
 
-function asRecord(value: unknown): AnyRecord | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as AnyRecord) : null;
-}
+// Each accessor takes the tagged shape and, when the shape is absent (columns
+// with no format shape, or a cell whose parse failed), degrades to reading the
+// raw answer text. The shape branch never key-sniffs — that inference happens
+// once, server-side, in `workflow_shapes.normalize_shape`.
 
-function metricValue(formatted: unknown, raw: string): { value: string; unit?: string; period?: string } | null {
-  const obj = asRecord(formatted);
-  if (obj && typeof obj.value === "number") {
-    return { value: Number.isInteger(obj.value) ? String(obj.value) : String(obj.value), unit: str(obj.unit), period: str(obj.period) };
+function metricValue(shape: CellShape | null, raw: string): { value: string; unit?: string; period?: string } | null {
+  if (shape?.kind === "metric") {
+    if (shape.value == null) return shape.raw ? { value: shape.raw } : null;
+    return { value: String(shape.value), unit: str(shape.unit), period: str(shape.period) };
   }
-  if (typeof formatted === "number") return { value: String(formatted) };
+  if (shape?.kind === "currency") return shape.codes.length ? { value: shape.codes.join(", ") } : null;
   if (!raw || isMissing(raw)) return null;
   const match = raw.match(/(?:[$€£¥]\s*|(?:USD|EUR|GBP|JPY|CAD|AUD|CNY|CHF|HKD|INR|SGD)\s*)?-?\d[\d,]*(?:\.\d+)?\s*(?:[kKmMbB%]|x|turns?)?/);
   return match ? { value: match[0].trim() } : { value: raw.split(/\n+/)[0] };
 }
 
-function dateValue(formatted: unknown, raw: string): string {
-  const obj = asRecord(formatted);
-  if (obj && typeof obj.iso === "string") return obj.iso;
-  if (typeof formatted === "string") return formatted;
+function dateValue(shape: CellShape | null, raw: string): string {
+  if (shape?.kind === "date") return shape.iso;
   const match = raw.match(/\d{4}-\d{2}-\d{2}/);
   return match?.[0] ?? raw.split(/\n+/)[0] ?? "";
 }
 
-function boolValue(formatted: unknown, raw: string): boolean | null {
-  const obj = asRecord(formatted);
-  if (obj && typeof obj.value === "boolean") return obj.value;
-  if (typeof formatted === "boolean") return formatted;
+function boolValue(shape: CellShape | null, raw: string): boolean | null {
+  if (shape?.kind === "bool") return shape.value;
   const first = raw.split(/\W+/)[0]?.toLowerCase();
   if (first === "yes") return true;
   if (first === "no") return false;
   return null;
 }
 
-function enumValue(formatted: unknown, raw: string): string {
-  const obj = asRecord(formatted);
-  if (obj && typeof obj.value === "string") return obj.value;
-  if (typeof formatted === "string") return formatted.trim();
+function enumValue(shape: CellShape | null, raw: string): string {
+  if (shape?.kind === "enum") return shape.value;
   return isMissing(raw) ? "" : raw.split(/\n+/)[0].trim();
 }
 
-export type ProseValue = { summary: string; body: string; caveats: Array<{ text: string; severity: "info" | "warn" | "risk" }> };
+export type ProseValue = { summary: string; body: string; caveats: Caveat[] };
 
 export function proseValue(formatted: unknown, raw: string): ProseValue {
-  const obj = asRecord(formatted);
-  if (obj && ("summary" in obj || "body" in obj)) {
+  const shape = asShape(formatted);
+  if (shape?.kind === "prose") {
     return {
-      summary: str(obj.summary) || firstSentence(str(obj.body)),
-      body: str(obj.body) || str(obj.summary),
-      caveats: Array.isArray(obj.caveats)
-        ? obj.caveats.map(normalizeCaveat).filter((v): v is { text: string; severity: "info" | "warn" | "risk" } => Boolean(v))
-        : [],
+      summary: str(shape.summary) || firstSentence(str(shape.body)),
+      body: str(shape.body) || str(shape.summary),
+      caveats: Array.isArray(shape.caveats) ? shape.caveats.filter((c) => c?.text) : [],
     };
   }
-  return { summary: firstSentence(raw), body: raw, caveats: [] };
+  // Non-prose shapes still reach this via the generic prose/markdown fallback
+  // renderers; their flattened text is the sensible body.
+  const text = shape ? displayText(shape) : raw;
+  return { summary: firstSentence(text), body: text, caveats: [] };
 }
 
-function listValue(formatted: unknown, raw: string): { items: Array<{ text: string }>; ordered: boolean } {
-  const obj = asRecord(formatted);
-  if (obj && Array.isArray(obj.items)) {
-    return { items: obj.items.map(normalizeListItem).filter((v): v is { text: string } => Boolean(v)), ordered: Boolean(obj.ordered) };
+function listValue(shape: CellShape | null, raw: string): { items: Array<{ text: string }>; ordered: boolean } {
+  if (shape?.kind === "list") {
+    return {
+      items: shape.items.map((item) => ({ text: stripSourceMarkers(str(item?.text)) })).filter((item) => item.text),
+      ordered: Boolean(shape.ordered),
+    };
   }
-  if (Array.isArray(formatted)) return { items: formatted.map((item) => ({ text: stripSourceMarkers(String(item)) })).filter((item) => item.text), ordered: false };
   const items = raw
     .split(/\n+/)
     .map((line) => line.replace(/^\s*(?:[-*•]|\d+\.)\s+/, "").trim())
@@ -461,10 +459,16 @@ function listValue(formatted: unknown, raw: string): { items: Array<{ text: stri
   return { items, ordered: /^\s*\d+\./m.test(raw) };
 }
 
-function kvValue(formatted: unknown, raw: string): { pairs: Array<{ key: string; value: string | number; unit?: string }> } {
-  const obj = asRecord(formatted);
-  if (obj && Array.isArray(obj.pairs)) {
-    return { pairs: obj.pairs.map(normalizePair).filter((v): v is { key: string; value: string | number; unit?: string } => Boolean(v)) };
+function kvValue(shape: CellShape | null, raw: string): { pairs: Array<{ key: string; value: string | number; unit?: string }> } {
+  if (shape?.kind === "kv") {
+    return {
+      pairs: shape.pairs
+        .filter((pair) => pair?.key && (typeof pair.value === "string" || typeof pair.value === "number"))
+        .map((pair) => {
+          const unit = str(pair.unit);
+          return unit ? { key: pair.key, value: pair.value, unit } : { key: pair.key, value: pair.value };
+        }),
+    };
   }
   const pairs = raw
     .split(/;|\n/)
@@ -477,42 +481,14 @@ function kvValue(formatted: unknown, raw: string): { pairs: Array<{ key: string;
   return { pairs };
 }
 
-function normalizeListItem(item: unknown): { text: string } | null {
-  if (typeof item === "string") {
-    const text = stripSourceMarkers(item);
-    return text ? { text } : null;
-  }
-  const obj = asRecord(item);
-  const text = stripSourceMarkers(str(obj?.text));
-  return text ? { text } : null;
-}
-
-function normalizePair(item: unknown): { key: string; value: string | number; unit?: string } | null {
-  const obj = asRecord(item);
-  if (!obj) return null;
-  const key = str(obj.key);
-  const value = obj.value;
-  if (!key || (typeof value !== "string" && typeof value !== "number")) return null;
-  const unit = str(obj.unit);
-  return unit ? { key, value, unit } : { key, value };
-}
-
-function normalizeCaveat(item: unknown): { text: string; severity: "info" | "warn" | "risk" } | null {
-  const obj = asRecord(item);
-  if (!obj) return null;
-  const text = str(obj.text);
-  const severity = str(obj.severity);
-  if (!text) return null;
-  return { text, severity: severity === "warn" || severity === "risk" ? severity : "info" };
-}
-
 function str(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-export function stripSourceMarkers(value: string): string {
-  return value.replace(/\[Source\s+\d+\]/gi, "").trim();
-}
+// Re-exported from the shape contract so there is one implementation, not the
+// three near-copies this file, `tabular-run/format.ts`, and `cellShapes.ts`
+// used to carry independently.
+export { stripSourceMarkers } from "@/lib/cellShapes";
 
 function firstSentence(value: string): string {
   const cleaned = value.replace(/\s+/g, " ").trim();

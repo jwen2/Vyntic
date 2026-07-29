@@ -8,14 +8,40 @@ Two responsibilities:
   1. `format_prompt_suffix(format, tags)` — instructions appended to the LLM
      prompt so output is shape-constrained.
   2. `parse_answer(answer, format, tags)` — best-effort parse of the cleaned
-     answer into a structured value (number, bool, list, etc.) for storage.
+     answer into a tagged shape (see `workflow_shapes`) for storage.
      Returns None on parse failure; the raw answer is always preserved.
+
+Every non-None return of `parse_answer` is a dict carrying a `kind`
+discriminant. Scalars are boxed rather than returned bare (`12.5` becomes
+`{"kind": "metric", "value": 12.5, …}`) so that consumers can switch on `kind`
+without first testing the Python/JS type of the payload.
+
+`[Source N]` markers are **preserved** in the text-bearing shapes (list item
+text, kv keys/values, prose summary/body/caveats) and stripped only at the
+display boundary (`workflow_shapes.display_text(..., strip_sources=True)`, or
+the frontend's render sites). Stripping them here used to silently break
+citation attribution: the brief's `deriveActions` and the proactive scan's
+`findCitationForItem` both look for a marker in the item text to map a finding
+back to its source page, and always came up empty. The scalar shapes (metric
+`raw`, enum `value`, date, currency) stay stripped — they are display values,
+not prose, and a marker inside them would corrupt the rendered badge.
 """
 from __future__ import annotations
 
 import json
 import re
 from typing import Any
+
+from app.services.workflow_shapes import (
+    bool_shape,
+    currency_shape,
+    date_shape,
+    enum_shape,
+    kv_shape,
+    list_shape,
+    metric_shape,
+    prose_shape,
+)
 
 
 _BULLET_LINE_RE = re.compile(r"^\s*[-*•]\s+(.*\S)\s*$")
@@ -186,7 +212,9 @@ def _load_json_object(answer: str) -> dict[str, Any] | None:
 
 
 def _first_sentence(answer: str) -> str:
-    cleaned = " ".join(_strip_sources(answer).split())
+    # Faithful to the input: a marker sitting inside the first sentence is kept.
+    # One trailing the final period simply falls outside the match.
+    cleaned = " ".join(answer.split())
     if not cleaned:
         return ""
     match = re.search(r"(.+?[.!?])(?:\s|$)", cleaned)
@@ -250,11 +278,11 @@ def _parse_yes_no(answer: str) -> bool | None:
     return None
 
 
-def _parse_bool_shape(answer: str) -> dict[str, bool] | None:
+def _parse_bool_shape(answer: str) -> dict[str, Any] | None:
     parsed = _parse_yes_no(answer)
     if parsed is None:
         return None
-    return {"value": parsed}
+    return bool_shape(parsed)
 
 
 def _parse_currency(answer: str) -> list[str]:
@@ -277,11 +305,11 @@ def _parse_monetary(answer: str) -> dict | None:
     currencies = _parse_currency(answer)
     if amount is None and not currencies:
         return None
-    return {
-        "amount": amount,
-        "currency": currencies[0] if currencies else None,
-        "raw": answer.strip(),
-    }
+    return metric_shape(
+        amount,
+        unit=currencies[0] if currencies else None,
+        raw=_strip_sources(answer) or None,
+    )
 
 
 def _parse_metric(answer: str) -> dict | None:
@@ -313,12 +341,7 @@ def _parse_metric(answer: str) -> dict | None:
         period = period_match.group(0)
 
     unit = " ".join(dict.fromkeys(part for part in unit_parts if part)) or None
-    return {
-        "value": value,
-        "unit": unit,
-        "period": period,
-        "raw": cleaned.strip(),
-    }
+    return metric_shape(value, unit=unit, period=period, raw=cleaned.strip() or None)
 
 
 def _parse_date(answer: str) -> str | None:
@@ -356,7 +379,7 @@ def _parse_date_shape(answer: str) -> dict | None:
         granularity = "year"
     elif re.search(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+(?:19|20)\d{2}\b", cleaned, re.IGNORECASE):
         granularity = "month"
-    return {"iso": iso, "granularity": granularity}
+    return date_shape(iso, granularity)
 
 
 def _parse_bulleted_list(answer: str) -> list[str]:
@@ -373,11 +396,13 @@ def _parse_bulleted_list(answer: str) -> list[str]:
 
 
 def _normalize_list_item(item: Any) -> dict[str, Any] | None:
+    # `[Source N]` markers are preserved in shape text — see the module
+    # docstring. Stripping happens at the display boundary, not here.
     if isinstance(item, str):
-        text = _strip_sources(item)
+        text = item.strip()
         return {"text": text} if text else None
     if isinstance(item, dict):
-        text = _strip_sources(str(item.get("text") or ""))
+        text = str(item.get("text") or "").strip()
         if not text:
             return None
         citation_ids = item.get("citation_ids")
@@ -398,23 +423,23 @@ def _parse_list_shape(answer: str) -> dict | None:
                 normalized = _normalize_list_item(item)
                 if normalized:
                     items.append(normalized)
-            return {"items": items, "ordered": bool(obj.get("ordered", False))}
+            return list_shape(items, bool(obj.get("ordered", False)))
 
     legacy_items = _parse_bulleted_list(answer)
     numbered = any(re.match(r"^\s*\d+\.\s+", line) for line in answer.splitlines())
-    return {
-        "items": [{"text": _strip_sources(item)} for item in legacy_items if _strip_sources(item)],
-        "ordered": numbered,
-    }
+    return list_shape(
+        [{"text": item.strip()} for item in legacy_items if item.strip()],
+        numbered,
+    )
 
 
 def _normalize_caveat(item: Any) -> dict[str, Any] | None:
     if isinstance(item, str):
-        text = _strip_sources(item)
+        text = item.strip()
         return {"text": text, "severity": "info"} if text else None
     if not isinstance(item, dict):
         return None
-    text = _strip_sources(str(item.get("text") or ""))
+    text = str(item.get("text") or "").strip()
     if not text:
         return None
     severity = str(item.get("severity") or "info").lower()
@@ -430,8 +455,8 @@ def _normalize_caveat(item: Any) -> dict[str, Any] | None:
 def _parse_prose(answer: str) -> dict:
     obj = _load_json_object(answer)
     if obj is not None:
-        summary = _strip_sources(str(obj.get("summary") or ""))
-        body = _strip_sources(str(obj.get("body") or ""))
+        summary = str(obj.get("summary") or "").strip()
+        body = str(obj.get("body") or "").strip()
         caveats_raw = obj.get("caveats") if isinstance(obj.get("caveats"), list) else []
         caveats = []
         for caveat in caveats_raw:
@@ -442,9 +467,9 @@ def _parse_prose(answer: str) -> dict:
             body = summary
         if not summary:
             summary = _first_sentence(body)
-        return {"summary": summary, "body": body, "caveats": caveats}
+        return prose_shape(summary, body, caveats)
 
-    cleaned = _strip_sources(answer)
+    cleaned = answer.strip()
     caveats = []
     if _looks_list_shaped(cleaned):
         caveats.append({
@@ -456,11 +481,7 @@ def _parse_prose(answer: str) -> dict:
             "text": "Review caveat language in the answer.",
             "severity": "warn",
         })
-    return {
-        "summary": _first_sentence(cleaned),
-        "body": cleaned,
-        "caveats": caveats,
-    }
+    return prose_shape(_first_sentence(cleaned), cleaned, caveats)
 
 
 def _parse_tag(answer: str, tags: list[str] | None) -> str | None:
@@ -479,22 +500,19 @@ def _parse_enum(answer: str, tags: list[str] | None) -> dict | None:
         parsed = _strip_sources(answer).splitlines()[0].strip() if _strip_sources(answer) else None
     if not parsed:
         return None
-    result: dict[str, Any] = {"value": parsed}
-    if tags:
-        result["allowed"] = tags
-    return result
+    return enum_shape(parsed, tags)
 
 
 def _normalize_kv_pair(item: Any) -> dict[str, Any] | None:
     if not isinstance(item, dict):
         return None
-    key = _strip_sources(str(item.get("key") or ""))
+    key = str(item.get("key") or "").strip()
     value = item.get("value")
     if not key or value is None:
         return None
     normalized: dict[str, Any] = {
         "key": key,
-        "value": _strip_sources(value) if isinstance(value, str) else value,
+        "value": value.strip() if isinstance(value, str) else value,
     }
     unit = item.get("unit")
     if unit is not None and str(unit).strip():
@@ -510,25 +528,28 @@ def _parse_kv(answer: str) -> dict | None:
             normalized = _normalize_kv_pair(pair)
             if normalized:
                 pairs.append(normalized)
-        return {"pairs": pairs}
+        return kv_shape(pairs)
 
     pairs = []
     for part in re.split(r";|\n", answer):
         if ":" not in part:
             continue
         key, value = part.split(":", 1)
-        key = _strip_sources(key)
-        value = _strip_sources(value)
+        key = key.strip()
+        value = value.strip()
         if key and value:
             pairs.append({"key": key, "value": value})
-    return {"pairs": pairs} if pairs else None
+    return kv_shape(pairs) if pairs else None
 
 
-def parse_answer(answer: str, fmt: str, tags: list[str] | None = None) -> Any:
+def parse_answer(answer: str, fmt: str, tags: list[str] | None = None) -> dict[str, Any] | None:
     """Best-effort structured parse of an LLM answer per column format.
 
-    Returns None when parse fails — callers should always preserve the raw
-    answer alongside this structured value.
+    Always returns either None (parse failed — callers preserve the raw answer)
+    or a tagged shape carrying a `kind`. The formats that historically returned
+    bare scalars (`yes_no`, `number`, `percentage`, `currency`, `bulleted_list`,
+    `tag`) are boxed into the shape their format maps to in
+    `workflow_shapes.KIND_BY_FORMAT`.
     """
     if not answer:
         return None
@@ -545,19 +566,33 @@ def parse_answer(answer: str, fmt: str, tags: list[str] | None = None) -> Any:
     if fmt == "kv":
         return _parse_kv(answer)
     if fmt == "yes_no":
-        return _parse_yes_no(answer)
+        return _parse_bool_shape(answer)
     if fmt == "number":
-        return _parse_number(answer)
+        value = _parse_number(answer)
+        return None if value is None else metric_shape(value, raw=_strip_sources(answer) or None)
     if fmt == "percentage":
-        return _parse_percent(answer)
+        value = _parse_percent(answer)
+        return (
+            None
+            if value is None
+            else metric_shape(value, unit="%", raw=_strip_sources(answer) or None)
+        )
     if fmt == "monetary_amount":
         return _parse_monetary(answer)
     if fmt == "currency":
-        return _parse_currency(answer)
+        codes = _parse_currency(answer)
+        return currency_shape(codes) if codes else None
     if fmt == "date":
         return _parse_date_shape(answer)
     if fmt == "bulleted_list":
-        return _parse_bulleted_list(answer)
+        items = [
+            {"text": item.strip()}
+            for item in _parse_bulleted_list(answer)
+            if item.strip()
+        ]
+        numbered = any(re.match(r"^\s*\d+\.\s+", line) for line in answer.splitlines())
+        return list_shape(items, numbered) if items else None
     if fmt == "tag":
-        return _parse_tag(answer, tags)
+        parsed = _parse_tag(answer, tags)
+        return enum_shape(parsed.strip(), tags) if parsed and parsed.strip() else None
     return None

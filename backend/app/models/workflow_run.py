@@ -20,7 +20,14 @@ class TabularCell(BaseModel):
     column_id: str
     status: CellStatus
     answer: str = ""
-    answer_formatted: Any = None  # parsed value per column format (number, bool, list, etc.)
+    # Tagged shape (see `workflow_shapes`), or None when the format has no
+    # shape / the parse failed. Always carries a `kind` discriminant.
+    answer_formatted: Any = None
+    # The shape flattened to analyst-readable text. For the JSON-directive
+    # formats (prose/list/kv) the raw `answer` is a JSON blob, so any surface
+    # that just wants text must read this instead. Falls back to `answer` when
+    # there is no shape.
+    answer_display: str = ""
     citations: list[Citation | None] = Field(default_factory=list)
     quality: dict[str, Any] | None = None
     model: str = ""

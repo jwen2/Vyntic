@@ -24,6 +24,7 @@ from app.services import workflow_run_store, workflow_store
 from app.services.context_provider import get_doc_page_chunks, load_doc_context
 from app.services.extraction_engine import run_extraction
 from app.services.workflow_format import format_prompt_suffix, parse_answer
+from app.services.workflow_shapes import display_text, normalize_shape
 
 logger = logging.getLogger(__name__)
 
@@ -505,11 +506,20 @@ async def execute_formula_cell(cell_id: str, run_id: str):
 
 
 def _cell_value(cell) -> Any:
-    if cell.answer_formatted is not None:
-        if isinstance(cell.answer_formatted, dict) and "raw" in cell.answer_formatted:
-            return cell.answer_formatted.get("raw")
-        return cell.answer_formatted
-    return cell.answer
+    """Resolve a cell to the value formulas operate on.
+
+    Formats that used to store a bare scalar (`number`, `percentage`) are now
+    boxed into a `metric` shape, so this must unwrap `value` — returning the
+    shape's `raw` string instead would silently feed `_eval_formula` text where
+    it previously got a float.
+    """
+    shape = normalize_shape(cell.answer_formatted)
+    if shape is None:
+        return cell.answer
+    if shape["kind"] == "metric" and shape.get("value") is not None:
+        return shape["value"]
+    text = display_text(shape, compact=True, strip_sources=True)
+    return text if text else cell.answer
 
 
 def _eval_formula(formula: str, values: dict[str, Any]) -> str:

@@ -19,6 +19,7 @@ from openpyxl.utils import get_column_letter
 from app.database import DocumentRow, SessionLocal
 from app.models.workflow import Workflow
 from app.models.workflow_run import TabularCell, WorkflowRun
+from app.services.workflow_shapes import display_text, normalize_shape
 
 
 def build_tabular_xlsx(run: WorkflowRun, workflow: Workflow) -> bytes:
@@ -100,46 +101,21 @@ def _doc_name_map(deal_id: str) -> dict[str, str]:
 
 
 def _export_value(cell: TabularCell | None) -> Any:
+    """Spreadsheet-facing value for a cell.
+
+    Numeric metrics export as real numbers so Excel can sum them; every other
+    shape goes through the shared `display_text` flattener rather than a
+    private copy of it. Markers are stripped — a spreadsheet cell cannot render
+    a citation anchor.
+    """
     if cell is None or cell.status == "error":
         return ""
-    formatted = cell.answer_formatted
-    if isinstance(formatted, dict):
-        if "summary" in formatted or "body" in formatted:
-            return formatted.get("summary") or formatted.get("body") or ""
-        if "items" in formatted and isinstance(formatted["items"], list):
-            return "; ".join(
-                str(item.get("text", item)) if isinstance(item, dict) else str(item)
-                for item in formatted["items"]
-                if item
-            )
-        if "pairs" in formatted and isinstance(formatted["pairs"], list):
-            exported_pairs = []
-            for pair in formatted["pairs"]:
-                if not isinstance(pair, dict):
-                    continue
-                key = pair.get("key")
-                value = pair.get("value")
-                unit = pair.get("unit")
-                if key and value is not None:
-                    exported_pairs.append(f"{key}: {value}{(' ' + str(unit)) if unit else ''}")
-            return "; ".join(exported_pairs)
-        if "iso" in formatted:
-            return formatted["iso"] or ""
-        if "raw" in formatted and formatted["raw"]:
-            return formatted["raw"]
-        if "value" in formatted:
-            value = formatted["value"]
-            unit = formatted.get("unit")
-            if unit:
-                return f"{value} {unit}"
-            return value
-        if "amount" in formatted:
-            return formatted["amount"] if formatted["amount"] is not None else ""
-    if isinstance(formatted, list):
-        return "; ".join(str(v) for v in formatted if v is not None)
-    if formatted is not None:
-        return formatted
-    return _strip_sources(cell.answer)
+    shape = normalize_shape(cell.answer_formatted)
+    if shape is None:
+        return _strip_sources(cell.answer)
+    if shape["kind"] == "metric" and not shape.get("raw") and shape.get("value") is not None:
+        return shape["value"]
+    return display_text(shape, compact=True, strip_sources=True)
 
 
 def _strip_sources(value: str) -> str:

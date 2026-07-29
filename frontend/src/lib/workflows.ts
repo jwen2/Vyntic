@@ -184,25 +184,17 @@ export type StageOutputStatus =
   | "complete"
   | "error";
 
-export interface Caveat {
-  text: string;
-  severity: "info" | "warn" | "risk";
-  citation_ids?: string[];
-}
+// The typed-cell shapes live in `lib/cellShapes` (the mirror of the backend's
+// `workflow_shapes.py`) and are re-exported here so existing importers keep
+// working. `TypedCellValue` used to be an *untagged* union — three of its
+// members started with `value`, so TypeScript could never narrow it, which is
+// why every consumer hand-rolled casts. `CellShape` is discriminated on `kind`.
+import type { CellShape } from "./cellShapes";
 
-export interface ListItem {
-  text: string;
-  citation_ids?: string[];
-}
+export type { Caveat, ListItem, KVPair, CellShape, CellShapeKind } from "./cellShapes";
 
-export type TypedCellValue =
-  | { value: number; unit?: string | null; period?: string | null; raw?: string | null }
-  | { iso: string; granularity: "day" | "month" | "quarter" | "year" }
-  | { value: boolean }
-  | { value: string; allowed?: string[] }
-  | { summary: string; body: string; caveats: Caveat[] }
-  | { items: ListItem[]; ordered: boolean }
-  | { pairs: Array<{ key: string; value: string | number; unit?: string | null }> };
+/** @deprecated Use `CellShape`. Retained as an alias for older call sites. */
+export type { CellShape as TypedCellValue } from "./cellShapes";
 
 export interface CellQuality {
   coverage: number;
@@ -217,8 +209,19 @@ export interface TabularCell {
   column_id: string;
   status: CellStatus;
   answer: string;
-  /** Format-parsed value. New typed-cell shapes use object values; legacy formats may still be scalar/list. */
-  answer_formatted: TypedCellValue | string | number | boolean | string[] | unknown[] | Record<string, unknown> | null;
+  /**
+   * Format-parsed value, always a `kind`-tagged shape (or null when the column
+   * format has no shape). The backend normalizes legacy payloads on read, so
+   * this never arrives untagged — narrow it with `asShape` and switch on `kind`.
+   */
+  answer_formatted: CellShape | null;
+  /**
+   * The shape flattened to analyst-readable text. Prefer this over `answer` on
+   * any surface that renders plain text: for prose/list/kv columns the raw
+   * `answer` is the model's JSON blob. Falls back to `answer` server-side when
+   * the cell has no shape.
+   */
+  answer_display: string;
   citations: (Citation | null)[];
   quality?: CellQuality | null;
   model: string;

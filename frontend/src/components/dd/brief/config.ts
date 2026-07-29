@@ -10,9 +10,9 @@ import type { TabularCell } from "@/lib/workflows";
 export interface QuestionResult {
   answer: string;
   /**
-   * The cell's typed `answer_formatted`. KV panels (snapshot/transaction) read
-   * `pairs` and the list panel (next actions) reads `items` directly from here;
-   * prose panels fall back to `answer`.
+   * The cell's tagged `answer_formatted` shape. KV panels (snapshot/transaction)
+   * read `pairs` and the list panel (next actions) reads `items` after
+   * narrowing on `kind`; prose panels fall back to `answer`.
    */
   formatted?: TabularCell["answer_formatted"];
   citations: (Citation | null)[];

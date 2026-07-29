@@ -16,8 +16,8 @@ import {
 } from "@/lib/workflows";
 import type { ColumnFormat } from "@/lib/matrixColumnConfig";
 import type { CellDensity } from "@/components/workflows/cells/CellRenderer";
-import { formatCellValue, stripSourceMarkers } from "./format";
-import { proseValue } from "../cells/CellRenderer";
+import { formatCellValue } from "./format";
+import { asShape } from "@/lib/cellShapes";
 
 export type Theme = "light" | "dark";
 export type WorkflowView = "compact" | "comfortable" | "compare";
@@ -395,18 +395,9 @@ export function useTabularRun({
     let count = 0;
     cells.forEach((cell) => {
       if (cell.status !== "complete") return;
-      const raw = stripSourceMarkers(cell.answer || "").trim();
-      const formatted = cell.answer_formatted;
-      const isProse =
-        !!formatted &&
-        typeof formatted === "object" &&
-        !Array.isArray(formatted) &&
-        ("summary" in (formatted as Record<string, unknown>) ||
-          "body" in (formatted as Record<string, unknown>));
-      if (isProse) {
-        if (proseValue(formatted, raw).caveats.some((caveat) => caveat.severity === "risk")) {
-          count += 1;
-        }
+      const shape = asShape(cell.answer_formatted);
+      if (shape?.kind === "prose") {
+        if ((shape.caveats ?? []).some((caveat) => caveat.severity === "risk")) count += 1;
         return;
       }
       const column = runColumns.find((col) => col.id === cell.column_id);

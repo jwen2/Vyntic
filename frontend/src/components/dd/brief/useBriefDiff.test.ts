@@ -16,7 +16,7 @@ const workstream = {
 
 const cell = (pairs: Array<{ key: string; value: string }>): QuestionResult => ({
   answer: "",
-  formatted: { pairs } as QuestionResult["formatted"],
+  formatted: { kind: "kv", pairs },
   citations: [],
   status: "complete",
 });
