@@ -75,18 +75,41 @@ async def invoke_with_fallback(messages: list[BaseMessage]) -> str:
 
 
 def _apply_usage(meta: LLMCallMeta, chunk: object) -> None:
-    """Copy langchain usage_metadata off a chunk into meta, if present.
+    """Copy langchain usage_metadata off a chunk into meta.
 
-    Last non-empty wins: correct whether the provider reports cumulative
-    counts on every chunk or a single total on the final one.
+    Measured live against gemini-3.1-flash-lite (two calls: a short reply and
+    a ~200-word reply spanning 12 chunks) — usage_metadata is reported as
+    PER-CHUNK INCREMENTS, not a cumulative running total:
+      - input_tokens (prompt cost) is reported once, on the first
+        content-bearing chunk, and is 0 on every subsequent chunk.
+      - output_tokens (completion cost) is a small non-cumulative count on
+        EVERY content chunk (e.g. 15, 24, 28, 28, 26, ... across 11 chunks)
+        and must be SUMMED across the stream to get the true total.
+      - The stream's final chunk is an empty-content terminator that also
+        carries a usage_metadata dict — but with every value zeroed. That
+        dict is truthy (it has keys), so a guard of `if not usage: return`
+        does NOT filter it out and it clobbers real values with zeros. The
+        guard here checks individual token counts, not dict truthiness.
+
+    prompt_tokens and cached_tokens: last NON-ZERO value wins (each is
+    reported once per call; zeros from the terminator or repeat chunks are
+    ignored rather than overwriting a real value).
+    completion_tokens: accumulated (summed) across every chunk that reports
+    a non-zero output_tokens.
     """
     usage = getattr(chunk, "usage_metadata", None)
     if not usage:
         return
-    meta.prompt_tokens = usage.get("input_tokens", 0) or 0
-    meta.completion_tokens = usage.get("output_tokens", 0) or 0
-    details = usage.get("input_token_details") or {}
-    meta.cached_tokens = details.get("cache_read", 0) or 0
+    input_tokens = usage.get("input_tokens") or 0
+    output_tokens = usage.get("output_tokens") or 0
+    cache_read = (usage.get("input_token_details") or {}).get("cache_read") or 0
+
+    if input_tokens:
+        meta.prompt_tokens = input_tokens
+    if output_tokens:
+        meta.completion_tokens += output_tokens
+    if cache_read:
+        meta.cached_tokens = cache_read
 
 
 async def stream_with_fallback(messages: list[BaseMessage]):
