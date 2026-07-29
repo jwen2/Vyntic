@@ -346,25 +346,42 @@ async def test_call_context_sets_and_restores():
 
 
 async def test_call_context_is_task_local():
-    """Concurrent cells must not see each other's attribution."""
+    """Concurrent cells must not see each other's attribution.
+
+    Both contexts are open simultaneously and each task reads while the
+    other's is also open — a plain module global would make task_a observe
+    task_b's deal_id here. Only a per-task ContextVar passes.
+    """
     seen = {}
-    start_b = asyncio.Event()
 
     async def task_a():
         with llm.llm_call_context(surface="chat_stream", deal_id="deal-a"):
-            start_b.set()
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.02)
             seen["a"] = llm.get_call_context().deal_id
 
     async def task_b():
-        await start_b.wait()
+        await asyncio.sleep(0.005)
         with llm.llm_call_context(surface="tabular_cell", deal_id="deal-b"):
+            await asyncio.sleep(0.02)
             seen["b"] = llm.get_call_context().deal_id
 
     await asyncio.gather(task_a(), task_b())
 
     assert seen == {"a": "deal-a", "b": "deal-b"}
+
+
+async def test_call_context_restores_after_exception():
+    try:
+        with llm.llm_call_context(surface="doc_matrix", deal_id="d1"):
+            raise ValueError("boom")
+    except ValueError:
+        pass
+    assert llm.get_call_context().surface == "unknown"
 ```
+
+> **CORRECTED DURING EXECUTION (2026-07-29).** The original version of `test_call_context_is_task_local` used an `asyncio.Event` to interleave the two tasks and **did not discriminate a ContextVar from a plain module global.** `Event.wait()` returns without suspending when the event is already set, so `task_b` ran start-to-finish inside `task_a`'s `sleep` — strict LIFO nesting, no overlap at any read point, and a save/restore global passed identically. The version above was verified to FAIL against a deliberately-substituted global implementation (`{'a': 'deal-b', 'b': None}`) before passing against the real one.
+>
+> **Rule for any future task-locality test in this repo:** overlap must come from both tasks sleeping *inside* their own context, not from an Event handoff — and the test must be run against the wrong implementation once, to prove it can fail.
 
 - [ ] **Step 2: Run test to verify it fails**
 
