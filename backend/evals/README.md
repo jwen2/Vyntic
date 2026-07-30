@@ -9,6 +9,9 @@ the product promise (CLAUDE.md invariant 6) expressed as a number.
 
 Makes real Gemini calls. Never run from CI.
 
+Do not point this at a database that has already run `init_db` — successful calls will write
+real `llm_calls` rows tagged `surface=unknown` that pollute cost measurement.
+
 ## Metrics
 
 - `hit_rate` — fraction of questions where some citation landed on an

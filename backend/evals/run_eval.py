@@ -35,10 +35,18 @@ async def _run_one(question, docs_dir: Path):
 async def main_async(golden_path: Path, docs_dir: Path, out_path: Path | None):
     questions = load_golden_set(golden_path)
     scores = []
+    empty_context_count = 0
 
     for q in questions:
         score, result = await _run_one(q, docs_dir)
         scores.append(score)
+        if result.empty_context:
+            empty_context_count += 1
+            print(
+                f"EMPTY-CONTEXT {q.id:<20} no LLM call made "
+                f"(check --docs path and ## Page N headers)"
+            )
+            continue
         mark = "HIT " if score.hit else "MISS"
         print(
             f"{mark} {q.id:<20} expected={list(score.expected_pages)} "
@@ -53,6 +61,8 @@ async def main_async(golden_path: Path, docs_dir: Path, out_path: Path | None):
     print(f"mean_precision   {report.mean_precision:.3f}")
     print(f"no_citation_rate {report.no_citation_rate:.3f}")
     print(f"questions        {len(report.scores)}")
+    if empty_context_count:
+        print(f"empty_context    {empty_context_count}")
 
     if out_path:
         out_path.write_text(
