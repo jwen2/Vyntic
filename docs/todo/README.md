@@ -59,11 +59,21 @@ Spec: `docs/superpowers/specs/2026-07-29-hybrid-context-strategy-design.md`. Imp
 
 | # | Plan | Scope | Depends on | Status |
 |---|---|---|---|---|
-| CS-A | `docs/superpowers/plans/2026-07-29-context-strategy-plan-a-measurement.md` | Per-call token accounting (`llm_calls` table, attribution ContextVar, cost route) + citation-accuracy eval harness (`backend/evals/`) + Gemini caching spike | — | not started |
-| CS-B | not yet written | Cost: context caching, column batching **only if** the caching residual justifies breaking the per-cell claim/SSE/retry model | CS-A (spike answer + baseline) | blocked on CS-A |
-| CS-C | not yet written | Capacity: `ContextSelection`, fail-loud coverage, lazy + batch embedding, the per-document allocator, `CONTEXT_STRATEGY` enum | CS-A (eval), CS-B | blocked on CS-A |
+| CS-A | `docs/superpowers/plans/2026-07-29-context-strategy-plan-a-measurement.md` | Per-call token accounting (`llm_calls` table, attribution ContextVar, cost route) + citation-accuracy eval harness (`backend/evals/`) + Gemini caching spike | — | **implemented** on branch `feat/context-strategy-measurement` (unmerged) — see follow-ups below |
+| CS-B | not yet written | Cost: context caching, column batching **only if** the caching residual justifies breaking the per-cell claim/SSE/retry model | CS-A (spike answer + baseline) | unblocked — spike answered |
+| CS-C | not yet written | Capacity: `ContextSelection`, fail-loud coverage, lazy + batch embedding, the per-document allocator, `CONTEXT_STRATEGY` enum | CS-A (eval), CS-B | blocked on CS-B |
 
-CS-B and CS-C are deliberately unwritten: CS-B's shape depends on the spike's answer, and CS-C's thresholds are only tunable against CS-A's eval.
+CS-B and CS-C are deliberately unwritten: CS-B's shape depends on the spike's answer, and CS-C's thresholds are only tunable against CS-A's eval. The spike (`docs/superpowers/spikes/2026-07-29-gemini-context-caching-findings.md`) found implicit prefix caching already active at a 56.6% hit rate with **zero code change**, so CS-B does not need a native `google-genai` path.
+
+### CS-A follow-ups (accepted debt, deliberately not fixed in CS-A)
+
+| # | Item | Why it was deferred |
+|---|---|---|
+| CS-A1 | **Retries inflate run-level aggregates.** A retried cell records one `llm_calls` row per attempt, and `created_at` is the only key that could distinguish them — there is no attempt number. A run's `prompt_tokens` therefore over-states what a clean run would cost. | Needs a decision on whether the cost record should report *billed* spend (current behavior, arguably correct) or *logical* spend per cell. Not a bug until someone quotes a per-run figure. |
+| CS-A2 | **`test_surface_vocabulary_is_used_in_source` greps `app/` for surface labels** rather than asserting behavior. It cannot catch a `with llm_call_context(...)` block scoped too narrowly to enclose its LLM call. | Partly retired: `tests/test_llm_attribution_integration.py` now drives `execute_cell` end-to-end and asserts a fully-attributed row. The grep test remains as a cheap vocabulary guard; the gap is that only `tabular_cell` has behavioral coverage. |
+| CS-A3 | **`test_cost_route_smoke` asserts no response content** — it checks status 200 only. | Superseded in practice by `test_admin_reads_deal_cost`; left as-is rather than widening CS-A's diff. |
+| CS-A4 | **The caching spike has no automated test.** Its findings live only in the spike doc, so a langchain upgrade that changes `usage_metadata` shape would not be caught. | Spikes are throwaway by design. The load-bearing part — `_apply_usage`'s accumulation semantics — *is* covered in `test_llm_token_accounting.py`. |
+| CS-A5 | **`cache_read` accumulation semantics still unverified** (spike Q4). Observed non-zero exactly once, on a stream's final chunk — the one position where last-non-zero-wins and summing agree. | Needs a cached call whose answer streams over many chunks. **CS-B must not trust summed `cached_tokens` until this is resolved.** |
 
 ## Suggested order
 1. Resolve **Plan 4 D1 tenancy decision**, then implement **Plan 4** → 2. **Plan 5**.
