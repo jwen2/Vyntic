@@ -469,7 +469,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Produces:
   - `llm_metrics.record_call(meta: LLMCallMeta, ctx: LLMCallContext) -> None` — never raises.
   - `llm_metrics.summarize(deal_id: str, run_id: str | None = None) -> CostSummary`.
-  - `CostSummary` Pydantic model with `deal_id`, `run_id`, `call_count`, `prompt_tokens`, `completion_tokens`, `cached_tokens`, `by_surface: dict[str, int]` (call counts per surface).
+  - `CostSummary` Pydantic model with `deal_id`, `run_id`, `call_count`, `prompt_tokens`, `completion_tokens`, `cached_tokens`, `by_surface: dict[str, int]` (call counts per surface). **Superseded during review — this was a defect in the plan.** Specifying `by_surface` as call counts defeats this plan's own goal of a measured per-surface *token* multiplier, since surfaces differ by orders of magnitude in prompt size. As shipped, `by_surface` holds tokens; counts moved to `calls_by_surface`, and `calls_by_outcome` was added alongside.
 
 **Schema note:** `llm_calls` deliberately has **no foreign key** to `deals`. Metrics must survive deal deletion (they are the cost record), and CLAUDE.md invariant 3 warns that SQLite cannot add FK constraints via ALTER anyway. This is a new table, so `create_all` handles it with no migration shim.
 

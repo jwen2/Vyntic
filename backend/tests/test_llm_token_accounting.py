@@ -263,6 +263,125 @@ async def test_outcome_is_aborted_when_the_consumer_abandons_the_stream(
     assert summary.prompt_tokens == 40  # the prompt was sent, so it was billed
 
 
+async def test_abandoned_nested_generator_finalized_in_another_task(
+    monkeypatch, clear_store
+):
+    """Reproduces the real SSE client-disconnect shape.
+
+    Every streaming surface is a nested async generator: an inner generator
+    opens `llm_call_context` and drives `stream_with_fallback`, and an outer
+    generator relays it as the StreamingResponse body. Async generators do not
+    own a context (PEP 568 was never implemented), so the inner one's `with`
+    runs in whichever task drives it. starlette 1.3.1 cancels the response task
+    on disconnect WITHOUT aclose()ing the body iterator (responses.py:248-250),
+    so both generators are abandoned mid-flight and finalized later by
+    asyncio's hook — in a NEW task, with a copied context.
+
+    What this pins: `_call_context.reset(token)` raises `ValueError: token was
+    created in a different Context`. That exception displaces the in-flight
+    GeneratorExit, is caught by the generator's own `except Exception`, and
+    becomes a spurious SSE error frame plus "async generator ignored
+    GeneratorExit" — a routine disconnect logged as an LLM failure.
+
+    Note what this does NOT prove. Attribution survives this scenario whether or
+    not `_record` snapshots the context, and measurably so: reverting the
+    snapshot leaves this test green. That is not a sign the snapshot is
+    pointless — it is the reason it exists. Attribution here survives only
+    because the *failed* reset leaves the ContextVar still set in the driving
+    task, so `create_task` copies a context that happens to carry the right
+    value. Correctness resting on a failed cleanup is not correctness. The case
+    where that accident does not save us is isolated in the next test.
+    """
+    monkeypatch.setattr(
+        llm,
+        "get_llm",
+        lambda model=None: FakeLLM([
+            _chunk("one", {"input_tokens": 77, "output_tokens": 1}),
+            _chunk("two"),
+            _chunk("three"),
+        ]),
+    )
+
+    holder = {}
+
+    async def inner():
+        with llm.llm_call_context(surface="compare_synthesis", deal_id="deal-sse"):
+            stream = llm.stream_with_fallback([])
+            holder["stream"] = stream
+            async for chunk in stream:
+                yield chunk.content
+
+    inner_gen = inner()
+
+    async def outer():
+        async for token in inner_gen:
+            yield token
+
+    gen = outer()
+    async for _ in gen:
+        break  # client disconnects: all three generators left suspended
+
+    # Finalize from DIFFERENT tasks, exactly as asyncio's async-generator
+    # finalizer hook does. Each generator must be closed explicitly: closing an
+    # outer one only throws GeneratorExit in at ITS OWN yield, which abandons
+    # the generator it was iterating rather than finalizing it. The hook reaches
+    # each abandoned generator separately, which is what this models — and it is
+    # why the `finally` that calls _record runs under a foreign context.
+    #
+    # Pre-fix, closing inner_gen raised ValueError out of aclose(); and the
+    # stream's own finally then recorded surface="unknown"/deal_id=None, so
+    # summarize("deal-sse") found nothing.
+    await asyncio.create_task(gen.aclose())
+    await asyncio.create_task(inner_gen.aclose())
+    await asyncio.create_task(holder["stream"].aclose())
+
+    summary = llm_metrics.summarize("deal-sse")
+    assert summary.call_count == 1
+    assert summary.by_surface == {"compare_synthesis": 78}
+    assert summary.calls_by_outcome == {"aborted": 1}
+
+
+async def test_attribution_survives_finalization_after_the_context_exits(
+    monkeypatch, clear_store
+):
+    """The case the nested-generator test cannot catch: a stream finalized
+    after its `llm_call_context` has already exited *cleanly*.
+
+    Here the `with` opens and closes in one task, so `reset` succeeds and the
+    ContextVar is genuinely back to its default by the time the abandoned
+    stream is finalized in another task. If `_record` read the ContextVar at
+    that point it would see surface="unknown"/deal_id=None, and because
+    `summarize()` filters on deal_id the row would be written and then be
+    unreachable from every read path — spend that vanishes rather than showing
+    up wrong. Only the context snapshot taken when the call starts prevents it.
+
+    This shape is not hypothetical: any consumer that stops reading a stream
+    early inside a context manager that then exits normally produces it.
+    """
+    monkeypatch.setattr(
+        llm,
+        "get_llm",
+        lambda model=None: FakeLLM([
+            _chunk("one", {"input_tokens": 55, "output_tokens": 3}),
+            _chunk("two"),
+        ]),
+    )
+
+    with llm.llm_call_context(surface="doc_matrix", deal_id="deal-late", doc_id="doc-1"):
+        stream = llm.stream_with_fallback([])
+        async for _ in stream:
+            break  # stop reading, but leave the generator alive
+
+    # The context has exited cleanly; the variable is back to its default.
+    assert llm.get_call_context().surface == "unknown"
+
+    await asyncio.create_task(stream.aclose())
+
+    summary = llm_metrics.summarize("deal-late")
+    assert summary.call_count == 1, "the row must not be filed under deal_id=None"
+    assert summary.by_surface == {"doc_matrix": 58}
+
+
 async def test_recording_failure_does_not_break_the_stream(monkeypatch, clear_store):
     monkeypatch.setattr(llm, "get_llm", lambda model=None: FakeLLM([_chunk("ok")]))
 

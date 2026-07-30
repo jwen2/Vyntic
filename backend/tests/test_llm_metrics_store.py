@@ -132,10 +132,17 @@ SURFACES = {
     "chat_query",
     "doc_matrix",
     "monitoring",
-    # The multi-deal compare fan-out (one isolated per-deal QA call each) and
-    # the single cross-deal synthesis paragraph that follows it. Separate
-    # labels because their prompt shapes are nothing alike — the fan-out sends
-    # whole documents, the synthesis only sends already-extracted answers.
+    # The NON-STREAMING multi-deal compare fan-out (one isolated per-deal QA
+    # call each) and the cross-deal synthesis paragraph. Separate labels
+    # because their prompt shapes are nothing alike — the fan-out sends whole
+    # documents, the synthesis only sends already-extracted answers.
+    #
+    # Caveat: the STREAMING compare endpoint's per-deal fan-out
+    # (routes_stream.py `_stream_deal_answer`) is still labelled "chat_stream",
+    # so compare spend is split across two labels depending on which endpoint
+    # the frontend used. No data is mixed — `_stream_deal_answer` has exactly
+    # one caller and nothing else uses "chat_stream" — but "chat_stream" is a
+    # misnomer there. Tracked as CS-A7.
     "compare_cell",
     "compare_synthesis",
 }
