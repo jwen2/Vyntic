@@ -31,7 +31,7 @@ async def _stream_doc_answer(deal_id: str, doc_id: str, query: str):
     Retrieval is isolated to the specified doc_id via query_document().
     """
     try:
-        with llm_call_context(surface="doc_matrix", deal_id=deal_id):
+        with llm_call_context(surface="doc_matrix", deal_id=deal_id, doc_id=doc_id):
             retrieved = await load_doc_context(deal_id, doc_id, query)
 
             if not retrieved:

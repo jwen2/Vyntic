@@ -37,7 +37,8 @@ async def query_deal_route(deal_id: str, request: QueryRequest, current_user: Us
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
 
     try:
-        return await answer_deal_question(deal_id, request.question)
+        with llm_call_context(surface="chat_query", deal_id=deal_id):
+            return await answer_deal_question(deal_id, request.question)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
 

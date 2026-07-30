@@ -68,7 +68,7 @@ _CALL_PROMPT = (
 
 
 async def extract_call_notice(deal_id: str, doc_id: str) -> CallNoticeDraft:
-    with llm_call_context(surface="monitoring", deal_id=deal_id):
+    with llm_call_context(surface="monitoring", deal_id=deal_id, doc_id=doc_id):
         chunks = await context_provider.load_doc_context(deal_id, doc_id, _CALL_PROMPT)
         result = await run_extraction(
             chunks,
@@ -112,7 +112,7 @@ _BLOCK_SPLIT = re.compile(r"\n\s*\n")
 
 
 async def extract_obligations(deal_id: str, doc_id: str) -> list[ObligationDraft]:
-    with llm_call_context(surface="monitoring", deal_id=deal_id):
+    with llm_call_context(surface="monitoring", deal_id=deal_id, doc_id=doc_id):
         chunks = await context_provider.load_doc_context(deal_id, doc_id, _OBLIGATION_PROMPT)
         result = await run_extraction(chunks, _OBLIGATION_PROMPT, deal_id=deal_id)
         drafts: list[ObligationDraft] = []

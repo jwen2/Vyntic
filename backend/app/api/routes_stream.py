@@ -93,11 +93,17 @@ async def _stream_synthesis(query: str, deal_ids: list[str], answers: dict[str, 
         ]
 
         full_answer = ""
-        async for chunk in stream_with_fallback(messages):
-            token = chunk.content
-            if token:
-                full_answer += token
-                yield f"data: {json.dumps({'type': 'token', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'token': token})}\n\n"
+        # This call belongs to no single deal, so it is booked against the
+        # SYNTHESIS_DEAL_ID sentinel the SSE protocol already uses for exactly
+        # this case. Keeping deal_id non-NULL keeps the row reachable through
+        # llm_metrics.summarize (which filters on deal_id, so NULL rows are
+        # invisible to every read path) without inflating any real deal's total.
+        with llm_call_context(surface="compare_synthesis", deal_id=SYNTHESIS_DEAL_ID):
+            async for chunk in stream_with_fallback(messages):
+                token = chunk.content
+                if token:
+                    full_answer += token
+                    yield f"data: {json.dumps({'type': 'token', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'token': token})}\n\n"
 
         meta = get_last_meta()
         yield f"data: {json.dumps({'type': 'done', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'answer': full_answer, 'citations': [], 'model': meta.model_used if meta else 'unknown', 'fallback': meta.fallback if meta else False, 'duration_ms': meta.duration_ms if meta else 0})}\n\n"

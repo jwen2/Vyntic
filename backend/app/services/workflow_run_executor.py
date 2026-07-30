@@ -323,6 +323,10 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
             deal_id=deal_id,
             run_id=run_id,
             cell_id=cell_id,
+            # one_doc_per_row: row_key IS the doc_id. A multi_doc_synthesis
+            # cell spans every document in the run, so there is no single
+            # document to attribute it to.
+            doc_id=None if is_synthesis else cell.row_key,
         ):
             if is_synthesis:
                 retrieved = []
