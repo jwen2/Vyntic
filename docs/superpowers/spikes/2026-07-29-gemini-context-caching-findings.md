@@ -135,8 +135,9 @@ enough to produce multiple content chunks after a cache hit.
 
 ## Recommendation for Plan B
 
-**Explicit caching via langchain — moderate size, but implicit caching may
-make it unnecessary as a first step.**
+**Implicit caching already works with zero client changes — start there;
+explicit caching via langchain (moderate size) is the fallback if that
+proves insufficient.**
 
 Both explicit and implicit caching are reachable without a new client:
 
@@ -202,6 +203,19 @@ package.
   for Plan B sizing (implicit caching's exact threshold matters for tuning,
   not for the yes/no feasibility question this spike answers) but worth
   measuring before Plan B sets prefix-size targets.
+- **Follow-up (production code, out of scope for this spike):**
+  `_apply_usage`'s docstring at `backend/app/agents/llm.py:158-164` still
+  states `cache_read` was "NOT MEASURED... 0 on every chunk in both" and
+  names Task 10 as the pending verification. This spike observed
+  `cache_read = 4076` (Q2/Q4 above), so that text is now stale — a reader
+  who finishes this spike and then opens `llm.py` would reasonably
+  conclude the verification never ran. It should be updated to record that
+  a non-zero `cache_read` **has** now been observed once, live, on the
+  final chunk of a 3-chunk response (call-2 above) — while keeping the
+  general multi-chunk accumulation semantics flagged as still unverified,
+  per Q4's finding that this single occurrence cannot distinguish
+  last-non-zero-wins from summing. Not fixed here because production code
+  was out of scope for this task.
 
 ## Live API calls made
 
