@@ -83,3 +83,31 @@ def test_record_never_raises_on_bad_input(clear_store, monkeypatch):
     monkeypatch.setattr(llm_metrics, "SessionLocal", boom)
 
     llm_metrics.record_call(_meta(), LLMCallContext(surface="chat_stream"))
+
+
+SURFACES = {
+    "tabular_cell",
+    "assistant_stage",
+    "chat_stream",
+    "chat_query",
+    "doc_matrix",
+    "monitoring",
+}
+
+
+def test_surface_vocabulary_is_used_in_source():
+    """Every surface label must actually be set somewhere in app code.
+
+    Guards against a surface being instrumented with a typo'd label, which
+    would silently split its cost across two buckets.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "app"
+    source = "\n".join(
+        p.read_text(encoding="utf-8") for p in root.rglob("*.py")
+    )
+    used = set(re.findall(r'llm_call_context\(\s*surface="([a-z_]+)"', source))
+
+    assert used == SURFACES, f"missing={SURFACES - used} unexpected={used - SURFACES}"

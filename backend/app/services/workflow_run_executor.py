@@ -18,7 +18,7 @@ import re
 from collections import defaultdict
 from typing import Any
 
-from app.agents.llm import LLMConfigurationError, ensure_llm_configured
+from app.agents.llm import LLMConfigurationError, ensure_llm_configured, llm_call_context
 from app.config import settings
 from app.services import workflow_run_store, workflow_store
 from app.services.context_provider import get_doc_page_chunks, load_doc_context
@@ -318,72 +318,78 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
         )
 
     try:
-        if is_synthesis:
-            retrieved = []
-            for doc_id in run.document_ids if run else []:
-                try:
-                    chunks = await load_doc_context(
-                        deal_id,
-                        doc_id,
-                        retrieval_query,
-                    )
-                except Exception:
-                    logger.exception("query_document failed: doc=%s", doc_id)
-                    chunks = []
-                retrieved.extend(chunks)
-            retrieved = _select_synthesis_chunks(retrieved)
-        else:
-            doc_id = cell.row_key  # one_doc_per_row: row_key == doc_id
-            retrieved = await load_doc_context(
-                deal_id,
-                doc_id,
-                retrieval_query,
-            )
-        if not retrieved:
-            answer = ""
-            citations: list = []
-            formatted: Any = None
-            workflow_run_store.complete_cell(
-                cell_id,
-                answer=answer,
-                answer_formatted=formatted,
-                citations=citations,
-                model="",
-                fallback=False,
-                duration_ms=0,
-            )
-        else:
+        with llm_call_context(
+            surface="tabular_cell",
+            deal_id=deal_id,
+            run_id=run_id,
+            cell_id=cell_id,
+        ):
             if is_synthesis:
-                full_doc_chunks = []
+                retrieved = []
                 for doc_id in run.document_ids if run else []:
                     try:
-                        full_doc_chunks.extend(get_doc_page_chunks(deal_id, doc_id))
+                        chunks = await load_doc_context(
+                            deal_id,
+                            doc_id,
+                            retrieval_query,
+                        )
                     except Exception:
-                        logger.exception("get_document_chunks failed: doc=%s", doc_id)
+                        logger.exception("query_document failed: doc=%s", doc_id)
+                        chunks = []
+                    retrieved.extend(chunks)
+                retrieved = _select_synthesis_chunks(retrieved)
             else:
-                full_doc_chunks = get_doc_page_chunks(deal_id, cell.row_key)
+                doc_id = cell.row_key  # one_doc_per_row: row_key == doc_id
+                retrieved = await load_doc_context(
+                    deal_id,
+                    doc_id,
+                    retrieval_query,
+                )
+            if not retrieved:
+                answer = ""
+                citations: list = []
+                formatted: Any = None
+                workflow_run_store.complete_cell(
+                    cell_id,
+                    answer=answer,
+                    answer_formatted=formatted,
+                    citations=citations,
+                    model="",
+                    fallback=False,
+                    duration_ms=0,
+                )
+            else:
+                if is_synthesis:
+                    full_doc_chunks = []
+                    for doc_id in run.document_ids if run else []:
+                        try:
+                            full_doc_chunks.extend(get_doc_page_chunks(deal_id, doc_id))
+                        except Exception:
+                            logger.exception("get_document_chunks failed: doc=%s", doc_id)
+                else:
+                    full_doc_chunks = get_doc_page_chunks(deal_id, cell.row_key)
 
-            result = await run_extraction(
-                retrieved,
-                user_message,
-                deal_id=deal_id,
-                page_context_chunks=full_doc_chunks or None,
-                require_citations=True,
-            )
-            formatted = (
-                parse_answer(result.answer, column["format"], column["tags"])
-                if result.answer
-                else None
-            )
-            workflow_run_store.complete_cell(
-                cell_id,
-                answer=result.answer,
-                answer_formatted=formatted,
-                citations=result.citations,
-                model=result.model,
-                fallback=result.fallback,
-                duration_ms=result.duration_ms,
-            )
+                result = await run_extraction(
+                    retrieved,
+                    user_message,
+                    deal_id=deal_id,
+                    page_context_chunks=full_doc_chunks or None,
+                    require_citations=True,
+                )
+                formatted = (
+                    parse_answer(result.answer, column["format"], column["tags"])
+                    if result.answer
+                    else None
+                )
+                workflow_run_store.complete_cell(
+                    cell_id,
+                    answer=result.answer,
+                    answer_formatted=formatted,
+                    citations=result.citations,
+                    model=result.model,
+                    fallback=result.fallback,
+                    duration_ms=result.duration_ms,
+                )
     except Exception as exc:
         logger.exception("LLM cell extraction failed: cell=%s", cell_id)
         workflow_run_store.error_cell(cell_id, f"{type(exc).__name__}: {exc}")
@@ -757,47 +763,48 @@ async def execute_assistant_stage(
     )
 
     try:
-        all_chunks: list = []
-        for doc_id in document_ids:
-            try:
-                chunks = await load_doc_context(
-                    deal_id,
-                    doc_id,
-                    stage.prompt_md or stage.label,
-                )
-            except Exception:
-                logger.exception("query_document failed: doc=%s", doc_id)
-                chunks = []
-            if chunks:
-                all_chunks.extend(chunks)
+        with llm_call_context(surface="assistant_stage", deal_id=deal_id, run_id=run_id):
+            all_chunks: list = []
+            for doc_id in document_ids:
+                try:
+                    chunks = await load_doc_context(
+                        deal_id,
+                        doc_id,
+                        stage.prompt_md or stage.label,
+                    )
+                except Exception:
+                    logger.exception("query_document failed: doc=%s", doc_id)
+                    chunks = []
+                if chunks:
+                    all_chunks.extend(chunks)
 
-        # For citations we use the union of retrieved chunks for source-number
-        # mapping, plus full same-page context from selected docs to enrich
-        # snippets without changing the mapping.
-        page_context_chunks: list = []
-        for doc_id in document_ids:
-            try:
-                page_context_chunks.extend(get_doc_page_chunks(deal_id, doc_id))
-            except Exception:
-                logger.exception("get_document_chunks failed: doc=%s", doc_id)
+            # For citations we use the union of retrieved chunks for source-number
+            # mapping, plus full same-page context from selected docs to enrich
+            # snippets without changing the mapping.
+            page_context_chunks: list = []
+            for doc_id in document_ids:
+                try:
+                    page_context_chunks.extend(get_doc_page_chunks(deal_id, doc_id))
+                except Exception:
+                    logger.exception("get_document_chunks failed: doc=%s", doc_id)
 
-        result = await run_extraction(
-            all_chunks,
-            user_message,
-            deal_id=deal_id,
-            page_context_chunks=page_context_chunks or None,
-            # Later stages legitimately run on prior approved outputs alone.
-            empty_context_placeholder="(no document context retrieved)",
-        )
-        workflow_run_store.complete_stage(
-            stage_output_id,
-            output_md=result.answer,
-            citations=result.citations,
-            model=result.model,
-            fallback=result.fallback,
-            duration_ms=result.duration_ms,
-            needs_checkpoint=stage.checkpoint,
-        )
+            result = await run_extraction(
+                all_chunks,
+                user_message,
+                deal_id=deal_id,
+                page_context_chunks=page_context_chunks or None,
+                # Later stages legitimately run on prior approved outputs alone.
+                empty_context_placeholder="(no document context retrieved)",
+            )
+            workflow_run_store.complete_stage(
+                stage_output_id,
+                output_md=result.answer,
+                citations=result.citations,
+                model=result.model,
+                fallback=result.fallback,
+                duration_ms=result.duration_ms,
+                needs_checkpoint=stage.checkpoint,
+            )
     except Exception as exc:
         logger.exception("Assistant stage execution failed: stage=%s", stage_output_id)
         workflow_run_store.error_stage(
