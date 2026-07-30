@@ -19,6 +19,7 @@ from app.api.routes_monitoring import router as monitoring_router, portfolio_rou
 from app.api.routes_ingest import router as ingest_router
 from app.api.routes_query import router as query_router
 from app.api.routes_matrix import router as matrix_router
+from app.api.routes_metrics import router as metrics_router
 from app.api.routes_stream import router as stream_router
 from app.api.routes_doc_matrix import router as doc_matrix_router
 from app.api.routes_audit import router as audit_router
@@ -80,6 +81,7 @@ app.include_router(portfolio_router, dependencies=AUTHENTICATED)
 app.include_router(ingest_router, dependencies=AUTHENTICATED)
 app.include_router(query_router, dependencies=AUTHENTICATED)
 app.include_router(matrix_router, dependencies=AUTHENTICATED)
+app.include_router(metrics_router, dependencies=AUTHENTICATED)
 app.include_router(stream_router, dependencies=AUTHENTICATED)
 app.include_router(doc_matrix_router, dependencies=AUTHENTICATED)
 app.include_router(conversation_router, dependencies=AUTHENTICATED)
