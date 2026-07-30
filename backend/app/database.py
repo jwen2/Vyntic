@@ -496,12 +496,24 @@ class LLMCallRow(Base):
     deal_id = Column(String, nullable=True, index=True)
     run_id = Column(String, nullable=True, index=True)
     cell_id = Column(String, nullable=True)
+    # Set only where exactly one document is unambiguously in scope. Stored
+    # denormalized on purpose: the per-document token multiplier is the number
+    # this instrumentation exists to measure, and deriving it via
+    # cell_id -> cell.row_key stops working the moment a deal is deleted —
+    # which is precisely the case this table has no FK in order to survive.
+    doc_id = Column(String, nullable=True, index=True)
     model = Column(String, default="")
     fallback = Column(Boolean, default=False)
     prompt_tokens = Column(Integer, default=0)
     completion_tokens = Column(Integer, default=0)
     cached_tokens = Column(Integer, default=0)
     duration_ms = Column(Integer, default=0)
+    # "ok" | "error" | "aborted" — was this call actually billed? Recording
+    # happens unconditionally in llm.py's finally block, so without this a
+    # failed or abandoned call is indistinguishable from a completed one and
+    # call_count silently over-counts. Deliberately NOT derived from
+    # LLMCallMeta.error, which is also set on a successful fallback.
+    outcome = Column(String, default="error", index=True)
 
 
 def init_db():
@@ -542,6 +554,13 @@ def _ensure_schema_migrations():
         "positions": [
             ("opening_called", "REAL"),
             ("opening_distributed", "REAL"),
+        ],
+        # llm_calls is a new table, so create_all covers a fresh DB. These
+        # columns were added after the table shipped, so any DB that already
+        # ran init_db against the first version needs the ALTER.
+        "llm_calls": [
+            ("outcome", "TEXT DEFAULT 'error'"),
+            ("doc_id", "TEXT"),
         ],
     }
     inspector = inspect(engine)

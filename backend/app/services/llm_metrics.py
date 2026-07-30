@@ -28,12 +28,14 @@ def record_call(meta: LLMCallMeta, ctx: LLMCallContext) -> None:
                     deal_id=ctx.deal_id,
                     run_id=ctx.run_id,
                     cell_id=ctx.cell_id,
+                    doc_id=ctx.doc_id,
                     model=meta.model_used,
                     fallback=meta.fallback,
                     prompt_tokens=meta.prompt_tokens,
                     completion_tokens=meta.completion_tokens,
                     cached_tokens=meta.cached_tokens,
                     duration_ms=meta.duration_ms,
+                    outcome=meta.outcome,
                 )
             )
             db.commit()
@@ -58,9 +60,35 @@ def summarize(deal_id: str, run_id: str | None = None) -> CostSummary:
             func.coalesce(func.sum(LLMCallRow.cached_tokens), 0),
         ).one()
 
+        # by_surface is TOKENS, not calls: the whole reason this table exists is
+        # to replace the estimated per-surface token multiplier with a measured
+        # one, and surfaces differ by orders of magnitude in prompt size.
+        # Counts are kept separately so call_count == sum(calls_by_surface).
         by_surface = dict(
+            q.with_entities(
+                LLMCallRow.surface,
+                func.coalesce(
+                    func.sum(LLMCallRow.prompt_tokens + LLMCallRow.completion_tokens),
+                    0,
+                ),
+            )
+            .group_by(LLMCallRow.surface)
+            .all()
+        )
+
+        calls_by_surface = dict(
             q.with_entities(LLMCallRow.surface, func.count(LLMCallRow.id))
             .group_by(LLMCallRow.surface)
+            .all()
+        )
+
+        # coalesce because a row inserted before `outcome` existed (or by raw
+        # SQL) can carry NULL, and a None dict key would fail CostSummary's
+        # dict[str, int] validation.
+        outcome_col = func.coalesce(LLMCallRow.outcome, "error")
+        calls_by_outcome = dict(
+            q.with_entities(outcome_col, func.count(LLMCallRow.id))
+            .group_by(outcome_col)
             .all()
         )
 
@@ -72,6 +100,8 @@ def summarize(deal_id: str, run_id: str | None = None) -> CostSummary:
             completion_tokens=totals[2],
             cached_tokens=totals[3],
             by_surface=by_surface,
+            calls_by_surface=calls_by_surface,
+            calls_by_outcome=calls_by_outcome,
         )
     finally:
         db.close()

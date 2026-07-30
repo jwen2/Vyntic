@@ -190,7 +190,77 @@ async def test_stream_records_a_metrics_row(monkeypatch, clear_store):
     assert summary.call_count == 1
     assert summary.prompt_tokens == 500
     assert summary.completion_tokens == 12
-    assert summary.by_surface == {"chat_stream": 1}
+    assert summary.by_surface == {"chat_stream": 512}  # tokens, not calls
+    assert summary.calls_by_surface == {"chat_stream": 1}
+    assert summary.calls_by_outcome == {"ok": 1}
+
+
+class _PreTokenFail:
+    async def astream(self, messages):
+        raise RuntimeError("rate limited")
+        yield  # pragma: no cover — makes this an async generator
+
+
+class _MidStreamFail:
+    async def astream(self, messages):
+        yield SimpleNamespace(content="partial ", usage_metadata=None)
+        raise RuntimeError("connection dropped")
+
+
+async def test_outcome_is_ok_when_the_fallback_model_succeeds(monkeypatch, clear_store):
+    """`outcome` answers "were we billed?", which is NOT what `meta.error`
+    answers: error is populated on a call that failed over and then succeeded.
+    Deriving outcome from error would mark this billed call as failed."""
+    instances = iter([_PreTokenFail(), FakeLLM([_chunk("ok", {"input_tokens": 9, "output_tokens": 2})])])
+    monkeypatch.setattr(llm, "get_llm", lambda model=None: next(instances))
+
+    with llm.llm_call_context(surface="chat_stream", deal_id="deal-fb"):
+        [c async for c in llm.stream_with_fallback([])]
+
+    assert llm.get_last_meta().error == "rate limited"
+    assert llm.get_last_meta().outcome == "ok"
+    assert llm_metrics.summarize("deal-fb").calls_by_outcome == {"ok": 1}
+
+
+async def test_outcome_is_error_when_the_stream_raises(monkeypatch, clear_store):
+    monkeypatch.setattr(llm, "get_llm", lambda model=None: _MidStreamFail())
+
+    with llm.llm_call_context(surface="chat_stream", deal_id="deal-err"):
+        try:
+            async for _ in llm.stream_with_fallback([]):
+                pass
+        except RuntimeError:
+            pass
+
+    assert llm_metrics.summarize("deal-err").calls_by_outcome == {"error": 1}
+
+
+async def test_outcome_is_aborted_when_the_consumer_abandons_the_stream(
+    monkeypatch, clear_store
+):
+    """A client disconnect throws GeneratorExit in at the yield. That is a
+    BaseException, so `except Exception` never sees it and it reaches the
+    `finally` looking exactly like a call that died before the provider was
+    reached — recording a call we WERE billed for as never-billed."""
+    monkeypatch.setattr(
+        llm,
+        "get_llm",
+        lambda model=None: FakeLLM([
+            _chunk("first", {"input_tokens": 40, "output_tokens": 1}),
+            _chunk("second"),
+            _chunk("third"),
+        ]),
+    )
+
+    with llm.llm_call_context(surface="chat_stream", deal_id="deal-abort"):
+        gen = llm.stream_with_fallback([])
+        async for _ in gen:
+            break  # leaves the generator suspended at its yield
+        await gen.aclose()
+
+    summary = llm_metrics.summarize("deal-abort")
+    assert summary.calls_by_outcome == {"aborted": 1}
+    assert summary.prompt_tokens == 40  # the prompt was sent, so it was billed
 
 
 async def test_recording_failure_does_not_break_the_stream(monkeypatch, clear_store):

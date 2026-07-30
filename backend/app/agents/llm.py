@@ -24,6 +24,15 @@ class LLMCallMeta:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cached_tokens: int = 0
+    # "were we billed for this?" — NOT the same question as `error`, which is
+    # also set on a call that failed over and then SUCCEEDED (see the fallback
+    # branch of stream_with_fallback). Defaults pessimistically to "error" so
+    # that a call which never reaches its success point — including one that
+    # died before any network request — is never counted as a billed call.
+    #   "ok"      completed normally (primary or fallback)
+    #   "error"   raised, or never got as far as completing
+    #   "aborted" consumer abandoned the stream (client disconnect)
+    outcome: str = "error"
 
 
 # Metadata for the most recent stream call, isolated per asyncio task via
@@ -43,6 +52,10 @@ class LLMCallContext:
     deal_id: str | None = None
     run_id: str | None = None
     cell_id: str | None = None
+    # Set only where exactly one document is unambiguously in scope (doc
+    # matrix, one_doc_per_row tabular cells, single-doc monitoring extraction).
+    # Left None for multi-doc and no-doc surfaces — never guessed.
+    doc_id: str | None = None
 
 
 _call_context: ContextVar[LLMCallContext] = ContextVar(
@@ -61,11 +74,16 @@ def llm_call_context(
     deal_id: str | None = None,
     run_id: str | None = None,
     cell_id: str | None = None,
+    doc_id: str | None = None,
 ):
     """Attribute every LLM call made inside this block to `surface`."""
     token = _call_context.set(
         LLMCallContext(
-            surface=surface, deal_id=deal_id, run_id=run_id, cell_id=cell_id
+            surface=surface,
+            deal_id=deal_id,
+            run_id=run_id,
+            cell_id=cell_id,
+            doc_id=doc_id,
         )
     )
     try:
@@ -131,6 +149,7 @@ async def invoke_with_fallback(messages: list[BaseMessage]) -> str:
             llm = get_llm(settings.gemini_fallback_model)
             response = await llm.ainvoke(messages)
         _apply_usage(meta, response)
+        meta.outcome = "ok"
         return response.content
     finally:
         meta.duration_ms = int((time.monotonic() - t0) * 1000)
@@ -155,13 +174,18 @@ def _apply_usage(meta: LLMCallMeta, chunk: object) -> None:
     - output_tokens -> completion_tokens: MEASURED (12-chunk run). A small
       non-cumulative count on every content chunk. ACCUMULATED (summed)
       across the stream to get the true total.
-    - input_token_details.cache_read -> cached_tokens: NOT MEASURED. Both
-      calibration runs had caching inactive, so cache_read was 0 on every
-      chunk in both — last-non-zero-wins here is an assumption by analogy
-      with input_tokens, not an observation. It could plausibly behave like
-      output_tokens (per-chunk increments) instead. Must be verified with
-      caching actually enabled before any caching measurement (Plan B)
-      relies on this field — that verification is Task 10's job.
+    - input_token_details.cache_read -> cached_tokens: PARTIALLY MEASURED,
+      ACCUMULATION SEMANTICS STILL UNKNOWN. A live cached call has now been
+      observed emitting a non-zero cache_read (4076 of 7207 prompt tokens,
+      implicit caching, see the Gemini caching spike doc), so the field is
+      real and does get populated. But it arrived exactly once, on the FINAL
+      chunk of a 3-chunk response — the one position where last-non-zero-wins
+      and summing produce identical results. So this code's choice of
+      last-non-zero-wins is still unconfirmed: cache_read could equally be a
+      per-chunk increment like output_tokens, which would make this
+      under-report on a longer cached answer. Resolving it needs a cached
+      call whose response streams over many chunks. Until then, Plan B must
+      not treat summed cached_tokens as trustworthy.
     """
     usage = getattr(chunk, "usage_metadata", None)
     if not usage:
@@ -199,7 +223,17 @@ async def stream_with_fallback(messages: list[BaseMessage]):
             yielded_any = True
             _apply_usage(meta, chunk)
             yield chunk
+        meta.outcome = "ok"
     except LLMConfigurationError:
+        raise
+    except GeneratorExit:
+        # The consumer abandoned this generator (realistically: an SSE client
+        # disconnected), and GeneratorExit is thrown in at the yield above.
+        # It is a BaseException, so `except Exception` below does NOT see it —
+        # without this clause it would reach `finally` indistinguishable from a
+        # call that failed before the provider was ever reached, and a real
+        # billed call would be recorded as never-billed. Must re-raise.
+        meta.outcome = "aborted"
         raise
     except Exception as e:
         if yielded_any or not settings.gemini_fallback_model:
@@ -209,9 +243,17 @@ async def stream_with_fallback(messages: list[BaseMessage]):
         meta.fallback = True
         meta.error = str(e)
         llm = get_llm(settings.gemini_fallback_model)
-        async for chunk in llm.astream(messages):
-            _apply_usage(meta, chunk)
-            yield chunk
+        try:
+            async for chunk in llm.astream(messages):
+                _apply_usage(meta, chunk)
+                yield chunk
+            meta.outcome = "ok"
+        except GeneratorExit:
+            # Same abort case, one level in: an exception raised inside an
+            # `except` block is not offered to that try's sibling handlers,
+            # so the clause above cannot cover the fallback stream.
+            meta.outcome = "aborted"
+            raise
     finally:
         meta.duration_ms = int((time.monotonic() - t0) * 1000)
         _last_meta.set(meta)

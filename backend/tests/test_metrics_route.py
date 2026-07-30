@@ -5,7 +5,9 @@ from app.services import llm_metrics
 
 def _record(deal_id, surface="tabular_cell", run_id=None, prompt=100):
     llm_metrics.record_call(
-        LLMCallMeta(model_used="m", prompt_tokens=prompt, completion_tokens=5),
+        LLMCallMeta(
+            model_used="m", prompt_tokens=prompt, completion_tokens=5, outcome="ok"
+        ),
         LLMCallContext(surface=surface, deal_id=deal_id, run_id=run_id),
     )
 
@@ -20,7 +22,9 @@ def test_admin_reads_deal_cost(client):
     body = r.json()
     assert body["call_count"] == 1
     assert body["prompt_tokens"] == 300
-    assert body["by_surface"] == {"tabular_cell": 1}
+    assert body["by_surface"] == {"tabular_cell": 305}  # tokens, not calls
+    assert body["calls_by_surface"] == {"tabular_cell": 1}
+    assert body["calls_by_outcome"] == {"ok": 1}
 
 
 def test_run_id_filter(client):
