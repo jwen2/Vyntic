@@ -1,0 +1,23 @@
+[
+  {
+    "id": "mgmt-fee-rate",
+    "question": "What is the annual management fee during the investment period?",
+    "doc_filename": "example_lpa.md",
+    "expected_pages": [2],
+    "note": "2.0% of aggregate Capital Commitments, Section 3.2"
+  },
+  {
+    "id": "fee-step-down",
+    "question": "How does the management fee change after the investment period ends?",
+    "doc_filename": "example_lpa.md",
+    "expected_pages": [3],
+    "note": "steps down to 1.5% of acquisition cost, Section 3.4"
+  },
+  {
+    "id": "carry-and-pref",
+    "question": "What is the preferred return and the carried interest split?",
+    "doc_filename": "example_lpa.md",
+    "expected_pages": [4, 5],
+    "note": "spans two pages — 8% pref on p4, 80/20 split on p5"
+  }
+]
