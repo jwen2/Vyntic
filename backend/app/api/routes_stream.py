@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from app.config import settings
 from app.models.matrix import MatrixRequest
 from app.services import deal_store
-from app.services.context_provider import load_deal_context
+from app.services.context_provider import load_deal_selection
 from app.services.extraction_engine import stream_extraction
 from app.database import UserRow
 from app.auth import get_current_user, require_deal_access
@@ -30,12 +30,14 @@ async def _stream_deal_answer(deal_id: str, question: str):
     Generator that yields SSE events for a single deal's answer.
     Events:
       - {"type":"token","deal_id":..., "query":..., "token":...}
-      - {"type":"done","deal_id":..., "query":..., "answer":..., "citations":[...]}
+      - {"type":"done","deal_id":..., "query":..., "answer":..., "citations":[...],
+         "excluded_docs":[...]}
       - {"type":"error","deal_id":..., "query":..., "error":...}
     """
     try:
         with llm_call_context(surface="chat_stream", deal_id=deal_id):
-            retrieved = await load_deal_context(deal_id, question)
+            selection = await load_deal_selection(deal_id, question)
+            retrieved = selection.chunks
 
             if not retrieved:
                 yield {
@@ -44,6 +46,7 @@ async def _stream_deal_answer(deal_id: str, question: str):
                     "query": question,
                     "answer": "No relevant documents found for this deal.",
                     "citations": [],
+                    "excluded_docs": selection.excluded_docs,
                 }
                 return
 
@@ -65,6 +68,7 @@ async def _stream_deal_answer(deal_id: str, question: str):
                         "model": payload.model or "unknown",
                         "fallback": payload.fallback,
                         "duration_ms": payload.duration_ms,
+                        "excluded_docs": selection.excluded_docs,
                     }
 
     except Exception as e:

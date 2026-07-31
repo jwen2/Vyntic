@@ -16,7 +16,7 @@ from app.auth import get_current_user, require_deal_access
 from app.database import UserRow
 from app.models.query import QueryRequest, QueryResponse
 from app.services import deal_store
-from app.services.context_provider import load_deal_context
+from app.services.context_provider import load_deal_selection
 from app.services.extraction_engine import stream_extraction
 from app.agents.llm import llm_call_context
 
@@ -47,7 +47,8 @@ async def _stream_answer(deal_id: str, question: str):
     """SSE event generator for a single question against a deal."""
     try:
         with llm_call_context(surface="chat_query", deal_id=deal_id):
-            retrieved = await load_deal_context(deal_id, question)
+            selection = await load_deal_selection(deal_id, question)
+            retrieved = selection.chunks
 
             if not retrieved:
                 yield {
@@ -56,6 +57,7 @@ async def _stream_answer(deal_id: str, question: str):
                     "question": question,
                     "answer": "No relevant documents found for this deal.",
                     "citations": [],
+                    "excluded_docs": selection.excluded_docs,
                 }
                 return
 
@@ -77,6 +79,7 @@ async def _stream_answer(deal_id: str, question: str):
                         "model": payload.model or "unknown",
                         "fallback": payload.fallback,
                         "duration_ms": payload.duration_ms,
+                        "excluded_docs": selection.excluded_docs,
                     }
 
     except Exception as e:
