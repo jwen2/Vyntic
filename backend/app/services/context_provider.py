@@ -188,7 +188,7 @@ async def load_deal_selection(deal_id: str, question: str) -> "ContextSelection"
             category=row.doc_category or "other",
             size_chars=size_chars,
             whole_chunks=whole,
-            page_chunks=whole,   # replaced with retrieved pages in Task 5
+            page_chunks=whole,   # placeholder; refreshed below for demoted docs
         ))
 
     budget = budget_tokens(prompt_overhead_chars=len(question) + _SYSTEM_PROMPT_CHARS)
@@ -197,7 +197,37 @@ async def load_deal_selection(deal_id: str, question: str) -> "ContextSelection"
     if strategy != "full_text" and chars_to_tokens(total) > budget:
         scores = await probe_scores(deal_id, question, doc_count=len(candidates))
 
-    return allocate(candidates, budget=budget, scores=scores)
+    selection = allocate(candidates, budget=budget, scores=scores)
+    if selection.partial_docs:
+        from app.services.vector_store import query_document
+
+        # Owning deal_id per doc, not the asking deal_id: manager-shared
+        # documents live in the sibling deal's Chroma collection, and
+        # querying the wrong collection must never widen into it — it can
+        # only return nothing, which the fallback below handles.
+        owning_deal_by_doc = {row.doc_id: row.deal_id for row in rows}
+        refreshed: list[DocCandidate] = []
+        for cand in candidates:
+            if cand.doc_id in selection.partial_docs:
+                owner_deal_id = owning_deal_by_doc.get(cand.doc_id, deal_id)
+                try:
+                    pages = await query_document(owner_deal_id, cand.doc_id, question)
+                except Exception:
+                    logger.warning(
+                        "Page retrieval failed for %s — keeping whole document",
+                        cand.doc_id,
+                    )
+                    pages = cand.whole_chunks
+                cand = DocCandidate(
+                    doc_id=cand.doc_id, filename=cand.filename,
+                    category=cand.category, size_chars=cand.size_chars,
+                    whole_chunks=cand.whole_chunks,
+                    page_chunks=pages or cand.whole_chunks,
+                )
+            refreshed.append(cand)
+        selection = allocate(refreshed, budget=budget, scores=scores)
+
+    return selection
 
 
 async def load_deal_context(deal_id: str, question: str) -> list[dict]:
