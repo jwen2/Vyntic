@@ -65,6 +65,13 @@ class Settings(BaseSettings):
     seed_sample_data: bool = True
     full_context_mode: bool = True
 
+    # Context strategy. "auto" runs the allocator; "full_text" and "retrieval"
+    # are explicit overrides. full_context_mode is the deprecated shim.
+    context_strategy: str = "auto"
+    # Fallback window used only when the provider metadata call fails.
+    # Value recorded from genai.get_model() — see plan Task 1 Step 1.
+    context_window_tokens: int = 1_048_576
+
     # Deployment environment: "development" | "production"
     environment: str = "development"
 
