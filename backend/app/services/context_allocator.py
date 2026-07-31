@@ -11,6 +11,7 @@ is testable without a corpus large enough to reach the real budget.
 import logging
 from dataclasses import dataclass, field
 
+from app.config import settings
 from app.services.context_budget import chars_to_tokens
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,8 @@ RELEVANCE_FLOOR = 0.15
 # irrelevance — query_deal returns at most top_k chunks, so on a large corpus
 # most documents simply do not appear.
 UNSCORED = -1.0
+
+PROBE_CHUNKS_PER_DOC = 5
 
 
 @dataclass(frozen=True)
@@ -124,3 +127,39 @@ def allocate(
         excluded_docs=excluded,
         strategy="allocated",
     )
+
+
+async def _query_deal(deal_id: str, query_text: str, top_k: int | None = None):
+    """Indirection so tests can substitute the vector store."""
+    from app.services.vector_store import query_deal
+    return await query_deal(deal_id, query_text, top_k=top_k)
+
+
+async def probe_scores(
+    deal_id: str, question: str, doc_count: int
+) -> dict[str, float] | None:
+    """Best-chunk similarity per doc_id. Returns None if the probe fails.
+
+    top_k is raised with the document count: query_deal defaults to 20 chunks,
+    several of which typically come from the same document, so on a large
+    corpus most documents would never appear at all.
+    """
+    top_k = max(settings.top_k, PROBE_CHUNKS_PER_DOC * doc_count)
+    try:
+        rows = await _query_deal(deal_id, question, top_k=top_k)
+    except Exception as exc:
+        logger.warning(
+            "Relevance probe failed for deal %s (%s) — allocating without "
+            "ranking; nothing will be excluded", deal_id, exc,
+        )
+        return None
+
+    best: dict[str, float] = {}
+    for row in rows:
+        doc_id = row.get("doc_id") or ""
+        if not doc_id:
+            continue
+        score = float(row.get("score", 0.0))
+        if score > best.get(doc_id, float("-inf")):
+            best[doc_id] = score
+    return best
