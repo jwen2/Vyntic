@@ -19,7 +19,6 @@ from collections import defaultdict
 from typing import Any
 
 from app.agents.llm import LLMConfigurationError, ensure_llm_configured, llm_call_context
-from app.config import settings
 from app.services import workflow_run_store, workflow_store
 from app.services.context_provider import get_doc_page_chunks, load_doc_context
 from app.services.extraction_engine import run_extraction
@@ -30,9 +29,7 @@ logger = logging.getLogger(__name__)
 
 _CELL_SEMAPHORE_SIZE = 4
 _TABULAR_SYNTHESIS_MAX_CHUNKS = 32
-# ~800K tokens at ~4 chars/token. Keep in sync with
-# context_provider._FC_TOKEN_WARN_THRESHOLD.
-_SYNTHESIS_CHAR_BUDGET = 3_200_000
+_SYNTHESIS_PROMPT_CHARS = 4000  # tabular cell prompts are longer than chat questions
 _RUN_TASKS: set[asyncio.Task] = set()  # keep strong refs so background tasks aren't GC'd
 
 _TABULAR_OUTPUT_DIRECTIVE = (
@@ -405,34 +402,47 @@ async def execute_cell(cell_id: str, run_id: str, deal_id: str) -> None:
         )
 
 
-def _select_synthesis_chunks(retrieved: list[dict]) -> list[dict]:
+def _select_synthesis_chunks(
+    retrieved: list[dict], *, budget: int | None = None
+) -> list[dict]:
     """Pick the context set for a multi_doc_synthesis cell.
 
     RAG mode: top-K by relevance score (scores are meaningful).
-    Full-context mode: scores are uniformly 1.0, so sorting is meaningless —
-    keep document/page order and truncate at a page boundary once the char
-    budget is exhausted, logging what was dropped.
+    Otherwise: group the flat chunk list back into documents and allocate,
+    so an over-budget corpus degrades the least relevant documents to their
+    retrieved pages rather than dropping whichever sorted last.
     """
-    if not settings.full_context_mode:
+    from app.services.context_allocator import DocCandidate, allocate
+    from app.services.context_budget import budget_tokens, resolved_strategy
+
+    if resolved_strategy() == "retrieval":
         return sorted(
-            retrieved,
-            key=lambda chunk: chunk.get("score", 0),
-            reverse=True,
+            retrieved, key=lambda chunk: chunk.get("score", 0), reverse=True,
         )[:_TABULAR_SYNTHESIS_MAX_CHUNKS]
-    out: list[dict] = []
-    total = 0
+
+    if budget is None:
+        budget = budget_tokens(prompt_overhead_chars=_SYNTHESIS_PROMPT_CHARS)
+
+    by_doc: dict[str, list[dict]] = {}
     for chunk in retrieved:
-        total += len(chunk.get("content", ""))
-        if out and total > _SYNTHESIS_CHAR_BUDGET:
-            logger.warning(
-                "Synthesis context truncated at %d of %d chunks (~%dK chars)",
-                len(out),
-                len(retrieved),
-                total // 1000,
-            )
-            break
-        out.append(chunk)
-    return out
+        by_doc.setdefault(chunk.get("doc_id", ""), []).append(chunk)
+
+    candidates = [
+        DocCandidate(
+            doc_id=doc_id,
+            filename=(chunks[0].get("source_file", "") if chunks else ""),
+            category="other",
+            size_chars=sum(len(c.get("content", "")) for c in chunks),
+            whole_chunks=chunks,
+            page_chunks=sorted(
+                chunks, key=lambda c: c.get("score", 0), reverse=True
+            )[:_TABULAR_SYNTHESIS_MAX_CHUNKS],
+        )
+        for doc_id, chunks in by_doc.items()
+    ]
+    # Scores here are uniformly 1.0 in full-context mode, so ranking is
+    # meaningless — pass None, which also guarantees nothing is excluded.
+    return allocate(candidates, budget=budget, scores=None).chunks
 
 
 _RETRIEVAL_PROMPT_CHAR_CAP = 280
