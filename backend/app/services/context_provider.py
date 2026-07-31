@@ -12,15 +12,12 @@ import re
 
 from app.config import settings
 from app.database import SessionLocal, DealRow, DocumentRow
+from app.services.context_budget import chars_to_tokens
 
 logger = logging.getLogger(__name__)
 
 _FC_TOKEN_WARN_THRESHOLD = 800_000  # ~800K tokens; Gemini Flash limit is 1M
-_FC_HARD_CHAR_BUDGET = 3_200_000  # ~800K tokens at ~4 chars/token
-
-# Set by load_deal_context on every call: True when the last corpus was
-# truncated to fit the budget. Stopgap until Plan 5's context cascade.
-last_context_truncated = False
+_SYSTEM_PROMPT_CHARS = 2000  # conservative allowance for the rendered system prompt
 
 
 def _full_text_to_chunks(full_text_md: str, filename: str, doc_id: str) -> list[dict]:
@@ -121,16 +118,8 @@ async def load_doc_context(deal_id: str, doc_id: str, question: str) -> list[dic
     return _full_text_to_chunks(row.full_text_md, row.filename, row.doc_id)
 
 
-async def load_deal_context(deal_id: str, question: str) -> list[dict]:
-    """Load context for a deal-level question across all documents.
-
-    Full-context path: concatenates full_text_md from all docs in the deal.
-    RAG fallback: delegates to vector_store.query_deal when full_context_mode=False.
-    """
-    if not settings.full_context_mode:
-        from app.services.vector_store import query_deal
-        return await query_deal(deal_id, question)
-
+def _load_deal_doc_rows(deal_id: str) -> list[DocumentRow]:
+    """All document rows visible to this deal: its own, plus manager-shared."""
     db = SessionLocal()
     try:
         rows = db.query(DocumentRow).filter(DocumentRow.deal_id == deal_id).all()
@@ -139,66 +128,84 @@ async def load_deal_context(deal_id: str, question: str) -> list[dict]:
         rows = rows + _manager_shared_doc_rows(db, deal_id)
     finally:
         db.close()
+    return rows
 
+
+async def load_deal_selection(deal_id: str, question: str) -> "ContextSelection":
+    """Deal-level context as a ContextSelection, with coverage information."""
+    from app.services.context_allocator import (
+        ContextSelection, DocCandidate, allocate, probe_scores,
+    )
+    from app.services.context_budget import budget_tokens, resolved_strategy
+
+    strategy = resolved_strategy()
+
+    if strategy == "retrieval":
+        from app.services.vector_store import query_deal
+        return ContextSelection(
+            chunks=await query_deal(deal_id, question), strategy="retrieval",
+        )
+
+    rows = _load_deal_doc_rows(deal_id)
     if not rows:
-        return []
+        return ContextSelection()
 
-    chunks = []
+    # Documents still missing full_text_md (background parsing not yet caught
+    # up, or a parse failure) fall back to the legacy per-deal RAG query,
+    # batched by owning deal_id so sibling manager-shared docs from the same
+    # owner deal share one query_deal call instead of one each.
     legacy_doc_ids_by_deal: dict[str, set[str]] = {}
-    total_chars = 0
     for row in rows:
-        if row.full_text_md:
-            doc_chunks = _full_text_to_chunks(row.full_text_md, row.filename, row.doc_id)
-        else:
-            logger.warning("full_text_md is null for doc %s in deal %s — using legacy RAG fallback", row.doc_id, deal_id)
+        if not row.full_text_md:
+            logger.warning(
+                "full_text_md is null for doc %s in deal %s — using legacy RAG fallback",
+                row.doc_id, deal_id,
+            )
             legacy_doc_ids_by_deal.setdefault(row.deal_id, set()).add(row.doc_id)
-            doc_chunks = []
-        chunks.extend(doc_chunks)
-        total_chars += sum(len(c["content"]) for c in doc_chunks)
 
+    legacy_chunks_by_doc: dict[str, list[dict]] = {}
     if legacy_doc_ids_by_deal:
         from app.services.vector_store import query_deal
         for owner_deal_id, doc_ids in legacy_doc_ids_by_deal.items():
             legacy_chunks = await query_deal(owner_deal_id, question)
-            selected = [chunk for chunk in legacy_chunks if chunk.get("doc_id") in doc_ids]
-            chunks.extend(selected)
-            total_chars += sum(len(c["content"]) for c in selected)
+            for chunk in legacy_chunks:
+                if chunk.get("doc_id") in doc_ids:
+                    legacy_chunks_by_doc.setdefault(chunk["doc_id"], []).append(chunk)
 
-    global last_context_truncated
-    last_context_truncated = False
-    if total_chars > _FC_HARD_CHAR_BUDGET:
-        # Truncate at a chunk boundary in document/page order — never send
-        # an over-limit corpus to Gemini (mirrors _select_synthesis_chunks).
-        kept: list[dict] = []
-        kept_chars = 0
-        for chunk in chunks:
-            if kept and kept_chars + len(chunk["content"]) > _FC_HARD_CHAR_BUDGET:
-                break
-            kept.append(chunk)
-            kept_chars += len(chunk["content"])
-        dropped = chunks[len(kept):]
-        dropped_docs = sorted({c["source_file"] for c in dropped})
-        last_context_truncated = True
-        logger.warning(
-            "Deal %s context truncated at %d of %d chunks (~%dK of ~%dK chars); "
-            "dropped content from: %s",
-            deal_id,
-            len(kept),
-            len(chunks),
-            kept_chars // 1000,
-            total_chars // 1000,
-            ", ".join(dropped_docs),
-        )
-        return kept
+    candidates: list[DocCandidate] = []
+    for row in rows:
+        if row.full_text_md:
+            whole = _full_text_to_chunks(row.full_text_md, row.filename, row.doc_id)
+            size_chars = len(row.full_text_md or "")
+        else:
+            whole = legacy_chunks_by_doc.get(row.doc_id, [])
+            size_chars = sum(len(c.get("content", "")) for c in whole)
+        if not whole:
+            continue
+        candidates.append(DocCandidate(
+            doc_id=row.doc_id,
+            filename=row.filename,
+            category=row.doc_category or "other",
+            size_chars=size_chars,
+            whole_chunks=whole,
+            page_chunks=whole,   # replaced with retrieved pages in Task 5
+        ))
 
-    estimated_tokens = total_chars / 4
-    if estimated_tokens > _FC_TOKEN_WARN_THRESHOLD:
-        logger.warning(
-            "Deal %s context is ~%dK tokens — approaching Gemini Flash 1M limit",
-            deal_id,
-            int(estimated_tokens / 1000),
-        )
-    return chunks
+    budget = budget_tokens(prompt_overhead_chars=len(question) + _SYSTEM_PROMPT_CHARS)
+    total = sum(c.size_chars for c in candidates)
+    scores = None
+    if strategy != "full_text" and chars_to_tokens(total) > budget:
+        scores = await probe_scores(deal_id, question, doc_count=len(candidates))
+
+    return allocate(candidates, budget=budget, scores=scores)
+
+
+async def load_deal_context(deal_id: str, question: str) -> list[dict]:
+    """Load context for a deal-level question across all documents.
+
+    Backwards-compatible chunk list. See load_deal_selection for coverage.
+    """
+    return (await load_deal_selection(deal_id, question)).chunks
 
 
 def get_doc_page_chunks(deal_id: str, doc_id: str) -> list[dict]:

@@ -84,6 +84,20 @@ def sample_deal():
 
 
 @pytest.fixture
+def seeded_small_deal(client):
+    """A deal with two small documents, well under any budget."""
+    from app.models.document import DocumentMetadata
+    deal_store.create_deal(DealCreate(deal_id="alloc_small", name="Alloc Small",
+                                      description="", stage="Screening", tags=[]))
+    for i in (1, 2):
+        deal_store.add_document("alloc_small", DocumentMetadata(
+            doc_id=f"alloc_doc_{i}", deal_id="alloc_small", filename=f"doc{i}.pdf",
+            page_count=1, chunk_count=1, full_text_md=f"## Page 1\n\nSmall body {i}.",
+        ))
+    return "alloc_small"
+
+
+@pytest.fixture
 def three_deals():
     """Create three sample deals for matrix tests."""
     deals = []
