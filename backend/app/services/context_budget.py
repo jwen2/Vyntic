@@ -53,11 +53,15 @@ def budget_tokens(prompt_overhead_chars: int) -> int:
 def resolved_strategy() -> str:
     """One place that decides the effective strategy.
 
-    Explicit CONTEXT_STRATEGY wins; otherwise derive from the deprecated
-    full_context_mode shim so existing deployments and flag tests keep working.
+    Only "full_text" and "retrieval" are explicit overrides. "auto" — the
+    default — and any empty or invalid value derive from the deprecated
+    full_context_mode shim: "retrieval" when it's off, otherwise the
+    allocator path (still reported as "auto", not "full_text" — callers
+    that treat "full_text" as "disable ranking" must not have ranking
+    silently disabled for the default deployment).
     Tasks 4 and 6 both call this rather than re-deriving the condition.
     """
     explicit = (settings.context_strategy or "").strip().lower()
-    if explicit in {"auto", "full_text", "retrieval"}:
+    if explicit in {"full_text", "retrieval"}:
         return explicit
-    return "full_text" if settings.full_context_mode else "retrieval"
+    return "auto" if settings.full_context_mode else "retrieval"

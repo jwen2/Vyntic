@@ -3,7 +3,10 @@
 Decides, per question, how much of each document to send: whole while the
 budget lasts, retrieved pages when it does not, excluded (and named) below a
 relevance floor. Below budget it does nothing at all — every document goes in
-whole and no probe is issued, which is byte-for-byte today's behavior.
+whole and no probe is issued, which is byte-for-byte today's behavior. As a
+last resort — notably when the probe is unavailable and nothing could be
+excluded by score — a final deterministic size cap trims the selection to
+budget at a chunk boundary, so an over-budget corpus is never sent whole.
 
 Pure function: budget and probe scores are parameters, so the over-budget path
 is testable without a corpus large enough to reach the real budget.
@@ -58,7 +61,9 @@ def allocate(
 ) -> ContextSelection:
     """Allocate `docs` against a token `budget` using probe `scores`.
 
-    `scores=None` means the probe failed or was not run; nothing is excluded.
+    `scores=None` means the probe failed or was not run; nothing is excluded
+    by relevance score. The final size cap can still exclude or demote a
+    document if the real content overflows budget even after ranking.
     """
     if not docs:
         return ContextSelection()
@@ -113,6 +118,59 @@ def allocate(
             remaining -= chars_to_tokens(
                 sum(len(c.get("content", "")) for c in doc.page_chunks)
             )
+
+    # Last-resort deterministic cap. The loop above budgets against each
+    # doc's *declared* size_chars, which can undercount actual content
+    # (whole vs. page chunks, markdown overhead) — and when the probe is
+    # unavailable (scores=None) nothing above can be excluded at all. If the
+    # real, joined content still overflows budget, trim at a chunk boundary
+    # in the order already chosen (most relevant first), always keeping at
+    # least the first chunk even if it alone exceeds budget. This is the
+    # same guarantee the old hard char-budget truncation gave: an
+    # over-budget corpus is never sent to Gemini un-triaged.
+    sent_chars = sum(len(c.get("content", "")) for c in chunks)
+    if chunks and chars_to_tokens(sent_chars) > budget:
+        kept: list[dict] = []
+        kept_chars = 0
+        for chunk in chunks:
+            content_len = len(chunk.get("content", ""))
+            if kept and chars_to_tokens(kept_chars + content_len) > budget:
+                break
+            kept.append(chunk)
+            kept_chars += content_len
+
+        dropped = chunks[len(kept):]
+        if dropped:
+            contributed: dict[str, int] = {}
+            for c in chunks:
+                contributed[c["doc_id"]] = contributed.get(c["doc_id"], 0) + 1
+            kept_counts: dict[str, int] = {}
+            for c in kept:
+                kept_counts[c["doc_id"]] = kept_counts.get(c["doc_id"], 0) + 1
+
+            # A document that lost all its chunks to the cap is no longer
+            # sent at all; one that lost only some is no longer sent whole.
+            for doc_id in list(whole):
+                have = kept_counts.get(doc_id, 0)
+                if have == 0:
+                    whole.remove(doc_id)
+                    excluded.append(doc_id)
+                elif have < contributed[doc_id]:
+                    whole.remove(doc_id)
+                    partial.append(doc_id)
+            for doc_id in list(partial):
+                if kept_counts.get(doc_id, 0) == 0:
+                    partial.remove(doc_id)
+                    excluded.append(doc_id)
+
+            dropped_doc_ids = sorted({c["doc_id"] for c in dropped})
+            logger.warning(
+                "Context size cap dropped %d of %d chunks (~%d of ~%d budget "
+                "tokens); documents affected: %s",
+                len(dropped), len(chunks), chars_to_tokens(kept_chars), budget,
+                ", ".join(dropped_doc_ids),
+            )
+            chunks = kept
 
     if excluded:
         logger.warning(

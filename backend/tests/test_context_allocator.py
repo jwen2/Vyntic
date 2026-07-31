@@ -64,3 +64,41 @@ def test_probe_failure_excludes_nothing():
     docs = [_doc("a", 800), _doc("b", 800)]
     sel = allocate(docs, budget=250, scores=None)
     assert sel.excluded_docs == []
+
+
+def test_probe_unavailable_and_over_budget_still_caps_to_budget():
+    """The empty-Chroma regression: probe unavailable (scores=None), so
+    nothing can be excluded by relevance score — the final size cap must
+    still fire and bring the real, joined content within budget, and must
+    name whatever it dropped."""
+    docs = [_doc("a", 800), _doc("b", 800), _doc("c", 800)]
+    sel = allocate(docs, budget=250, scores=None)
+
+    sent_tokens = sum(len(c["content"]) for c in sel.chunks) // 4
+    assert sent_tokens <= 250
+    assert len(sel.chunks) >= 1
+    # Something was dropped, and it's named — not silently absorbed.
+    assert sel.excluded_docs or sel.partial_docs != ["a", "b", "c"]
+    assert sel.excluded_docs == ["c"]
+    assert all(c["doc_id"] != "c" for c in sel.chunks)
+
+
+def test_cap_demotes_whole_doc_that_partially_overflows():
+    """A doc that entered 'whole' with multiple chunks, but whose real
+    content overflows budget, loses only the chunks that don't fit — and
+    the bookkeeping must reflect that it's now partial, not whole."""
+    whole = [
+        {"content": "x" * 400, "source_file": "a.pdf", "page": 1,
+         "doc_id": "a", "score": 1.0, "section_type": "text"},
+        {"content": "x" * 400, "source_file": "a.pdf", "page": 2,
+         "doc_id": "a", "score": 1.0, "section_type": "text"},
+    ]
+    doc_a = DocCandidate(doc_id="a", filename="a.pdf", category="other",
+                          size_chars=800, whole_chunks=whole, page_chunks=whole)
+
+    sel = allocate([doc_a], budget=50, scores=None)
+
+    assert sel.whole_docs == []
+    assert sel.partial_docs == ["a"]
+    assert sel.excluded_docs == []
+    assert [c["page"] for c in sel.chunks] == [1]

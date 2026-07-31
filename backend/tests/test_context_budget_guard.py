@@ -7,8 +7,12 @@ task (context-allocator wiring) replaces the truncation itself with
 `context_allocator.allocate`.
 
 The guarantee this file protects is unchanged: an over-budget corpus is
-never sent to Gemini un-triaged, and the outcome is deterministic and
-visible to the caller. It's now visible via
+never sent to Gemini un-triaged. That guarantee is enforced at two levels
+now: `allocate()`'s relevance floor/demotion when a probe ran, and — the
+level this file actually exercises end-to-end — `allocate()`'s final
+deterministic size cap, which fires even when the probe is unavailable
+(`scores=None`, e.g. an empty Chroma index) and nothing could be excluded
+by score. The outcome is deterministic and visible to the caller via
 `load_deal_selection(...).strategy` / `.excluded_docs` / `.partial_docs`
 / `.whole_docs` instead of the deleted `last_context_truncated` global.
 """
@@ -81,8 +85,11 @@ def test_over_budget_excludes_low_scoring_doc_and_records_it(caplog):
         _doc_with_pages("doc_2", "b.pdf", n_pages=4, chars_per_page=200),
     ]
     scores = {"doc_1": 0.9, "doc_2": 0.01}
+    # budget=250 tokens (1000 chars) comfortably covers doc_1's real 800
+    # content chars: this test isolates floor-based exclusion, not the
+    # separate final size cap (covered in test_context_allocator.py).
     with caplog.at_level(logging.WARNING):
-        sel = _run_with_rows(rows, budget=100, scores=scores)
+        sel = _run_with_rows(rows, budget=250, scores=scores)
 
     # The corpus is over budget: the low-scoring doc is dropped, not sent.
     assert sel.strategy == "allocated"
