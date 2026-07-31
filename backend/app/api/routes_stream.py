@@ -18,7 +18,7 @@ from app.auth import get_current_user, require_deal_access
 from app.agents.prompts import COMPARISON_SYSTEM
 
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.agents.llm import stream_with_fallback, get_last_meta
+from app.agents.llm import stream_with_fallback, get_last_meta, llm_call_context
 
 router = APIRouter(prefix="/matrix", tags=["matrix"])
 
@@ -34,37 +34,38 @@ async def _stream_deal_answer(deal_id: str, question: str):
       - {"type":"error","deal_id":..., "query":..., "error":...}
     """
     try:
-        retrieved = await load_deal_context(deal_id, question)
+        with llm_call_context(surface="chat_stream", deal_id=deal_id):
+            retrieved = await load_deal_context(deal_id, question)
 
-        if not retrieved:
-            yield {
-                "type": "done",
-                "deal_id": deal_id,
-                "query": question,
-                "answer": "No relevant documents found for this deal.",
-                "citations": [],
-            }
-            return
-
-        async for kind, payload in stream_extraction(retrieved, question, deal_id=deal_id):
-            if kind == "token":
-                yield {
-                    "type": "token",
-                    "deal_id": deal_id,
-                    "query": question,
-                    "token": payload,
-                }
-            else:
+            if not retrieved:
                 yield {
                     "type": "done",
                     "deal_id": deal_id,
                     "query": question,
-                    "answer": payload.answer,
-                    "citations": [c.model_dump() if c else None for c in payload.citations],
-                    "model": payload.model or "unknown",
-                    "fallback": payload.fallback,
-                    "duration_ms": payload.duration_ms,
+                    "answer": "No relevant documents found for this deal.",
+                    "citations": [],
                 }
+                return
+
+            async for kind, payload in stream_extraction(retrieved, question, deal_id=deal_id):
+                if kind == "token":
+                    yield {
+                        "type": "token",
+                        "deal_id": deal_id,
+                        "query": question,
+                        "token": payload,
+                    }
+                else:
+                    yield {
+                        "type": "done",
+                        "deal_id": deal_id,
+                        "query": question,
+                        "answer": payload.answer,
+                        "citations": [c.model_dump() if c else None for c in payload.citations],
+                        "model": payload.model or "unknown",
+                        "fallback": payload.fallback,
+                        "duration_ms": payload.duration_ms,
+                    }
 
     except Exception as e:
         yield {
@@ -92,11 +93,17 @@ async def _stream_synthesis(query: str, deal_ids: list[str], answers: dict[str, 
         ]
 
         full_answer = ""
-        async for chunk in stream_with_fallback(messages):
-            token = chunk.content
-            if token:
-                full_answer += token
-                yield f"data: {json.dumps({'type': 'token', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'token': token})}\n\n"
+        # This call belongs to no single deal, so it is booked against the
+        # SYNTHESIS_DEAL_ID sentinel the SSE protocol already uses for exactly
+        # this case. Keeping deal_id non-NULL keeps the row reachable through
+        # llm_metrics.summarize (which filters on deal_id, so NULL rows are
+        # invisible to every read path) without inflating any real deal's total.
+        with llm_call_context(surface="compare_synthesis", deal_id=SYNTHESIS_DEAL_ID):
+            async for chunk in stream_with_fallback(messages):
+                token = chunk.content
+                if token:
+                    full_answer += token
+                    yield f"data: {json.dumps({'type': 'token', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'token': token})}\n\n"
 
         meta = get_last_meta()
         yield f"data: {json.dumps({'type': 'done', 'deal_id': SYNTHESIS_DEAL_ID, 'query': query, 'answer': full_answer, 'citations': [], 'model': meta.model_used if meta else 'unknown', 'fallback': meta.fallback if meta else False, 'duration_ms': meta.duration_ms if meta else 0})}\n\n"

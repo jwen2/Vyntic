@@ -18,6 +18,7 @@ from app.models.query import QueryRequest, QueryResponse
 from app.services import deal_store
 from app.services.context_provider import load_deal_context
 from app.services.extraction_engine import stream_extraction
+from app.agents.llm import llm_call_context
 
 
 router = APIRouter(prefix="/deals/{deal_id}/query", tags=["query"])
@@ -36,7 +37,8 @@ async def query_deal_route(deal_id: str, request: QueryRequest, current_user: Us
         raise HTTPException(status_code=404, detail=f"Deal '{deal_id}' not found")
 
     try:
-        return await answer_deal_question(deal_id, request.question)
+        with llm_call_context(surface="chat_query", deal_id=deal_id):
+            return await answer_deal_question(deal_id, request.question)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
 
@@ -44,37 +46,38 @@ async def query_deal_route(deal_id: str, request: QueryRequest, current_user: Us
 async def _stream_answer(deal_id: str, question: str):
     """SSE event generator for a single question against a deal."""
     try:
-        retrieved = await load_deal_context(deal_id, question)
+        with llm_call_context(surface="chat_query", deal_id=deal_id):
+            retrieved = await load_deal_context(deal_id, question)
 
-        if not retrieved:
-            yield {
-                "type": "done",
-                "deal_id": deal_id,
-                "question": question,
-                "answer": "No relevant documents found for this deal.",
-                "citations": [],
-            }
-            return
-
-        async for kind, payload in stream_extraction(retrieved, question, deal_id=deal_id):
-            if kind == "token":
-                yield {
-                    "type": "token",
-                    "deal_id": deal_id,
-                    "question": question,
-                    "token": payload,
-                }
-            else:
+            if not retrieved:
                 yield {
                     "type": "done",
                     "deal_id": deal_id,
                     "question": question,
-                    "answer": payload.answer,
-                    "citations": [c.model_dump() if c else None for c in payload.citations],
-                    "model": payload.model or "unknown",
-                    "fallback": payload.fallback,
-                    "duration_ms": payload.duration_ms,
+                    "answer": "No relevant documents found for this deal.",
+                    "citations": [],
                 }
+                return
+
+            async for kind, payload in stream_extraction(retrieved, question, deal_id=deal_id):
+                if kind == "token":
+                    yield {
+                        "type": "token",
+                        "deal_id": deal_id,
+                        "question": question,
+                        "token": payload,
+                    }
+                else:
+                    yield {
+                        "type": "done",
+                        "deal_id": deal_id,
+                        "question": question,
+                        "answer": payload.answer,
+                        "citations": [c.model_dump() if c else None for c in payload.citations],
+                        "model": payload.model or "unknown",
+                        "fallback": payload.fallback,
+                        "duration_ms": payload.duration_ms,
+                    }
 
     except Exception as e:
         yield {

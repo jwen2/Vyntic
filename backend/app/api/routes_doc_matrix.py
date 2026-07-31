@@ -15,6 +15,7 @@ from app.services.context_provider import load_doc_context, get_doc_page_chunks
 from app.services.extraction_engine import stream_extraction
 from app.database import UserRow
 from app.auth import get_current_user, require_deal_access
+from app.agents.llm import llm_call_context
 
 router = APIRouter(prefix="/deals/{deal_id}/doc-matrix", tags=["doc-matrix"])
 
@@ -30,45 +31,46 @@ async def _stream_doc_answer(deal_id: str, doc_id: str, query: str):
     Retrieval is isolated to the specified doc_id via query_document().
     """
     try:
-        retrieved = await load_doc_context(deal_id, doc_id, query)
+        with llm_call_context(surface="doc_matrix", deal_id=deal_id, doc_id=doc_id):
+            retrieved = await load_doc_context(deal_id, doc_id, query)
 
-        if not retrieved:
-            yield {
-                "doc_id": doc_id,
-                "answer": "No relevant content found in this document.",
-                "citations": [],
-                "done": True,
-            }
-            return
-
-        # Pull every chunk for the cited document so citation snippets can be
-        # enriched with same-page context — Docling sometimes captures table
-        # headers in one chunk and the row values as text in another, and
-        # top-k retrieval may not include both. (See citations._select_snippet.)
-        full_doc_chunks = get_doc_page_chunks(deal_id, doc_id)
-
-        async for kind, payload in stream_extraction(
-            retrieved,
-            query,
-            deal_id=deal_id,
-            page_context_chunks=full_doc_chunks,
-        ):
-            if kind == "token":
+            if not retrieved:
                 yield {
                     "doc_id": doc_id,
-                    "token": payload,
-                    "done": False,
-                }
-            else:
-                yield {
-                    "doc_id": doc_id,
-                    "answer": payload.answer,
-                    "citations": [c.model_dump() if c else None for c in payload.citations],
+                    "answer": "No relevant content found in this document.",
+                    "citations": [],
                     "done": True,
-                    "model": payload.model or "unknown",
-                    "fallback": payload.fallback,
-                    "duration_ms": payload.duration_ms,
                 }
+                return
+
+            # Pull every chunk for the cited document so citation snippets can be
+            # enriched with same-page context — Docling sometimes captures table
+            # headers in one chunk and the row values as text in another, and
+            # top-k retrieval may not include both. (See citations._select_snippet.)
+            full_doc_chunks = get_doc_page_chunks(deal_id, doc_id)
+
+            async for kind, payload in stream_extraction(
+                retrieved,
+                query,
+                deal_id=deal_id,
+                page_context_chunks=full_doc_chunks,
+            ):
+                if kind == "token":
+                    yield {
+                        "doc_id": doc_id,
+                        "token": payload,
+                        "done": False,
+                    }
+                else:
+                    yield {
+                        "doc_id": doc_id,
+                        "answer": payload.answer,
+                        "citations": [c.model_dump() if c else None for c in payload.citations],
+                        "done": True,
+                        "model": payload.model or "unknown",
+                        "fallback": payload.fallback,
+                        "duration_ms": payload.duration_ms,
+                    }
 
     except Exception as e:
         yield {

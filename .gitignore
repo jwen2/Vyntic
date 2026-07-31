@@ -42,3 +42,7 @@ Thumbs.db
 
 # Typography phase-2 spike: reflow measurement screenshots + metrics (regenerable)
 frontend/.reflow-snapshots/
+
+# Extraction quality eval report artifacts (regenerable, billable-call output)
+backend/evals/example_report.json
+backend/evals/reports/

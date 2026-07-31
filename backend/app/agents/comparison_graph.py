@@ -10,6 +10,7 @@ behavior — the fan-out was already a plain asyncio.gather inside one node.)
 """
 import asyncio
 
+from app.agents.llm import llm_call_context
 from app.config import settings
 from app.models.query import QueryResponse, Citation
 from app.models.matrix import CellData
@@ -22,7 +23,11 @@ async def _gather_deal_answers(deal_ids: list[str], query: str) -> dict[str, dic
 
     async def query_with_limit(deal_id: str) -> tuple[str, QueryResponse]:
         async with semaphore:
-            result = await answer_deal_question(deal_id, query)
+            # Cost attribution belongs HERE, not at the route: one compare_deals
+            # call spans several deals, so wrapping the route would bill every
+            # deal's tokens to whichever deal_id happened to be handy.
+            with llm_call_context(surface="compare_cell", deal_id=deal_id):
+                result = await answer_deal_question(deal_id, query)
             return deal_id, result
 
     results = await asyncio.gather(*(query_with_limit(did) for did in deal_ids))

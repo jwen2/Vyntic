@@ -7,6 +7,7 @@ the structured text back into typed records."""
 import logging
 import re
 
+from app.agents.llm import llm_call_context
 from app.database import SessionLocal, DocumentRow
 from app.services import context_provider
 from app.services.extraction_engine import run_extraction
@@ -67,27 +68,28 @@ _CALL_PROMPT = (
 
 
 async def extract_call_notice(deal_id: str, doc_id: str) -> CallNoticeDraft:
-    chunks = await context_provider.load_doc_context(deal_id, doc_id, _CALL_PROMPT)
-    result = await run_extraction(
-        chunks,
-        _CALL_PROMPT,
-        deal_id=deal_id,
-        require_citations=False,  # not every notice cites cleanly; keep what we get
-    )
-    fields = _parse_fields(result.answer)
-    kind_raw = _text(fields.get("kind")).lower()
-    kind = "distribution" if "distrib" in kind_raw else "call"
-    return CallNoticeDraft(
-        kind=kind,
-        amount=_num(fields.get("amount")),
-        currency=(_text(fields.get("currency")) or "USD").upper()[:3] or "USD",
-        due_date=_text(fields.get("due date")) or None,
-        period=_text(fields.get("period")) or None,
-        purpose=_text(fields.get("purpose")),
-        outstanding_before=_num(fields.get("outstanding")),
-        doc_id=doc_id,
-        citations=result.citations,
-    )
+    with llm_call_context(surface="monitoring", deal_id=deal_id, doc_id=doc_id):
+        chunks = await context_provider.load_doc_context(deal_id, doc_id, _CALL_PROMPT)
+        result = await run_extraction(
+            chunks,
+            _CALL_PROMPT,
+            deal_id=deal_id,
+            require_citations=False,  # not every notice cites cleanly; keep what we get
+        )
+        fields = _parse_fields(result.answer)
+        kind_raw = _text(fields.get("kind")).lower()
+        kind = "distribution" if "distrib" in kind_raw else "call"
+        return CallNoticeDraft(
+            kind=kind,
+            amount=_num(fields.get("amount")),
+            currency=(_text(fields.get("currency")) or "USD").upper()[:3] or "USD",
+            due_date=_text(fields.get("due date")) or None,
+            period=_text(fields.get("period")) or None,
+            purpose=_text(fields.get("purpose")),
+            outstanding_before=_num(fields.get("outstanding")),
+            doc_id=doc_id,
+            citations=result.citations,
+        )
 
 
 # ── side-letter obligations ──
@@ -110,27 +112,28 @@ _BLOCK_SPLIT = re.compile(r"\n\s*\n")
 
 
 async def extract_obligations(deal_id: str, doc_id: str) -> list[ObligationDraft]:
-    chunks = await context_provider.load_doc_context(deal_id, doc_id, _OBLIGATION_PROMPT)
-    result = await run_extraction(chunks, _OBLIGATION_PROMPT, deal_id=deal_id)
-    drafts: list[ObligationDraft] = []
-    for block in _BLOCK_SPLIT.split(result.answer or ""):
-        fields = _parse_fields(block)
-        text = _text(fields.get("obligation"))
-        if not text:
-            continue
-        category = _text(fields.get("category")).lower()
-        if category not in OBLIGATION_CATEGORIES:
-            category = "other"
-        cadence = "one_time" if "one" in _text(fields.get("cadence")).lower() else "ongoing"
-        drafts.append(ObligationDraft(
-            category=category,
-            text=text,
-            section_ref=_text(fields.get("section")),
-            cadence=cadence,
-            verify_hint=_text(fields.get("verifyhint")),
-            citations=result.citations,  # block-level citation attribution is coarse; acceptable v1
-        ))
-    return drafts
+    with llm_call_context(surface="monitoring", deal_id=deal_id, doc_id=doc_id):
+        chunks = await context_provider.load_doc_context(deal_id, doc_id, _OBLIGATION_PROMPT)
+        result = await run_extraction(chunks, _OBLIGATION_PROMPT, deal_id=deal_id)
+        drafts: list[ObligationDraft] = []
+        for block in _BLOCK_SPLIT.split(result.answer or ""):
+            fields = _parse_fields(block)
+            text = _text(fields.get("obligation"))
+            if not text:
+                continue
+            category = _text(fields.get("category")).lower()
+            if category not in OBLIGATION_CATEGORIES:
+                category = "other"
+            cadence = "one_time" if "one" in _text(fields.get("cadence")).lower() else "ongoing"
+            drafts.append(ObligationDraft(
+                category=category,
+                text=text,
+                section_ref=_text(fields.get("section")),
+                cadence=cadence,
+                verify_hint=_text(fields.get("verifyhint")),
+                citations=result.citations,  # block-level citation attribution is coarse; acceptable v1
+            ))
+        return drafts
 
 
 # ── per-period verification of one obligation ──
@@ -167,28 +170,29 @@ async def verify_obligation(deal_id: str, period: str, obligation_text: str, ver
             "citations": [],
         }
 
-    chunks: list[dict] = []
-    question = (
-        f"Obligation owed to this LP: \"{obligation_text}\". "
-        f"What to check: {verify_hint or 'whether the GP honored this obligation'}."
-    )
-    for doc_id in doc_ids:
-        chunks.extend(await context_provider.load_doc_context(deal_id, doc_id, question))
+    with llm_call_context(surface="monitoring", deal_id=deal_id):
+        chunks: list[dict] = []
+        question = (
+            f"Obligation owed to this LP: \"{obligation_text}\". "
+            f"What to check: {verify_hint or 'whether the GP honored this obligation'}."
+        )
+        for doc_id in doc_ids:
+            chunks.extend(await context_provider.load_doc_context(deal_id, doc_id, question))
 
-    prompt = (
-        "You are an LP compliance analyst verifying whether a side-letter obligation "
-        "was honored in a fund's quarterly reporting package.\n\n"
-        f"Obligation: {obligation_text}\n"
-        f"What to check each quarter: {verify_hint or '(use judgment)'}\n\n"
-        "Answer in exactly this format:\n"
-        "Verdict: [compliant, breach, or unclear]\n"
-        "Rationale: [one to two sentences citing the specific evidence in the reporting "
-        "package, with [Source N] citations. Say 'unclear' when the package does not "
-        "contain enough to judge.]"
-    )
-    result = await run_extraction(chunks, prompt, deal_id=deal_id)
-    fields = _parse_fields(result.answer)
-    verdict = _text(fields.get("verdict")).lower()
-    verdict = next((v for v in VERDICTS if v in verdict), "unclear")
-    rationale = _text(fields.get("rationale")) or (result.answer or "").strip()
-    return {"verdict": verdict, "rationale": rationale, "citations": result.citations}
+        prompt = (
+            "You are an LP compliance analyst verifying whether a side-letter obligation "
+            "was honored in a fund's quarterly reporting package.\n\n"
+            f"Obligation: {obligation_text}\n"
+            f"What to check each quarter: {verify_hint or '(use judgment)'}\n\n"
+            "Answer in exactly this format:\n"
+            "Verdict: [compliant, breach, or unclear]\n"
+            "Rationale: [one to two sentences citing the specific evidence in the reporting "
+            "package, with [Source N] citations. Say 'unclear' when the package does not "
+            "contain enough to judge.]"
+        )
+        result = await run_extraction(chunks, prompt, deal_id=deal_id)
+        fields = _parse_fields(result.answer)
+        verdict = _text(fields.get("verdict")).lower()
+        verdict = next((v for v in VERDICTS if v in verdict), "unclear")
+        rationale = _text(fields.get("rationale")) or (result.answer or "").strip()
+        return {"verdict": verdict, "rationale": rationale, "citations": result.citations}
