@@ -40,6 +40,41 @@ So this is not a new palette. It is the landing page catching up to the app.
 | D6 | **Citation markers take the real form (`[S1]`), not the mockup's filled pill.** | The mockup's `.cite` chip — it does not match what the product renders. |
 | D7 | **`--landing-border` is `rgba(20,25,35,0.36)`** — ink-navy hue at the logged 2.2:1 floor. | The mockup's `rgba(20,25,35,0.10)`: 1.22:1, *fainter than the `#d6d6cc` (1.46:1) already tried and rejected*. See below. |
 
+| D8 | **Hero is a single centered column, preview table below the copy.** | The current two-column grid (copy left, panel right). Added 2026-08-01 after reviewing the shipped hero against the mockup. |
+| D9 | **New `ink` variant on `LandingButton`, used in the hero only.** Ink navy fill, ivory text. | Repointing the shared `primary` variant (turns every landing button ink, including the nav and the eleven un-restyled sections). Appending a `bg-*` utility at the call site (no `tailwind-merge`, so it resolves by stylesheet order — the same hazard D-note records for the headline). |
+
+### D8, stated plainly
+
+The mockup's hero is `flex-direction: column; align-items: center; text-align:
+center` with the preview panel beneath the copy. The shipped hero kept the
+pre-existing two-column grid, so the table sat in a ~440px column — which is
+why its columns wrap. Moving it below the copy roughly doubles its width and,
+combined with the 13px body size restored in the final fix wave, is what gets
+row density near the real grid's.
+
+Order within the hero, following the mockup: eyebrow pill → headline → body →
+buttons → proof points → preview table. The mockup's small-print line sits
+immediately above its panel; the proof-point cards take that slot.
+
+**The panel does not bleed off the bottom edge.** The mockup uses
+`border-radius: 12px 12px 0 0` to run the panel past the frame; the shipped
+version keeps a fully contained card with all four corners rounded. Decided by
+the project owner — bleed interacts badly with the section below at mobile
+widths.
+
+### D9, stated plainly
+
+The mockup's `.btn-primary` is `background: var(--ink); color: var(--bg)` — ink
+navy fill, ivory text. Oxblood appears only on the pill, the headline's second
+clause, and the citation markers; never as a button fill. `LandingButton`'s
+`primary` variant is `bg-[var(--accent)]`, which is why the hero's buttons ship
+oxblood.
+
+`LandingButton` is consumed by `LandingNav`, `FinalCTA`, `PricingSection` and
+others, all outside `.landing-ivory`. Repointing `primary` would restyle them
+all. The variant is therefore **additive**: existing consumers are untouched,
+and the follow-up pass can switch them over deliberately.
+
 ### D7, stated plainly
 
 `index.css:11` carries a logged decision on `--landing-border: #b0b0a3`:
