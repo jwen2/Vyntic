@@ -110,9 +110,9 @@ export default function HeroSection() {
                         <th
                           key={label}
                           scope="col"
-                          className={`font-mono text-[11px] font-normal align-top text-[var(--landing-muted)] border-b border-[var(--landing-border)] ${
+                          className={`font-mono text-[11px] font-normal align-top text-[var(--landing-muted)] border-b border-[var(--landing-border)] bg-[var(--landing-surface-alt)] ${
                             index === 0
-                              ? "border-r border-[var(--landing-border)] bg-[var(--landing-surface-alt)]"
+                              ? "border-r border-[var(--landing-border)]"
                               : ""
                           }`}
                           style={{ padding: "7px 12px 7px 9px" }}
