@@ -103,12 +103,14 @@ export default function HeroSection() {
             <div className="rounded-[1.25rem] border border-[var(--landing-border)] bg-white p-3 sm:rounded-[1.5rem] sm:p-4">
               <div className="overflow-x-auto">
                 {/* Chrome mirrors components/ui/grid-table.css by copy, not import:
-                    11px mono-400 headers at 7px 12px 7px 9px, 38px rows at 8px 10px,
-                    zebra striping, and a pinned first column. Keep in sync by hand —
+                    11px mono-400 headers at 7px 12px 7px 9px, 13px body cells at
+                    8px 10px with h-[38px] acting as a row-height floor (cells wrap
+                    taller when content is long), zebra striping, and a pinned first
+                    column with its border and depth shadow. Keep in sync by hand —
                     see the note in grid-table.css. */}
                 <table
                   aria-label="Diligence preview"
-                  className="w-full border-collapse text-left"
+                  className="w-full border-collapse text-left text-[13px]"
                 >
                   <thead>
                     <tr>
@@ -116,12 +118,17 @@ export default function HeroSection() {
                         <th
                           key={label}
                           scope="col"
-                          className={`font-mono text-[11px] font-normal align-top text-[var(--landing-muted)] border-b border-[var(--landing-border)] bg-[var(--landing-surface-alt)] ${
+                          className={`font-mono text-[11px] font-normal align-top text-[var(--landing-muted)] border-b border-[var(--landing-border)] bg-[var(--landing-grid-header)] ${
                             index === 0
                               ? "border-r border-[var(--landing-border)]"
                               : ""
                           }`}
-                          style={{ padding: "7px 12px 7px 9px" }}
+                          style={{
+                            padding: "7px 12px 7px 9px",
+                            ...(index === 0
+                              ? { boxShadow: "8px 0 16px -12px rgba(0, 0, 0, 0.18)" }
+                              : {}),
+                          }}
                         >
                           {label}
                         </th>
@@ -147,7 +154,12 @@ export default function HeroSection() {
                                 ? "border-r border-[var(--landing-border)] font-medium"
                                 : ""
                             }`}
-                            style={{ padding: "8px 10px" }}
+                            style={{
+                              padding: "8px 10px",
+                              ...(cellIndex === 0
+                                ? { boxShadow: "8px 0 16px -12px rgba(0, 0, 0, 0.18)" }
+                                : {}),
+                            }}
                           >
                             <span>{cell.text}</span>
                             {cell.cite ? (

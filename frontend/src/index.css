@@ -167,6 +167,9 @@
    and drop the wrapper in HeroSection.tsx.
    Spec: docs/superpowers/specs/2026-08-01-landing-ivory-hero-design.md */
 .landing-ivory {
+  /* Consumers (body, .landing-shell) are ancestors of the wrapper, not
+     descendants — declared here for the future promotion step (see the
+     block comment above) rather than an active value today. */
   --landing-bg: #f4f1ea;
   --landing-surface: #ffffff;
   --landing-surface-alt: #faf8f3;
@@ -181,6 +184,11 @@
   --landing-muted: #6f6a5e;
   --landing-accent: #a3402f;
   --landing-accent-soft: #f2e5e1;
+  /* Mirrors --table-header, the real grid's header wash — kept distinct from
+     --landing-surface-alt (the zebra value) so the preview table's header
+     row doesn't collide with its own zebra stripe. */
+  --landing-grid-header: #efeae0;
+  /* No consumer in src/ yet — declared by the design spec for future use. */
   --landing-good: #2f6b4f;
 }
 

@@ -31,11 +31,11 @@ describe("HeroSection preview table", () => {
     render(<HeroSection />);
     const table = screen.getByRole("table", { name: /diligence preview/i });
     const marks = within(table).getAllByText(/^\[S\d\]$/);
-    expect(marks.length).toBeGreaterThan(0);
+    expect(marks).toHaveLength(4);
   });
 
   it("scopes the Ivory palette to the hero via the wrapper class", () => {
     const { container } = render(<HeroSection />);
-    expect(container.querySelector(".landing-ivory")).not.toBeNull();
+    expect(container.firstElementChild?.classList.contains("landing-ivory")).toBe(true);
   });
 });
