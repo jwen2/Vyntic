@@ -38,6 +38,24 @@ So this is not a new palette. It is the landing page catching up to the app.
 | D4 | **`--landing-muted` is `#6f6a5e`, not the mockup's `#8a8478`.** | The mockup value verbatim: 3.29:1 on ivory, below the 4.5:1 AA body threshold, and today's hero uses muted at body size. |
 | D5 | **Static table mock, no import of `grid-table.css`.** | Importing the live `RunTable` — pulls import-order constraints and run-state logic into the marketing bundle. |
 | D6 | **Citation markers take the real form (`[S1]`), not the mockup's filled pill.** | The mockup's `.cite` chip — it does not match what the product renders. |
+| D7 | **`--landing-border` is `rgba(20,25,35,0.36)`** — ink-navy hue at the logged 2.2:1 floor. | The mockup's `rgba(20,25,35,0.10)`: 1.22:1, *fainter than the `#d6d6cc` (1.46:1) already tried and rejected*. See below. |
+
+### D7, stated plainly
+
+`index.css:11` carries a logged decision on `--landing-border: #b0b0a3`:
+
+> ~2.2:1 against white surfaces — panel edges must stay visible on washed-out
+> displays (was #d6d6cc at 1.46:1).
+
+Measurement confirms it: `#b0b0a3` is **2.19:1** on white. The mockup's hairline
+composites to `#e8e8e9` at **1.22:1** — worse than the value that decision
+already rejected. Taking the artifact verbatim would silently reverse a
+conclusion someone reached after hitting the problem in production.
+
+`rgba(20,25,35,0.36)` holds the 2.2:1 floor (2.27:1 on white, 2.24:1 on ivory)
+while moving the hue from warm sand to ink navy. The hero reads cooler and
+lighter than today without losing edge visibility. The mockup's delicate
+hairline character is deliberately not reproduced.
 
 ---
 
@@ -51,7 +69,7 @@ element.
   --landing-bg: #f4f1ea;
   --landing-text: #16202e;          /* ink navy — 14.54:1 on bg */
   --landing-muted: #6f6a5e;         /* AA substitute — 4.77:1 on bg, 5.39:1 on white */
-  --landing-border: rgba(20, 25, 35, 0.10);
+  --landing-border: rgba(20, 25, 35, 0.36);   /* 2.27:1 on white — see D7 */
   --landing-surface: #ffffff;
   --landing-surface-alt: #faf8f3;
   --landing-accent: #a3402f;        /* new */
@@ -72,6 +90,14 @@ Measured contrast, all against `#f4f1ea` unless noted:
 | good `#2f6b4f` | 5.58 | pass |
 | *(rejected)* `#8a8478` | 3.29 | **fail** |
 
+Borders are judged against the logged 2.2:1 visibility floor, not AA:
+
+| border | on white | on ivory |
+|---|---|---|
+| today `#b0b0a3` | 2.19 | 1.94 |
+| **chosen** `rgba(20,25,35,.36)` | 2.27 | 2.24 |
+| *(rejected)* mockup `.10` | 1.22 | 1.22 |
+
 The `6.30` figure independently reproduces the value already asserted in
 `index.css`'s own comment, which is why these numbers are trusted.
 
@@ -87,9 +113,9 @@ Structure and copy stay. What changes:
   mockup's two-tone treatment.
 - **Eyebrow** → the mockup's pill: `--landing-accent-soft` fill, hairline border,
   a 6px filled accent dot, accent text.
-- **Borders** — every `--landing-border` consumer in the hero inherits the
-  hairline automatically via the wrapper.
-- **Proof-point cards** — hairline border, `--landing-surface`, unchanged copy.
+- **Borders** — every `--landing-border` consumer in the hero picks up the
+  ink-navy rule automatically via the wrapper (D7); no per-element edits.
+- **Proof-point cards** — same border, `--landing-surface`, unchanged copy.
 
 The mockup's email-capture field and its "No credit card required" line are not
 adopted (D2).
