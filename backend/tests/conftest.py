@@ -84,6 +84,73 @@ def sample_deal():
 
 
 @pytest.fixture
+def seeded_small_deal(client):
+    """A deal with two small documents, well under any budget."""
+    from app.models.document import DocumentMetadata
+    deal_store.create_deal(DealCreate(deal_id="alloc_small", name="Alloc Small",
+                                      description="", stage="Screening", tags=[]))
+    for i in (1, 2):
+        deal_store.add_document("alloc_small", DocumentMetadata(
+            doc_id=f"alloc_doc_{i}", deal_id="alloc_small", filename=f"doc{i}.pdf",
+            page_count=1, chunk_count=1, full_text_md=f"## Page 1\n\nSmall body {i}.",
+        ))
+    return "alloc_small"
+
+
+@pytest.fixture
+def seeded_brightwater(client):
+    """The two Brightwater funds, seeded from the exported eval texts.
+
+    Drives off app.seed.SAMPLE_DEALS so categories and scopes stay in sync
+    with the real seed, but inserts document rows directly with full_text_md
+    read from evals/data/*.md — ingesting the PDFs would be far too slow for
+    the suite, and those markdown files are the exact exported texts.
+    """
+    from pathlib import Path
+
+    from app.models.document import DocumentMetadata
+    from app.models.manager import ManagerCreate
+    from app.seed import SAMPLE_DEALS
+    from app.services import manager_store
+
+    data_dir = Path(__file__).resolve().parent.parent / "evals" / "data"
+    seeded: list[str] = []
+    for entry in SAMPLE_DEALS:
+        if not entry["deal_id"].startswith("brightwater_"):
+            continue
+        mgr = entry["manager"]
+        if not manager_store.get_manager(mgr["manager_id"]):
+            manager_store.create_manager(ManagerCreate(
+                manager_id=mgr["manager_id"], name=mgr["name"]))
+        deal_store.create_deal(DealCreate(
+            deal_id=entry["deal_id"],
+            name=entry["name"],
+            entity_type="fund",
+            manager_id=mgr["manager_id"],
+            stage=entry["stage"],
+            vintage=entry["vintage"],
+            strategy=entry["strategy"],
+        ))
+        for filename in entry["files"]:
+            md = data_dir / (Path(filename).stem + ".md")
+            if not md.exists():
+                continue  # the .xlsx track record has no exported text
+            meta = entry["document_metadata"].get(filename, {})
+            deal_store.add_document(entry["deal_id"], DocumentMetadata(
+                doc_id=Path(filename).stem,
+                deal_id=entry["deal_id"],
+                filename=filename,
+                page_count=1,
+                full_text_md=md.read_text(encoding="utf-8"),
+                doc_category=meta.get("doc_category", "other"),
+                scope=meta.get("scope", "entity"),
+            ))
+        seeded.append(entry["deal_id"])
+    assert seeded, "SAMPLE_DEALS no longer carries the Brightwater funds"
+    return seeded
+
+
+@pytest.fixture
 def three_deals():
     """Create three sample deals for matrix tests."""
     deals = []

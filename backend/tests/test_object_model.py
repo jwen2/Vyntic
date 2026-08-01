@@ -322,6 +322,27 @@ class TestManagerSharedContext:
         self._setup_two_managers()
         assert asyncio.run(load_doc_context("hp_fund_v", "doc_lpa", "q")) == []
 
+    def test_allocation_never_crosses_a_manager_boundary(self, clear_store, monkeypatch):
+        """Invariant 2 under allocation.
+
+        The allocator ranks and demotes documents, so it must be re-proved
+        that it can only ever choose from what the manager scope already
+        admitted. Forced over budget so the ranking path actually runs.
+        """
+        from app.services import context_budget
+        from app.services.context_provider import load_deal_selection
+
+        self._setup_two_managers()
+        monkeypatch.setattr(context_budget, "budget_tokens", lambda *a, **k: 1)
+
+        sel = asyncio.run(load_deal_selection("hp_fund_v", "q"))
+        included = set(sel.whole_docs) | set(sel.partial_docs) | set(sel.excluded_docs)
+
+        assert included == {"doc_ddq"}, (
+            "hp_fund_v may only ever see its manager's manager-scoped doc — "
+            f"got {included}"
+        )
+
 
 # ── Migration shim ──
 

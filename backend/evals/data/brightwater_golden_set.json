@@ -1,0 +1,318 @@
+[
+  {
+    "id": "lpa-mgmt-fee",
+    "question": "During the investment period, what annual management fee does the Partnership pay and on what base is it calculated?",
+    "doc_filename": "brightwater_iv_lpa.md",
+    "expected_pages": [5],
+    "note": "2.0% per annum of aggregate commitments; steps to 1.5% of invested capital after. Section 5."
+  },
+  {
+    "id": "lpa-fee-offset",
+    "question": "What share of transaction, monitoring and directors fees is credited against the management fee?",
+    "doc_filename": "brightwater_iv_lpa.md",
+    "expected_pages": [6],
+    "note": "50%. Section 6. Contradicts the DDQ's 100% claim - see ddq-fee-offset."
+  },
+  {
+    "id": "lpa-carry-and-pref",
+    "question": "What is the carried interest percentage and the preferred return?",
+    "doc_filename": "brightwater_iv_lpa.md",
+    "expected_pages": [7],
+    "note": "20% carry, 8% preferred return, European whole-fund waterfall, 100% catch-up. Section 7."
+  },
+  {
+    "id": "lpa-key-persons",
+    "question": "Who are the named Key Persons and what triggers a Key Person Event?",
+    "doc_filename": "brightwater_iv_lpa.md",
+    "expected_pages": [11],
+    "note": "Elaine Hart and Daniel Roache; triggered if fewer than two devote substantially all business time. Section 11. Roache left the firm per the Form ADV."
+  },
+  {
+    "id": "lpa-no-fault-removal",
+    "question": "What limited partner vote is needed to remove the general partner without cause?",
+    "doc_filename": "brightwater_iv_lpa.md",
+    "expected_pages": [12],
+    "note": "80% of aggregate commitments, excluding GP affiliates. Section 12. Off-market (typically 66-75%)."
+  },
+  {
+    "id": "lpa-gp-commitment",
+    "question": "How much capital must the general partner and its affiliates commit to the fund?",
+    "doc_filename": "brightwater_iv_lpa.md",
+    "expected_pages": [3],
+    "note": "Not less than 2.0% of aggregate commitments. Section 3, same page as the target/hard cap."
+  },
+  {
+    "id": "lpa-recycling",
+    "question": "For how long after an investment may the general partner recall and recycle distributions?",
+    "doc_filename": "brightwater_iv_lpa.md",
+    "expected_pages": [9],
+    "note": "24 months after the original investment date. Section 9."
+  },
+  {
+    "id": "lpa-org-expense-cap",
+    "question": "Is there a ceiling on organizational and offering expenses borne by the fund?",
+    "doc_filename": "brightwater_iv_lpa.md",
+    "expected_pages": [10],
+    "note": "$2,500,000 aggregate cap; excess borne by the Manager. Section 10."
+  },
+
+  {
+    "id": "ddq-fee-offset",
+    "question": "What level of fee offset does the Firm state that the Fund provides?",
+    "doc_filename": "brightwater_iv_ddq.md",
+    "expected_pages": [7],
+    "note": "Claims 100% fee offset. The LPA grants only 50% - planted contradiction."
+  },
+  {
+    "id": "ddq-team-succession",
+    "question": "What does the Firm say about senior team stability and succession planning?",
+    "doc_filename": "brightwater_iv_ddq.md",
+    "expected_pages": [2],
+    "note": "Boilerplate about institutionalized team model; never discloses Roache's departure. Planted omission."
+  },
+  {
+    "id": "ddq-ic-members",
+    "question": "Who sits on the investment committee and who chairs it?",
+    "doc_filename": "brightwater_iv_ddq.md",
+    "expected_pages": [3],
+    "note": "Elaine Hart chairs; Malik Voss, Priya Selvan, Daniel Roache vote. Lists Roache as active."
+  },
+  {
+    "id": "ddq-track-record",
+    "question": "How does the Firm summarize predecessor fund performance?",
+    "doc_filename": "brightwater_iv_ddq.md",
+    "expected_pages": [4],
+    "note": "Fund I 2.10x/18%, Fund II 1.90x/21%, Fund III 1.50x/15%."
+  },
+  {
+    "id": "ddq-cybersecurity",
+    "question": "Does the Firm maintain a SOC 2 report, and how is penetration-testing cadence set?",
+    "doc_filename": "brightwater_iv_ddq.md",
+    "expected_pages": [10],
+    "note": "No SOC 2; testing cadence determined by management. ODD red flag."
+  },
+  {
+    "id": "ddq-conflicts",
+    "question": "Which affiliated service providers does the Firm identify as potential conflicts?",
+    "doc_filename": "brightwater_iv_ddq.md",
+    "expected_pages": [12],
+    "note": "Says it expects no affiliated providers beyond the GP and management company - omits Brightwater Securities, LLC, which the Form ADV discloses."
+  },
+  {
+    "id": "ddq-service-providers",
+    "question": "Who are the fund administrator, auditor and fund counsel?",
+    "doc_filename": "brightwater_iv_ddq.md",
+    "expected_pages": [14],
+    "note": "North Pier Fund Services; Huxley Markham & Co. LLP; Alder & Finch LLP."
+  },
+
+  {
+    "id": "ppm-fund-iii-multiples",
+    "question": "In the prior fund performance table, what are Fund III's TVPI, DPI and RVPI?",
+    "doc_filename": "brightwater_iv_ppm.md",
+    "expected_pages": [5],
+    "note": "TVPI 1.50x, DPI 0.40x, RVPI 0.95x. Planted arithmetic mismatch: 0.40 + 0.95 = 1.35, not 1.50."
+  },
+  {
+    "id": "ppm-terms-fee-offset",
+    "question": "According to the summary of terms, how much of the transaction and monitoring fees offsets the management fee?",
+    "doc_filename": "brightwater_iv_ppm.md",
+    "expected_pages": [2],
+    "note": "50%, in the terms summary table. Agrees with the LPA, contradicts the DDQ."
+  },
+  {
+    "id": "ppm-target-hard-cap",
+    "question": "What is the fundraising target and the hard cap?",
+    "doc_filename": "brightwater_iv_ppm.md",
+    "expected_pages": [2],
+    "note": "$1.25 billion target, $1.5 billion hard cap. Stated in both prose and the terms table on the same page."
+  },
+  {
+    "id": "ppm-roache-role",
+    "question": "What is Daniel Roache's title and what is he responsible for?",
+    "doc_filename": "brightwater_iv_ppm.md",
+    "expected_pages": [4],
+    "note": "Partner, Head of Value Creation. Presented as current - contradicted by the Form ADV."
+  },
+  {
+    "id": "ppm-portfolio-construction",
+    "question": "How many platform companies does the fund expect to back, and in what enterprise value range?",
+    "doc_filename": "brightwater_iv_ppm.md",
+    "expected_pages": [2],
+    "note": "10 to 14 platforms, enterprise values $75m-$350m. Executive summary prose."
+  },
+
+  {
+    "id": "pitch-headline-claim",
+    "question": "What headline track-record claim does the marketing material lead with?",
+    "doc_filename": "brightwater_iv_pitchbook.md",
+    "expected_pages": [1],
+    "note": "Top-quartile track record, 2.1x net - which reflects only fully realized Fund I."
+  },
+  {
+    "id": "pitch-fund-iii-tvpi",
+    "question": "At what net TVPI is Fund III presented in the marketing materials?",
+    "doc_filename": "brightwater_iv_pitchbook.md",
+    "expected_pages": [3, 10],
+    "note": "1.50x net TVPI, stated on both the prior-fund snapshot and the closing page."
+  },
+  {
+    "id": "pitch-senior-team",
+    "question": "Who is listed on the senior team?",
+    "doc_filename": "brightwater_iv_pitchbook.md",
+    "expected_pages": [4],
+    "note": "Hart, Voss, Selvan, Roache. Lists Roache as active."
+  },
+
+  {
+    "id": "adv-roache-departure",
+    "question": "Has any senior investment professional left the firm, and when?",
+    "doc_filename": "brightwater_adv_part2a.md",
+    "expected_pages": [2],
+    "note": "Daniel Roache ceased being an advisory employee effective February 28, 2026. The single disclosure that contradicts the DDQ, PPM and pitchbook."
+  },
+  {
+    "id": "adv-affiliated-broker-dealer",
+    "question": "Does the firm have an affiliated broker-dealer, and what compensation may it receive?",
+    "doc_filename": "brightwater_adv_part2a.md",
+    "expected_pages": [6],
+    "note": "Brightwater Securities, LLC, under common control; may receive transaction or placement compensation. Omitted from the DDQ conflicts answer."
+  },
+  {
+    "id": "adv-regulatory-history",
+    "question": "Has the firm been subject to any regulatory examination findings?",
+    "doc_filename": "brightwater_adv_part2a.md",
+    "expected_pages": [10],
+    "note": "2023 SEC deficiency letter on expense allocation documentation; remediated, no monetary penalty."
+  },
+  {
+    "id": "adv-aum",
+    "question": "How much does the firm manage in assets?",
+    "doc_filename": "brightwater_adv_part2a.md",
+    "expected_pages": [2],
+    "note": "Approximately $2.1 billion. Same page as the Roache disclosure."
+  },
+
+  {
+    "id": "valpol-committee-cadence",
+    "question": "How often does the valuation committee meet and who participates?",
+    "doc_filename": "brightwater_valuation_policy.md",
+    "expected_pages": [2],
+    "note": "Quarterly; finance, investment, compliance and portfolio operations representatives."
+  },
+  {
+    "id": "valpol-level3-review",
+    "question": "How often is independent third-party valuation review obtained for Level 3 assets?",
+    "doc_filename": "brightwater_valuation_policy.md",
+    "expected_pages": [4],
+    "note": "Annually for active Level 3 assets - marks are GP-prepared each quarter. ODD finding."
+  },
+  {
+    "id": "valpol-escalation",
+    "question": "How are valuation disagreements escalated?",
+    "doc_filename": "brightwater_valuation_policy.md",
+    "expected_pages": [6],
+    "note": "To the CFO and CCO; material issues may go to the LP Advisory Committee."
+  },
+
+  {
+    "id": "sl-fee-reduction",
+    "question": "What management fee discount did Glenmoor negotiate?",
+    "doc_filename": "glenmoor_fund_iii_side_letter.md",
+    "expected_pages": [1],
+    "note": "Ten basis points per annum on its $25m commitment. Obligation (i)."
+  },
+  {
+    "id": "sl-mfn",
+    "question": "Does Glenmoor hold an MFN election right, and what commitment size triggers it?",
+    "doc_filename": "glenmoor_fund_iii_side_letter.md",
+    "expected_pages": [1],
+    "note": "Yes; triggered by better terms granted to any LP committing $50m or less, exercisable within 30 days of final close. Obligation (ii)."
+  },
+  {
+    "id": "sl-coinvestment",
+    "question": "At what deal size must the general partner offer Glenmoor a co-investment?",
+    "doc_filename": "glenmoor_fund_iii_side_letter.md",
+    "expected_pages": [2],
+    "note": "Investments requiring more than $75,000,000 of aggregate equity; commercially reasonable efforts, pro rata. Obligation (iii)."
+  },
+  {
+    "id": "sl-reporting-deadlines",
+    "question": "What are the deadlines for quarterly reports and annual audited financial statements?",
+    "doc_filename": "glenmoor_fund_iii_side_letter.md",
+    "expected_pages": [2],
+    "note": "45 days after quarter-end; 120 days after fiscal year-end. Obligation (iv) - breached by the Q2 2026 report."
+  },
+  {
+    "id": "sl-esg-report",
+    "question": "Is the general partner required to provide an ESG report?",
+    "doc_filename": "glenmoor_fund_iii_side_letter.md",
+    "expected_pages": [4],
+    "note": "Annual ESG report covering portfolio-level metrics reasonably available. Obligation (vii)."
+  },
+
+  {
+    "id": "qr-report-date",
+    "question": "What date is the quarterly report dated, and which quarter does it cover?",
+    "doc_filename": "brightwater_iii_quarterly_q2_2026.md",
+    "expected_pages": [1],
+    "note": "Dated August 29, 2026 for the quarter ended June 30, 2026 - 60 days, breaching the 45-day side-letter undertaking."
+  },
+  {
+    "id": "qr-glenmoor-position",
+    "question": "What are Glenmoor's commitment, paid-in capital, cumulative distributions and NAV?",
+    "doc_filename": "brightwater_iii_quarterly_q2_2026.md",
+    "expected_pages": [2],
+    "note": "$25m / $18.75m / $6.2m / $21.4m."
+  },
+  {
+    "id": "qr-multiples",
+    "question": "What are Glenmoor's DPI, RVPI and TVPI as of quarter-end?",
+    "doc_filename": "brightwater_iii_quarterly_q2_2026.md",
+    "expected_pages": [2],
+    "note": "0.33x / 1.14x / 1.47x. These tie (unlike the Fund III marketing figures)."
+  },
+  {
+    "id": "qr-fee-rate",
+    "question": "What management fee rate was applied to Glenmoor this quarter, and how does it compare with the standard rate?",
+    "doc_filename": "brightwater_iii_quarterly_q2_2026.md",
+    "expected_pages": [7],
+    "note": "1.90% vs 2.00% standard - the 10bp side-letter discount, evidencing compliance with obligation (i). Fee allocation $118,750."
+  },
+  {
+    "id": "qr-caldera-valuation",
+    "question": "What is Fund III's carrying value in Caldera Flow Controls?",
+    "doc_filename": "brightwater_iii_quarterly_q2_2026.md",
+    "expected_pages": [4],
+    "note": "$188.5 million. One of four near-identical portfolio pages (3-6) - tests page discrimination."
+  },
+
+  {
+    "id": "fs-auditor-opinion",
+    "question": "Who audited the FY2025 financial statements and what opinion was issued?",
+    "doc_filename": "brightwater_iii_audited_fs_2025.md",
+    "expected_pages": [1],
+    "note": "Huxley Markham & Co. LLP; unqualified - presents fairly in all material respects under US GAAP."
+  },
+  {
+    "id": "fs-nav",
+    "question": "What were partners' capital and NAV at December 31, 2025?",
+    "doc_filename": "brightwater_iii_audited_fs_2025.md",
+    "expected_pages": [2, 5],
+    "note": "$610,000 thousand. Appears in the statement of assets and liabilities and again in the NAV roll-forward."
+  },
+  {
+    "id": "fs-schedule-totals",
+    "question": "What is the total cost and total fair value of the investment portfolio?",
+    "doc_filename": "brightwater_iii_audited_fs_2025.md",
+    "expected_pages": [4],
+    "note": "$525,000 cost / $610,000 fair value, in thousands."
+  },
+  {
+    "id": "fs-level3",
+    "question": "What fair value hierarchy level is used for the privately held portfolio companies?",
+    "doc_filename": "brightwater_iii_audited_fs_2025.md",
+    "expected_pages": [6],
+    "note": "Level 3 inputs, valued in good faith by the GP under the valuation policy. Notes to financial statements."
+  }
+]

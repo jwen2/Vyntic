@@ -21,3 +21,6 @@ class QueryResponse(BaseModel):
     question: str
     answer: str
     citations: list[Citation | None]
+    # Documents the allocator left out of the context, by doc_id. Empty
+    # whenever the whole corpus fit — which is the normal case.
+    excluded_docs: list[str] = []

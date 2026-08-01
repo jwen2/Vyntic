@@ -11,16 +11,18 @@ import inspect
 import pytest
 
 from app.api import routes_query
+from app.services.context_allocator import ContextSelection
 
 
 async def test_stream_answer_uses_context_provider(monkeypatch):
     calls = []
 
-    async def fake_load_deal_context(deal_id, question):
+    async def fake_load_deal_selection(deal_id, question):
         calls.append((deal_id, question))
-        return []  # empty context → early "done" event, no LLM call
+        # empty context → early "done" event, no LLM call
+        return ContextSelection()
 
-    monkeypatch.setattr(routes_query, "load_deal_context", fake_load_deal_context)
+    monkeypatch.setattr(routes_query, "load_deal_selection", fake_load_deal_selection)
 
     events = [e async for e in routes_query._stream_answer("deal-1", "revenue?")]
 
@@ -30,15 +32,15 @@ async def test_stream_answer_uses_context_provider(monkeypatch):
 
 
 async def test_stream_answer_streams_tokens_from_context(monkeypatch):
-    async def fake_load_deal_context(deal_id, question):
-        return [{
+    async def fake_load_deal_selection(deal_id, question):
+        return ContextSelection(chunks=[{
             "content": "Revenue was $10M.",
             "source_file": "cim.pdf",
             "page": 3,
             "doc_id": "doc-1",
             "score": 1.0,
             "section_type": "text",
-        }]
+        }], whole_docs=["doc-1"])
 
     class FakeChunk:
         def __init__(self, content):
@@ -50,7 +52,7 @@ async def test_stream_answer_streams_tokens_from_context(monkeypatch):
 
     from app.services import extraction_engine
 
-    monkeypatch.setattr(routes_query, "load_deal_context", fake_load_deal_context)
+    monkeypatch.setattr(routes_query, "load_deal_selection", fake_load_deal_selection)
     monkeypatch.setattr(extraction_engine, "stream_with_fallback", fake_stream)
 
     events = [e async for e in routes_query._stream_answer("deal-1", "revenue?")]
