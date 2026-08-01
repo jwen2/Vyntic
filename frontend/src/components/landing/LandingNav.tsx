@@ -14,7 +14,7 @@ export default function LandingNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--landing-border)] bg-[rgba(243,243,238,0.92)] backdrop-blur">
+    <header className="landing-ivory sticky top-0 z-50 border-b border-[var(--landing-border)] bg-[rgba(244,241,234,0.92)] backdrop-blur">
       <div className="border-b border-[var(--landing-border)] bg-[var(--landing-inverse)] text-[var(--landing-inverse-text)]">
         <LandingContainer className="flex min-h-10 items-center justify-center py-2">
           <a
@@ -27,7 +27,7 @@ export default function LandingNav() {
             <span className="min-w-0 break-words text-xs text-white/88 sm:text-sm">
               We are onboarding PE teams to test Vyntic on one diligence workflow.
             </span>
-            <span className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-white">
+            <span className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-inverse-text)]">
               Learn more
             </span>
           </a>
@@ -36,25 +36,17 @@ export default function LandingNav() {
 
       <LandingContainer className="flex h-14 items-center justify-between sm:h-16">
         <Link to="/" className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--landing-inverse)] text-sm font-semibold text-white sm:h-9 sm:w-9">
-            V
-          </div>
-          <div>
-            <div className="text-sm font-semibold tracking-[-0.03em] text-[var(--landing-text)]">
-              Vyntic
-            </div>
-            <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-              Deal Intelligence
-            </div>
-          </div>
+          <span className="font-serif text-[24px] font-semibold tracking-[-0.01em] leading-none text-[var(--landing-text)]">
+            Vyntic
+          </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 lg:flex">
+        <nav className="hidden items-center gap-[22px] lg:flex">
           {NAV_ITEMS.map((item) => (
             <a
               key={item.label}
               href={item.href}
-              className="font-mono-plex text-xs uppercase tracking-[0.18em] text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-text)]"
+              className="text-[13.5px] font-medium text-[var(--landing-text)] opacity-[0.78] transition-opacity hover:opacity-100"
             >
               {item.label}
             </a>
@@ -62,10 +54,12 @@ export default function LandingNav() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <LandingButton variant="ghost" to="/login">
+          <LandingButton variant="ghost" size="compact" to="/login">
             Sign in
           </LandingButton>
-          <LandingButton href="#contact">Pilot one deal</LandingButton>
+          <LandingButton variant="ink" size="compact" href="#contact">
+            Pilot one deal
+          </LandingButton>
         </div>
 
         <button
@@ -85,7 +79,7 @@ export default function LandingNav() {
               <a
                 key={item.label}
                 href={item.href}
-                className="font-mono-plex py-1 text-xs uppercase tracking-[0.18em] text-[var(--landing-muted)]"
+                className="py-1 text-[13.5px] font-medium text-[var(--landing-text)] opacity-[0.78] transition-opacity hover:opacity-100"
                 onClick={() => setMobileOpen(false)}
               >
                 {item.label}

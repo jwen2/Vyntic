@@ -190,6 +190,11 @@
   --landing-grid-header: #efeae0;
   /* No consumer in src/ yet — declared by the design spec for future use. */
   --landing-good: #2f6b4f;
+  /* Ink-navy inverse pair — paints the header's announce band and the hero's
+     IC Summary panel. The footer/FinalCTA keep the :root --landing-inverse*
+     values (#111111/#ffffff) until their own restyle pass. */
+  --landing-inverse: #16202e;
+  --landing-inverse-text: #f4f1ea;
 }
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */

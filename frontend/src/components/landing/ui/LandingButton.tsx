@@ -2,10 +2,12 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 type Variant = "primary" | "secondary" | "ghost" | "ink";
+type Size = "default" | "compact";
 
 interface LandingButtonProps {
   children: ReactNode;
   variant?: Variant;
+  size?: Size;
   href?: string;
   to?: string;
   className?: string;
@@ -25,12 +27,18 @@ const VARIANT_CLASSES: Record<Variant, string> = {
     "bg-[var(--landing-text)] text-[var(--landing-bg)] border-[var(--landing-text)] hover:opacity-90",
 };
 
-const BASE_CLASSES =
-  "inline-flex min-h-11 items-center justify-center rounded-full border px-5 py-3 text-center text-sm font-medium transition-colors";
+const SHARED_CLASSES =
+  "inline-flex items-center justify-center border text-center font-medium transition-colors";
+
+const SIZE_CLASSES: Record<Size, string> = {
+  default: "min-h-11 rounded-full px-5 py-3 text-sm",
+  compact: "min-h-9 rounded-[9px] px-[15px] py-2 text-[13px]",
+};
 
 export default function LandingButton({
   children,
   variant = "primary",
+  size = "default",
   href,
   to,
   className = "",
@@ -38,7 +46,7 @@ export default function LandingButton({
   type = "button",
   disabled = false,
 }: LandingButtonProps) {
-  const classes = `${BASE_CLASSES} ${VARIANT_CLASSES[variant]} ${
+  const classes = `${SHARED_CLASSES} ${SIZE_CLASSES[size]} ${VARIANT_CLASSES[variant]} ${
     disabled ? "cursor-not-allowed opacity-60" : ""
   } ${className}`.trim();
 
