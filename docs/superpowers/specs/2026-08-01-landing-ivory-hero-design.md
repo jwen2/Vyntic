@@ -43,6 +43,47 @@ So this is not a new palette. It is the landing page catching up to the app.
 | D8 | **Hero is a single centered column, preview table below the copy.** | The current two-column grid (copy left, panel right). Added 2026-08-01 after reviewing the shipped hero against the mockup. |
 | D9 | **New `ink` variant on `LandingButton`, used in the hero only.** Ink navy fill, ivory text. | Repointing the shared `primary` variant (turns every landing button ink, including the nav and the eleven un-restyled sections). Appending a `bg-*` utility at the call site (no `tailwind-merge`, so it resolves by stylesheet order — the same hazard D-note records for the headline). |
 
+| D10 | **The header joins `.landing-ivory` and takes the mockup's treatment**: bare Playfair wordmark, sentence-case 13.5px links, compact ink CTA. Our labels are kept. | Leaving the header on the old palette (it sits directly above a restyled hero, so the seam is the most visible on the page). |
+| D11 | **`--landing-inverse` / `--landing-inverse-text` respecified to `#16202e` / `#f4f1ea`** inside `.landing-ivory`. | Leaving them unset — the earlier ruling, made when only the hero was in scope. |
+
+### D10, stated plainly
+
+Scope grew on owner request after seeing the restyled hero beneath an
+unrestyled header. The header gets `landing-ivory` on its own `<header>`; the
+hero keeps it too. Both are scoped, so the eleven sections below still resolve
+`:root`.
+
+Three things change beyond color:
+
+- **The logo becomes a bare `Vyntic` wordmark** in Playfair 600 at 24px. The
+  rounded "V" badge and the "Deal Intelligence" subtitle are removed. This is
+  the only authorized copy deletion on this branch, approved explicitly.
+- **Nav links drop the mono/uppercase/tracked treatment** for the mockup's
+  13.5px, weight 500, ink at 0.78 opacity. **Labels are unchanged** — Pilot,
+  Workflow, Use Cases, Controls, not the mockup's Product/Solutions/
+  Customers/Pricing.
+- **`LandingButton` gains a `size` prop** (`default` | `compact`). `default`
+  reproduces today's class string byte-for-byte so existing consumers are
+  untouched; `compact` matches the mockup's 13px / `8px 15px` / `9px` radius.
+  A className override at the call site was rejected for the usual reason:
+  no `tailwind-merge`, so `rounded-full` vs `rounded-[9px]` would resolve by
+  stylesheet order.
+
+### D11, stated plainly
+
+This **reverses the earlier deferral** of the inverse tokens, and the reason it
+is now safe is exactly the reason it was deferred before.
+
+The final review argued against respecifying them hero-only: `--landing-inverse`
+paints the announce band above the hero and the footer below it, so an override
+scoped to the hero would leave the IC Summary panel diverging from the band
+sitting directly above it. With D10 bringing the header inside the same class,
+the band and the panel now move together — the objection is satisfied rather
+than overridden. The footer and `FinalCTA` keep the `:root` values until their
+own pass, which is a seam far down the page rather than at the fold.
+
+Ivory `#f4f1ea` on ink `#16202e` is 14.54:1.
+
 ### D8, stated plainly
 
 The mockup's hero is `flex-direction: column; align-items: center; text-align:
