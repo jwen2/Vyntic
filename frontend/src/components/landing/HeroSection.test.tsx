@@ -33,4 +33,9 @@ describe("HeroSection preview table", () => {
     const marks = within(table).getAllByText(/^\[S\d\]$/);
     expect(marks.length).toBeGreaterThan(0);
   });
+
+  it("scopes the Ivory palette to the hero via the wrapper class", () => {
+    const { container } = render(<HeroSection />);
+    expect(container.querySelector(".landing-ivory")).not.toBeNull();
+  });
 });

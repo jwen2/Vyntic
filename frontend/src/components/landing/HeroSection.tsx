@@ -1,5 +1,4 @@
 import LandingButton from "./ui/LandingButton";
-import LandingEyebrow from "./ui/LandingEyebrow";
 import LandingHeading from "./ui/LandingHeading";
 import LandingPanel from "./ui/LandingPanel";
 import LandingSection from "./ui/LandingSection";
@@ -36,12 +35,19 @@ const PREVIEW_ROWS = [
 
 export default function HeroSection() {
   return (
-    <LandingSection className="overflow-hidden pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pb-20 lg:pt-24">
+    <LandingSection className="landing-ivory overflow-hidden pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pb-20 lg:pt-24">
       <div className="grid min-w-0 gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-14">
         <div className="min-w-0 max-w-3xl">
-          <LandingEyebrow>Pilot Program</LandingEyebrow>
-          <LandingHeading as="h1" size="hero" className="mt-6 max-w-4xl">
-            Pilot an AI diligence workspace on one deal room.
+          <span className="inline-flex items-center gap-[7px] rounded-full border border-[var(--landing-border)] bg-[var(--landing-accent-soft)] px-[13px] py-[5px] text-[11.5px] font-semibold text-[var(--landing-accent)]">
+            <span
+              className="inline-block h-[6px] w-[6px] rounded-full"
+              style={{ background: "var(--landing-accent)" }}
+            />
+            Pilot Program
+          </span>
+          <LandingHeading as="h1" size="hero" className="mt-6 max-w-4xl font-serif">
+            Pilot an AI diligence workspace{" "}
+            <span style={{ color: "var(--landing-accent)" }}>on one deal room.</span>
           </LandingHeading>
           <LandingText className="mt-5 max-w-2xl text-base sm:text-lg">
             Vyntic helps private equity teams turn CIMs, QoE reports, models,
