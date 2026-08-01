@@ -133,11 +133,6 @@ describe("HeroSection preview table", () => {
     const marks = within(table).getAllByText(/^\[S\d\]$/);
     expect(marks.length).toBeGreaterThan(0);
   });
-
-  it("scopes the Ivory palette to the hero via the wrapper class", () => {
-    const { container } = render(<HeroSection />);
-    expect(container.querySelector(".landing-ivory")).not.toBeNull();
-  });
 });
 ```
 
@@ -255,7 +250,7 @@ Every string above already appears in the current file — this is a restructure
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd frontend && npx vitest run src/components/landing/HeroSection.test.tsx`
-Expected: 4 passed.
+Expected: 3 passed. (The wrapper-class assertion is added in Task 3, because Task 3 is what applies the wrapper — asserting it here would leave a red test between tasks.)
 
 - [ ] **Step 5: Commit**
 
@@ -284,10 +279,19 @@ On the `LandingSection` at line 16, add `landing-ivory` to the existing `classNa
 <LandingSection className="landing-ivory overflow-hidden pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pb-20 lg:pt-24">
 ```
 
-- [ ] **Step 2: Run the test to confirm the wrapper assertion passes**
+- [ ] **Step 2: Add the wrapper assertion and run it**
+
+Append this test to `HeroSection.test.tsx`, inside the existing `describe` block:
+
+```tsx
+  it("scopes the Ivory palette to the hero via the wrapper class", () => {
+    const { container } = render(<HeroSection />);
+    expect(container.querySelector(".landing-ivory")).not.toBeNull();
+  });
+```
 
 Run: `cd frontend && npx vitest run src/components/landing/HeroSection.test.tsx`
-Expected: 4 passed, including "scopes the Ivory palette to the hero via the wrapper class".
+Expected: 4 passed. If you run this before Step 1's edit, the new test fails — that is the intended red-then-green order.
 
 - [ ] **Step 3: Apply the headline treatment**
 
