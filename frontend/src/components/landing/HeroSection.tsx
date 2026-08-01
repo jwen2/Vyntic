@@ -11,6 +11,29 @@ const PROOF_POINTS = [
   "Shape the workflow directly with the product team",
 ];
 
+const PREVIEW_COLUMNS = ["Deal", "Revenue quality", "Risk", "IC note"];
+
+const PREVIEW_ROWS = [
+  {
+    deal: "Brightwater IV",
+    cells: [
+      { text: "Brightwater IV" },
+      { text: "Enterprise upsell supports FY26", cite: "S1" },
+      { text: "Top customers concentrated", cite: "S2" },
+      { text: "Advance after retention checks" },
+    ],
+  },
+  {
+    deal: "Glenmoor III",
+    cells: [
+      { text: "Glenmoor III" },
+      { text: "Stable renewal base, slower new logos", cite: "S1" },
+      { text: "Vendor savings drive margin", cite: "S3" },
+      { text: "Cleaner downside, less upside" },
+    ],
+  },
+];
+
 export default function HeroSection() {
   return (
     <LandingSection className="overflow-hidden pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pb-20 lg:pt-24">
@@ -73,33 +96,72 @@ export default function HeroSection() {
           <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-6">
             <div className="rounded-[1.25rem] border border-[var(--landing-border)] bg-white p-3 sm:rounded-[1.5rem] sm:p-4">
               <div className="overflow-x-auto">
-                <div className="grid grid-cols-[1.05fr_1.15fr_0.9fr_1.1fr] gap-px overflow-hidden rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-border)] text-[11px] sm:text-xs">
-                  {[
-                    "Deal",
-                    "Revenue quality",
-                    "Risk",
-                    "IC note",
-                    "Brightwater IV",
-                    "Enterprise upsell supports FY26",
-                    "Top customers concentrated",
-                    "Advance after retention checks",
-                    "Glenmoor III",
-                    "Stable renewal base, slower new logos",
-                    "Vendor savings drive margin",
-                    "Cleaner downside, less upside",
-                  ].map((cell, index) => (
-                    <div
-                      key={cell + index}
-                      className={`p-3 leading-5 ${
-                        index < 4
-                          ? "bg-[var(--landing-surface-alt)] font-mono-plex uppercase tracking-[0.14em] text-[10px] text-[var(--landing-muted)]"
-                          : "bg-white text-[var(--landing-text)]"
-                      }`}
-                    >
-                      {cell}
-                    </div>
-                  ))}
-                </div>
+                {/* Chrome mirrors components/ui/grid-table.css by copy, not import:
+                    11px mono-400 headers at 7px 12px 7px 9px, 38px rows at 8px 10px,
+                    zebra striping, and a pinned first column. Keep in sync by hand —
+                    see the note in grid-table.css. */}
+                <table
+                  aria-label="Diligence preview"
+                  className="w-full border-collapse text-left"
+                >
+                  <thead>
+                    <tr>
+                      {PREVIEW_COLUMNS.map((label, index) => (
+                        <th
+                          key={label}
+                          scope="col"
+                          className={`font-mono text-[11px] font-normal align-top text-[var(--landing-muted)] border-b border-[var(--landing-border)] ${
+                            index === 0
+                              ? "border-r border-[var(--landing-border)] bg-[var(--landing-surface-alt)]"
+                              : ""
+                          }`}
+                          style={{ padding: "7px 12px 7px 9px" }}
+                        >
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PREVIEW_ROWS.map((row, rowIndex) => (
+                      <tr
+                        key={row.deal}
+                        style={{
+                          background:
+                            rowIndex % 2 === 1
+                              ? "var(--landing-surface-alt)"
+                              : "var(--landing-surface)",
+                        }}
+                      >
+                        {row.cells.map((cell, cellIndex) => (
+                          <td
+                            key={cell.text}
+                            className={`h-[38px] align-middle border-b border-[var(--landing-border)] text-[var(--landing-text)] ${
+                              cellIndex === 0
+                                ? "border-r border-[var(--landing-border)] font-medium"
+                                : ""
+                            }`}
+                            style={{ padding: "8px 10px" }}
+                          >
+                            <span>{cell.text}</span>
+                            {cell.cite ? (
+                              <span
+                                className="font-mono ml-1 align-middle"
+                                style={{
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  color: "var(--landing-accent)",
+                                }}
+                              >
+                                [{cell.cite}]
+                              </span>
+                            ) : null}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
