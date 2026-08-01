@@ -22,7 +22,13 @@
    Selection tint and other tint()-derived washes have no CSS token and stay
    inline at each call site (project convention — see
    docs/todo/2026-07-24-design-system-primitives.md, "Status hues stay
-   inline"); there is no `.grid-table__cell--selected` class here. */
+   inline"); there is no `.grid-table__cell--selected` class here.
+
+   A static copy of this chrome (11px mono-400 headers, 38px rows, zebra,
+   pinned first column) also lives in components/landing/HeroSection.tsx as
+   the marketing preview table. It is deliberately NOT importing this file —
+   see D5 in docs/superpowers/specs/2026-08-01-landing-ivory-hero-design.md.
+   If you change the geometry here, that copy will drift. */
 
 /* ── Header cells ──────────────────────────────────────────────────────────
    `.grid-table__th` and `.grid-table__th--chrome` are the same cell; the
