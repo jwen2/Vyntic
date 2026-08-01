@@ -36,53 +36,51 @@ const PREVIEW_ROWS = [
 export default function HeroSection() {
   return (
     <LandingSection className="landing-ivory overflow-hidden pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pb-20 lg:pt-24">
-      <div className="grid min-w-0 gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-14">
-        <div className="min-w-0 max-w-3xl">
-          <span className="inline-flex items-center gap-[7px] rounded-full border border-[var(--landing-border)] bg-[var(--landing-accent-soft)] px-[13px] py-[5px] text-[11.5px] font-semibold text-[var(--landing-accent)]">
-            <span
-              className="inline-block h-[6px] w-[6px] rounded-full"
-              style={{ background: "var(--landing-accent)" }}
-            />
-            Pilot Program
-          </span>
-          <LandingHeading as="h1" size="hero" className="mt-6 max-w-4xl font-serif">
-            Pilot an AI diligence workspace{" "}
-            <span style={{ color: "var(--landing-accent)" }}>on one deal room.</span>
-          </LandingHeading>
-          <LandingText className="mt-5 max-w-2xl text-base sm:text-lg">
-            Vyntic helps private equity teams turn CIMs, QoE reports, models,
-            and diligence materials into cited matrices and IC-ready summaries.
-            We are onboarding pilot teams now to shape the workflow around real
-            deal review.
-          </LandingText>
+      <div className="mx-auto min-w-0 max-w-5xl text-center">
+        <span className="inline-flex items-center gap-[7px] rounded-full border border-[var(--landing-border)] bg-[var(--landing-accent-soft)] px-[13px] py-[5px] text-[11.5px] font-semibold text-[var(--landing-accent)]">
+          <span
+            className="inline-block h-[6px] w-[6px] rounded-full"
+            style={{ background: "var(--landing-accent)" }}
+          />
+          Pilot Program
+        </span>
+        <LandingHeading as="h1" size="hero" className="mx-auto mt-6 max-w-4xl font-serif">
+          Pilot an AI diligence workspace{" "}
+          <span style={{ color: "var(--landing-accent)" }}>on one deal room.</span>
+        </LandingHeading>
+        <LandingText className="mx-auto mt-5 max-w-2xl text-base sm:text-lg">
+          Vyntic helps private equity teams turn CIMs, QoE reports, models,
+          and diligence materials into cited matrices and IC-ready summaries.
+          We are onboarding pilot teams now to shape the workflow around real
+          deal review.
+        </LandingText>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <LandingButton href="#contact" className="w-full sm:w-auto">
-              Pilot one deal
-            </LandingButton>
-            <LandingButton href="#product" variant="secondary" className="w-full sm:w-auto">
-              View workflow
-            </LandingButton>
-          </div>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            {PROOF_POINTS.map((item) => (
-              <div
-                key={item}
-                className="rounded-2xl border border-[var(--landing-border)] bg-white px-4 py-4"
-              >
-                <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-                  Pilot
-                </div>
-                <div className="mt-2 text-sm leading-6 text-[var(--landing-text)]">
-                  {item}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
+          <LandingButton href="#contact" variant="ink" className="w-full sm:w-auto">
+            Pilot one deal
+          </LandingButton>
+          <LandingButton href="#product" variant="secondary" className="w-full sm:w-auto">
+            View workflow
+          </LandingButton>
         </div>
 
-        <LandingPanel className="landing-grid landing-noise overflow-hidden p-0">
+        <div className="mt-8 grid gap-3 text-left sm:grid-cols-3">
+          {PROOF_POINTS.map((item) => (
+            <div
+              key={item}
+              className="rounded-2xl border border-[var(--landing-border)] bg-white px-4 py-4"
+            >
+              <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
+                Pilot
+              </div>
+              <div className="mt-2 text-sm leading-6 text-[var(--landing-text)]">
+                {item}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <LandingPanel className="landing-grid landing-noise mx-auto mt-10 max-w-5xl overflow-hidden p-0 text-left">
           <div className="border-b border-[var(--landing-border)] bg-white px-4 py-4 sm:px-6">
             <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
               <div>

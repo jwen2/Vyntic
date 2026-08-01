@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "ink";
 
 interface LandingButtonProps {
   children: ReactNode;
@@ -21,6 +21,8 @@ const VARIANT_CLASSES: Record<Variant, string> = {
     "bg-[var(--landing-surface)] text-[var(--landing-text)] border-[var(--landing-border)] hover:bg-[var(--landing-surface-alt)]",
   ghost:
     "bg-transparent text-[var(--landing-text)] border-transparent hover:bg-black/5",
+  ink:
+    "bg-[var(--landing-text)] text-[var(--landing-bg)] border-[var(--landing-text)] hover:opacity-90",
 };
 
 const BASE_CLASSES =
