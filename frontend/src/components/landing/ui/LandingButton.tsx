@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 type Variant = "primary" | "secondary" | "ghost" | "ink";
-type Size = "default" | "compact";
+type Size = "default" | "compact" | "field";
 
 interface LandingButtonProps {
   children: ReactNode;
@@ -33,6 +33,9 @@ const SHARED_CLASSES =
 const SIZE_CLASSES: Record<Size, string> = {
   default: "min-h-11 rounded-full px-5 py-3 text-sm",
   compact: "min-h-9 rounded-[9px] px-[15px] py-2 text-[13px]",
+  // Pairs with LandingInput's `field` size — same padding-y, border and font
+  // size so the two sit flush in an inline form row.
+  field: "rounded-[9px] px-[18px] py-[11px] text-[13px]",
 };
 
 export default function LandingButton({

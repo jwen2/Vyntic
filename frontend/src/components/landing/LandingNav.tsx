@@ -60,7 +60,7 @@ export default function LandingNav() {
             Sign in
           </LandingButton>
           <LandingButton variant="ink" size="compact" href="#contact">
-            Pilot one deal
+            See a demo
           </LandingButton>
         </div>
 
@@ -91,7 +91,7 @@ export default function LandingNav() {
               <LandingButton variant="secondary" to="/login">
                 Sign in
               </LandingButton>
-              <LandingButton href="#contact">Pilot one deal</LandingButton>
+              <LandingButton href="#contact">See a demo</LandingButton>
             </div>
           </LandingContainer>
         </div>

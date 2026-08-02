@@ -1,5 +1,6 @@
 import LandingButton from "./ui/LandingButton";
 import LandingHeading from "./ui/LandingHeading";
+import LandingInput from "./ui/LandingInput";
 import LandingPanel from "./ui/LandingPanel";
 import LandingSection from "./ui/LandingSection";
 import LandingText from "./ui/LandingText";
@@ -49,14 +50,28 @@ export default function HeroSection() {
           deal review.
         </LandingText>
 
-        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-          <LandingButton href="#contact" variant="ink" className="w-full sm:w-auto">
-            Pilot one deal
+        {/* Email capture is presentational for now — submit is a no-op until
+            the pilot signup endpoint exists. */}
+        <form
+          className="mx-auto mt-8 flex w-full max-w-[440px] items-stretch gap-[10px]"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <LandingInput
+            type="email"
+            inputSize="field"
+            aria-label="Email address"
+            placeholder="What's your email?"
+            className="min-w-0 flex-1"
+          />
+          <LandingButton
+            type="submit"
+            variant="ink"
+            size="field"
+            className="whitespace-nowrap"
+          >
+            Get started
           </LandingButton>
-          <LandingButton href="#product" variant="secondary" className="w-full sm:w-auto">
-            View workflow
-          </LandingButton>
-        </div>
+        </form>
 
         <LandingPanel className="landing-grid landing-noise mx-auto mt-10 max-w-5xl overflow-hidden p-0 text-left">
           <div className="border-b border-[var(--landing-border)] bg-white px-4 py-4 sm:px-6">
