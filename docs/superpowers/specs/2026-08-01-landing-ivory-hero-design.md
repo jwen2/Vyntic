@@ -250,3 +250,59 @@ a deliberate trade of sync for isolation, not an oversight.
   the page carries two token values for the same names in different subtrees.
   This is intentional and time-boxed, but it is real, and the promotion step
   should not be left indefinitely.
+
+---
+
+## Amendment — below-the-fold pass (2026-08-02)
+
+Owner-directed, after the header restyle landed. Chosen scope: **palette +
+geometry**, explicitly not layout. The mockup has an Ivory *landing* frame and
+an Ivory *app* frame and nothing else, so any restructuring of the sections
+below the hero would have been invention rather than matching. That option was
+offered and declined.
+
+**D12 — `.landing-ivory` is promoted to the page shell.** It now sits on
+`LandingPage`'s `landing-shell` wrapper instead of `HeroSection`. This closes
+the "two palettes in flight" limitation recorded above. It is *not* promoted to
+`:root`, because `LoginPage` and the deal workspace still consume the original
+`:root` values; the class is what keeps the blast radius at one page.
+
+Consequence: `.landing-shell`'s gradient is written in literal hex
+(`#f8f8f4` → `var(--landing-bg)`, plus an `rgba(17,17,17,0.04)` veil), so under
+ivory it faded to a colder grey than `--landing-bg`. A
+`.landing-ivory.landing-shell` rule restates both stops in ivory. This also
+resolves the hero seam logged during Task 6 verification — the hero section is
+`bg-transparent` and was painting the cold shell.
+
+**D13 — content cards move to a 12px corner via an additive `radius` prop.**
+`LandingPanel` gains `radius: "panel" | "card"`. `panel` (the original
+`rounded-[1.5rem] sm:rounded-[2rem]`) stays the default and continues to serve
+the hero preview and `LoginPage`; `card` (`rounded-xl`) is what the sections
+below the fold pass. Additive rather than a default change, for the same reason
+`LandingButton.size` and `LandingInput.inputSize` were: the primitives have call
+sites outside the landing page.
+
+**D14 — `LandingEyebrow` gains a real `tone` prop.** `FinalCTA` previously
+coloured its eyebrow by passing `text-white/55` through `className`, competing
+with the component's own `text-[var(--landing-muted)]`. This project has no
+`tailwind-merge`, so the winner is decided by stylesheet order, not string
+order — and on the ink band the base class won, measuring **1.8:1**. Through
+the prop it measures **5.31:1**. Anywhere a primitive owns a colour, the
+override belongs in the component, not in a caller's class string.
+
+**D15 — hero CTAs become the mock's email capture.** "Pilot one deal" /
+"View workflow" are replaced by the mockup's 440px inline row: a `field`-sized
+`LandingInput` plus an ink `Get started` button. Submit is `preventDefault`ed —
+presentational until a signup endpoint exists. The mockup's
+"No credit card required · Free for up to 3 deals" microcopy is deliberately
+*not* carried over; it makes pricing claims Vyntic has not made.
+
+**D16 — header CTA copy is "See a demo"** (mock wording), desktop and mobile
+menu both. The three hero proof-point cards and the three workflow-section
+"Discuss a pilot" buttons are removed at owner request — the page had five
+"Discuss a pilot" instances above the final CTA.
+
+### Superseded
+
+- "Out of scope: `LandingNav` and all sections below the hero" — done, D10/D12.
+- "Known limitation: two palettes in flight" — closed by D12.
