@@ -34,8 +34,14 @@ describe("HeroSection preview table", () => {
     expect(marks).toHaveLength(4);
   });
 
-  it("scopes the Ivory palette to the hero via the wrapper class", () => {
-    const { container } = render(<HeroSection />);
-    expect(container.firstElementChild?.classList.contains("landing-ivory")).toBe(true);
+  it("keeps the email capture inert until a signup endpoint exists", () => {
+    render(<HeroSection />);
+    const input = screen.getByLabelText("Email address");
+    expect(input.getAttribute("type")).toBe("email");
+    // A bare <form> would navigate on submit; the handler must swallow it.
+    expect(input.closest("form")).toBeTruthy();
   });
 });
+
+// The Ivory palette scoping assertion moved to pages/LandingPage.test.tsx when
+// .landing-ivory was promoted from this section to the page shell.

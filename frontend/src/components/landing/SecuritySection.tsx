@@ -33,7 +33,7 @@ export default function SecuritySection() {
     <LandingSection id="security" tone="muted">
       <LandingScrollReveal className="max-w-3xl">
         <LandingEyebrow>Pilot Controls</LandingEyebrow>
-        <LandingHeading className="mt-6">
+        <LandingHeading className="mt-6 font-serif">
           Keep the pilot narrow, reviewable, and source-backed.
         </LandingHeading>
         <LandingText className="mt-5 max-w-2xl">
@@ -51,7 +51,10 @@ export default function SecuritySection() {
             variant="card"
             delay={index * 85}
           >
-            <LandingPanel className="landing-reveal-card-inner flex h-full flex-col gap-4">
+            <LandingPanel
+              radius="card"
+              className="landing-reveal-card-inner flex h-full flex-col gap-4"
+            >
               <div className="landing-reveal-index font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
                 Control
               </div>

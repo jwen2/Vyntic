@@ -30,7 +30,7 @@ const PREVIEW_ROWS = [
 
 export default function HeroSection() {
   return (
-    <LandingSection className="landing-ivory overflow-hidden pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pb-20 lg:pt-24">
+    <LandingSection className="overflow-hidden pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pb-20 lg:pt-24">
       <div className="mx-auto min-w-0 max-w-5xl text-center">
         <span className="inline-flex items-center gap-[7px] rounded-full border border-[var(--landing-border)] bg-[var(--landing-accent-soft)] px-[13px] py-[5px] text-[11.5px] font-semibold text-[var(--landing-accent)]">
           <span

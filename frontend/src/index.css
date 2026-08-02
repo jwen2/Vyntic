@@ -161,15 +161,12 @@
   --text-meta-sm: 400 10px/14px var(--mono);
 }
 
-/* Ivory palette for the landing hero, scoped rather than applied at :root so
-   the eleven sections below the hero keep their current appearance until the
-   follow-up restyle. To promote: move this body into :root, delete the class,
-   and drop the wrapper in HeroSection.tsx.
+/* Ivory palette for the landing page, scoped to a class rather than applied at
+   :root because LoginPage and the deal workspace still consume the original
+   :root values. The class now sits on LandingPage's shell, so the whole page
+   resolves these; nothing else does.
    Spec: docs/superpowers/specs/2026-08-01-landing-ivory-hero-design.md */
 .landing-ivory {
-  /* Consumers (body, .landing-shell) are ancestors of the wrapper, not
-     descendants — declared here for the future promotion step (see the
-     block comment above) rather than an active value today. */
   --landing-bg: #f4f1ea;
   --landing-surface: #ffffff;
   --landing-surface-alt: #faf8f3;
@@ -190,11 +187,20 @@
   --landing-grid-header: #efeae0;
   /* No consumer in src/ yet — declared by the design spec for future use. */
   --landing-good: #2f6b4f;
-  /* Ink-navy inverse pair — paints the header's announce band and the hero's
-     IC Summary panel. The footer/FinalCTA keep the :root --landing-inverse*
-     values (#111111/#ffffff) until their own restyle pass. */
+  /* Ink-navy inverse pair — paints the announce band, the hero's IC Summary
+     panel, and (since the class moved to the shell) the FinalCTA band. The
+     :root pair (#111111/#ffffff) still serves LoginPage and the workspace. */
   --landing-inverse: #16202e;
   --landing-inverse-text: #f4f1ea;
+}
+
+/* The shell gradient is written in literal hex (see .landing-shell), so its
+   cool top stop and ink-tinted veil have to be restated in ivory here or the
+   page fades to a colder grey than --landing-bg above the fold. */
+.landing-ivory.landing-shell {
+  background:
+    radial-gradient(circle at top, rgba(20, 25, 35, 0.04), transparent 42%),
+    linear-gradient(180deg, #faf8f3 0%, var(--landing-bg) 100%);
 }
 
 /* Dark theme accent — ThemeContext toggles .dark on <html>. #8ab4ff: 8.6:1 on #171717. */
