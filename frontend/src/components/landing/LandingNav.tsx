@@ -35,23 +35,25 @@ export default function LandingNav() {
       </div>
 
       <LandingContainer className="flex h-14 items-center justify-between sm:h-16">
-        <Link to="/" className="flex items-center gap-3">
-          <span className="font-serif text-[24px] font-semibold tracking-[-0.01em] leading-none text-[var(--landing-text)]">
-            Vyntic
-          </span>
-        </Link>
+        <div className="flex items-center gap-[36px]">
+          <Link to="/" className="flex items-center gap-3">
+            <span className="font-serif text-[24px] font-semibold tracking-[-0.01em] leading-none text-[var(--landing-text)]">
+              Vyntic
+            </span>
+          </Link>
 
-        <nav className="hidden items-center gap-[22px] lg:flex">
-          {NAV_ITEMS.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              className="text-[13.5px] font-medium text-[var(--landing-text)] opacity-[0.78] transition-opacity hover:opacity-100"
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
+          <nav className="hidden items-center gap-[22px] lg:flex">
+            {NAV_ITEMS.map((item) => (
+              <a
+                key={item.label}
+                href={item.href}
+                className="text-[13.5px] font-medium text-[var(--landing-text)] opacity-[0.78] transition-opacity hover:opacity-100"
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </div>
 
         <div className="hidden items-center gap-3 lg:flex">
           <LandingButton variant="ghost" size="compact" to="/login">

@@ -4,12 +4,6 @@ import LandingPanel from "./ui/LandingPanel";
 import LandingSection from "./ui/LandingSection";
 import LandingText from "./ui/LandingText";
 
-const PROOF_POINTS = [
-  "Pilot on one live or sample deal room",
-  "Run cited diligence questions across PDFs and Excel",
-  "Shape the workflow directly with the product team",
-];
-
 const PREVIEW_COLUMNS = ["Deal", "Revenue quality", "Risk", "IC note"];
 
 const PREVIEW_ROWS = [
@@ -62,22 +56,6 @@ export default function HeroSection() {
           <LandingButton href="#product" variant="secondary" className="w-full sm:w-auto">
             View workflow
           </LandingButton>
-        </div>
-
-        <div className="mt-8 grid gap-3 text-left sm:grid-cols-3">
-          {PROOF_POINTS.map((item) => (
-            <div
-              key={item}
-              className="rounded-2xl border border-[var(--landing-border)] bg-white px-4 py-4"
-            >
-              <div className="font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
-                Pilot
-              </div>
-              <div className="mt-2 text-sm leading-6 text-[var(--landing-text)]">
-                {item}
-              </div>
-            </div>
-          ))}
         </div>
 
         <LandingPanel className="landing-grid landing-noise mx-auto mt-10 max-w-5xl overflow-hidden p-0 text-left">
