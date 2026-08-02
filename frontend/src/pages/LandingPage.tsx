@@ -10,7 +10,7 @@ import LandingDivider from "../components/landing/ui/LandingDivider";
 
 export default function LandingPage() {
   return (
-    <div className="landing-shell min-h-screen">
+    <div className="landing-ivory landing-shell min-h-screen">
       <LandingNav />
       <main>
         <HeroSection />

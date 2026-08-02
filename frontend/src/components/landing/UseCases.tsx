@@ -34,7 +34,7 @@ export default function UseCases() {
       <div className="grid gap-8 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <LandingScrollReveal className="max-w-xl">
           <LandingEyebrow>Pilot Use Cases</LandingEyebrow>
-          <LandingHeading className="mt-6">
+          <LandingHeading className="mt-6 font-serif">
             Start with one workflow where analyst time is easy to measure.
           </LandingHeading>
           <LandingText className="mt-5">
@@ -51,7 +51,10 @@ export default function UseCases() {
               variant="card"
               delay={index * 90}
             >
-              <LandingPanel className="landing-reveal-card-inner flex h-full flex-col gap-5">
+              <LandingPanel
+                radius="card"
+                className="landing-reveal-card-inner flex h-full flex-col gap-5"
+              >
                 <div className="landing-reveal-index font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
                   0{index + 1}
                 </div>

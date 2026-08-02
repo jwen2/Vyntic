@@ -37,7 +37,7 @@ export default function PlatformOverview() {
     <LandingSection id="platform" className="pt-6">
       <LandingScrollReveal className="max-w-3xl">
         <LandingEyebrow>Pilot Structure</LandingEyebrow>
-        <LandingHeading className="mt-6">
+        <LandingHeading className="mt-6 font-serif">
           A focused pilot around one real diligence workflow.
         </LandingHeading>
         <LandingText className="mt-5 max-w-2xl">
@@ -55,7 +55,10 @@ export default function PlatformOverview() {
             variant="card"
             delay={index * 80}
           >
-            <LandingPanel className="landing-reveal-card-inner flex h-full flex-col gap-6">
+            <LandingPanel
+              radius="card"
+              className="landing-reveal-card-inner flex h-full flex-col gap-6"
+            >
               <div className="landing-reveal-index font-mono-plex text-[10px] uppercase tracking-[0.18em] text-[var(--landing-muted)]">
                 {pillar.index}
               </div>

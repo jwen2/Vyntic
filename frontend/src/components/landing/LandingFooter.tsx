@@ -13,13 +13,12 @@ export default function LandingFooter() {
     <footer className="border-t border-[var(--landing-border)] bg-[var(--landing-bg)]">
       <LandingContainer className="flex flex-col gap-8 py-8 sm:py-10 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-md">
+          {/* Bare Playfair wordmark, matching the header — the "V" badge was
+              dropped there in the same pass. */}
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--landing-inverse)] text-sm font-semibold text-white">
-              V
-            </div>
-            <div className="text-sm font-semibold tracking-[-0.03em] text-[var(--landing-text)]">
+            <span className="font-serif text-[20px] font-semibold leading-none tracking-[-0.01em] text-[var(--landing-text)]">
               Vyntic
-            </div>
+            </span>
           </Link>
           <p className="mt-4 text-sm leading-6 text-[var(--landing-muted)]">
             An AI diligence workspace for private equity teams piloting faster,
