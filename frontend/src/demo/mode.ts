@@ -24,12 +24,39 @@ export function isDemoMode(): boolean {
   }
 }
 
-export function enableDemoMode(): void {
-  // A real session must never blend with fixture data.
-  localStorage.removeItem("vyntic_auth_token");
-  sessionStorage.setItem(DEMO_FLAG_KEY, "1");
+/**
+ * Set the flag first, then clear the real token — never the other order.
+ * If sessionStorage is unwritable (private-mode Safari, quota), the flag
+ * never took, so we must not have already deleted a real session on the
+ * way there. Returns false on that failure so the caller (DemoGate) can
+ * route somewhere that doesn't assume demo mode is active, instead of
+ * letting the exception propagate out of a React effect.
+ */
+export function enableDemoMode(): boolean {
+  try {
+    sessionStorage.setItem(DEMO_FLAG_KEY, "1");
+  } catch {
+    return false;
+  }
+
+  // A real session must never blend with fixture data. The flag is
+  // already set at this point, so even if this throws, isDemoMode() is
+  // still true and there is no real token left to blend in on any path
+  // that matters; best effort covers the rest.
+  try {
+    localStorage.removeItem("vyntic_auth_token");
+  } catch {
+    // ignore — same storage subsystem just succeeded above, so this is
+    // vanishingly unlikely, but it must not throw out of the caller.
+  }
+
+  return true;
 }
 
 export function disableDemoMode(): void {
-  sessionStorage.removeItem(DEMO_FLAG_KEY);
+  try {
+    sessionStorage.removeItem(DEMO_FLAG_KEY);
+  } catch {
+    // ignore — nothing destructive here either way.
+  }
 }

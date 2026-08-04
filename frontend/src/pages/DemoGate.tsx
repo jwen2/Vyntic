@@ -17,8 +17,12 @@ export default function DemoGate() {
 
   useEffect(() => {
     registerAllDemoFixtures();
-    enableDemoMode();
-    navigate("/app", { replace: true });
+    // enableDemoMode() can fail if storage is unwritable (private-mode
+    // Safari, quota) — it never destroys a real token in that case, but
+    // there is also no demo to enter. Land on the marketing page rather
+    // than /app, which would just bounce through ProtectedRoute anyway.
+    const activated = enableDemoMode();
+    navigate(activated ? "/app" : "/", { replace: true });
   }, [navigate]);
 
   return null;
