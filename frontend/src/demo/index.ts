@@ -6,6 +6,7 @@
  */
 import { registerUserFixtures } from "./fixtures/user";
 import { registerEntityFixtures } from "./fixtures/entities";
+import { registerWorkflowFixtures } from "./fixtures/workflows";
 
 let registered = false;
 
@@ -14,6 +15,7 @@ export function registerAllDemoFixtures(): void {
   registered = true;
   registerUserFixtures();
   registerEntityFixtures();
+  registerWorkflowFixtures();
 }
 
 /** Test-only: clear the registration guard so a test can re-register fixtures. */
