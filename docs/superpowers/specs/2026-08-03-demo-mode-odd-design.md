@@ -214,4 +214,4 @@ Disabling chat entirely was rejected — cited Q&A is central to the pitch.
 
 None blocking. The run is recorded and committed (`frontend/src/demo/fixtures/recorded-ddq-scan-run.json`, run `0a15ef21`): 12/12 cells, 0 blanks, 59 valid citations.
 
-`recorded-odd-run.json` is retained but unused by the staged centerpiece. It is an honest recording and could serve as completed prior-run history in the workspace; if it stays unused, remove it at final review.
+`recorded-odd-run.json` has been **deleted**. It was an honest recording, but the weaker one — 4 of 8 gate findings, three blank cells — and it ended up with no code references once the centerpiece moved to the DDQ scan. Wiring it up as prior-run history would also have meant fixturing the ODD Screen workflow, adding surface for a run whose blank cells are exactly what a demo must not show. It remains recoverable from commit `fb6586c` if it is ever wanted.
