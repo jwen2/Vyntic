@@ -130,5 +130,12 @@ export function registerEntityFixtures(): void {
       handler: () => ["Screening", "Diligence", "IC Review", "Committed", "Monitoring"],
     },
     { method: "GET", pattern: /^\/api\/deals\/metadata\/tags$/, handler: () => ["Industrials"] },
+    {
+      method: "GET",
+      pattern: /^\/api\/deals\/([^/]+)\/documents\/([^/]+)\/view-token$/,
+      // The value is ignored — buildDocumentViewUrl drops it in demo mode —
+      // but it must resolve, or the viewer never leaves its loading state.
+      handler: () => ({ token: "demo-view-token" }),
+    },
   ]);
 }
