@@ -72,9 +72,67 @@ function assertRunShape(run: WorkflowRun): void {
       expect(typeof cite.source_file, where).toBe("string");
       expect(typeof cite.page, where).toBe("number");
       expect(typeof cite.text_snippet, where).toBe("string");
+      // `deal_id`, `kind` and `span_label` are optional in `Citation`
+      // (lib/api.ts:403-410) and every read site has a fallback, so dropping
+      // them degrades quietly rather than throwing: `deal_id` routes the doc
+      // viewer (useTabularRun.ts:159), `kind` and `span_label` render the
+      // citation chip's label and colour (CellRenderer.tsx:327,333). The
+      // recording carries all three on all 59 citations — assert them so a
+      // re-recording that stops emitting them fails here.
+      expect(typeof cite.deal_id, where).toBe("string");
+      expect(["extracted", "derived"], where).toContain(cite.kind);
+      // Legitimately null throughout this recording — no citation spans a
+      // labelled range — so assert the key exists and is correctly typed
+      // rather than that it holds a value.
+      expect("span_label" in cite, where).toBe(true);
+      expect(cite.span_label === null || typeof cite.span_label === "string", where).toBe(
+        true
+      );
     }
   }
 }
+
+/**
+ * The built-in's real column ids paired with their real labels, transcribed
+ * from the seeded database dump in
+ * `.superpowers/sdd/2026-08-03-demo-mode-odd/corpus-ground-truth.md`
+ * ("DDQ Gap & Consistency Scan — real IDs").
+ *
+ * This golden exists because nothing else pins the pairing. The ordering test
+ * compares cell `column_id`s against workflow `column.id`s and is label-blind:
+ * swap two labels while leaving the ids in place and every other test still
+ * passes, while the demo silently files each recorded answer under the wrong
+ * DDQ section.
+ *
+ * Per CLAUDE.md invariant 4, built-in column ids are stable across startup
+ * reconciliation, so this table is a fact about the backend rather than a
+ * snapshot of the fixture. A failure therefore means one of exactly two
+ * things: `workflow_seed_lp.py` really renamed or reordered a column, in which
+ * case update this table deliberately from a fresh read of the seeded DB; or
+ * someone edited `workflows.ts` carelessly, in which case revert the edit.
+ */
+const DDQ_COLUMN_GOLDEN: ReadonlyArray<{
+  order_index: number;
+  id: string;
+  label: string;
+}> = [
+  { order_index: 1, id: "4223f1f6938a46b9aa0be66a6044bf05", label: "Firm & Ownership" },
+  { order_index: 2, id: "68558a7e665548a28536c1b7f2a13314", label: "Team & Succession" },
+  { order_index: 3, id: "ef3ececba4894d829463c407cb2cd156", label: "Track Record" },
+  {
+    order_index: 4,
+    id: "dd0188ff630d467d9941ccf80d34a740",
+    label: "Investment Strategy & Process",
+  },
+  { order_index: 5, id: "a01ad37a06444c348b93de7cecd96e5f", label: "Fund Terms & Economics" },
+  { order_index: 6, id: "9814f84441844e788e44523b2002848c", label: "Valuation Policy" },
+  { order_index: 7, id: "9f181791b2a247a59135123e8b7de3d0", label: "Compliance & Regulatory" },
+  { order_index: 8, id: "b778bec0d4c84fb6b3ecc85a1c24f3fb", label: "IT & Cybersecurity" },
+  { order_index: 9, id: "f9b31fbd5a8842e0b1f339e5a456c7bd", label: "ESG" },
+  { order_index: 10, id: "8495ea4a16a74d1ca73fe891d5a8f9e5", label: "LP Base & References" },
+  { order_index: 11, id: "1b2486ce7b1b4480b5c2af0913241e38", label: "Conflicts of Interest" },
+  { order_index: 12, id: "634bbe4f41a84ce0b63d01a9b26bdbda", label: "Service Providers" },
+];
 
 describe("workflow fixtures", () => {
   beforeEach(() => {
@@ -94,6 +152,29 @@ describe("workflow fixtures", () => {
     for (const column of DEMO_DDQ_WORKFLOW.columns) {
       expect(column.format, column.label).toBe("markdown");
       expect(column.tags, column.label).toBeNull();
+    }
+  });
+
+  it("pairs every column id with the label the database gave it", () => {
+    expect(
+      DEMO_DDQ_WORKFLOW.columns.map((c) => ({
+        order_index: c.order_index,
+        id: c.id,
+        label: c.label,
+      }))
+    ).toEqual(DDQ_COLUMN_GOLDEN);
+  });
+
+  it("builds each column prompt around the upper-cased section name", () => {
+    const firm = DEMO_DDQ_WORKFLOW.columns[0];
+    expect(firm.label).toBe("Firm & Ownership");
+    // An `&` label proves the whole name is upper-cased, not just its first
+    // word — and pins `columnPrompt`'s `toUpperCase()`, which is otherwise
+    // unasserted and can be deleted without failing a test.
+    expect(firm.prompt).toContain("FIRM & OWNERSHIP");
+    expect(firm.prompt).not.toContain("Firm & Ownership");
+    for (const column of DEMO_DDQ_WORKFLOW.columns) {
+      expect(column.prompt, column.label).toContain(column.label.toUpperCase());
     }
   });
 
