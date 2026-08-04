@@ -26,15 +26,21 @@ export function isDemoMode(): boolean {
 
 /**
  * Set the flag first, then clear the real token — never the other order.
- * If sessionStorage is unwritable (private-mode Safari, quota), the flag
- * never took, so we must not have already deleted a real session on the
- * way there. Returns false on that failure so the caller (DemoGate) can
- * route somewhere that doesn't assume demo mode is active, instead of
- * letting the exception propagate out of a React effect.
+ * If sessionStorage is unwritable (private-mode Safari, quota) or the write
+ * is silently dropped (some privacy-hardened browsers/extensions accept
+ * setItem without throwing but don't persist it), the flag never took, so
+ * we must not have already deleted a real session on the way there. Returns
+ * false on that failure so the caller (DemoGate) can route somewhere that
+ * doesn't assume demo mode is active, instead of letting the exception
+ * propagate out of a React effect.
  */
 export function enableDemoMode(): boolean {
   try {
     sessionStorage.setItem(DEMO_FLAG_KEY, "1");
+    if (sessionStorage.getItem(DEMO_FLAG_KEY) !== "1") {
+      // Write was accepted but didn't stick — treat like a throw.
+      return false;
+    }
   } catch {
     return false;
   }

@@ -42,7 +42,7 @@ describe("demo mode flag", () => {
     localStorage.setItem("vyntic_auth_token", "real-jwt");
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage) {
       if (this === sessionStorage) {
-        throw new DOMException("QuotaExceededError");
+        throw new DOMException("storage quota exceeded", "QuotaExceededError");
       }
     });
 
@@ -56,7 +56,7 @@ describe("demo mode flag", () => {
   it("does not throw when sessionStorage.setItem throws", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage) {
       if (this === sessionStorage) {
-        throw new DOMException("QuotaExceededError");
+        throw new DOMException("storage quota exceeded", "QuotaExceededError");
       }
     });
 
@@ -66,10 +66,25 @@ describe("demo mode flag", () => {
   it("does not throw when disableDemoMode's sessionStorage.removeItem fails", () => {
     vi.spyOn(Storage.prototype, "removeItem").mockImplementation(function (this: Storage) {
       if (this === sessionStorage) {
-        throw new DOMException("SecurityError");
+        throw new DOMException("storage access denied", "SecurityError");
       }
     });
 
     expect(() => disableDemoMode()).not.toThrow();
+  });
+
+  it("leaves a real auth token untouched when sessionStorage.setItem silently no-ops", () => {
+    localStorage.setItem("vyntic_auth_token", "real-jwt");
+    // Doesn't throw — just doesn't persist the write. Some privacy-hardened
+    // browsers/extensions behave this way.
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage) {
+      if (this === sessionStorage) return;
+    });
+
+    const result = enableDemoMode();
+
+    expect(result).toBe(false);
+    expect(localStorage.getItem("vyntic_auth_token")).toBe("real-jwt");
+    expect(isDemoMode()).toBe(false);
   });
 });
