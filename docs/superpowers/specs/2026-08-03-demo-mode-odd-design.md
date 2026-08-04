@@ -138,7 +138,13 @@ The trade is a less dramatic grid shape than 2 × 8. It is more than repaid: 12 
 
 Entry path: fund workspace → Workflows tab → **DDQ Gap & Consistency Scan** card → Run.
 
-`demoEventSource` replays a fixture timeline of `cell_start` / `cell_done` events in column order, matching the real executor's dispatch ordering, at jittered ~250–600 ms intervals for a total of roughly 20–30 seconds.
+The replay is driven by the **recorded run's own timings**, not invented jitter. Each cell carries a real `started_at` / `completed_at`, so the schedule is derived from those offsets relative to `run.started_at`:
+
+- Total wall clock **6.8 seconds** — the real duration. An earlier draft of this spec claimed 20–30 seconds; that was invented, and slowing the replay to hit it would misrepresent the product as slower than it is.
+- **Concurrency of 4** emerges for free from the real offsets: cells 1–4 start within 0.2 s of each other, and each later cell starts as an earlier one finishes.
+- Each cell emits **`running` then `complete`**, mirroring the real executor, which publishes an event when it marks a cell running (`workflow_run_executor.py:278`) and again on completion. That gives genuine in-flight spinners for the 1.1–2.7 s each cell actually took. A `pending → complete` flip would discard the most convincing part of the animation.
+
+**Browsing a completed run does not re-animate it.** `useTabularRun.ts:353` calls `subscribeRun` unconditionally, including for runs already `complete`, so the replay is armed only by a `POST .../runs` in the same session. Opening the recorded run from history emits one immediate snapshot of the finished run instead.
 
 There is **no enum verdict cell** — this workflow has no `enum` column, so no `Clean | Monitor | Red flag` badge appears. The model does use "**Red Flag:**" as an inline label inside three columns (Fund Terms, Valuation Policy, Service Providers), so the risk language is present in the prose without a badge to stage.
 
