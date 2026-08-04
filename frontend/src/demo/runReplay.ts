@@ -3,6 +3,7 @@ import {
   DEMO_DDQ_RUN,
   DEMO_DDQ_RUN_QUEUED,
   DEMO_DDQ_WORKFLOW,
+  armDemoRunReplay,
   consumeDemoRunReplayArm,
   endDemoRunReplay,
 } from "./fixtures/workflows";
@@ -65,6 +66,7 @@ function asRunning(cell: TabularCell): TabularCell {
 export function replayDemoRun(onEvent: (event: RunStreamEvent) => void): () => void {
   const armed = consumeDemoRunReplayArm();
   let cancelled = false;
+  let finished = false;
   const timers: ReturnType<typeof setTimeout>[] = [];
 
   const schedule = (at: number, fn: () => void): void => {
@@ -77,8 +79,19 @@ export function replayDemoRun(onEvent: (event: RunStreamEvent) => void): () => v
 
   const cleanup = (): void => {
     cancelled = true;
-    if (armed) endDemoRunReplay();
     for (const timer of timers) clearTimeout(timer);
+    if (!armed) return;
+    // A teardown part-way through is routine, not a cancellation: the stream
+    // effect in `useTabularRun` lists `docs` in its deps and `docs` resolves
+    // asynchronously after mount, so React tears this subscription down and
+    // immediately builds another one. Disarming here would hand that next
+    // subscription nothing to animate — a grid of 12 finished answers that
+    // never moved, which looks correct and is therefore the worst way to fail.
+    // Handing the arm back instead makes the resubscription pick the replay up
+    // from the top. Once the terminal event has fired the run has legitimately
+    // completed and already disarmed; re-arming then would re-animate a run
+    // opened from history, so `finished` gates it.
+    if (!finished) armDemoRunReplay();
   };
 
   if (!armed) {
@@ -86,13 +99,22 @@ export function replayDemoRun(onEvent: (event: RunStreamEvent) => void): () => v
     return cleanup;
   }
 
-  // Column order is dispatch order. The recorded cells are already in it
-  // (asserted by fixtures/workflows.test.ts), but deriving it from the
-  // workflow rather than from the recording keeps the two pinned together.
+  // Every workflow column must have a recorded cell. Skipping a column that
+  // does not would animate an 11-cell grid with no error anywhere — a demo that
+  // quietly shows less than it promises. A drifted re-recording should stop the
+  // replay dead so it is caught in development, not in front of a prospect.
   const byColumn = new Map(DEMO_DDQ_RUN.cells.map((cell) => [cell.column_id, cell]));
-  const dispatched = DEMO_DDQ_WORKFLOW.columns
-    .map((column) => byColumn.get(column.id))
-    .filter((cell): cell is TabularCell => cell !== undefined);
+  const dispatched = DEMO_DDQ_WORKFLOW.columns.map((column): TabularCell => {
+    const cell = byColumn.get(column.id);
+    if (!cell) {
+      throw new Error(
+        `Demo replay: the recorded run has no cell for workflow column ` +
+          `"${column.label}" (${column.id}). The recording and DEMO_DDQ_WORKFLOW ` +
+          `have drifted apart — re-record the run or fix the column list.`
+      );
+    }
+    return cell;
+  });
 
   const base = Date.parse(DEMO_DDQ_RUN.started_at);
   schedule(0, () => onEvent({ type: "snapshot", run: DEMO_DDQ_RUN_QUEUED }));
@@ -114,6 +136,7 @@ export function replayDemoRun(onEvent: (event: RunStreamEvent) => void): () => v
   schedule(runDoneAt, () => {
     // Disarm before the terminal event: it makes `useTabularRun` re-fetch the
     // canonical run, which must now resolve to the completed recording.
+    finished = true;
     endDemoRunReplay();
     onEvent({ type: "run", run_id: DEMO_DDQ_RUN.id, status: "complete" });
   });

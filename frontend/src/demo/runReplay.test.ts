@@ -9,7 +9,12 @@ import {
   endDemoRunReplay,
 } from "./fixtures/workflows";
 import { DEMO_FLAG_KEY } from "./mode";
-import { subscribeRun, type RunStreamEvent, type TabularCell } from "@/lib/workflows";
+import {
+  subscribeRun,
+  type RunStreamEvent,
+  type TabularCell,
+  type WorkflowColumn,
+} from "@/lib/workflows";
 
 const RUN_START_MS = Date.parse(DEMO_DDQ_RUN.started_at);
 /** The recorded run's real wall clock: 6.75 s, not an invented 20-30 s. */
@@ -81,13 +86,52 @@ describe("replayDemoRun", () => {
       expect(last.status).toBe("complete");
     });
 
-    it("dispatches cells in exact workflow column order", () => {
+    // Not a constraint on the dispatch loop: every timer keys off its own
+    // cell's timestamps and all 24 offsets are distinct (asserted below), so
+    // the order the cells are walked in cannot reach the output — reversing it
+    // changes nothing. What this pins is the recording: the executor really did
+    // start the 12 columns in column order, which is why the grid fills left to
+    // right. The drift test below is what constrains the walk.
+    it("starts cells in column order, because the recording started them that way", () => {
+      const offsets = DEMO_DDQ_RUN.cells.flatMap((c) => [
+        Date.parse(c.started_at!) - RUN_START_MS,
+        Date.parse(c.completed_at!) - RUN_START_MS,
+      ]);
+      expect(new Set(offsets).size).toBe(24);
+
+      const startedAt = DEMO_DDQ_WORKFLOW.columns.map((column) => {
+        const cell = DEMO_DDQ_RUN.cells.find((c) => c.column_id === column.id);
+        expect(cell, `no recorded cell for column ${column.label}`).toBeDefined();
+        return Date.parse(cell!.started_at!);
+      });
+      expect([...startedAt].sort((a, b) => a - b)).toEqual(startedAt);
+
       const { events } = collect();
       vi.advanceTimersByTime(120_000);
 
       expect(cellEvents(events, "running").map((c) => c.column_id)).toEqual(
         DEMO_DDQ_WORKFLOW.columns.map((c) => c.id)
       );
+    });
+
+    it("throws instead of animating a partial grid when the recording has drifted", () => {
+      const ghost: WorkflowColumn = {
+        id: "ghost-column-not-in-the-recording",
+        order_index: DEMO_DDQ_WORKFLOW.columns.length + 1,
+        label: "Ghost",
+        prompt: "",
+        format: "markdown",
+        tags: null,
+        is_derived: false,
+        formula: null,
+      };
+      DEMO_DDQ_WORKFLOW.columns.push(ghost);
+      try {
+        // A re-recording that loses a column must not quietly animate 11 cells.
+        expect(() => replayDemoRun(() => {})).toThrow(/ghost-column-not-in-the-recording/);
+      } finally {
+        DEMO_DDQ_WORKFLOW.columns.pop();
+      }
     });
 
     it("completes cells in the order the real run finished them, not column order", () => {
@@ -121,6 +165,11 @@ describe("replayDemoRun", () => {
         expect(cell.answer_formatted).toBeNull();
         expect(cell.citations).toEqual([]);
         expect(cell.completed_at).toBeNull();
+        // A finished answer's figures must not show on a cell that has not
+        // finished: the run log prints `duration_ms` the moment a cell lands.
+        expect(cell.quality).toBeNull();
+        expect(cell.duration_ms).toBe(0);
+        expect(recorded!.duration_ms).toBeGreaterThan(0);
         // The real started_at, so the grid's elapsed timer is honest.
         expect(cell.started_at).toBe(recorded!.started_at);
       }
@@ -239,6 +288,57 @@ describe("replayDemoRun", () => {
       expect(second.events).toHaveLength(1);
       expect(second.events[0].type).toBe("snapshot");
     });
+
+    it("keeps animating when the stream effect resubscribes mid-replay", () => {
+      // `useTabularRun`'s SSE effect has `docs` in its deps and `docs` resolves
+      // asynchronously after mount, so a teardown + resubscribe partway through
+      // the replay is routine. It must not leave a finished-looking static grid.
+      const first = collect();
+      vi.advanceTimersByTime(2_000);
+      expect(cellEvents(first.events, "running").length).toBeGreaterThan(0);
+      expect(cellEvents(first.events, "complete").length).toBeLessThan(12);
+      first.stop();
+
+      const second = collect();
+      vi.advanceTimersByTime(120_000);
+      expect(cellEvents(second.events, "running")).toHaveLength(12);
+      expect(cellEvents(second.events, "complete")).toHaveLength(12);
+      const last = second.events[second.events.length - 1];
+      expect(last.type).toBe("run");
+      if (last.type !== "run") throw new Error("unreachable");
+      expect(last.status).toBe("complete");
+    });
+
+    it("does not hand the replay back once the run has completed", () => {
+      // The mirror of the test above: a teardown after the recording has
+      // finished must leave the machine idle, or re-opening the run from
+      // history would animate it a second time.
+      const first = collect();
+      vi.advanceTimersByTime(120_000);
+      expect(cellEvents(first.events, "complete")).toHaveLength(12);
+      first.stop();
+
+      const second = collect();
+      vi.advanceTimersByTime(120_000);
+      expect(second.events).toHaveLength(1);
+      expect(second.events[0].type).toBe("snapshot");
+    });
+
+    it("reports the run as still in progress while the replay is in flight", async () => {
+      const { events } = collect();
+      vi.advanceTimersByTime(2_000);
+      expect(cellEvents(events, "complete").length).toBeGreaterThan(0);
+      expect(cellEvents(events, "complete").length).toBeLessThan(12);
+
+      // `armed` is already consumed by now, so only the `replaying` phase can
+      // keep this fetch from handing back the answers still being streamed in.
+      const midRun = await (await demoFetch(`/api/runs/${DEMO_DDQ_RUN.id}`, {
+        method: "GET",
+      })!).json();
+      expect(midRun.status).toBe("running");
+      expect(midRun.completed_at).toBeNull();
+      expect(midRun.cells.every((c: TabularCell) => c.status === "queued")).toBe(true);
+    });
   });
 
   describe("not armed — browsing a run that already finished", () => {
@@ -254,6 +354,20 @@ describe("replayDemoRun", () => {
       expect(only.run.status).toBe("complete");
       expect(only.run.cells).toHaveLength(12);
       expect(only.run.cells.every((c) => c.status === "complete")).toBe(true);
+    });
+
+    it("arms nothing on teardown, so browsing twice never animates", () => {
+      const first = collect();
+      vi.advanceTimersByTime(120_000);
+      first.stop();
+
+      const second = collect();
+      vi.advanceTimersByTime(120_000);
+      expect(second.events).toHaveLength(1);
+      expect(second.events[0].type).toBe("snapshot");
+      const only = second.events[0];
+      if (only.type !== "snapshot") throw new Error("unreachable");
+      expect(only.run.status).toBe("complete");
     });
   });
 
