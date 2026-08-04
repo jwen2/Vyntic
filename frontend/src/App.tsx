@@ -9,6 +9,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 // react-markdown or the workspace surfaces just to read the marketing page.
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const LoginPage = lazy(() => import("@/pages/LoginPage"));
+const DemoGate = lazy(() => import("@/pages/DemoGate"));
 const HomePage = lazy(() => import("@/pages/HomePage"));
 const DealWorkspacePage = lazy(() => import("@/pages/DealWorkspacePage"));
 const ManagerPage = lazy(() => import("@/pages/ManagerPage"));
@@ -51,6 +52,7 @@ export default function App() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/landing" element={<Navigate to="/" replace />} />
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/demo" element={<DemoGate />} />
                 <Route
                   path="/app"
                   element={

@@ -1,9 +1,14 @@
 import { sseStream } from "./sse";
+import { isDemoMode, DEMO_TOKEN } from "@/demo/mode";
+import { demoFetch } from "@/demo/transport";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 const TOKEN_KEY = "vyntic_auth_token";
 
 export function getAuthToken(): string | null {
+  // AuthProvider skips getMe() entirely when this returns null, so demo mode
+  // needs a non-null sentinel. It never reaches a server.
+  if (isDemoMode()) return DEMO_TOKEN;
   return localStorage.getItem(TOKEN_KEY);
 }
 
@@ -60,6 +65,20 @@ export function errorDetailFromText(text: string, status: number): string {
 }
 
 async function fetchWrapper(url: string, options: RequestInit = {}): Promise<Response> {
+  if (isDemoMode()) {
+    const mocked = demoFetch(url, options);
+    if (mocked) return mocked;
+    if (import.meta.env.DEV) {
+      console.error(
+        `[demo] no fixture for ${options.method || "GET"} ${url} — this surface will break`
+      );
+    }
+    return new Response(JSON.stringify({ detail: "Not available in demo" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
 

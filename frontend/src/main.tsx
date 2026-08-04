@@ -2,6 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
+import { isDemoMode } from "@/demo/mode";
+import { registerAllDemoFixtures } from "@/demo";
 import "./index.css";
 import "./components/ui/Button/index.css";
 import "./components/ui/Modal/index.css";
@@ -21,6 +23,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+if (isDemoMode()) registerAllDemoFixtures();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
