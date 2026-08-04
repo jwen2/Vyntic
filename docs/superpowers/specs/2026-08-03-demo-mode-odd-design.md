@@ -2,13 +2,15 @@
 
 **Date:** 2026-08-03
 **Status:** Approved, ready for implementation planning
-**Scope:** Frontend-only demo mode reachable from the landing page. Free-roam workspace on mocked data, with a staged ODD Screen run as the centerpiece.
+**Scope:** Frontend-only demo mode reachable from the landing page. Free-roam workspace on mocked data, with a staged **DDQ Gap & Consistency Scan** run as the centerpiece.
+
+**Revised 2026-08-04** — the centerpiece workflow changed from `ODD Screen` to `DDQ Gap & Consistency Scan` after recording. See [Why the centerpiece changed](#why-the-centerpiece-changed).
 
 ## Goal
 
-Replace the landing page's "See a demo" → `#contact` mailto-style CTA with an interactive product walkthrough. A visitor clicks once, lands in a working Vyntic workspace populated entirely with fixture data, and can freely explore. The designed centerpiece is an **ODD Screen** workflow run that streams 16 cells and lands a `Red flag` verdict, every claim citing a real page of a real PDF.
+Replace the landing page's "See a demo" → `#contact` mailto-style CTA with an interactive product walkthrough. A visitor clicks once, lands in a working Vyntic workspace populated entirely with fixture data, and can freely explore. The designed centerpiece is a **DDQ Gap & Consistency Scan** run that streams 12 cells, every claim citing a real page of a real PDF.
 
-The demo positions Vyntic for **LP operational due diligence** — not investment diligence. The story it tells is: *three DDQ answers are contradicted by primary documents, and Vyntic caught all three with citations.*
+The demo positions Vyntic for **LP operational due diligence** — not investment diligence. The story it tells is: *the manager's own DDQ and marketing materials contradict its Form ADV on a Key Person, and Vyntic caught it with citations and wrote the follow-up questions.*
 
 Non-goals: no backend changes, no new runtime dependency, no LLM calls at demo time, no authentication, no lead capture inside the demo itself.
 
@@ -18,28 +20,27 @@ The demo content problem is largely solved by material already in the repo.
 
 **Corpus** — `output/` holds 13 fictional documents (328 KB total) for Brightwater Capital Partners, a two-fund GP. Seeded on startup by `backend/app/seed.py:99-160` as `brightwater_iv` (2026 vintage, in diligence) and `brightwater_iii` (2021 vintage, Glenmoor Endowment holds a $25M position, in monitoring). `output/MANIFEST.md` documents every planted finding and the expected verdict for each.
 
-**Workflow** — `workflow_seed_lp.py:96` defines the `ODD Screen` built-in: `entity_type="fund"`, `type="tabular"`, `row_source="multi_doc_synthesis"`, 8 columns:
+**Workflow** — `workflow_seed_lp.py:25` defines the `DDQ Gap & Consistency Scan` built-in (`builtin_lp_ddq_scan`): `entity_type="fund"`, `type="tabular"`, `row_source="multi_doc_synthesis"`, 12 columns — Firm & Ownership, Team & Succession, Track Record, Investment Strategy & Process, Fund Terms & Economics, Valuation Policy, Compliance & Regulatory, IT & Cybersecurity, ESG, LP Base & References, Conflicts of Interest, Service Providers. All `markdown`.
 
-1. Valuation governance (`markdown`)
-2. Service providers (`kv`)
-3. Regulatory & litigation history (`markdown`)
-4. Cybersecurity & BCP (`markdown`)
-5. Compliance program (`markdown`)
-6. Conflicts of interest (`markdown`)
-7. Financial health of the GP (`markdown`)
-8. Overall ODD rating (`enum` — `Clean | Monitor | Red flag`)
+Every column shares one prompt shape, and it is the reason this workflow is the centerpiece:
 
-**Planted ODD findings** drawn from `output/MANIFEST.md`:
+> Review the {SECTION} section across the DDQ and supporting materials. Summarize the answers, **flag skipped or evasive responses, identify contradictions with the PPM or pitchbook**, and propose focused follow-up questions.
 
-| Finding | Contradiction | Lands in column |
-|---|---|---|
-| Daniel Roache ceased to be an advisory employee 2026-02-28 (Form ADV) | Still listed as active senior team in PPM *and* pitchbook; named **Key Person** in the LPA; DDQ succession answer is evasive | GP financial health, Compliance program |
-| Affiliated broker-dealer **Brightwater Securities, LLC** receives transaction fees (Form ADV) | Omitted entirely from the DDQ conflicts answer | Conflicts of interest |
-| 2023 SEC deficiency letter on expense allocation, remediated | Disclosed in Form ADV only | Regulatory & litigation |
-| Level 3 assets GP-marked, third-party review only **annually** | Against a claimed quarterly valuation committee | Valuation governance |
-| DDQ claims 100% fee offset | LPA provides **50%** | Compliance program |
-| No SOC 2, no fixed pen-test cadence | DDQ cybersecurity answer | Cybersecurity & BCP |
-| Q2 2026 report dated Aug 29 = **60 days** after quarter end | Side letter requires 45 | Monitoring surface (not the ODD grid) |
+`ODD Screen` (`workflow_seed_lp.py:96`, 8 columns, ends in an `enum` rating) remains in the workflow library and is reachable in the demo, but is **not** the staged run.
+
+**Findings the recording actually produced**, verified against `output/MANIFEST.md`:
+
+| Finding | Contradiction | Lands in column | Status |
+|---|---|---|---|
+| Daniel Roache ceased to be an advisory employee 2026-02-28 (Form ADV) | Still listed as active senior team in PPM *and* pitchbook (both dated July 2026); named **Key Person** in the LPA | Team & Succession (headline), echoed in Strategy, Conflicts, Fund Terms | ✅ **Headline.** Model writes "A material inconsistency exists" unprompted and asks why the PPM still presents him as current |
+| 2023 SEC deficiency letter on expense allocation, remediated | Disclosed in Form ADV only; absent from PPM and pitchbook | Compliance & Regulatory (+ 4 more) | ✅ Model explicitly calls it an omission from the PPM/pitchbook |
+| No SOC 2, no fixed pen-test cadence | DDQ cybersecurity answer | IT & Cybersecurity | ✅ Explicit "Governance Gaps"; testing cadence "at management's discretion" |
+| Level 3 assets GP-marked, third-party review only **annually** | Against a claimed quarterly valuation committee | Valuation Policy | ✅ |
+| Affiliated broker-dealer **Brightwater Securities, LLC** receives transaction fees (Form ADV) | Omitted from the DDQ conflicts answer | Conflicts of Interest | ❌ **Not produced.** Model instead reports the firm "does not expect Fund IV to rely on affiliated service providers" |
+| DDQ claims 100% fee offset | LPA provides **50%** | Fund Terms & Economics | ❌ **Not produced, and answered the other way** — the model asserts DDQ/PPM/pitchbook are *consistent* on fees |
+| Q2 2026 report dated Aug 29 = **60 days** after quarter end | Side letter requires 45 | Monitoring surface (not the grid) | Unaffected by this change |
+
+The last two are planted findings the model missed. **The demo must not present either as caught.** A false negative is honest; staging a finding the fixture does not contain is not.
 
 ## Architecture
 
@@ -100,48 +101,58 @@ Fixtures are typed against the **real API response models** already exported fro
 
 Mutations (create, update, upload) resolve against an in-memory store so no interaction errors out. Destructive controls (delete deal, delete document) are hidden in demo mode rather than faked.
 
-## The staged ODD run
+## The staged run
+
+### Why the centerpiece changed
+
+The ODD Screen was recorded twice and failed its content gate both times. The reasons are structural, not fixable by re-rolling:
+
+1. **Its column prompts never ask for contradictions.** They ask the model to *assess* eight operational dimensions. The demo's entire narrative is about catching inconsistencies between documents — work no ODD Screen column instructs. `DDQ Gap & Consistency Scan` is the one built-in written for exactly that.
+2. **Three of its eight columns are thin in this corpus.** Cybersecurity & BCP, Compliance program and Financial health of the GP returned blank cells. Not model failure: `llm_calls` shows every call succeeded with real completion tokens, and `extraction_engine.py:78-79` then discarded the text for carrying no resolvable citation. That is CLAUDE.md Invariant 6 working correctly — an uncited claim is dropped rather than shown.
+3. **The 2-row grid was invented, not designed.** Built-in synthesis templates are meant to run **one-click**: `routes_workflow_runs.py:116-120` defaults the single row label to the workflow name when no `synthesis_questions` are supplied.
+
+Two row-key lessons, both learned the expensive way, recorded so they are not repeated:
+
+- Rows for `multi_doc_synthesis` are fed to the model **as the question** (`workflow_run_executor.py:298`; the payload field is literally `synthesis_questions`). Entity-name rows give the model nothing to answer.
+- Row questions must **never name a document subset**. "What do the LPA, PPM and Form ADV show…" pushed the model to answer from documents that do not cover the column's topic, producing uncited prose that was then correctly blanked. Blank cells doubled.
+
+Measured outcome:
+
+| | ODD, entity rows | ODD, question rows | **DDQ scan, one-click** |
+|---|---|---|---|
+| Cells | 16 | 16 | 12 |
+| Blank cells | 3 | 6 | **0** |
+| Citations | 32 | 22 | **59** |
+| Answer chars | 4,864 | 4,093 | **16,462** |
+| Prompt leaked into answer | 0 | 1 | 0 |
 
 ### Row axis
 
-`row_source="multi_doc_synthesis"` means rows are free-text labels supplied at run start (`routes_workflow_runs.py:110`), and the UI renders the `row_key` verbatim for synthesis workflows (`CompareView.tsx:500`). The 8 ODD dimensions are the columns.
+**Decision: 1 row × 12 columns = 12 cells**, run one-click. The row is labelled with the workflow name, exactly as the built-in intends. A single row cannot drift findings between rows and cannot blank a cell for lack of a row-specific question.
 
-**Decision: 2 rows × 8 columns = 16 cells.**
+The trade is a less dramatic grid shape than 2 × 8. It is more than repaid: 12 populated cells carrying 16,462 characters and 59 citations is over three times the content of the 16-cell ODD grid, with no holes.
 
-1. `Management company — Brightwater Capital Partners, LLC`
-2. `Fund vehicle — Brightwater Capital Partners IV, L.P.`
-
-Rationale:
-
-- It mirrors how ODD questionnaires are actually structured: management-company risk is assessed separately from vehicle-level risk.
-- It stays **honest about context**. Both rows are answerable from documents legitimately in Fund IV's context — the entity-scoped DDQ, LPA, PPM and pitchbook, plus the manager-scoped Form ADV, valuation policy, and track record, which resolve in through `context_provider._manager_shared_doc_rows` (CLAUDE.md Invariant 2).
-- 16 cells give the grid enough mass to be worth watching fill, and `CompareView` — which already exists and is built for comparing rows — works on it.
-
-**Rejected alternative:** one row per fund (Fund IV vs Fund III). More visually dramatic, but a run is keyed to a single `deal_id`, so Fund III's documents would not legitimately be in Fund IV's context. The demo would depict something the real product would not do.
+**Rejected alternative:** one row per fund (Fund IV vs Fund III). A run is keyed to a single `deal_id`, so Fund III's documents would not legitimately be in Fund IV's context. The demo would depict something the real product would not do.
 
 ### Playback
 
-Entry path: fund workspace → Workflows tab → **ODD Screen** card → Run.
+Entry path: fund workspace → Workflows tab → **DDQ Gap & Consistency Scan** card → Run.
 
-`demoEventSource` replays a fixture timeline of `cell_start` / `cell_done` events in **column-major order**, matching the real executor's dispatch ordering, at jittered ~250–600 ms intervals for a total of roughly 20–30 seconds.
+`demoEventSource` replays a fixture timeline of `cell_start` / `cell_done` events in column order, matching the real executor's dispatch ordering, at jittered ~250–600 ms intervals for a total of roughly 20–30 seconds.
 
-The final column resolves to:
+There is **no enum verdict cell** — this workflow has no `enum` column, so no `Clean | Monitor | Red flag` badge appears. The model does use "**Red Flag:**" as an inline label inside three columns (Fund Terms, Valuation Policy, Service Providers), so the risk language is present in the prose without a badge to stage.
 
-- Management company → **`Red flag`**
-- Fund vehicle → **`Monitor`**
-
-Every cell carries citations resolving to a real `doc_id` and page in the corpus.
+Every cell carries citations resolving to a real `doc_id` and page in the corpus. One citation resolves to `brightwater_track_record.xlsx` **page 0** — correct, not a defect: spreadsheets have no pages and page 0 is the product's sheet-level citation convention.
 
 ### Content sourcing
 
-Fixture cell content is produced by **recording a real run, then freezing it**:
+Fixture cell content is produced by **recording a real run, then freezing it verbatim**:
 
-1. Boot the stack with the seeded Brightwater corpus. `GEMINI_API_KEY` is present in `backend/.env`, so this is viable.
-2. Run the ODD Screen against `brightwater_iv` with the two row labels above.
-3. Snapshot the completed run — cells, `answer_formatted` payloads, citations, timings — to JSON.
-4. Hand-edit for tone and to sharpen the ODD narrative, keeping citations pointing at genuinely correct pages.
+1. Start the backend against the seeded Brightwater corpus. `GEMINI_API_KEY` is present in `backend/.env`. (Docker is not available on the dev machine; run `backend/.venv` uvicorn directly.)
+2. `node scripts/record_demo_run.mjs <email> <password> "DDQ Gap & Consistency Scan"` — runs one-click against `brightwater_iv` with all 7 documents in context.
+3. Snapshot the completed run — cells, `answer_formatted` payloads, citations, timings — to `frontend/src/demo/fixtures/recorded-ddq-scan-run.json`.
 
-Recording rather than hand-authoring matters because the output *was* real, so it reads as real and the citations are correct by construction. At demo time nothing calls an LLM.
+**The fixture is committed verbatim. No hand-editing of cell content, for tone or anything else.** Recording rather than hand-authoring is what makes the citations correct by construction; editing the text would forfeit exactly that. If a finding is missing, the demo does not claim it. At demo time nothing calls an LLM.
 
 Cell payloads must respect the kind-tagged `answer_formatted` contract — never key-sniff (`lib/cellShapes.ts`).
 
@@ -157,7 +168,7 @@ Fixtures are required for every surface a visitor can reach:
 
 ### Chat
 
-Free-text questions cannot be convincingly mocked. Chat ships with **suggested-question chips** mapped to canned cited answers covering the ODD narrative.
+Free-text questions cannot be convincingly mocked. Chat ships with **suggested-question chips** mapped to canned cited answers covering the recorded narrative — the Roache key-person contradiction, the 2023 SEC deficiency letter, the SOC 2 gap, and the Level 3 valuation review cadence. Chips must not promise findings the recording does not contain.
 
 Off-script input gets an honest fallback rather than a fabricated answer:
 
@@ -175,7 +186,8 @@ Disabling chat entirely was rejected — cited Q&A is central to the pitch.
 
 - **Unit** — the `(method, path)` fixture router resolves every path the app requests; unknown paths fail loudly in dev rather than returning empty data silently.
 - **Type** — fixtures are typed against the real exported API interfaces, so `npx tsc --noEmit` catches drift.
-- **Component** — the ODD run timeline drives cells to completion and lands the `Red flag` enum; the demo flag off means zero interception.
+- **Component** — the staged run timeline drives all 12 cells to completion with no blanks; the demo flag off means zero interception.
+- **Fixture integrity** — a test asserts every citation in the recorded run resolves to a real corpus `doc_id` and a page within that document, so hand-editing the fixture cannot silently pass.
 - **Manual** — walk every free-roam surface with the backend **stopped**, confirming no surface errors and no network request escapes. This is the real acceptance test: the demo must work with no backend at all.
 - Existing suites (`npx tsc --noEmit`, `npm run build`, vitest, eslint) stay green.
 
@@ -190,4 +202,6 @@ Disabling chat entirely was rejected — cited Q&A is central to the pitch.
 
 ## Open items for the implementation plan
 
-None blocking. The recording branch in content sourcing is resolved — `GEMINI_API_KEY` is present.
+None blocking. The run is recorded and committed (`frontend/src/demo/fixtures/recorded-ddq-scan-run.json`, run `0a15ef21`): 12/12 cells, 0 blanks, 59 valid citations.
+
+`recorded-odd-run.json` is retained but unused by the staged centerpiece. It is an honest recording and could serve as completed prior-run history in the workspace; if it stays unused, remove it at final review.
