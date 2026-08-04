@@ -6,6 +6,7 @@ import {
   singleQuestionStream,
 } from "@/lib/api";
 import AnswerText from "@/components/dd/AnswerText";
+import { isDemoMode } from "@/demo/mode";
 import { useTheme } from "@/components/ThemeProvider";
 import { ACCENT, tint } from "@/components/dd/types";
 import Button from "@/components/ui/Button";
@@ -161,6 +162,23 @@ export default function DealAssistantPanel({
   const controllerRef = useRef<AbortController | null>(null);
   const newChatMountedRef = useRef(false);
   const lastPendingSignalRef = useRef<number>(pendingPromptSignal ?? 0);
+  // Demo mode answers a fixed set of questions, so the empty state offers that
+  // set instead of the generic prompts. Loaded dynamically for the same reason
+  // the SSE intercept is: the fixtures stay out of the production module graph,
+  // and with the flag off this effect returns before importing anything.
+  const [demoCards, setDemoCards] = useState<PromptCard[] | null>(null);
+
+  useEffect(() => {
+    if (!isDemoMode()) return;
+    let cancelled = false;
+    void import("@/demo/fixtures/chat").then(({ demoPromptCardsFor }) => {
+      if (cancelled) return;
+      setDemoCards(demoPromptCardsFor(deal.deal_id));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [deal.deal_id]);
 
   const selectedDocs = useMemo(
     () => documents.filter((doc) => selectedDocIds.includes(doc.doc_id)),
@@ -560,6 +578,7 @@ export default function DealAssistantPanel({
                 docCount={documents.length}
                 loading={false}
                 isFund={deal.entity_type === "fund"}
+                demoCards={demoCards}
                 onPrompt={submit}
                 onProactiveScan={onProactiveScan}
                 composer={renderComposer()}
@@ -642,6 +661,7 @@ function InitialAssistantState({
   docCount,
   loading,
   isFund,
+  demoCards,
   onPrompt,
   onProactiveScan,
   composer,
@@ -649,12 +669,14 @@ function InitialAssistantState({
   docCount: number;
   loading: boolean;
   isFund: boolean;
+  /** Demo mode only: the fixed question set, or [] for a workspace with none. */
+  demoCards?: PromptCard[] | null;
   onPrompt: (prompt: string) => void;
   onProactiveScan?: () => void;
   composer?: ReactNode;
 }) {
   const scanTitle = isFund ? "Run Fund Brief" : "Run Proactive Scan";
-  const cards = isFund ? FUND_CARDS : DEAL_CARDS;
+  const cards = demoCards ?? (isFund ? FUND_CARDS : DEAL_CARDS);
   return (
     <div style={{ minHeight: "calc(100vh - 280px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 640, textAlign: "center" }}>
@@ -675,13 +697,18 @@ function InitialAssistantState({
 
         {composer && <div style={{ marginBottom: 26, textAlign: "left" }}>{composer}</div>}
 
-        <div className="font-mono-plex text-t3" style={{
-          fontSize: 10, fontWeight: 600,
-          textTransform: "uppercase", letterSpacing: "0.16em",
-          marginBottom: 12, textAlign: "center",
-        }}>
-          Try asking Vyntic to…
-        </div>
+        {/* Off-demo `cards` is a non-empty constant, so the heading only ever
+            hides in demo mode, in a workspace whose questions were not
+            recorded; the grid below then renders at zero height. */}
+        {cards.length > 0 && (
+          <div className="font-mono-plex text-t3" style={{
+            fontSize: 10, fontWeight: 600,
+            textTransform: "uppercase", letterSpacing: "0.16em",
+            marginBottom: 12, textAlign: "center",
+          }}>
+            Try asking Vyntic to…
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, opacity: loading ? 0.55 : 1 }}>
           {cards.map((card) => (
             <button
