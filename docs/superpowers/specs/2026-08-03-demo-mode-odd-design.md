@@ -146,6 +146,10 @@ The replay is driven by the **recorded run's own timings**, not invented jitter.
 
 **Browsing a completed run does not re-animate it.** `useTabularRun.ts:353` calls `subscribeRun` unconditionally, including for runs already `complete`, so the replay is armed only by a `POST .../runs` in the same session. Opening the recorded run from history emits one immediate snapshot of the finished run instead.
 
+**A resubscribe mid-replay must not kill the animation.** The same effect has `docs` in its dependency array, and `docs` is populated asynchronously, so it re-runs once after mount. If that lands after the replay started, a consume-once arm would leave the resubscription with nothing to animate — a silently static grid of finished answers. Teardown therefore hands the arm *back* unless the replay already finished.
+
+The accepted consequence: if the visitor navigates away mid-replay rather than resubscribing, the arm survives, and re-opening that run from history animates it once more. This is **intended**, not a leak to fix. It is benign — arguably what the visitor wants — and eliminating it would require a timed handoff window whose complexity is not justified. The behaviour that mattered, and that is guarded by test, is that a run which *completed* never re-animates.
+
 There is **no enum verdict cell** — this workflow has no `enum` column, so no `Clean | Monitor | Red flag` badge appears. The model does use "**Red Flag:**" as an inline label inside three columns (Fund Terms, Valuation Policy, Service Providers), so the risk language is present in the prose without a badge to stage.
 
 Every cell carries citations resolving to a real `doc_id` and page in the corpus. One citation resolves to `brightwater_track_record.xlsx` **page 0** — correct, not a defect: spreadsheets have no pages and page 0 is the product's sheet-level citation convention.
