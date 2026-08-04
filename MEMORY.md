@@ -158,3 +158,42 @@ Project decision log + session summaries. Read at the start of every session.
 ### Two headline gaps (context for the roadmap)
 - Full-context mode cannot hold 100s of docs/deal (saturates Gemini's ~1M-token window; warns then sends anyway).
 - Conversation-history routes were unauthenticated **and** in-memory (README wrongly claimed SQLite persistence).
+
+## Session — 2026-08-04 · Demo mode (LP operational due diligence)
+
+### Worked on
+Planning and executing an interactive **demo mode**: the landing page's "See a demo" CTA becomes a public `/demo` route dropping a visitor into a fully working workspace backed entirely by fixture data, with a staged ODD Screen run as the centerpiece. Focus is **operational** due diligence for LPs, not investment diligence.
+
+### Completed
+- Spec: `docs/superpowers/specs/2026-08-03-demo-mode-odd-design.md` (commit `0678f19`)
+- Plan: `docs/superpowers/plans/2026-08-03-demo-mode-odd.md`, 10 tasks (commit `6aefa84`)
+- Branch `feat/demo-mode-odd`. **Tasks 1–3 done, each reviewed clean:**
+  - T1 `277ca82..2ce8375` — demo flag, fixture-router transport, `/demo` gate. Took 2 fix rounds.
+  - T2 `61f6c5a` — Brightwater deal/manager/document fixtures.
+  - T3 `8606931` — 13 corpus files as static assets + `buildDocumentViewUrl`.
+- Test suite 243 → 270 passing, no regressions.
+
+### Decisions made
+- **Approach A** (frontend-only fixture layer) over a backend demo tenant — no infra, no LLM at runtime, no auth surface. Fixtures recorded from a real run so they read as real.
+- **Free-roam** browsing with the ODD run as the staged centerpiece; `/demo` flips a session flag then redirects into the *normal* app routes, so no page component's links need rewriting.
+- Interception at three chokepoints only: `api.ts::fetchWrapper`, `sse.ts::sseStream`, `workflows.ts::subscribeRun`. `DocumentViewer`'s iframe URL is the one non-transport change.
+- Static assets live at **`/demo-assets/`, never `/demo/`** (`/demo` is a client route).
+- Chat answers a fixed question set with an honest off-script fallback — never a fabricated answer.
+- Demo mode clears any real auth token on entry; a live session must never blend with fixtures.
+
+### In progress — BLOCKED ON A DECISION
+**Task 4 (recording the ODD run) is paused awaiting the owner's choice.** The recording ran honestly (commit `fb6586c`, 32/32 citations valid, zero fabrication) but **failed its content gate 4/8**: `Red flag` never appears (both rows say `Monitor`), the fee-offset contradiction is never flagged, and two findings landed in the wrong row leaving cells blank.
+
+Root cause is two design errors in the plan, not model failure:
+1. For `multi_doc_synthesis`, `workflow_run_executor.py:298` feeds `row_key` to the model **as the question**. The row keys were entity *names*, not questions — hence blank cells and drifting findings.
+2. **ODD Screen's prompts never ask for contradiction detection.** `LP_DDQ_SCAN` "DDQ Gap & Consistency Scan" (`workflow_seed_lp.py:25`) is the built-in written for it — every column says "flag skipped or evasive responses, identify contradictions with the PPM or pitchbook". The spec's "three DDQ answers are contradicted by primary documents" narrative belongs to that workflow.
+
+Four options were put to the owner (A: re-record ODD Screen with question-shaped rows; B: that plus record the DDQ scan as prior-run history; C: switch the centerpiece to the DDQ scan; D: accept and rewrite the spec to Monitor/Monitor). **Full detail in `.superpowers/sdd/2026-08-03-demo-mode-odd/progress.md`.**
+
+### Next-session priorities
+1. **Answer the Task 4 question**, then re-record and resume Tasks 5–10 from the SDD ledger.
+2. Carried-forward items already logged: `xhrUpload` bypasses the demo interception (uploads would hit a real endpoint) → Task 8; `.xlsx` is served raw but the real backend renders it to HTML server-side, so it downloads instead of displaying → Task 8; manual backend-stopped browser sweep still unrun → Task 10.
+
+### Environment notes
+- **Docker is not installed on this machine.** The backend runs locally via `backend/.venv/Scripts/python.exe -m uvicorn app.main:app --port 8000`; the Brightwater corpus is already seeded and parsed in `backend/data/vyntic.db`, so no re-ingestion is needed.
+- Real corpus metadata (doc_ids, page counts, chunk counts, the stable `builtin_lp_odd_screen` column ids) is captured in `.superpowers/sdd/2026-08-03-demo-mode-odd/corpus-ground-truth.md`. **11 of 13 page counts in the plan text were wrong** — trust that file, not the plan.
