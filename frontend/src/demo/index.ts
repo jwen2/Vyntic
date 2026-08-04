@@ -5,6 +5,7 @@
  * Later tasks add their register*Fixtures() call here.
  */
 import { registerUserFixtures } from "./fixtures/user";
+import { registerEntityFixtures } from "./fixtures/entities";
 
 let registered = false;
 
@@ -12,6 +13,7 @@ export function registerAllDemoFixtures(): void {
   if (registered) return;
   registered = true;
   registerUserFixtures();
+  registerEntityFixtures();
 }
 
 /** Test-only: clear the registration guard so a test can re-register fixtures. */
