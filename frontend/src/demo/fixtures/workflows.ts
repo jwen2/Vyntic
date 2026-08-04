@@ -89,6 +89,66 @@ export const DEMO_DDQ_WORKFLOW: Workflow = {
   variables: [],
 };
 
+/**
+ * The same run as the visitor sees it the instant they press Run: the grid is
+ * already 1 x 12, but no cell has an answer yet. `runReplay` opens its stream
+ * with this and the run-start route hands it back, so the shape of the grid
+ * never changes mid-animation — only its contents.
+ */
+export const DEMO_DDQ_RUN_QUEUED: WorkflowRun = {
+  ...DEMO_DDQ_RUN,
+  status: "running",
+  completed_at: null,
+  cells: DEMO_DDQ_RUN.cells.map((cell) => ({
+    ...cell,
+    status: "queued",
+    answer: "",
+    answer_display: "",
+    answer_formatted: null,
+    citations: [],
+    quality: null,
+    duration_ms: 0,
+    started_at: null,
+    completed_at: null,
+  })),
+};
+
+/**
+ * Whether the recorded run should animate.
+ *
+ * `useTabularRun` subscribes to a run's stream whenever it opens one, finished
+ * or not (useTabularRun.ts:353). Replaying unconditionally would therefore
+ * re-animate the recorded run every time a visitor opened it from history,
+ * which is not what the product does and reads as broken. So the replay is
+ * armed by the one thing that means "the visitor just started this run" — the
+ * POST that starts it — and by nothing else.
+ *
+ * `replaying` exists because the run is fetched twice during a run: once by
+ * `useTabularRun` on mount (which must not hand back the finished answers the
+ * stream is about to deliver) and again when the terminal event arrives (which
+ * must). `armed` alone cannot separate those, because the replay consumes it
+ * before the second fetch.
+ */
+type ReplayPhase = "idle" | "armed" | "replaying";
+let replayPhase: ReplayPhase = "idle";
+
+/** Called by the run-start route: the visitor pressed Run. */
+export function armDemoRunReplay(): void {
+  replayPhase = "armed";
+}
+
+/** Called once by `replayDemoRun`; true only for a just-started run. */
+export function consumeDemoRunReplayArm(): boolean {
+  if (replayPhase !== "armed") return false;
+  replayPhase = "replaying";
+  return true;
+}
+
+/** Called when the replay finishes or is torn down. Idempotent. */
+export function endDemoRunReplay(): void {
+  replayPhase = "idle";
+}
+
 export function registerWorkflowFixtures(): void {
   registerDemoRoutes([
     {
@@ -110,7 +170,28 @@ export function registerWorkflowFixtures(): void {
     {
       method: "GET",
       pattern: /^\/api\/runs\/([^/]+)$/,
-      handler: () => DEMO_DDQ_RUN,
+      // While a replay is armed or in flight this is a run in progress; every
+      // other time it is the completed recording.
+      handler: () => (replayPhase === "idle" ? DEMO_DDQ_RUN : DEMO_DDQ_RUN_QUEUED),
+    },
+    {
+      method: "POST",
+      pattern: /^\/api\/deals\/([^/]+)\/workflows\/([^/]+)\/runs$/,
+      // Arms the replay. `WorkflowsView` reads only `run.id` off this response
+      // and then opens the run view, which subscribes — and that subscription
+      // is what animates.
+      handler: () => {
+        armDemoRunReplay();
+        return DEMO_DDQ_RUN_QUEUED;
+      },
+    },
+    {
+      method: "GET",
+      // `subscribeRun` mints its stream token through `request(...)`, which
+      // defaults to GET (lib/workflows.ts:403). Belt-and-braces: the demo
+      // guard returns before the token is ever fetched.
+      pattern: /^\/api\/runs\/([^/]+)\/stream-token$/,
+      handler: () => ({ token: "demo-stream-token" }),
     },
     {
       method: "GET",
