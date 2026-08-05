@@ -22,6 +22,7 @@ Ordered by the assessment's tiers. Tiers 0–1 are concrete code on the current 
 |---|---|---|---|---|
 | LP1 | `2026-07-08-lp-template-packs-and-object-model-frontend.md` | 7 LP built-in templates + workflow entity-scoping; Manager page + Position panel | PR #94 (merged) | **done (PR #102)** — 21 entity-scoped built-ins, Manager page, Position panel, Hillpath Fund IV fixtures; second demo fund deferred |
 | LP2 | `2026-07-11-lp-monitoring-wedge.md` | Capital-call queue + side-letter compliance tracker (LLM-suggests/analyst-confirms) + portfolio dashboard | LP1 | **implemented** on `feat/lp-monitoring-wedge`; auto-ingestion + notifications + QoQ deltas deferred |
+| LP3 | `../superpowers/plans/2026-08-03-demo-mode-odd.md` (spec: `../superpowers/specs/2026-08-03-demo-mode-odd-design.md`) | Public `/demo`: a working workspace on fixture data — no backend, no LLM, no auth. Recorded DDQ gap-and-consistency scan as the centrepiece, recorded chat, recorded Fund III monitoring, landing CTA + demo banner | LP1, LP2; Brightwater corpus in `output/` | **done** on `feat/demo-mode-odd` (Tasks 1–10). Centrepiece moved from ODD Screen to the DDQ scan (ODD failed its content gate twice — its prompts never ask for contradictions). Deferred: corpus dates age (capital-call card reads −9d and drifts), refusals render in the red error Banner |
 
 ## Frontend quality (audit 2026-07-07)
 
