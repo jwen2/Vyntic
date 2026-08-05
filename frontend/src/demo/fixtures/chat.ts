@@ -12,6 +12,16 @@
  *     recorded run did not make (the 100% vs 50% fee-offset contradiction, the
  *     affiliated broker-dealer) are deliberately absent: the demo must never
  *     present a finding its fixture does not contain.
+ *
+ *     That cuts the other way too, and it is the sharper edge. Where the run
+ *     concluded the documents *agree* on something the corpus in fact
+ *     contradicts, repeating the conclusion turns a silent miss into an active
+ *     false statement — and a prospect who opens the DDQ this demo itself
+ *     serves finds the contradiction in a page. So the recording's affirmative
+ *     consistency verdicts on fees are deleted rather than quoted, and the
+ *     conflicts-of-interest question is not offered at all: the run cited every
+ *     Form ADV page except p6, the one disclosing the affiliated broker-dealer,
+ *     which no rephrasing of the answer makes safe to ask.
  *  2. Citations are not authored. `cited()` lifts the recorded `Citation`
  *     objects straight out of the run by their `[Source N]` number, so every
  *     `source_file` / `page` / `text_snippet` triple is one the product itself
@@ -56,7 +66,8 @@ const COL_TERMS = "a01ad37a06444c348b93de7cecd96e5f"; // Fund Terms & Economics
 const COL_VALUATION = "9814f84441844e788e44523b2002848c"; // Valuation Policy
 const COL_COMPLIANCE = "9f181791b2a247a59135123e8b7de3d0"; // Compliance & Regulatory
 const COL_IT = "b778bec0d4c84fb6b3ecc85a1c24f3fb"; // IT & Cybersecurity
-const COL_CONFLICTS = "1b2486ce7b1b4480b5c2af0913241e38"; // Conflicts of Interest
+// The run's Conflicts of Interest column (1b2486ce7b1b4480b5c2af0913241e38) is
+// deliberately not surfaced in chat — see the note above the question list.
 
 const CELL_BY_COLUMN = new Map(DEMO_DDQ_RUN.cells.map((cell) => [cell.column_id, cell]));
 
@@ -213,56 +224,45 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "operations representatives [Source 2]. Methodologies include comparable company " +
       "multiples, precedent transactions, discounted cash flow analyses and recent " +
       "financing transactions [Source 3].\n\n" +
-      "**Consistency:** The DDQ and PPM agree on the quarterly valuation cadence and the " +
-      "use of a valuation committee [Source 4][Source 5]. No contradictions identified.\n\n" +
+      // The recorded cell put the PPM alongside the DDQ here and cited PPM p6.
+      // p6 is "Portfolio Construction", and its only quarterly reference is to
+      // the *investment* committee; no PPM page supports the claim. The PPM
+      // half and its citation are dropped rather than left to be checked.
+      "**Consistency:** The DDQ agrees on the quarterly valuation cadence and the " +
+      "use of a valuation committee [Source 4]. No contradictions identified.\n\n" +
       "**Follow-up questions**\n" +
       "- Can you provide the most recent third-party valuation report for a " +
       "representative Level 3 asset?\n" +
       "- What specific \"material events\" trigger an ad-hoc valuation review outside the " +
       "quarterly cycle [Source 2]?",
-    // Valuation policy p4, p2, p3; DDQ p8; PPM p6.
-    citations: cited(COL_VALUATION, [76, 74, 75, 28, 46]),
+    // Valuation policy p4, p2, p3; DDQ p8.
+    citations: cited(COL_VALUATION, [76, 74, 75, 28]),
   },
+  // No conflicts-of-interest question. The recorded Conflicts cell answered
+  // with the DDQ's denial — the Firm "does not expect Fund IV to rely on
+  // affiliated service providers" — citing Form ADV p3, p4, p9 and p10: every
+  // ADV page except p6, which discloses that "Brightwater Securities, LLC is an
+  // affiliated broker-dealer" that "may receive transaction fees". Requalifying
+  // the answer as reported speech would not help: the whole subject of the card
+  // is conflicts, and the corpus's largest conflict is the one the run missed,
+  // so every phrasing of the question walks a prospect onto p6. Five questions
+  // the recording answered well beat six with a trap in them.
   {
-    question: "What conflicts of interest has the manager disclosed?",
-    blurb: "Affiliated service providers, affiliate fee flows, and how they are managed.",
-    anchors: [
-      "conflicts of interest",
-      "conflict of interest",
-      "affiliated service provider",
-      "affiliated service providers",
-      "related party",
-      "related parties",
-    ],
-    support: ["conflict", "conflicts", "affiliate", "affiliates", "affiliated", "interest"],
-    answer:
-      "Conflicts are managed through the Firm's compliance manual, advisory committee " +
-      "process and allocation policy, and the Firm does not expect Fund IV to rely on " +
-      "affiliated service providers in the ordinary course, other than the General " +
-      "Partner and management company [Source 1].\n\n" +
-      "Potential conflicts around performance-based carried interest are addressed " +
-      "through the fund documents, advisory committee review and compliance policies " +
-      "[Source 2][Source 3]. The PPM and pitchbook consistently highlight that the " +
-      "General Partner and its affiliates may receive transaction, monitoring and " +
-      "director fees, which are subject to a 50% fee offset " +
-      "[Source 5][Source 6][Source 7][Source 8].\n\n" +
-      "The Firm previously received an SEC deficiency letter in 2023 regarding expense " +
-      "allocation, remediated through enhanced written procedures, staff training and " +
-      "allocation adjustments [Source 4].\n\n" +
-      "**Follow-up questions**\n" +
-      "- What specific categories of \"similar fees\" are excluded from the 50% fee " +
-      "offset provision?\n" +
-      "- Will the Advisory Committee receive itemized reports of the fees received by " +
-      "affiliates, so the offset can be verified?",
-    // DDQ p12; ADV p4, p9, p10; PPM p2, p11; pitchbook p6; ADV p3.
-    citations: cited(COL_CONFLICTS, [32, 66, 71, 72, 42, 51, 58, 65]),
-  },
-  {
-    question: "What are the fund's economic terms, and do the documents agree?",
-    blurb: "Fees, carry, offset and removal — checked across the LPA, PPM, pitchbook and DDQ.",
+    // Not "…and do the documents agree?": the answer no longer renders a
+    // verdict on that, because the run's verdict was wrong (see below).
+    question: "What are the fund's economic terms?",
+    blurb: "Fees, carry, offset and removal — read across the LPA, PPM, pitchbook and DDQ.",
+    // "fees" and "fee structure" are anchors, not support words: "what are the
+    // fees" is close to the single most likely thing a prospect types, and as
+    // support alone it scored one hit and fell back. The answer is now purely
+    // descriptive of the LPA's stated terms, so there is nothing risky to
+    // reach — the demo was refusing the safe question and answering the sharp
+    // one, which is exactly backwards.
     anchors: [
       "fee offset",
       "management fee",
+      "fees",
+      "fee structure",
       "carried interest",
       "carry",
       "waterfall",
@@ -272,7 +272,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "clawback",
       "preferred return",
     ],
-    support: ["fee", "fees", "terms", "economics", "removal", "offset", "commitment"],
+    support: ["fee", "terms", "economics", "removal", "offset", "commitment"],
     answer:
       "- **Management fee:** 2.0% per annum of aggregate commitments during the " +
       "five-year investment period; thereafter 1.5% per annum of invested capital, " +
@@ -288,10 +288,14 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "- **Removal:** No-fault removal requires Limited Partners holding at least 80% of " +
       "aggregate commitments, excluding interests held by the General Partner and its " +
       "affiliates [Source 5][Source 6].\n\n" +
-      "**Consistency:** The terms are consistent across the DDQ, PPM and pitchbook on " +
-      "fee structure, carry, waterfall and governance rights [Source 6][Source 7]" +
-      "[Source 8]. No evasive responses identified; the DDQ directs the reader to the " +
-      "draft Partnership Agreement for the detailed economics [Source 8].\n\n" +
+      // The recorded cell closed with "the terms are consistent across the DDQ,
+      // PPM and pitchbook". They are not: DDQ p7 answers the fee-offset
+      // question with "100% of such fees" against the LPA's and PPM's 50%, and
+      // the run cited p7 nowhere. Stating the recording's verdict here would be
+      // a confident, well-cited claim contradicted by a document one click
+      // away, so it is deleted; what is left is description, not adjudication.
+      "The DDQ directs the reader to the draft Partnership Agreement for the " +
+      "detailed economics [Source 8].\n\n" +
       "**Worth testing:** the Firm received a 2023 SEC deficiency letter on the " +
       "documentation of expense allocation [Source 9], which bears on the judgment " +
       "applied to fee offsets and expense allocation described in the PPM [Source 10].",
@@ -363,6 +367,25 @@ const MIN_SUPPORT_HITS = 2;
  */
 const DOC_SCOPE_PREFIX = /^focus on these document\(s\):[\s\S]*?\n\n/i;
 
+/**
+ * Funds in the demo corpus other than Fund IV, the only one the run was
+ * recorded against.
+ *
+ * `demoSseStream` already refuses to answer *inside* a sibling fund's
+ * workspace, but that gate covers the workspace you are standing in, not the
+ * fund you are asking about. "What is the management fee for Fund III?", typed
+ * in Fund IV, would otherwise come back with Fund IV's 2.0% — a different
+ * fund's economics, cited to Fund IV's LPA, in an answer that never says so.
+ */
+const OTHER_FUND_MENTIONS = [
+  "fund i",
+  "fund ii",
+  "fund iii",
+  "fund 1",
+  "fund 2",
+  "fund 3",
+] as const;
+
 /** Space-delimited, punctuation-free, so `includes` matches whole words only. */
 function normalize(text: string): string {
   return ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
@@ -383,12 +406,16 @@ function hits(haystack: string, phrases: readonly string[]): number {
  * the valuation of the largest portfolio company" with the Level 3 review
  * policy — a confident, well-cited, wrong answer, which is a worse failure than
  * admitting the demo cannot answer it. So a broad topic word ("valuation",
- * "fees", "conflict") never selects an answer on its own: either a distinctive
- * anchor phrase appears, or at least two topic words do.
+ * "committee", "compliance") never selects an answer on its own: either a
+ * distinctive anchor phrase appears, or at least two topic words do.
+ *
+ * A question that names a fund other than Fund IV is refused outright, whatever
+ * else it matches.
  */
 export function matchDemoQuestion(text: string): DemoAnswer | null {
   const asked = normalize(text.replace(DOC_SCOPE_PREFIX, ""));
   if (asked.trim() === "") return null;
+  if (hits(asked, OTHER_FUND_MENTIONS) > 0) return null;
 
   for (const q of DEMO_QUESTIONS) {
     if (normalize(q.question) === asked) return q;
