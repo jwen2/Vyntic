@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { QueryStreamEvent } from "@/lib/api";
+import type { DocMatrixEvent, QueryStreamEvent } from "@/lib/api";
+import { docMatrixStream } from "@/lib/api";
+import { disableDemoMode, enableDemoMode } from "../mode";
 import {
   DEMO_PROMPT_CARDS,
   DEMO_QUESTIONS,
+  DOC_MATRIX_UNAVAILABLE,
   OFF_SCRIPT_ANSWER,
   demoPromptCardsFor,
   demoSseStream,
@@ -301,13 +304,71 @@ describe("demoSseStream", () => {
   });
 
   it("errors rather than emit chat-shaped events on a stream it has no fixture for", () => {
-    const { events, errors } = run(`/api/deals/${DEMO_FUND_IV_ID}/doc-matrix/stream`, {
+    const { events, errors } = run("/api/matrix/compare/stream", {
       query: DEMO_QUESTIONS[0].question,
     });
 
     expect(events).toEqual([]);
     expect(errors).toHaveLength(1);
     expect(errors[0].message).toContain("demo");
+  });
+
+  // The doc-matrix controls are removed in demo mode (DocMatrixPanel), so this
+  // is the backstop for anything that reaches the stream anyway. Throwing left
+  // every cell spinning on "Analyzing…" forever, which reads as a hang.
+  it("resolves every doc-matrix cell with an honest message instead of erroring", () => {
+    const events: unknown[] = [];
+    const errors: Error[] = [];
+    let finished = false;
+    demoSseStream(
+      `/api/deals/${DEMO_FUND_IV_ID}/doc-matrix/stream`,
+      { doc_ids: ["doc_a", "doc_b"], query: "Revenue" },
+      {
+        onEvent: (event) => events.push(event),
+        onFinish: () => {
+          finished = true;
+        },
+        onError: (err) => errors.push(err),
+      }
+    );
+
+    expect(errors).toEqual([]);
+    expect(finished).toBe(true);
+    expect(events).toEqual([
+      { doc_id: "doc_a", error: DOC_MATRIX_UNAVAILABLE },
+      { doc_id: "doc_b", error: DOC_MATRIX_UNAVAILABLE },
+    ]);
+  });
+
+  it("never puts an uncited answer in a doc-matrix cell", () => {
+    // `error` is the only shape DocMatrixCell renders as an explanation rather
+    // than as an answer — a `done` here would be a confident uncited claim.
+    const events: Record<string, unknown>[] = [];
+    demoSseStream(
+      `/api/deals/${DEMO_FUND_IV_ID}/doc-matrix/stream`,
+      { doc_ids: ["doc_a"], query: "Revenue" },
+      { onEvent: (event) => events.push(event as Record<string, unknown>) }
+    );
+
+    for (const event of events) {
+      expect(event.done).toBeUndefined();
+      expect(event.answer).toBeUndefined();
+      expect(event.token).toBeUndefined();
+    }
+    expect(DOC_MATRIX_UNAVAILABLE).not.toMatch(/\[Source\s+\d+\]/);
+  });
+
+  it("emits nothing for a doc-matrix request with no documents", () => {
+    const events: unknown[] = [];
+    let finished = false;
+    demoSseStream(
+      `/api/deals/${DEMO_FUND_IV_ID}/doc-matrix/stream`,
+      { query: "Revenue" },
+      { onEvent: (event) => events.push(event), onFinish: () => { finished = true; } }
+    );
+
+    expect(events).toEqual([]);
+    expect(finished).toBe(true);
   });
 
   it("stops emitting once aborted", () => {
@@ -335,5 +396,68 @@ describe("demoSseStream", () => {
 
     expect(events.length).toBe(seen);
     expect(finished).toBe(false);
+  });
+});
+
+/**
+ * The tests above assert on what the fixture *emits*. That is not what the grid
+ * *renders*: `demoSseStream` sits under `sseStream`, so its payloads are the RAW
+ * backend shape, and `docMatrixStream`'s adapter (lib/api.ts:847-851) derives
+ * the typed event from that shape alone — it keys on the presence of a bare
+ * `error` field, then `useDocMatrix` keys on `event.type === "error"`
+ * (useDocMatrix.ts:288) to render an explanation rather than a claim.
+ *
+ * So the whole degradation rests on one untyped field name surviving two hops.
+ * Move the message to any other key — the natural thing to do when writing what
+ * looks like an already-typed error event — and the adapter's `if (raw.error)`
+ * misses, no branch of `useDocMatrix` fires, and every cell sits on "Analyzing…"
+ * forever: the exact hang this fixture exists to prevent. Verified by mutation:
+ * `{type:"error", doc_id, message}` fails both tests below.
+ *
+ * Driving the real exported caller is what keeps that caught. Same lesson as the
+ * findings/overrides envelope in Task 8a — a fixture tested against itself
+ * passes while the product renders nothing.
+ */
+describe("doc-matrix degradation through the real docMatrixStream caller", () => {
+  afterEach(() => {
+    disableDemoMode();
+  });
+
+  it("arrives at the consumer as a typed error event, one per document", async () => {
+    enableDemoMode();
+    const events: DocMatrixEvent[] = [];
+
+    await new Promise<void>((resolve, reject) => {
+      docMatrixStream(
+        DEMO_FUND_IV_ID,
+        ["doc_a", "doc_b"],
+        "Revenue",
+        (event) => events.push(event),
+        resolve,
+        reject
+      );
+    });
+
+    expect(events).toEqual([
+      { type: "error", doc_id: "doc_a", query: "", error: DOC_MATRIX_UNAVAILABLE },
+      { type: "error", doc_id: "doc_b", query: "", error: DOC_MATRIX_UNAVAILABLE },
+    ]);
+  });
+
+  it("lands in the cell as status:error, not as an answer", async () => {
+    enableDemoMode();
+    const events: DocMatrixEvent[] = [];
+
+    await new Promise<void>((resolve, reject) => {
+      docMatrixStream(DEMO_FUND_IV_ID, ["doc_a"], "Revenue", (e) => events.push(e), resolve, reject);
+    });
+
+    // Mirrors useDocMatrix.ts:288-293 — the only branch that renders an
+    // explanation rather than a claim. `status` is what DocMatrixCell styles
+    // on, so an event that misses this branch leaves the cell loading forever.
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("error");
+    if (events[0].type !== "error") throw new Error("unreachable");
+    expect(events[0].error).toBe(DOC_MATRIX_UNAVAILABLE);
   });
 });

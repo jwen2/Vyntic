@@ -35,10 +35,30 @@ describe("buildDocumentViewUrl", () => {
     );
   });
 
-  it("keeps the sheet param for Excel in demo mode", () => {
+  // The real backend converts a workbook to HTML server-side and never hands
+  // the browser an .xlsx (routes_deals.py::_excel_to_html_response). Serving
+  // the raw file in the demo is what produced a download prompt where the
+  // product renders a table — and the recorded run cites this exact file.
+  it("serves Excel as the pre-rendered sheet HTML in demo mode", () => {
+    enableDemoMode();
+    expect(buildDocumentViewUrl("brightwater_iv", "brightwater_track_record.xlsx", null, true, 0)).toBe(
+      "/demo-assets/docs/brightwater_track_record.html"
+    );
+  });
+
+  // The pre-render carries every sheet, so there is nothing for ?sheet to
+  // select — and a static file would ignore it anyway.
+  it("drops the sheet param for Excel in demo mode", () => {
     enableDemoMode();
     expect(buildDocumentViewUrl("brightwater_iv", "brightwater_track_record.xlsx", null, true, 2)).toBe(
-      "/demo-assets/docs/brightwater_track_record.xlsx?sheet=1"
+      "/demo-assets/docs/brightwater_track_record.html"
+    );
+  });
+
+  it("leaves non-Excel filenames alone in demo mode", () => {
+    enableDemoMode();
+    expect(buildDocumentViewUrl("brightwater_iv", "brightwater_iv_lpa.pdf", null, false, 5)).toBe(
+      "/demo-assets/docs/brightwater_iv_lpa.pdf"
     );
   });
 

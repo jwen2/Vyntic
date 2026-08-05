@@ -2,6 +2,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { DocumentMetadata, UploadProgress } from "@/lib/api";
 import { DOC_CATEGORIES, DOC_CATEGORY_LABELS, deleteDocument, updateDocumentMetadata } from "@/lib/api";
+import { isDemoMode } from "@/demo/mode";
 import { ACCENT, tint } from "./types";
 import Button from "@/components/ui/Button";
 import Input, { Select } from "@/components/ui/Input";
@@ -89,6 +90,19 @@ export default function DocumentsModal({
   uploadError,
 }: Props) {
   const isDark = theme === "dark";
+  /**
+   * Deleting and uploading are hidden in the demo rather than faked. The corpus
+   * is served from fixtures, so a "successful" delete would undo itself on the
+   * next reload — and the deleted document is one the recorded run still cites.
+   * An upload is worse: the file cannot be parsed or indexed, so it would land
+   * with no pages, no text and no citations.
+   *
+   * Read here rather than taken as a prop: `deleteDocument` is called from
+   * inside this component, so the guard belongs next to the call it guards. The
+   * workspace withholds `onUploadDocuments` in the demo as well; this is the
+   * second lock on the same door.
+   */
+  const demo = isDemoMode();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -174,7 +188,7 @@ export default function DocumentsModal({
     [onUploadDocuments],
   );
 
-  const uploadButton = onUploadDocuments ? (
+  const uploadButton = onUploadDocuments && !demo ? (
     <>
       <Button
         variant="primary"
@@ -292,7 +306,7 @@ export default function DocumentsModal({
           {documents.length === 0 ? (
             <div className="text-t3" style={{ padding: 28, fontSize: 12, textAlign: "center" }}>
               <div>No documents in this deal yet.</div>
-              {onUploadDocuments && (
+              {onUploadDocuments && !demo && (
                 <Button
                   variant="secondary"
                   size="sm"
@@ -407,7 +421,7 @@ export default function DocumentsModal({
                       fontWeight: 600,
                     }}
                   />
-                  {confirming ? (
+                  {demo ? null : confirming ? (
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <Button variant="secondary" size="xs" disabled={deleting} onClick={() => setConfirmId(null)}>
                         Cancel
@@ -444,13 +458,15 @@ export default function DocumentsModal({
           )}
         </div>
 
-        <div className="border-t border-t-edge text-t3" style={{
-          padding: "10px 16px",
-          fontSize: 11,
-        }}>
-          Deletion removes the document and all of its indexed chunks. Existing run
-          history that references the document stays intact but won&apos;t re-execute.
-        </div>
+        {!demo && (
+          <div className="border-t border-t-edge text-t3" style={{
+            padding: "10px 16px",
+            fontSize: 11,
+          }}>
+            Deletion removes the document and all of its indexed chunks. Existing run
+            history that references the document stays intact but won&apos;t re-execute.
+          </div>
+        )}
     </Modal>
   );
 }

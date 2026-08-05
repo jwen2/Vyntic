@@ -496,11 +496,30 @@ interface UploadOptions {
   onUploadProgress?: (percent: number) => void;
 }
 
+/**
+ * Uploads are the one request in the app that never passes through
+ * `fetchWrapper` — `XMLHttpRequest` is used for its upload-progress events, so
+ * the demo transport cannot intercept it the way it intercepts every other
+ * call. Without this guard a demo visitor's file leaves the browser for a real
+ * backend (verified: the survey caught it hitting the dev proxy).
+ *
+ * The upload controls are hidden in demo mode too; this is the backstop, so a
+ * control added later cannot reopen the escape. It rejects rather than
+ * resolving: a faked success would leave a document that never appears — no
+ * ingestion, no extraction — which reads as a bug rather than a boundary.
+ */
+export const DEMO_UPLOAD_REFUSAL =
+  "Uploading documents isn't part of this demo — it serves a fixed, " +
+  "pre-ingested corpus. In the live product this file would be parsed, " +
+  "indexed and citable within minutes.";
+
 function xhrUpload<T>(
   url: string,
   form: FormData,
   options: UploadOptions = {}
 ): Promise<T> {
+  if (isDemoMode()) return Promise.reject(new Error(DEMO_UPLOAD_REFUSAL));
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);

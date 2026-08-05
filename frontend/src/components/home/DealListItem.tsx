@@ -26,7 +26,8 @@ interface Props {
   selected?: boolean;
   onSelect?: () => void;
   onInvestigate?: () => void;
-  onDelete: () => void;
+  /** Absent hides the delete affordance entirely (demo mode). */
+  onDelete?: () => void;
   onUpdateDeal: (
     dealId: string,
     data: { stage?: string; tags?: string[] }
@@ -191,7 +192,7 @@ export default function DealListItem({
               Analyze
             </Button>
           )}
-          {!readOnly && hovered && (
+          {!readOnly && onDelete && hovered && (
             <button
               type="button"
               onClick={onDelete}

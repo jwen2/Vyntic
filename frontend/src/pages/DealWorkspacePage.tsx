@@ -9,6 +9,7 @@ import {
   listConversations,
   listDocuments,
 } from "@/lib/api";
+import { isDemoMode } from "@/demo/mode";
 import DocumentViewer from "@/components/DocumentViewer";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useTheme } from "@/components/ThemeProvider";
@@ -401,7 +402,12 @@ export default function DealWorkspacePage() {
           theme={theme}
           onClose={() => setDocumentsModalOpen(false)}
           onUploadDocuments={
-            user?.is_admin ? (files) => uploadDocs(dealId, files) : undefined
+            // Hidden in the demo: the corpus is fixed and pre-ingested, so an
+            // upload could only ever appear to succeed and then produce a
+            // document with no pages, no text and no citations.
+            user?.is_admin && !isDemoMode()
+              ? (files) => uploadDocs(dealId, files)
+              : undefined
           }
           uploading={documentsUploading}
           uploadProgress={uploadProgressByDeal[dealId]}

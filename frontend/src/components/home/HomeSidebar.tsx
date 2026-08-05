@@ -47,7 +47,8 @@ interface Props {
   onSearch: (q: string) => void;
   onSelectDeal?: (deal: Deal) => void;
   onInvestigateDeal?: (deal: Deal) => void;
-  onDeleteDeal: (deal: Deal) => void;
+  /** Omitted where deletion is not offered at all — the demo, for one. */
+  onDeleteDeal?: (deal: Deal) => void;
   onUpdateDeal: (
     dealId: string,
     data: { stage?: string; tags?: string[] }
@@ -245,7 +246,7 @@ export default function HomeSidebar({
                   onInvestigate={
                     onInvestigateDeal ? () => onInvestigateDeal(deal) : undefined
                   }
-                  onDelete={() => onDeleteDeal(deal)}
+                  onDelete={onDeleteDeal ? () => onDeleteDeal(deal) : undefined}
                   onUpdateDeal={onUpdateDeal}
                   uploading={uploading && Boolean(uploadProgressByDeal[deal.deal_id])}
                   uploadProgress={uploadProgressByDeal[deal.deal_id]}

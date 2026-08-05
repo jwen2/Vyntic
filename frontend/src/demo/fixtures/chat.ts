@@ -447,6 +447,32 @@ const PARTS_PER_STEP = 4;
 /** The one stream this fixture answers: the fund chat's single-question POST. */
 const CHAT_STREAM_URL = /^\/api\/deals\/([^/]+)\/query\/stream$/;
 
+/** The doc matrix — reached from `/app` by a column chip or the free-text Ask. */
+const DOC_MATRIX_STREAM_URL = /^\/api\/deals\/[^/]+\/doc-matrix\/stream$/;
+
+/**
+ * Shown per document when something reaches the doc-matrix stream. The demo's
+ * primary answer is that `DocMatrixPanel` doesn't offer the controls at all
+ * (see its demo branch); this is the backstop, so a control added later
+ * degrades to a sentence in the cell instead of a spinner that never resolves.
+ *
+ * An `error` event is the only honest event shape here. A `done` would put a
+ * confident, uncited answer in an answer cell — the one thing this product
+ * exists to eliminate — and a `token` stream would be the same lie, typed out.
+ */
+export const DOC_MATRIX_UNAVAILABLE =
+  "The document matrix runs a fresh model query per document. This demo " +
+  "serves recorded output only, so it isn't wired here — open a fund and ask " +
+  "in Agent, or watch the recorded DDQ scan under Workflows.";
+
+/** Doc ids from the doc-matrix request body, so each cell can resolve. */
+function docIdsFromBody(body: unknown): string[] {
+  if (typeof body !== "object" || body === null) return [];
+  const value = (body as Record<string, unknown>).doc_ids;
+  if (!Array.isArray(value)) return [];
+  return value.filter((id): id is string => typeof id === "string");
+}
+
 function questionFromBody(body: unknown): string {
   if (typeof body !== "object" || body === null) return "";
   const record: Record<string, unknown> = { ...body };
@@ -460,10 +486,10 @@ function questionFromBody(body: unknown): string {
  * events while it types, then one `done` carrying the full answer and its
  * citations (lib/api.ts:736-764).
  *
- * Only the fund chat stream is fixtured. Other POST streams (doc matrix, matrix
- * compare) get an error rather than chat-shaped events they cannot read — an
- * error is what they already got with no backend, and inventing a payload for
- * them would put empty cells on screen with nothing to explain them.
+ * Only the fund chat stream carries answers. The doc matrix degrades to one
+ * honest `error` event per document, which its cells render in place; any other
+ * POST stream (matrix compare) gets `onError`, because chat-shaped events it
+ * cannot read would put empty cells on screen with nothing to explain them.
  */
 export function demoSseStream(
   url: string,
@@ -471,9 +497,19 @@ export function demoSseStream(
   handlers: SseHandlers<unknown>
 ): AbortController {
   const controller = new AbortController();
-  const match = url.split("?")[0].match(CHAT_STREAM_URL);
+  const path = url.split("?")[0];
+  const match = path.match(CHAT_STREAM_URL);
 
   if (!match) {
+    if (DOC_MATRIX_STREAM_URL.test(path)) {
+      // Synchronous: the caller has already painted "Analyzing…" into every
+      // cell, and there is nothing to wait for.
+      for (const docId of docIdsFromBody(body)) {
+        handlers.onEvent({ doc_id: docId, error: DOC_MATRIX_UNAVAILABLE });
+      }
+      handlers.onFinish?.();
+      return controller;
+    }
     handlers.onError?.(
       new Error("This surface is not part of the demo — no fixture streams this endpoint.")
     );

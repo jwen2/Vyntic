@@ -20,6 +20,14 @@ interface Props {
   documents: DocumentMetadata[];
   onAddQuery: (text: string) => void;
   onAddTemplate: (label: string, prompt?: string, format?: ColumnFormat, tags?: string[]) => void;
+  /**
+   * Demo mode: the ask box and preset chips are replaced by a note saying so.
+   * Every one of them opens a live model query per document, which the demo has
+   * no recording for — so they are removed rather than left to dead-end. The
+   * note points at the two surfaces that do carry recorded work, which is what
+   * keeps this an explanation instead of a wall.
+   */
+  demo?: boolean;
 }
 
 /**
@@ -28,7 +36,7 @@ interface Props {
  * document count. Typing a question — or clicking a preset — creates the first
  * column and runs it across every document.
  */
-export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate }: Props) {
+export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate, demo = false }: Props) {
   const [value, setValue] = useState("");
   const presets = PE_COLUMN_PRESETS.slice(0, 5);
   const scopeDocs = documents.slice(0, 2);
@@ -59,14 +67,38 @@ export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate }: 
         </div>
 
         <h2 className="text-t1" style={{ font: "var(--text-h2)" }}>
-          Ask anything across {documents.length} document{documents.length !== 1 ? "s" : ""}
+          {demo
+            ? `${documents.length} document${documents.length !== 1 ? "s" : ""} loaded and indexed`
+            : `Ask anything across ${documents.length} document${documents.length !== 1 ? "s" : ""}`}
         </h2>
         <p className="mx-auto mt-2 max-w-md text-t3" style={{ font: "var(--text-sm)" }}>
-          Every answer cites the exact page and snippet — never the model&rsquo;s memory. Your first
-          question becomes a column you can compare across all documents.
+          {demo
+            ? "Every answer in this demo cites the exact page and snippet — never the model’s memory."
+            : "Every answer cites the exact page and snippet — never the model’s memory. Your first question becomes a column you can compare across all documents."}
         </p>
 
-        <Input
+        {demo ? (
+          <div
+            className="mx-auto mt-6 max-w-md rounded-lg border border-edge bg-surface-alt px-4 py-3.5 text-left text-t2"
+            style={{ font: "var(--text-sm)" }}
+          >
+            <p>
+              This grid runs a fresh model query per document. The demo serves recorded
+              output only, so the ask box is switched off here rather than left to return
+              nothing.
+            </p>
+            <p className="mt-2 text-t3">
+              The recorded work lives in the{" "}
+              <strong className="text-t2">Brightwater Capital Partners IV</strong> workspace, one
+              click away under <strong className="text-t2">Analyze</strong>:{" "}
+              <strong className="text-t2">Agent</strong> answers a fixed set of questions with real
+              citations, and <strong className="text-t2">Workflows</strong> replays a DDQ
+              gap-and-consistency scan across its documents.
+            </p>
+          </div>
+        ) : (
+          <>
+            <Input
             autoFocus
             type="text"
             value={value}
@@ -94,18 +126,20 @@ export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate }: 
             }
           />
 
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {presets.map((preset) => (
-            <button
-              key={preset.name}
-              type="button"
-              onClick={() => onAddTemplate(preset.name, preset.prompt, preset.format, preset.tags)}
-              className="rounded-md border border-edge bg-surface px-3.5 py-2 text-sm text-t2 transition-colors hover:border-[var(--accent-tint-border)] hover:bg-[var(--accent-tint)] hover:text-t1"
-            >
-              {preset.name}
-            </button>
-          ))}
-        </div>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {presets.map((preset) => (
+                <button
+                  key={preset.name}
+                  type="button"
+                  onClick={() => onAddTemplate(preset.name, preset.prompt, preset.format, preset.tags)}
+                  className="rounded-md border border-edge bg-surface px-3.5 py-2 text-sm text-t2 transition-colors hover:border-[var(--accent-tint-border)] hover:bg-[var(--accent-tint)] hover:text-t1"
+                >
+                  {preset.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-2 text-xs text-t3">
           <span className="font-mono-plex text-[10px] uppercase tracking-[0.12em]">Searching</span>
