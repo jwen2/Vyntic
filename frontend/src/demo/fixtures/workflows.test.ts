@@ -1,5 +1,13 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { demoFetch, resetDemoRoutes } from "@/demo/transport";
+import { ApiError } from "@/lib/api";
+import {
+  cloneWorkflow,
+  downloadRunExport,
+  retryCell,
+  startWorkflowRun,
+} from "@/lib/workflows";
+import { disableDemoMode, enableDemoMode } from "@/demo/mode";
 import {
   registerWorkflowFixtures,
   DEMO_DDQ_RUN,
@@ -268,5 +276,55 @@ describe("workflow fixtures", () => {
       { method: "GET" }
     )!).json();
     expect(iiiRuns).toEqual([]);
+  });
+});
+
+/**
+ * Driven through `lib/workflows.ts` rather than `demoFetch`, so the assertion
+ * is what a visitor's click produces: `requestRaw` turns the 403 into an
+ * `ApiError` carrying the detail, which is the string every panel renders.
+ */
+describe("writes around the recorded run", () => {
+  beforeEach(() => {
+    resetDemoRoutes();
+    registerWorkflowFixtures();
+    enableDemoMode();
+  });
+
+  afterEach(() => {
+    disableDemoMode();
+    resetDemoRoutes();
+  });
+
+  const GENERIC = "Not available in demo";
+
+  it("refuses a cell rerun, saying the answers are fixed and still cited", async () => {
+    const err = await retryCell(DEMO_DDQ_RUN.id, "cell_a").catch((e) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(403);
+    expect(err.message).not.toBe(GENERIC);
+    expect(err.message).toContain("cited");
+  });
+
+  it("refuses the Excel export, saying there is no backend to build it", async () => {
+    const err = await downloadRunExport(DEMO_DDQ_RUN.id, "xlsx").catch((e) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.message).toContain("server-side");
+  });
+
+  it("refuses cloning the built-in workflow", async () => {
+    const err = await cloneWorkflow(DEMO_FUND_IV_ID, DEMO_DDQ_WORKFLOW.id).catch((e) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.message).not.toBe(GENERIC);
+  });
+
+  // Starting a run must NOT be refused — it arms the replay that is the demo's
+  // centrepiece. This is the one POST on this surface that still answers.
+  it("still starts a run, because that is what replays the recording", async () => {
+    const started = await startWorkflowRun(DEMO_FUND_IV_ID, DEMO_DDQ_WORKFLOW.id, []);
+    expect(started.id).toBe(DEMO_DDQ_RUN.id);
   });
 });

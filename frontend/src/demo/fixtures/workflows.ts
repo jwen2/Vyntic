@@ -1,5 +1,5 @@
 import type { Workflow, WorkflowColumn, WorkflowRun } from "@/lib/workflows";
-import { registerDemoRoutes } from "@/demo/transport";
+import { DemoRefusal, registerDemoRoutes } from "@/demo/transport";
 import { DEMO_FUND_IV_ID, DEMO_FUND_III_ID } from "./entities";
 import recorded from "./recorded-ddq-scan-run.json";
 
@@ -149,6 +149,30 @@ export function endDemoRunReplay(): void {
   replayPhase = "idle";
 }
 
+/**
+ * The run is a recording, so anything that would re-derive it — a fresh model
+ * pass, a server-built spreadsheet, a new workflow — is refused with a sentence
+ * rather than left to the generic 404. Wording says what the live product does,
+ * because a prospect reading it is deciding whether the product does it at all.
+ */
+const RERUN_REFUSAL =
+  "Re-running a cell issues a fresh model query against the source documents. " +
+  "This demo replays one recorded run, so the answers you see are fixed — " +
+  "every one of them still opens its cited page.";
+
+const EXPORT_REFUSAL =
+  "Exports are generated server-side from the live run. This demo runs " +
+  "entirely in your browser with no backend, so there's nothing to build the " +
+  "file from.";
+
+const AUTHORING_REFUSAL =
+  "Creating and editing workflows needs somewhere to save them, and this demo " +
+  "has no backend. The built-in DDQ gap-and-consistency scan is here to run.";
+
+function refuse(message: string): never {
+  throw new DemoRefusal(message);
+}
+
 export function registerWorkflowFixtures(): void {
   registerDemoRoutes([
     {
@@ -156,6 +180,7 @@ export function registerWorkflowFixtures(): void {
       pattern: /^\/api\/deals\/([^/]+)\/workflows$/,
       handler: () => [DEMO_DDQ_WORKFLOW],
     },
+    // (write refusals are registered at the end of this list)
     {
       method: "GET",
       pattern: /^\/api\/deals\/([^/]+)\/workflows\/([^/]+)$/,
@@ -200,6 +225,43 @@ export function registerWorkflowFixtures(): void {
       // deal-level "recent runs" surface cannot 404 into a blank panel.
       pattern: /^\/api\/deals\/([^/]+)\/runs$/,
       handler: (m) => (m[1] === DEMO_FUND_III_ID ? [] : [DEMO_DDQ_RUN]),
+    },
+
+    // ── Writes around the run, refused in the product's own words ──
+    // Every one of these sits on the centrepiece surface, where the generic
+    // "Not available in demo" band is most damaging: a prospect watching the
+    // recorded scan is exactly the person who then clicks Excel or Rerun.
+    {
+      method: "GET",
+      pattern: /^\/api\/runs\/[^/]+\/export\.(xlsx|docx)$/,
+      handler: () => refuse(EXPORT_REFUSAL),
+    },
+    {
+      method: "POST",
+      pattern: /^\/api\/runs\/[^/]+\/cells\/[^/]+\/retry$/,
+      handler: () => refuse(RERUN_REFUSAL),
+    },
+    {
+      method: "POST",
+      pattern: /^\/api\/runs\/[^/]+\/columns\/[^/]+\/retry$/,
+      handler: () => refuse(RERUN_REFUSAL),
+    },
+    {
+      method: "POST",
+      pattern: /^\/api\/runs\/[^/]+\/cancel$/,
+      // Refusing leaves the replay running, which is the honest outcome: there
+      // is no server-side run to stop.
+      handler: () => refuse(RERUN_REFUSAL),
+    },
+    {
+      method: "POST",
+      pattern: /^\/api\/deals\/[^/]+\/workflows$/,
+      handler: () => refuse(AUTHORING_REFUSAL),
+    },
+    {
+      method: "POST",
+      pattern: /^\/api\/deals\/[^/]+\/workflows\/[^/]+\/clone$/,
+      handler: () => refuse(AUTHORING_REFUSAL),
     },
   ]);
 }

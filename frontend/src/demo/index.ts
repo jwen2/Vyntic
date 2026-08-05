@@ -11,6 +11,7 @@ import { registerWorkflowFixtures } from "./fixtures/workflows";
 // prose stays behind the dynamic import in `lib/sse.ts`, and a static import
 // from here would pull it back into the entry chunk.
 import { registerMutationFixtures } from "./fixtures/mutations";
+import { registerMonitoringFixtures } from "./fixtures/monitoring";
 
 let registered = false;
 
@@ -21,6 +22,7 @@ export function registerAllDemoFixtures(): void {
   registerEntityFixtures();
   registerWorkflowFixtures();
   registerMutationFixtures();
+  registerMonitoringFixtures();
 }
 
 /** Test-only: clear the registration guard so a test can re-register fixtures. */

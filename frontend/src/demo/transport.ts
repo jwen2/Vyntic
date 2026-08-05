@@ -21,6 +21,21 @@ export interface DemoRoute {
   handler: (match: RegExpMatchArray, body: unknown, url: string) => unknown;
 }
 
+/**
+ * Thrown by a handler for a path the demo deliberately does not serve, to say
+ * so in the product's own words.
+ *
+ * Unmatched paths already fail (`lib/api.ts:76`, 404 "Not available in demo"),
+ * so this is not about preventing a write — it is about what the visitor reads
+ * when one is refused. That generic string surfaces in the UI as a red
+ * `ApiError: Not available in demo` band, which looks like a fault rather than
+ * a boundary. A registered refusal carries a sentence explaining why the demo
+ * stops here, and travels the app's real error path — `errorDetailFromText`
+ * unwraps `detail` into the `ApiError` message every panel already renders, so
+ * no component needs a demo branch.
+ */
+export class DemoRefusal extends Error {}
+
 let routes: DemoRoute[] = [];
 
 export function registerDemoRoutes(next: DemoRoute[]): void {
@@ -62,7 +77,21 @@ export function demoFetch(url: string, options: RequestInit = {}): Promise<Respo
         body = options.body;
       }
     }
-    return Promise.resolve(jsonResponse(route.handler(match, body, url)));
+    try {
+      return Promise.resolve(jsonResponse(route.handler(match, body, url)));
+    } catch (err) {
+      if (err instanceof DemoRefusal) {
+        // 403, not the unmatched path's 404: this route exists and is answered
+        // deliberately. Only the `detail` reaches the visitor.
+        return Promise.resolve(
+          new Response(JSON.stringify({ detail: err.message }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      throw err;
+    }
   }
 
   return null;

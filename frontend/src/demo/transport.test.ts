@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { demoFetch, registerDemoRoutes, resetDemoRoutes } from "./transport";
+import { DemoRefusal, demoFetch, registerDemoRoutes, resetDemoRoutes } from "./transport";
 
 describe("demoFetch", () => {
   beforeEach(() => {
@@ -59,5 +59,42 @@ describe("demoFetch", () => {
     const res = await demoFetch("/api/things/x", { method: "DELETE" })!;
     expect(res.status).toBe(204);
     expect(await res.text()).toBe("");
+  });
+
+  describe("DemoRefusal", () => {
+    it("becomes a 403 whose detail is the message the visitor reads", async () => {
+      registerDemoRoutes([
+        {
+          method: "POST",
+          pattern: /^\/api\/things$/,
+          handler: () => {
+            throw new DemoRefusal("Not wired here, and here is why.");
+          },
+        },
+      ]);
+
+      const res = await demoFetch("/api/things", { method: "POST" })!;
+      expect(res.status).toBe(403);
+      // 403 rather than the unmatched path's 404: this route exists and is
+      // answered deliberately.
+      expect(await res.json()).toEqual({ detail: "Not wired here, and here is why." });
+    });
+
+    // The catch is deliberately narrow. A genuine bug in a handler must keep
+    // surfacing as a bug — swallowing it into a tidy 403 would disguise a
+    // broken fixture as an intentional boundary.
+    it("lets any other handler error propagate", () => {
+      registerDemoRoutes([
+        {
+          method: "GET",
+          pattern: /^\/api\/boom$/,
+          handler: () => {
+            throw new TypeError("cannot read properties of undefined");
+          },
+        },
+      ]);
+
+      expect(() => demoFetch("/api/boom", { method: "GET" })).toThrow(TypeError);
+    });
   });
 });
