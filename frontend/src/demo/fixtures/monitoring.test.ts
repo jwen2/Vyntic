@@ -85,17 +85,113 @@ describe("portfolio board", () => {
   });
 });
 
-/**
- * Empty, not absent. These reads used to reject, which rendered a red
- * `ApiError` band on arrival at the Monitoring tab — a state the product does
- * not have. An empty queue is one it does: nothing has been extracted yet.
- */
-describe("surfaces awaiting a recorded extraction", () => {
-  it("resolves the notice queue and obligation list rather than erroring", async () => {
-    await expect(listCallNotices("brightwater_iii")).resolves.toEqual([]);
-    await expect(listObligations("brightwater_iii")).resolves.toEqual([]);
-    await expect(getPortfolioCallNotices()).resolves.toEqual([]);
-    await expect(getPortfolioCompliance()).resolves.toEqual([]);
+describe("recorded notices", () => {
+  it("carries the capital call and the distribution, with their figures", async () => {
+    const notices = await listCallNotices("brightwater_iii");
+
+    expect(notices).toHaveLength(2);
+    const call = notices.find((n) => n.kind === "call");
+    // brightwater_iii_capital_call_07.pdf: $1,875,000, $4,375,000 unfunded after.
+    expect(call?.amount).toBe(1_875_000);
+    expect(call?.outstanding_before).toBe(4_375_000);
+    expect(notices.find((n) => n.kind === "distribution")?.amount).toBe(1_400_000);
+  });
+
+  /**
+   * The recording returned "2026-07-27 [Source 1]" — the citation marker leaked
+   * into a date field. Prose keeps its markers; a date must parse. Asserted on
+   * every notice so a re-recording cannot quietly reintroduce it.
+   */
+  it("exposes due dates as dates, not as prose carrying citation markers", async () => {
+    for (const notice of await listCallNotices("brightwater_iii")) {
+      expect(notice.due_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Number.isNaN(Date.parse(notice.due_date!))) .toBe(false);
+    }
+  });
+
+  it("keeps the evidence: every notice still cites its source document", async () => {
+    for (const notice of await listCallNotices("brightwater_iii")) {
+      const cites = notice.citations.filter((c) => c !== null);
+      expect(cites.length).toBeGreaterThan(0);
+      expect(cites[0]!.source_file).toMatch(/^brightwater_iii_/);
+    }
+  });
+
+  it("leaves Fund IV's queue empty — it holds no commitment to call against", async () => {
+    await expect(listCallNotices("brightwater_iv")).resolves.toEqual([]);
+    await expect(listObligations("brightwater_iv")).resolves.toEqual([]);
+  });
+});
+
+describe("recorded side-letter obligations", () => {
+  it("carries all seven obligations, each checked against Q2 2026", async () => {
+    const obligations = await listObligations("brightwater_iii");
+
+    expect(obligations).toHaveLength(7);
+    for (const o of obligations) {
+      expect(o.latest_check?.period).toBe("Q2 2026");
+      expect(o.text.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("finds the fee reduction compliant — the one verdict the model would commit to", async () => {
+    const obligations = await listObligations("brightwater_iii");
+    const fee = obligations.find((o) => o.category === "fee");
+
+    expect(fee?.latest_check?.verdict).toBe("compliant");
+    expect(fee?.latest_check?.rationale).toContain("1.90%");
+  });
+
+  /**
+   * The corpus plants a 45-day reporting breach, and the model declined to call
+   * it one: the report is dated August 29, but nothing says when it was
+   * delivered, so the clock cannot be verified. This test pins that verdict as
+   * RECORDED rather than as desired. If a re-recording produces `breach` on its
+   * own merits, update it — but never edit the JSON to get there.
+   */
+  it("reports the quarterly-reporting obligation as the model judged it, not as the corpus intended", async () => {
+    const obligations = await listObligations("brightwater_iii");
+    const reporting = obligations.find((o) => o.text.includes("45 days"));
+
+    expect(reporting?.latest_check?.verdict).toBe("unclear");
+    expect(reporting?.latest_check?.rationale).toContain("August 29, 2026");
+  });
+
+  it("never ships a verdict with no rationale behind it", async () => {
+    for (const o of await listObligations("brightwater_iii")) {
+      expect(o.latest_check?.rationale.length).toBeGreaterThan(20);
+    }
+  });
+});
+
+describe("portfolio boards built from the recording", () => {
+  it("lists both notices against their fund and manager", async () => {
+    const notices = await getPortfolioCallNotices();
+
+    expect(notices).toHaveLength(2);
+    expect(notices.every((n) => n.fund_name === "Brightwater Capital Partners III")).toBe(true);
+    expect(notices.every((n) => n.manager_name === "Brightwater Capital Partners, LLC")).toBe(true);
+  });
+
+  it("flags the six obligations whose verdict is not compliant", async () => {
+    const flagged = await getPortfolioCompliance();
+
+    expect(flagged).toHaveLength(6);
+    expect(flagged.some((o) => o.latest_check?.verdict === "compliant")).toBe(false);
+  });
+
+  /**
+   * The recording came out of a dev database holding funds that are not part of
+   * the demo (hillpath_fund_iv among them). The boards are annotated from the
+   * demo's own deal list precisely so none of them can appear here.
+   */
+  it("cannot surface a fund from outside the demo", async () => {
+    const dealIds = [
+      ...(await getPortfolioCallNotices()).map((n) => n.deal_id),
+      ...(await getPortfolioCompliance()).map((o) => o.deal_id),
+      ...(await getPortfolioPositions()).map((p) => p.deal_id),
+    ];
+    expect([...new Set(dealIds)].sort()).toEqual(["brightwater_iii", "brightwater_iv"]);
   });
 });
 

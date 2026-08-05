@@ -8,6 +8,7 @@ import type {
 } from "@/lib/api";
 import { DemoRefusal, registerDemoRoutes } from "@/demo/transport";
 import { DEMO_DEALS, DEMO_FUND_III_ID } from "./entities";
+import recorded from "./recorded-monitoring.json";
 
 /**
  * Monitoring and portfolio reads.
@@ -22,13 +23,8 @@ import { DEMO_DEALS, DEMO_FUND_III_ID } from "./entities";
  *  - Call notices and side-letter obligations carry `citations` and are
  *    extraction output. Hand-writing them would be inventing findings and
  *    attributing them to the product — the exact failure the Task 7 review
- *    caught. They stay empty here until a real run is recorded, the same way
- *    the DDQ scan centrepiece was produced.
- *
- * An empty notice queue is not a lie: it is what the product shows an LP who
- * has not run an extraction yet, and the Extract button is right there saying
- * so when clicked. A red `ApiError` band on arrival, which is what these
- * surfaces rendered before, is not a state the product has at all.
+ *    caught. They are therefore *recorded* from a real run, the same way the
+ *    DDQ scan centrepiece was.
  */
 
 /**
@@ -112,11 +108,87 @@ export function demoPortfolioPositions(): PortfolioPosition[] {
   });
 }
 
-/** Awaiting a recorded extraction run — see the module note. */
-const NO_NOTICES: CallNotice[] = [];
-const NO_OBLIGATIONS: Obligation[] = [];
-const NO_PORTFOLIO_NOTICES: PortfolioCallNotice[] = [];
-const NO_PORTFOLIO_OBLIGATIONS: PortfolioObligation[] = [];
+/**
+ * Recorded 2026-08-05 against the real backend and a real model: extract on
+ * `brightwater_iii_capital_call_07.pdf` and `..._distribution_03.pdf`, extract
+ * on `glenmoor_fund_iii_side_letter.pdf`, persist, then verify against the
+ * Q2 2026 reporting package. Frozen verbatim — recording rather than authoring
+ * is what makes its 43 citations correct by construction (each was checked to
+ * appear on the page it names).
+ *
+ * READ THE VERDICTS BEFORE CHANGING ANYTHING HERE. The corpus was built with a
+ * 45-day quarterly-reporting breach as its planted finding, and the model did
+ * NOT call it a breach: it returned `unclear`, reasoning that the report is
+ * *dated* August 29 but the documents never say when it was *delivered*, so the
+ * 45-day clock cannot be verified. That is a defensible reading of an
+ * obligation about provision, and it is what the product actually says.
+ * Upgrading it to `breach` would be hand-writing a finding the model declined
+ * to make — the single thing this track has ruled out most firmly.
+ */
+const recording = recorded as unknown as {
+  notices: CallNotice[];
+  obligations: Obligation[];
+};
+
+/**
+ * The one edit to the recording, applied here rather than in the JSON so the
+ * file stays exactly as the model produced it.
+ *
+ * `due_date` came back as "2026-07-27 [Source 1]" — the citation marker leaked
+ * out of the prose fields into a date field. Prose keeps its markers, because
+ * that is how this product cites; a date must be a date. The evidence is not
+ * lost: the same citation is in the notice's `citations` array, which is what
+ * the UI links. (The leak is a real extractor defect, logged for the backend.)
+ */
+const SOURCE_MARKER = /\s*(\[Source \d+\])+\s*$/;
+
+function withCleanDueDate(notice: CallNotice): CallNotice {
+  if (!notice.due_date) return notice;
+  const cleaned = notice.due_date.replace(SOURCE_MARKER, "");
+  if (cleaned === notice.due_date) return notice;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
+    // Loud rather than silent: a re-recording that changes the shape of this
+    // field must not quietly ship a malformed date into the demo.
+    throw new Error(`demo: unexpected due_date in recording: ${notice.due_date}`);
+  }
+  return { ...notice, due_date: cleaned };
+}
+
+const DEMO_NOTICES: CallNotice[] = recording.notices.map(withCleanDueDate);
+const DEMO_OBLIGATIONS: Obligation[] = recording.obligations;
+
+/** Annotates with fund/manager labels the way the portfolio routes do
+ *  (`routes_monitoring.py:222,265`) — from the demo's own deal list, so no
+ *  entity outside the demo can ever appear on the board. */
+function fundLabels(dealId: string) {
+  const deal = DEMO_DEALS.find((d) => d.deal_id === dealId);
+  return {
+    fund_name: deal?.name ?? dealId,
+    manager_id: deal?.manager_id ?? null,
+    manager_name: deal?.manager_name ?? null,
+  };
+}
+
+export function demoPortfolioNotices(): PortfolioCallNotice[] {
+  return DEMO_NOTICES.map((notice) => ({ ...notice, ...fundLabels(notice.deal_id) }));
+}
+
+/** The compliance card shows obligations whose latest check is a breach or is
+ *  unclear (`side_letter_store.list_flagged`) — six of the seven here. */
+export function demoPortfolioCompliance(): PortfolioObligation[] {
+  return DEMO_OBLIGATIONS.filter(
+    (o) => o.latest_check && o.latest_check.verdict !== "compliant"
+  ).map((o) => ({ ...o, ...fundLabels(o.deal_id) }));
+}
+
+/** Fund III carries the recorded monitoring work; Fund IV is pre-commitment. */
+function noticesFor(dealId: string): CallNotice[] {
+  return dealId === DEMO_FUND_III_ID ? DEMO_NOTICES : [];
+}
+
+function obligationsFor(dealId: string): Obligation[] {
+  return dealId === DEMO_FUND_III_ID ? DEMO_OBLIGATIONS : [];
+}
 
 /**
  * Every extraction here is a live model call per document. The demo serves
@@ -151,13 +223,13 @@ export function registerMonitoringFixtures(): void {
     },
     {
       method: "GET",
-      pattern: /^\/api\/deals\/[^/]+\/call-notices$/,
-      handler: () => NO_NOTICES,
+      pattern: /^\/api\/deals\/([^/]+)\/call-notices$/,
+      handler: (m) => noticesFor(m[1]),
     },
     {
       method: "GET",
-      pattern: /^\/api\/deals\/[^/]+\/side-letters\/obligations$/,
-      handler: () => NO_OBLIGATIONS,
+      pattern: /^\/api\/deals\/([^/]+)\/side-letters\/obligations$/,
+      handler: (m) => obligationsFor(m[1]),
     },
     {
       method: "GET",
@@ -167,12 +239,12 @@ export function registerMonitoringFixtures(): void {
     {
       method: "GET",
       pattern: /^\/api\/portfolio\/call-notices$/,
-      handler: () => NO_PORTFOLIO_NOTICES,
+      handler: () => demoPortfolioNotices(),
     },
     {
       method: "GET",
       pattern: /^\/api\/portfolio\/compliance$/,
-      handler: () => NO_PORTFOLIO_OBLIGATIONS,
+      handler: () => demoPortfolioCompliance(),
     },
 
     // ── Writes: refused in the product's own words ──
