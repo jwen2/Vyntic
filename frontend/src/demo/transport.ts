@@ -11,7 +11,14 @@
 export interface DemoRoute {
   method: string;
   pattern: RegExp;
-  handler: (match: RegExpMatchArray, body: unknown) => unknown;
+  /**
+   * `match` is against the path with the query string removed, so a route
+   * pattern never has to anticipate one. `url` is the request as the app made
+   * it, query and all — a handler that varies on a query parameter (history
+   * filtered by `?workstream=`) reads it from there. Handlers that don't care
+   * simply declare fewer parameters.
+   */
+  handler: (match: RegExpMatchArray, body: unknown, url: string) => unknown;
 }
 
 let routes: DemoRoute[] = [];
@@ -55,7 +62,7 @@ export function demoFetch(url: string, options: RequestInit = {}): Promise<Respo
         body = options.body;
       }
     }
-    return Promise.resolve(jsonResponse(route.handler(match, body)));
+    return Promise.resolve(jsonResponse(route.handler(match, body, url)));
   }
 
   return null;
