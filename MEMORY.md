@@ -197,3 +197,42 @@ Four options were put to the owner (A: re-record ODD Screen with question-shaped
 ### Environment notes
 - **Docker is not installed on this machine.** The backend runs locally via `backend/.venv/Scripts/python.exe -m uvicorn app.main:app --port 8000`; the Brightwater corpus is already seeded and parsed in `backend/data/vyntic.db`, so no re-ingestion is needed.
 - Real corpus metadata (doc_ids, page counts, chunk counts, the stable `builtin_lp_odd_screen` column ids) is captured in `.superpowers/sdd/2026-08-03-demo-mode-odd/corpus-ground-truth.md`. **11 of 13 page counts in the plan text were wrong** — trust that file, not the plan.
+
+---
+
+## Session 2026-08-04 → 08-05 — demo mode Tasks 4–8a
+
+**Branch `feat/demo-mode-odd`, 20 commits, suite 243 → 354 passing (373 with uncommitted 8b work).**
+
+### Decided
+- **Centrepiece workflow changed: `ODD Screen` → `DDQ Gap & Consistency Scan`.** The ODD Screen was recorded twice and failed its content gate both times. Root cause was structural, not luck: its column prompts never ask for contradictions, and three of its eight columns are thin in the Brightwater corpus. The DDQ scan is the only built-in whose prompts say "flag skipped or evasive responses, identify contradictions with the PPM". Recorded one-click (the shape built-in synthesis templates are designed for) it returns 12/12 cells, **0 blanks, 59 citations, 3.4× the content**, and catches the Daniel Roache key-person contradiction unprompted.
+- **Blank cells were never a row-key problem.** `extraction_engine.py:78-79` discards any answer carrying no resolvable citation (`require_citations=True`). That is invariant 6 working correctly — the model wrote those answers and the product refused to show them uncited.
+- **Synthesis row questions must never name a document subset.** Naming "the LPA, PPM and Form ADV" pushed the model to answer from documents lacking the material, producing uncited prose that was then blanked. Blank cells doubled.
+- **Replay uses the recording's real timings** — 6.8s wall clock, concurrency of 4 — not the plan's invented 250–600ms jitter and claimed 20–30s. Slowing the demo to hit the old number would misrepresent the product as slower than it is.
+- **Deleted `recorded-odd-run.json`** (weaker recording, 3 blank cells, zero references; recoverable from `fb6586c`).
+- **Accepted as intended, not a defect:** navigating away mid-replay and returning re-animates the run once. The bug it replaced was a silently static grid; closing this fully needs a timed handoff window not worth the complexity.
+
+### The recurring lesson: the plan text is unreliable, verify against reality
+Every plan guess checked so far has been wrong — 11 of 13 page counts, the `doc_id` scheme, the `DocumentMetadata` shape, the SSE event shape (`{type:"citations"}` does not exist and would have rendered nothing), citation pages ("forty-five (45) days" appears nowhere; the real text is "45 days"), and the findings/brief-overrides **envelope** (`res.findings`/`res.overrides` — the plan's bare array would have resolved `undefined` in the Brief while passing the plan's own test).
+
+### Content honesty — the hardest part, took three passes
+The recording missed two planted findings (the 100%-vs-50% fee offset, and the Brightwater Securities broker-dealer). Dropping those *questions* was not enough: the surviving answers still repeated the run's affirmative "the documents are consistent" conclusions. Probing `"does the ddq say 100% fee offset"` returned a confident, well-cited, **wrong** answer — and a prospect can open the DDQ this demo ships and see p7 say 100%. Fixed in `23f22cb` by deleting the consistency sentences, dropping the Conflicts card entirely, and removing an unsupported PPM citation. **Rule: an affirmative false consistency is worse than a missing finding.**
+
+### In progress — read this before touching the tree
+**Task 8b is UNCOMMITTED in the working tree (16 files) and stopped mid-flight.** Suite green (39 files/373) and tsc clean, but its browser verification never ran, so the key result — that the upload request no longer leaves the browser — is unproven. **Do not `git checkout`/`restore`/`stash` frontend/.** Full inventory and resume options are in `.superpowers/sdd/2026-08-03-demo-mode-odd/progress.md`.
+
+### Next session priorities
+1. Finish 8b (verify the pre-rendered xlsx figures against the real workbook; prove the upload no longer escapes).
+2. 8c — monitoring/portfolio/brief data fixtures. Note the Brief tab currently shows "Awaiting scan output / 0 sources" while its header claims "Complete · 12/12".
+3. Task 9 (demo banner + landing CTA — makes the demo publicly reachable, deliberately last), then Task 10 (backend-stopped sweep, including a *second* run in one session).
+
+### Confirmed defects found by driving a real browser, not by reading code
+- `/demo` bounced first-time visitors to `/login` (`AuthProvider` bootstraps before the flag is set) — fixed in `c6485ed` with a hard navigation.
+- **`xhrUpload` genuinely escapes to the real network** — the POST left the browser twice and returned 500 from the dev proxy. The only request in a full six-pass walk that escaped.
+- The doc-matrix surface throws `This surface is not part of the demo`, reachable from `/app` by any column chip.
+
+### Process notes
+- **Never `git add -A` in this repo** — the tree carries unrelated untracked scratch files (`.ds-*`, `.t6-*`, `.t7-*`, `.t8-*`) from earlier sessions. I swept ~40 of them into a commit and had to reset. Stage explicit paths.
+- **Run vitest from `frontend/`.** From the repo root it picks up a different config and reports bogus failures (I briefly misreported "71 failed").
+- Do not run a mutation-testing reviewer in parallel with an agent that commits — a mutant nearly landed in someone else's commit.
+- `--reporter=basic` exits 1 on vitest 4 and makes every mutant look killed.
