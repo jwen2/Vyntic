@@ -51,4 +51,31 @@ describe("LandingPage", () => {
     expect(shell?.classList.contains("landing-ivory")).toBe(true);
     expect(shell?.classList.contains("landing-shell")).toBe(true);
   });
+
+  /**
+   * The whole demo is unreachable to a visitor without this link — every
+   * fixture, recording and safety guard behind it only ships if the landing
+   * page points at `/demo`. It pointed at `#contact` until Task 9.
+   */
+  it("offers a route into the demo", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>
+    );
+
+    const demoLinks = Array.from(container.querySelectorAll('a[href="/demo"]'));
+    expect(demoLinks.length).toBeGreaterThan(0);
+    expect(demoLinks.every((a) => (a.textContent || "").trim().length > 0)).toBe(true);
+  });
+
+  it("keeps a contact route, so the demo does not replace lead capture", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>
+    );
+
+    expect(container.querySelectorAll('a[href="#contact"]').length).toBeGreaterThan(0);
+  });
 });

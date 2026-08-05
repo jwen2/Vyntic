@@ -4,6 +4,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ThemeProvider from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import DemoBanner from "@/components/DemoBanner";
 
 // Route-level code splitting: landing visitors shouldn't download
 // react-markdown or the workspace surfaces just to read the marketing page.
@@ -46,6 +47,9 @@ export default function App() {
           navigate to /login without a full page reload. */}
       <BrowserRouter>
         <AuthProvider>
+          {/* Above ErrorBoundary on purpose: if a page throws, the visitor
+              must still be told they are in a demo and still be able to leave. */}
+          <DemoBanner />
           <ErrorBoundary>
             <Suspense fallback={<RouteFallback />}>
               <Routes>

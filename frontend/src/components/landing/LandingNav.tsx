@@ -59,8 +59,14 @@ export default function LandingNav() {
           <LandingButton variant="ghost" size="compact" to="/login">
             Sign in
           </LandingButton>
-          <LandingButton variant="ink" size="compact" href="#contact">
-            See a demo
+          {/* The demo is the strongest thing this page can offer, so it takes
+              the primary slot. "Talk to us" keeps lead capture reachable —
+              dropping it would trade a contact form for a demo click. */}
+          <LandingButton variant="ghost" size="compact" href="#contact">
+            Talk to us
+          </LandingButton>
+          <LandingButton variant="ink" size="compact" to="/demo">
+            Try the demo
           </LandingButton>
         </div>
 
@@ -91,7 +97,10 @@ export default function LandingNav() {
               <LandingButton variant="secondary" to="/login">
                 Sign in
               </LandingButton>
-              <LandingButton href="#contact">See a demo</LandingButton>
+              <LandingButton to="/demo">Try the demo</LandingButton>
+              <LandingButton variant="secondary" href="#contact">
+                Talk to us
+              </LandingButton>
             </div>
           </LandingContainer>
         </div>
