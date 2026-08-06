@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { demoFetch, resetDemoRoutes } from "./transport";
 import { registerAllDemoFixtures, __resetRegistration } from "./index";
 import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID, DEMO_MANAGER_ID } from "./fixtures/entities";
+import { DEMO_RECORDINGS } from "./fixtures/workflowRegistry";
+import { endDemoRunReplay } from "./fixtures/workflows";
 
 /**
  * The regression guard for the whole demo.
@@ -19,7 +21,9 @@ import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID, DEMO_MANAGER_ID } from "./fixtures/e
  * whenever a surface starts calling something new.
  */
 const RUN_ID = "0a15ef21994743d88de18935351392eb";
-const WORKFLOW_ID = "ddq_scan";
+const WORKFLOW_ID = "builtin_lp_ddq_scan";
+/** A built-in the demo lists but does not record — its Run must still answer. */
+const UNRECORDED_WORKFLOW_ID = "builtin_lp_fund_brief";
 
 /** Answered with data. A miss here blanks or errors a surface. */
 const REQUIRED_READS: [string, string][] = [
@@ -38,6 +42,12 @@ const REQUIRED_READS: [string, string][] = [
   ["GET", `/api/deals/${DEMO_FUND_IV_ID}/workflows/${WORKFLOW_ID}`],
   ["GET", `/api/deals/${DEMO_FUND_IV_ID}/workflows/${WORKFLOW_ID}/runs`],
   ["GET", `/api/deals/${DEMO_FUND_IV_ID}/runs`],
+  ["GET", `/api/deals/${DEMO_FUND_IV_ID}/workflows/${UNRECORDED_WORKFLOW_ID}`],
+  ["GET", `/api/deals/${DEMO_FUND_IV_ID}/workflows/${UNRECORDED_WORKFLOW_ID}/runs`],
+  ["GET", `/api/deals/${DEMO_FUND_III_ID}/workflows`],
+  ["GET", `/api/deals/${DEMO_FUND_III_ID}/workflows/${WORKFLOW_ID}`],
+  ["GET", `/api/deals/${DEMO_FUND_III_ID}/workflows/${WORKFLOW_ID}/runs`],
+  ["GET", `/api/deals/${DEMO_FUND_III_ID}/runs`],
   ["GET", `/api/deals/${DEMO_FUND_IV_ID}/position`],
   ["GET", `/api/deals/${DEMO_FUND_IV_ID}/call-notices`],
   ["GET", `/api/deals/${DEMO_FUND_IV_ID}/side-letters/obligations`],
@@ -82,6 +92,10 @@ const REQUIRED_REFUSALS: [string, string][] = [
   ["POST", `/api/runs/${RUN_ID}/cells/cell_1/retry`],
   ["POST", `/api/runs/${RUN_ID}/columns/col_1/retry`],
   ["POST", `/api/runs/${RUN_ID}/cancel`],
+  // Listed but not recorded: the Run button must say what the workflow does.
+  ["POST", `/api/deals/${DEMO_FUND_IV_ID}/workflows/${UNRECORDED_WORKFLOW_ID}/runs`],
+  // Recorded, but not in this workspace: the refusal is navigation.
+  ["POST", `/api/deals/${DEMO_FUND_III_ID}/workflows/${WORKFLOW_ID}/runs`],
 ];
 
 const GENERIC = "Not available in demo";
@@ -112,18 +126,21 @@ describe("demo fixture coverage", () => {
 
   /**
    * Starting a run is the one POST on the run surface that must NOT be
-   * refused — it arms the replay that is the demo's centrepiece. Pinned here
-   * because a future sweep "completing" the refusal set above would silently
-   * kill the best thing in the demo.
+   * refused — it arms the replay that is the demo's centrepiece. Pinned per
+   * recording, because a future sweep "completing" the refusal set above would
+   * silently kill the best thing in the demo.
    */
-  it("still starts a run rather than refusing it", async () => {
-    const res = demoFetch(
-      `/api/deals/${DEMO_FUND_IV_ID}/workflows/${WORKFLOW_ID}/runs`,
-      { method: "POST" }
-    );
-    expect(res).not.toBeNull();
-    expect((await res!).status).toBe(200);
-  });
+  it.each(DEMO_RECORDINGS.map((r) => [r.workflow.name, r.dealId, r.workflowId]))(
+    "still starts the %s run rather than refusing it",
+    async (_name, dealId, workflowId) => {
+      const res = demoFetch(`/api/deals/${dealId}/workflows/${workflowId}/runs`, {
+        method: "POST",
+      });
+      expect(res).not.toBeNull();
+      expect((await res!).status).toBe(200);
+      endDemoRunReplay();
+    }
+  );
 
   it("leaves genuinely unknown paths unmatched, rather than inventing data", () => {
     // The fallback exists so an unfixtured surface fails loudly in dev. A
