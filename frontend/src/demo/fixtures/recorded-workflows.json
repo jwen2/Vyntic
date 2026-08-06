@@ -1,0 +1,911 @@
+[
+  {
+    "id": "builtin_lp_ddq_scan",
+    "deal_id": null,
+    "entity_type": "fund",
+    "name": "DDQ Gap & Consistency Scan",
+    "description": "ILPA DDQ coverage, evasions, contradictions, and follow-up questions",
+    "type": "tabular",
+    "row_source": "multi_doc_synthesis",
+    "output_format": "excel",
+    "is_builtin": true,
+    "cloned_from": null,
+    "created_by": null,
+    "created_at": "2026-07-29T13:38:11.609493",
+    "updated_at": "2026-07-29T13:38:11.609493",
+    "stages": [],
+    "columns": [
+      {
+        "id": "4223f1f6938a46b9aa0be66a6044bf05",
+        "order_index": 1,
+        "label": "Firm & Ownership",
+        "prompt": "Review the FIRM & OWNERSHIP section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "68558a7e665548a28536c1b7f2a13314",
+        "order_index": 2,
+        "label": "Team & Succession",
+        "prompt": "Review the TEAM & SUCCESSION section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "ef3ececba4894d829463c407cb2cd156",
+        "order_index": 3,
+        "label": "Track Record",
+        "prompt": "Review the TRACK RECORD section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "dd0188ff630d467d9941ccf80d34a740",
+        "order_index": 4,
+        "label": "Investment Strategy & Process",
+        "prompt": "Review the INVESTMENT STRATEGY & PROCESS section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "a01ad37a06444c348b93de7cecd96e5f",
+        "order_index": 5,
+        "label": "Fund Terms & Economics",
+        "prompt": "Review the FUND TERMS & ECONOMICS section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "9814f84441844e788e44523b2002848c",
+        "order_index": 6,
+        "label": "Valuation Policy",
+        "prompt": "Review the VALUATION POLICY section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "9f181791b2a247a59135123e8b7de3d0",
+        "order_index": 7,
+        "label": "Compliance & Regulatory",
+        "prompt": "Review the COMPLIANCE & REGULATORY section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "b778bec0d4c84fb6b3ecc85a1c24f3fb",
+        "order_index": 8,
+        "label": "IT & Cybersecurity",
+        "prompt": "Review the IT & CYBERSECURITY section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "f9b31fbd5a8842e0b1f339e5a456c7bd",
+        "order_index": 9,
+        "label": "ESG",
+        "prompt": "Review the ESG section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "8495ea4a16a74d1ca73fe891d5a8f9e5",
+        "order_index": 10,
+        "label": "LP Base & References",
+        "prompt": "Review the LP BASE & REFERENCES section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "1b2486ce7b1b4480b5c2af0913241e38",
+        "order_index": 11,
+        "label": "Conflicts of Interest",
+        "prompt": "Review the CONFLICTS OF INTEREST section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "634bbe4f41a84ce0b63d01a9b26bdbda",
+        "order_index": 12,
+        "label": "Service Providers",
+        "prompt": "Review the SERVICE PROVIDERS section across the DDQ and supporting materials. Summarize the answers, flag skipped or evasive responses, identify contradictions with the PPM or pitchbook, and propose focused follow-up questions. Include [Source N] citations for every supported claim; write \"Not found\" when the documents do not cover the section.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      }
+    ],
+    "variables": []
+  },
+  {
+    "id": "builtin_lp_fund_brief",
+    "deal_id": null,
+    "entity_type": "fund",
+    "name": "Fund Brief",
+    "description": "One-screen LP summary: manager, terms, track record, and the flags an IC will ask about",
+    "type": "tabular",
+    "row_source": "multi_doc_synthesis",
+    "output_format": "excel",
+    "is_builtin": true,
+    "cloned_from": null,
+    "created_by": null,
+    "created_at": "2026-07-29T13:38:11.633865",
+    "updated_at": "2026-07-29T13:38:11.633865",
+    "stages": [],
+    "columns": [
+      {
+        "id": "8a34053e6d1a44a8a59f32da61c5d478",
+        "order_index": 1,
+        "label": "Fund snapshot",
+        "prompt": "Create a FUND SNAPSHOT from the pitchbook, PPM, and DDQ. Use this exact field format, one field per line, and write \"Not found\" when the documents do not support a field:\nManager: [GP firm]\nFund: [fund name and number]\nVintage: [year]\nStrategy: [strategy, sector, geography focus]\nTarget size: [target fund size]\nHard cap: [hard cap if disclosed]\nGeography: [operating footprint]\nRaise stage: [first close / interim / final close / open]. Include [Source N] citations for the most important fields.",
+        "format": "kv",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "35609e11b86b4c9191c882b4179627d4",
+        "order_index": 2,
+        "label": "Terms at a glance",
+        "prompt": "Extract the FUND TERMS from the PPM and LPA. Use this exact field format, one field per line, and write \"Not found\" when unsupported:\nManagement fee: [rate and basis, with any step-down]\nCarried interest: [percent]\nPreferred return: [hurdle]\nWaterfall: [European/whole-fund or American/deal-by-deal]\nGP commitment: [percent]\nFee offset: [percent of transaction/monitoring fees offset]\nKey person: [named key persons and the trigger]\nTerm: [fund term and extensions]. Include [Source N] citations.",
+        "format": "kv",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "4df77e094490445f9ca1995bb2284828",
+        "order_index": 3,
+        "label": "Key performance data",
+        "prompt": "Extract the manager's TRACK RECORD into a markdown table titled \"Track Record\" with columns: Fund, Vintage, Fund Size, Net IRR, TVPI, DPI, RVPI. Add one row per prior fund from the track record, pitchbook, or PPM. Immediately after the table, add a short \"Reconciliation\" note that checks each fund for DPI + RVPI = TVPI and names any fund where they do not tie (a common presentation red flag). Include [Source N] citations in the row labels or note. Write \"Not found\" in cells the documents do not support; do not invent figures.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "dc127549193244988a4c55047b810165",
+        "order_index": 4,
+        "label": "Investment thesis",
+        "prompt": "Synthesize the LP INVESTMENT CASE for backing this manager, grounded only in the documents. Use these exact section headings on their own lines, each followed by 3–5 short bullets starting with \"- \", one sentence each, with [Source N] citations where supported:\nThesis: [why back this manager and fund now — edge, market position, consistency]\nValue creation levers: [how the GP drives returns — operational playbook, buy-and-build, pricing, sector angle]\nExit considerations: [realization outlook and liquidity — DPI trajectory, exit environment, duration]\nRisks to thesis: [key risks — succession, size creep, concentration, cyclicality, terms]\nIf a section has no support, write a single \"- Not found\" bullet under it. Do not invent claims.",
+        "format": "prose",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "de39c7dd9cf945f8b12b19ea41d29ef9",
+        "order_index": 5,
+        "label": "Analyst next actions",
+        "prompt": "Propose the top 5 NEXT DILIGENCE ACTIONS for the LP analyst: documents to request, numbers to reconcile, references to call, terms to negotiate, and ODD items to close. Each action is one sentence; cite the source or gap that motivated it with [Source N] where possible.",
+        "format": "list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "e2ccbfb67ab443f69ec244785744830f",
+        "order_index": 6,
+        "label": "Track record red flags",
+        "prompt": "Scan the track record and performance materials for RED FLAGS: TVPI that does not equal DPI + RVPI, cherry-picked or partial fund subsets, gross-versus-net presentation gaps, recycled capital inflating multiples, missing or excluded funds, and unrealized marks carrying the headline. List each with its severity and a [Source N] citation.",
+        "format": "list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "52c9e19903664c9da799e8f553ab212d",
+        "order_index": 7,
+        "label": "Off-market or LP-unfavorable terms",
+        "prompt": "Identify FUND TERMS that are OFF-MARKET or LP-UNFAVORABLE versus ILPA norms: fee offsets below 100%, no-fault removal thresholds above a simple majority, low GP commitment, high organizational-expense caps, deal-by-deal carry without a clawback escrow, aggressive recycling, and weak key-person or LPAC provisions. List each with the specific term and a [Source N] citation.",
+        "format": "list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "d43aa7d7afab46afb10400dc3e7a9a9b",
+        "order_index": 8,
+        "label": "Team & key-person risks",
+        "prompt": "Scan for TEAM AND KEY-PERSON RISKS: partner departures (including cases where one document still lists a departed person as active while another discloses the departure), succession gaps, thin bench, and whether named key persons remain active. List each with a [Source N] citation.",
+        "format": "list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "20c8e1d6ceff435b9c480688fbfd20fa",
+        "order_index": 9,
+        "label": "Operational & compliance exposure",
+        "prompt": "Scan the Form ADV, ODD materials, valuation policy, and audited financials for OPERATIONAL AND COMPLIANCE EXPOSURE: regulatory disclosures or deficiency letters, affiliated service providers or brokers receiving fees, valuation-governance gaps (GP self-marking Level 3 with only infrequent third-party review), and cybersecurity or business-continuity weaknesses. List each with a [Source N] citation.",
+        "format": "list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "6be99dd1598847a4986a4a2e3b34c7a0",
+        "order_index": 10,
+        "label": "Data room gaps & omissions",
+        "prompt": "Identify what is CONSPICUOUSLY ABSENT for LP diligence: missing DDQ sections, no audited financials, no valuation policy, unprovided references, or unanswered questions the materials raise. List each gap and why it matters.",
+        "format": "list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "45f2986fc5ea4c8b8d360b69313589a0",
+        "order_index": 11,
+        "label": "Cross-document inconsistencies",
+        "prompt": "Cross-reference the DDQ, PPM, LPA, pitchbook, and track record. Identify CONTRADICTIONS: fees or terms described differently across documents, performance figures that do not match, team or headcount claims that conflict, and any narrative in one document undermined by another. List each inconsistency with the conflicting sources and [Source N] citations.",
+        "format": "list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      }
+    ],
+    "variables": []
+  },
+  {
+    "id": "builtin_lp_track_record",
+    "deal_id": null,
+    "entity_type": "fund",
+    "name": "Track Record Grid",
+    "description": "Fund-level performance extraction with TVPI reconciliation",
+    "type": "tabular",
+    "row_source": "one_doc_per_row",
+    "output_format": "excel",
+    "is_builtin": true,
+    "cloned_from": null,
+    "created_by": null,
+    "created_at": "2026-07-29T13:38:11.669089",
+    "updated_at": "2026-07-29T13:38:11.669089",
+    "stages": [],
+    "columns": [
+      {
+        "id": "8e3102ee12ef470f8988ad533af5dfea",
+        "order_index": 1,
+        "label": "Fund name",
+        "prompt": "Extract the FUND NAME. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "text",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "18079f7eb55a448083fc8ced425d469d",
+        "order_index": 2,
+        "label": "Vintage",
+        "prompt": "Extract the VINTAGE YEAR, e.g. 2018. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "text",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "296e71e8ae11437e95f2c719d422112c",
+        "order_index": 3,
+        "label": "Fund size",
+        "prompt": "Extract total FUND SIZE with currency. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "monetary_amount",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "e40d4c2276a640229aba316d1d8e6bb6",
+        "order_index": 4,
+        "label": "Net IRR",
+        "prompt": "Extract NET IRR only, not gross IRR. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "percentage",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "6ce798328e1b41e1ba881c8bb0a165c4",
+        "order_index": 5,
+        "label": "TVPI",
+        "prompt": "Extract TVPI. Return the numeric multiple only, e.g. 1.85. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "metric",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "6261bfe61ba846f280b2edeb78e9069f",
+        "order_index": 6,
+        "label": "DPI",
+        "prompt": "Extract DPI. Return the numeric multiple only, e.g. 1.85. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "metric",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "afa91bdba6044d5c9b78a0b27a7fb62f",
+        "order_index": 7,
+        "label": "RVPI",
+        "prompt": "Extract RVPI. Return the numeric multiple only, e.g. 1.85. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "metric",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "7f427643f8f344a4bba6325249ea916c",
+        "order_index": 8,
+        "label": "Loss ratio",
+        "prompt": "Extract or calculate the LOSS RATIO: percent of invested capital in deals returning below 1.0x. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "percentage",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "e3d0f764f9a34711b67fac40430ece1b",
+        "order_index": 9,
+        "label": "Realized vs unrealized",
+        "prompt": "Summarize the REALIZED VS UNREALIZED performance mix. Use exactly: Realized: [desc]\nUnrealized: [desc]. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "kv",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "d93fd057280044e1b1fc0465ec0cdcb3",
+        "order_index": 10,
+        "label": "Restatement & footnote flags",
+        "prompt": "Flag RESTATEMENTS AND FOOTNOTE RISKS: recycled capital, gross-vs-net presentation, cherry-picked subsets, and missing funds. Include [Source N] citations; write \"Not found\" if none are supported.",
+        "format": "bulleted_list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "973f65ab9571495994b7e6d0cc21fcf4",
+        "order_index": 11,
+        "label": "Reconciliation",
+        "prompt": "Derived check of whether TVPI equals DPI plus RVPI.",
+        "format": "text",
+        "tags": null,
+        "is_derived": true,
+        "formula": "=IF([DPI]+[RVPI]-[TVPI]>0.05,\"Mismatch: DPI+RVPI != TVPI\",IF([TVPI]-[DPI]-[RVPI]>0.05,\"Mismatch: DPI+RVPI != TVPI\",\"Ties out\"))"
+      }
+    ],
+    "variables": []
+  },
+  {
+    "id": "builtin_lp_fund_terms",
+    "deal_id": null,
+    "entity_type": "fund",
+    "name": "Fund Terms Extractor",
+    "description": "PPM and LPA economics, governance, and off-market terms",
+    "type": "tabular",
+    "row_source": "multi_doc_synthesis",
+    "output_format": "excel",
+    "is_builtin": true,
+    "cloned_from": null,
+    "created_by": null,
+    "created_at": "2026-07-29T13:38:11.707080",
+    "updated_at": "2026-07-29T13:38:11.707080",
+    "stages": [],
+    "columns": [
+      {
+        "id": "047df825d7744b3b84bac2872e5e9b75",
+        "order_index": 1,
+        "label": "Management fee",
+        "prompt": "Extract the MANAGEMENT FEE basis, rate, and every step-down. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "6cc464bd5dff4a0bb50473260347496a",
+        "order_index": 2,
+        "label": "Carried interest",
+        "prompt": "Extract the CARRIED INTEREST percentage. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "percentage",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "f3c44515ebde40d5b7289b8f11a3624e",
+        "order_index": 3,
+        "label": "Preferred return",
+        "prompt": "Extract the PREFERRED RETURN or hurdle percentage. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "percentage",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "a83249c9fe54485a8dd19c17f1ee78f8",
+        "order_index": 4,
+        "label": "Waterfall type",
+        "prompt": "Classify the WATERFALL. Return a single token from {European, American, Hybrid, Not disclosed}, followed by one sentence of justification and a [Source N] citation.",
+        "format": "enum",
+        "tags": [
+          "European",
+          "American",
+          "Hybrid",
+          "Not disclosed"
+        ],
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "cbd49c3cb50342d4b4ad3b6d8cbda7e9",
+        "order_index": 5,
+        "label": "GP commitment",
+        "prompt": "Extract GP COMMITMENT percentage and whether funded in cash or by fee waiver. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "81db0b1ad0ba46baa5cfc984ef7af957",
+        "order_index": 6,
+        "label": "Key-person provision",
+        "prompt": "Extract the KEY-PERSON clause: short quote, section number, trigger, suspension, and consequences. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "4f0816a9676d45218bddd07f45133a1a",
+        "order_index": 7,
+        "label": "Term & extensions",
+        "prompt": "Extract FUND TERM and extension count, duration, and approval mechanics. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "2fa598d2eb8f49b19d00b0de658baff9",
+        "order_index": 8,
+        "label": "Fee offsets",
+        "prompt": "Extract FEE OFFSETS, including the percent of monitoring, transaction, and affiliate fees offset. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "e64d70e29f404f3892c0dca624e25c8d",
+        "order_index": 9,
+        "label": "Recycling",
+        "prompt": "Extract RECYCLING rights, limits, eligible proceeds, and time window. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "74bab5a7c60d47b9aac460c6c96cd4e8",
+        "order_index": 10,
+        "label": "Removal & no-fault divorce",
+        "prompt": "Extract GP REMOVAL AND NO-FAULT DIVORCE thresholds, causes, votes, and consequences. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "cd4494756e5e4c00a42ecbd326ca391d",
+        "order_index": 11,
+        "label": "Organizational expense cap",
+        "prompt": "Extract the ORGANIZATIONAL EXPENSE CAP with currency. Include a [Source N] citation; write \"Not found\" if unsupported.",
+        "format": "monetary_amount",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "f836a2410ef94d3698e5ddec029ac177",
+        "order_index": 12,
+        "label": "Off-market terms summary",
+        "prompt": "Flag LP-UNFAVORABLE OFF-MARKET TERMS versus institutional norms, including below-100% fee offsets or deal-by-deal carry without clawback escrow. Include [Source N] citations; write \"Not found\" if none are supported.",
+        "format": "bulleted_list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      }
+    ],
+    "variables": []
+  },
+  {
+    "id": "builtin_lp_odd_screen",
+    "deal_id": null,
+    "entity_type": "fund",
+    "name": "ODD Screen",
+    "description": "Operational due diligence across governance, providers, compliance, and GP health",
+    "type": "tabular",
+    "row_source": "multi_doc_synthesis",
+    "output_format": "excel",
+    "is_builtin": true,
+    "cloned_from": null,
+    "created_by": null,
+    "created_at": "2026-07-29T13:38:11.726103",
+    "updated_at": "2026-07-29T13:38:11.726103",
+    "stages": [],
+    "columns": [
+      {
+        "id": "d42cea9881634b378022fc94a2f5ca71",
+        "order_index": 1,
+        "label": "Valuation governance",
+        "prompt": "Assess VALUATION GOVERNANCE: who marks assets, committee independence, and auditor scrutiny of Level 3 values. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "f4a0afc4a62e453595b1570b444fb4fe",
+        "order_index": 2,
+        "label": "Service providers",
+        "prompt": "List SERVICE PROVIDERS using exactly: Auditor: [desc]\nAdministrator: [desc]\nCustodian: [desc]\nFund counsel: [desc]\nPrime broker: [desc]. Flag unknown or non-institutional providers. Include [Source N] citations; write \"Not found\" for missing fields.",
+        "format": "kv",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "7f60e2f632a94160a7ee626f4182158c",
+        "order_index": 3,
+        "label": "Regulatory & litigation history",
+        "prompt": "Assess REGULATORY AND LITIGATION HISTORY, including Form ADV disclosures, investigations, and sanctions. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "4bb75c39bb934cb9ae0af67ffa44ad55",
+        "order_index": 4,
+        "label": "Cybersecurity & BCP",
+        "prompt": "Assess CYBERSECURITY AND BUSINESS CONTINUITY controls, testing, incidents, recovery objectives, and vendors. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "ba33b7236731451c92590e3bee15d331",
+        "order_index": 5,
+        "label": "Compliance program",
+        "prompt": "Assess the COMPLIANCE PROGRAM: CCO independence, personal trading, testing, and expense allocation. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "c0ee1cfab63f474b9fb58a484d39c63c",
+        "order_index": 6,
+        "label": "Conflicts of interest",
+        "prompt": "Assess CONFLICTS OF INTEREST: related-party transactions, cross-fund allocation, and affiliate fee streams. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "17565a03d45b41efae84fab448cfb05b",
+        "order_index": 7,
+        "label": "Financial health of the GP",
+        "prompt": "Assess GP FINANCIAL HEALTH, revenue concentration, balance-sheet support, insurance, and continuity risks. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "0d7c2c6ad9024c228d8c3b9c30e83f8f",
+        "order_index": 8,
+        "label": "Overall ODD rating",
+        "prompt": "Rate OVERALL ODD. Return a single token from {Clean, Monitor, Red flag}, followed by one sentence of justification and the top supporting [Source N] citations.",
+        "format": "enum",
+        "tags": [
+          "Clean",
+          "Monitor",
+          "Red flag"
+        ],
+        "is_derived": false,
+        "formula": null
+      }
+    ],
+    "variables": []
+  },
+  {
+    "id": "builtin_lp_lpa_review",
+    "deal_id": null,
+    "entity_type": "fund",
+    "name": "LPA / ILPA-Alignment Review",
+    "description": "Clause-level LPA review against ILPA alignment principles",
+    "type": "tabular",
+    "row_source": "multi_doc_synthesis",
+    "output_format": "excel",
+    "is_builtin": true,
+    "cloned_from": null,
+    "created_by": null,
+    "created_at": "2026-07-29T13:38:11.742014",
+    "updated_at": "2026-07-29T13:38:11.742014",
+    "stages": [],
+    "columns": [
+      {
+        "id": "f873b670f5d347bbbf8fcb6c0824a21a",
+        "order_index": 1,
+        "label": "Economics",
+        "prompt": "Review FEES, CARRY, AND CLAWBACK ECONOMICS against ILPA Principles. Lead with a single token from {LP-favorable, Market, GP-favorable, Silent}; then give a short governing-clause quote, section number, and analysis. Include [Source N] citations; write \"Silent — Not found\" when unsupported.",
+        "format": "markdown",
+        "tags": [
+          "LP-favorable",
+          "Market",
+          "GP-favorable",
+          "Silent"
+        ],
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "07795d571038479fab96e8ef8ce3bd8b",
+        "order_index": 2,
+        "label": "Key person",
+        "prompt": "Review KEY-PERSON PROTECTIONS against ILPA Principles. Lead with a single token from {LP-favorable, Market, GP-favorable, Silent}; then give a short governing-clause quote, section number, and analysis. Include [Source N] citations; write \"Silent — Not found\" when unsupported.",
+        "format": "markdown",
+        "tags": [
+          "LP-favorable",
+          "Market",
+          "GP-favorable",
+          "Silent"
+        ],
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "0e52881de84d442897fcdec1c8f82caa",
+        "order_index": 3,
+        "label": "GP removal & termination",
+        "prompt": "Review GP REMOVAL AND FUND TERMINATION against ILPA Principles. Lead with a single token from {LP-favorable, Market, GP-favorable, Silent}; then give a short governing-clause quote, section number, and analysis. Include [Source N] citations; write \"Silent — Not found\" when unsupported.",
+        "format": "markdown",
+        "tags": [
+          "LP-favorable",
+          "Market",
+          "GP-favorable",
+          "Silent"
+        ],
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "bc3b63ca80b846428f0cea876b1a9e4d",
+        "order_index": 4,
+        "label": "Indemnification & exculpation scope",
+        "prompt": "Review INDEMNIFICATION AND EXCULPATION SCOPE against ILPA Principles. Lead with a single token from {LP-favorable, Market, GP-favorable, Silent}; then give a short governing-clause quote, section number, and analysis. Include [Source N] citations; write \"Silent — Not found\" when unsupported.",
+        "format": "markdown",
+        "tags": [
+          "LP-favorable",
+          "Market",
+          "GP-favorable",
+          "Silent"
+        ],
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "9a75c4ad2eea4085ac97b0f90099faf0",
+        "order_index": 5,
+        "label": "LPAC powers & consents",
+        "prompt": "Review LPAC POWERS, INFORMATION RIGHTS, AND CONSENTS against ILPA Principles. Lead with a single token from {LP-favorable, Market, GP-favorable, Silent}; then give a short governing-clause quote, section number, and analysis. Include [Source N] citations; write \"Silent — Not found\" when unsupported.",
+        "format": "markdown",
+        "tags": [
+          "LP-favorable",
+          "Market",
+          "GP-favorable",
+          "Silent"
+        ],
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "2f612bc5bd7c40f985170704b6b3c4c9",
+        "order_index": 6,
+        "label": "Transfer & withdrawal restrictions",
+        "prompt": "Review LP TRANSFER AND WITHDRAWAL RESTRICTIONS against ILPA Principles. Lead with a single token from {LP-favorable, Market, GP-favorable, Silent}; then give a short governing-clause quote, section number, and analysis. Include [Source N] citations; write \"Silent — Not found\" when unsupported.",
+        "format": "markdown",
+        "tags": [
+          "LP-favorable",
+          "Market",
+          "GP-favorable",
+          "Silent"
+        ],
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "7d52b762c6ea411bb1db2d8190ed946e",
+        "order_index": 7,
+        "label": "Reporting undertakings",
+        "prompt": "Review FINANCIAL AND INVESTOR REPORTING UNDERTAKINGS against ILPA Principles. Lead with a single token from {LP-favorable, Market, GP-favorable, Silent}; then give a short governing-clause quote, section number, and analysis. Include [Source N] citations; write \"Silent — Not found\" when unsupported.",
+        "format": "markdown",
+        "tags": [
+          "LP-favorable",
+          "Market",
+          "GP-favorable",
+          "Silent"
+        ],
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "e1781d00088f4c1c860b601292910afc",
+        "order_index": 8,
+        "label": "Fiduciary-duty modifications",
+        "prompt": "Review WAIVERS OR MODIFICATIONS OF FIDUCIARY DUTIES against ILPA Principles. Lead with a single token from {LP-favorable, Market, GP-favorable, Silent}; then give a short governing-clause quote, section number, and analysis. Include [Source N] citations; write \"Silent — Not found\" when unsupported.",
+        "format": "markdown",
+        "tags": [
+          "LP-favorable",
+          "Market",
+          "GP-favorable",
+          "Silent"
+        ],
+        "is_derived": false,
+        "formula": null
+      }
+    ],
+    "variables": []
+  },
+  {
+    "id": "builtin_lp_side_letters",
+    "deal_id": null,
+    "entity_type": "fund",
+    "name": "Side Letter Obligation Extractor",
+    "description": "Per-LP promises, triggers, MFN mechanics, and quarterly compliance checks",
+    "type": "tabular",
+    "row_source": "one_doc_per_row",
+    "output_format": "excel",
+    "is_builtin": true,
+    "cloned_from": null,
+    "created_by": null,
+    "created_at": "2026-07-29T13:38:11.767778",
+    "updated_at": "2026-07-29T13:38:11.767778",
+    "stages": [],
+    "columns": [
+      {
+        "id": "36d71bb878af4ae0a5ef3d273226c7e6",
+        "order_index": 1,
+        "label": "Obligations list",
+        "prompt": "Extract EVERY SIDE-LETTER PROMISE as one bullet per obligation with section references and [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "1f2d8936fabb4bf9a021845fcea2d7b9",
+        "order_index": 2,
+        "label": "Category mix",
+        "prompt": "Count obligations using exactly: Fee: [count]\nMFN: [count]\nCo-invest: [count]\nReporting: [count]\nTransfer: [count]\nExcuse: [count]\nRegulatory: [count]. Include [Source N] citations.",
+        "format": "kv",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "c1c656b232504d08a445e5e0121511f3",
+        "order_index": 3,
+        "label": "MFN provision",
+        "prompt": "Extract MFN SCOPE, election mechanics, notice deadlines, and carve-outs. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "504c0842b45848d191ab7d4a4b46218f",
+        "order_index": 4,
+        "label": "Deadlines & triggers",
+        "prompt": "List every TIME-BOUND OR EVENT-TRIGGERED obligation with timing, trigger, owner, and section. Include [Source N] citations; write \"Not found\" if unsupported.",
+        "format": "markdown",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "3e230c1962064e39af058cffb9e88f2f",
+        "order_index": 5,
+        "label": "Ongoing vs one-time",
+        "prompt": "Classify obligations using exactly: Ongoing: [desc]\nOne-time: [desc]. Include [Source N] citations; write \"Not found\" where unsupported.",
+        "format": "kv",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      },
+      {
+        "id": "34e17128225e43fd990531e0b32162f3",
+        "order_index": 6,
+        "label": "Quarterly verification checklist",
+        "prompt": "Create a QUARTERLY VERIFICATION CHECKLIST of evidence to confirm each ongoing side-letter promise was honored. Tie each item to the obligation and include [Source N] citations.",
+        "format": "bulleted_list",
+        "tags": null,
+        "is_derived": false,
+        "formula": null
+      }
+    ],
+    "variables": []
+  },
+  {
+    "id": "builtin_lp_commitment_memo",
+    "deal_id": null,
+    "entity_type": "fund",
+    "name": "Fund Commitment Memo",
+    "description": "Four-stage LP underwriting workflow from manager assessment to recommendation",
+    "type": "assistant",
+    "row_source": "one_doc_per_row",
+    "output_format": "word",
+    "is_builtin": true,
+    "cloned_from": null,
+    "created_by": null,
+    "created_at": "2026-07-29T13:38:11.792079",
+    "updated_at": "2026-07-29T13:38:11.792079",
+    "stages": [
+      {
+        "id": "bd71ddc4ae5f48458f2f7432a2b9fa39",
+        "order_index": 1,
+        "label": "Manager & Strategy Assessment",
+        "prompt_md": "Assess the MANAGER AND STRATEGY from the pitchbook, DDQ, and PPM: firm history and ownership, team depth and succession, strategy and edge, fund size versus the prior fund with a size-creep check, and market environment. Cite every claim as [filename p.N]; write \"Not found\" for unsupported topics.",
+        "checkpoint": true
+      },
+      {
+        "id": "0015192c89154b9fb336f65513768666",
+        "order_index": 2,
+        "label": "Track Record & Terms Diagnostic",
+        "prompt_md": "Diagnose TRACK RECORD AND TERMS: performance by fund (IRR, TVPI, DPI), dispersion and loss ratio, realized versus unrealized mix, a DPI-versus-IRR quality note, and terms versus ILPA norms. Cite every claim as [filename p.N]. Insert explicit [BENCHMARK — fill in] placeholders wherever peer data is required.",
+        "checkpoint": true
+      },
+      {
+        "id": "151499ee1a4843f0b3aecb62cc03fb06",
+        "order_index": 3,
+        "label": "ODD & Risk Summary",
+        "prompt_md": "Summarize ODD AND UNDERWRITING RISK: operational findings, open diligence items, reference-call gaps, and side-letter asks to negotiate. Cite every claim as [filename p.N]; write \"Not found\" when evidence is absent.",
+        "checkpoint": true
+      },
+      {
+        "id": "5939501292a74a719f9b6b74dea0ac48",
+        "order_index": 4,
+        "label": "Compose Commitment Memo",
+        "prompt_md": "Using the analyst-edited outputs of Stages 1–3 as authoritative, compose the FUND COMMITMENT MEMO with: Executive Summary; Organization; Strategy; Track Record; Fund Terms; Operational Assessment; Risks & Mitigants; Recommendation. State the proposed commitment or use [COMMITMENT AMOUNT]. Preserve all citations and do not overwrite analyst judgments.",
+        "checkpoint": false
+      }
+    ],
+    "columns": [],
+    "variables": []
+  }
+]

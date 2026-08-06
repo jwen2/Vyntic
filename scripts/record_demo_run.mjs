@@ -26,8 +26,13 @@ import { writeFileSync } from "node:fs";
 // Default to 127.0.0.1 rather than localhost to avoid IPv6 resolution issues
 // on some Windows setups.
 const BASE = process.env.VYNTIC_API || "http://127.0.0.1:8000";
-const [email, password, workflowName = "DDQ Gap & Consistency Scan"] = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const CATALOGUE_MODE = argv.includes("--catalogue");
+const [email, password, workflowName = "DDQ Gap & Consistency Scan"] = argv.filter(
+  (a) => a !== "--catalogue"
+);
 const DEAL_ID = "brightwater_iv";
+const CATALOGUE_OUT = "frontend/src/demo/fixtures/recorded-workflows.json";
 
 const OUTPUTS = {
   "DDQ Gap & Consistency Scan": "frontend/src/demo/fixtures/recorded-ddq-scan-run.json",
@@ -36,12 +41,13 @@ const OUTPUTS = {
 
 if (!email || !password) {
   console.error(
-    "usage: node scripts/record_demo_run.mjs <email> <password> [workflow-name]"
+    "usage: node scripts/record_demo_run.mjs <email> <password> [workflow-name]\n" +
+      "       node scripts/record_demo_run.mjs <email> <password> --catalogue"
   );
   process.exit(1);
 }
 
-const out = OUTPUTS[workflowName];
+const out = CATALOGUE_MODE ? CATALOGUE_OUT : OUTPUTS[workflowName];
 if (!out) {
   console.error(`no output path configured for workflow "${workflowName}"`);
   process.exit(1);
@@ -62,6 +68,21 @@ const { access_token: token } = await api("/auth/login", {
 });
 
 const workflows = await api(`/deals/${DEAL_ID}/workflows`, {}, token);
+
+if (CATALOGUE_MODE) {
+  // Both demo funds are entity_type="fund", so workflow_store.py:87-94 serves
+  // them the same eight built-ins — one dump covers both workspaces.
+  const builtins = workflows.filter((w) => w.is_builtin);
+  if (builtins.length !== 8)
+    throw new Error(
+      `expected 8 built-in fund workflows, got ${builtins.length} — ` +
+        `workflow_seed_lp.py changed, or the DB is not reconciled`
+    );
+  writeFileSync(out, JSON.stringify(builtins, null, 2));
+  console.log(`wrote ${out} — ${builtins.length} templates`);
+  process.exit(0);
+}
+
 const workflow = workflows.find((w) => w.name === workflowName);
 if (!workflow)
   throw new Error(`"${workflowName}" template not found — is workflow_seed_lp reconciled?`);
