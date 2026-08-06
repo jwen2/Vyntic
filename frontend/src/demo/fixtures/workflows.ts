@@ -8,6 +8,7 @@ import {
   workflowById,
   type DemoRecording,
 } from "./workflowRegistry";
+import { DEMO_FUND_IV_ID, DEMO_FUND_III_ID } from "./entities";
 
 /**
  * The DDQ Gap & Consistency Scan, kept as named exports because it is the
@@ -16,6 +17,9 @@ import {
  * hand-built object, and the 12 column ids and prompts are the database's own.
  */
 const DDQ_WORKFLOW_ID = "builtin_lp_ddq_scan";
+const BUILTIN_FUND_BRIEF = "builtin_lp_fund_brief";
+const BUILTIN_TRACK_RECORD = "builtin_lp_track_record";
+const BUILTIN_COMMITMENT_MEMO = "builtin_lp_commitment_memo";
 
 const ddq = RECORDING_BY_WORKFLOW.get(DDQ_WORKFLOW_ID);
 if (!ddq) throw new Error("Demo fixtures: the DDQ scan recording is missing.");
@@ -93,24 +97,69 @@ const EXPORT_REFUSAL =
 
 const AUTHORING_REFUSAL =
   "Creating and editing workflows needs somewhere to save them, and this demo " +
-  "has no backend. The built-in DDQ gap-and-consistency scan is here to run.";
+  "has no backend. The built-in LP templates are all listed, and the recorded " +
+  "ones are here to run.";
 
-/**
- * Placeholders. Task 5 replaces every one of these with the real product
- * copy; they exist only so this task's tests can run.
- */
 const UNKNOWN_WORKFLOW_REFUSAL =
   "That workflow is not one of the built-in templates this fund workspace ships with.";
 
 const UNKNOWN_RUN_REFUSAL =
   "That run is not one of the recordings this demo replays — open a workflow and press Run.";
 
+/**
+ * The three built-ins the demo lists but cannot run. Each refusal describes the
+ * workflow's real output rather than saying "not available", because a prospect
+ * reading it is deciding whether the product does that at all.
+ *
+ * Keyed by workflow id. `workflowRegistry.test.ts` asserts every catalogue
+ * entry is either recorded or in this table, so a ninth built-in appearing in
+ * the backend fails the build instead of shipping as a dead button.
+ */
+export const UNRECORDED_REFUSALS: Record<string, string> = {
+  [BUILTIN_FUND_BRIEF]:
+    "The Fund Brief workflow writes the eleven-section brief you can already " +
+    "read on this fund's Brief tab — strategy, team, terms, track record and " +
+    "the rest, every line carrying its citation. The demo ships that brief as " +
+    "a finished document rather than re-deriving it, so there is nothing here " +
+    "to run.",
+  [BUILTIN_TRACK_RECORD]:
+    "Track Record Grid builds one row per prior fund from the track-record " +
+    "workbook, then reconciles each reported TVPI against DPI plus RVPI and " +
+    "flags the ones that do not tie. It is investment diligence rather than " +
+    "operational, and this demo replays the operational runs.",
+  [BUILTIN_COMMITMENT_MEMO]:
+    "The Fund Commitment Memo is a four-stage assistant workflow: it drafts, " +
+    "pauses at analyst checkpoints for your edits, and exports a Word memo. " +
+    "That is a different surface from the grids this demo replays, not a " +
+    "longer one.",
+};
+
+/** Fund display names, for refusals that tell the visitor where to go. */
+const FUND_NAMES: Record<string, string> = {
+  [DEMO_FUND_IV_ID]: "Brightwater Capital Partners IV",
+  [DEMO_FUND_III_ID]: "Brightwater Capital Partners III",
+};
+
 function unrecordedRefusal(workflowId: string): string {
-  return `The ${workflowById(workflowId)?.name ?? "requested"} workflow is not recorded in this demo.`;
+  return (
+    UNRECORDED_REFUSALS[workflowId] ??
+    "That workflow is one of this fund's built-in templates, but the demo has " +
+      "no recording of it to replay. Every run you see here is a frozen real " +
+      "model pass, not a simulation."
+  );
 }
 
+/**
+ * The catalogue lists all eight workflows on both funds, so pressing Run on a
+ * workflow recorded elsewhere has to answer. Wording turns the refusal into
+ * navigation: it names the workspace to open.
+ */
 function wrongFundRefusal(rec: DemoRecording): string {
-  return `${rec.workflow.name} is recorded against another fund's workspace — open that fund to watch it run.`;
+  return (
+    `${rec.workflow.name} is recorded against ${FUND_NAMES[rec.dealId]} — ` +
+    `open that workspace to watch it run. Runs stay inside the fund whose ` +
+    `documents they read, exactly as they do in the product.`
+  );
 }
 
 function refuse(message: string): never {

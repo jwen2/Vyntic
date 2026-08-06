@@ -385,6 +385,10 @@ describe("writes around the recorded run", () => {
   });
 
   afterEach(() => {
+    // `replayPhase`/`armedRunId` are module state in workflows.ts, untouched by
+    // `resetDemoRoutes()`. Without this, a test that starts a run (arming its
+    // replay) leaks that arm into whichever test runs next.
+    endDemoRunReplay();
     disableDemoMode();
     resetDemoRoutes();
   });
@@ -419,5 +423,54 @@ describe("writes around the recorded run", () => {
   it("still starts a run, because that is what replays the recording", async () => {
     const started = await startWorkflowRun(DEMO_FUND_IV_ID, DEMO_DDQ_WORKFLOW.id, []);
     expect(started.id).toBe(DEMO_DDQ_RUN.id);
+  });
+
+  it("refuses each unrecorded built-in by describing what it really produces", async () => {
+    const cases: [name: string, mustSay: string][] = [
+      ["Fund Brief", "Brief"],
+      ["Track Record Grid", "TVPI"],
+      ["Fund Commitment Memo", "checkpoint"],
+    ];
+    for (const [name, mustSay] of cases) {
+      const template = DEMO_CATALOGUE.find((w) => w.name === name);
+      expect(template, name).toBeDefined();
+      const err = await startWorkflowRun(DEMO_FUND_IV_ID, template!.id, []).catch((e) => e);
+
+      expect(err, name).toBeInstanceOf(ApiError);
+      expect(err.status, name).toBe(403);
+      expect(err.message, name).not.toBe(GENERIC);
+      expect(err.message, name).toContain(mustSay);
+      expect(err.message.length, name).toBeGreaterThan(40);
+    }
+  });
+
+  it("turns a wrong-fund run into navigation rather than a dead end", async () => {
+    for (const rec of DEMO_RECORDINGS) {
+      const other = rec.dealId === DEMO_FUND_IV_ID ? DEMO_FUND_III_ID : DEMO_FUND_IV_ID;
+      const err = await startWorkflowRun(other, rec.workflowId, []).catch((e) => e);
+
+      expect(err, rec.workflowId).toBeInstanceOf(ApiError);
+      expect(err.status, rec.workflowId).toBe(403);
+      // It must name the fund the visitor should open, or it is not navigation.
+      const target =
+        rec.dealId === DEMO_FUND_IV_ID
+          ? "Brightwater Capital Partners IV"
+          : "Brightwater Capital Partners III";
+      expect(err.message, rec.workflowId).toContain(target);
+      expect(err.message, rec.workflowId).toContain("open that workspace");
+    }
+  });
+
+  it("does not arm a replay when it refuses a wrong-fund run", async () => {
+    const rec = DEMO_RECORDINGS[0];
+    const other = rec.dealId === DEMO_FUND_IV_ID ? DEMO_FUND_III_ID : DEMO_FUND_IV_ID;
+    await startWorkflowRun(other, rec.workflowId, []).catch(() => {});
+
+    // A refusal that armed anyway would animate the next run view the visitor
+    // opened, which is the whole failure mode the registry exists to stop.
+    const fetched = await (await demoFetch(`/api/runs/${rec.run.id}`, {
+      method: "GET",
+    })!).json();
+    expect(fetched.status).toBe("complete");
   });
 });
