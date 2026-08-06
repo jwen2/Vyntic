@@ -30,7 +30,6 @@ if (!ddq) throw new Error("Demo fixtures: the DDQ scan recording is missing.");
 
 export const DEMO_DDQ_WORKFLOW: Workflow = ddq.workflow;
 export const DEMO_DDQ_RUN: WorkflowRun = ddq.run;
-export const DEMO_DDQ_RUN_QUEUED: WorkflowRun = ddq.queued;
 export const DEMO_DDQ_ROWS: string[] = ddq.rows;
 
 /**
@@ -126,11 +125,11 @@ const UNKNOWN_RUN_REFUSAL =
  */
 export const UNRECORDED_REFUSALS: Record<string, string> = {
   [BUILTIN_FUND_BRIEF]:
-    "The Fund Brief workflow writes the eleven-section brief you can already " +
-    "read on this fund's Brief tab — strategy, team, terms, track record and " +
-    "the rest, every line carrying its citation. The demo ships that brief as " +
-    "a finished document rather than re-deriving it, so there is nothing here " +
-    "to run.",
+    "The Fund Brief workflow writes the one-screen summary an IC reads before " +
+    "a commitment vote: manager and strategy, fund terms, track record, and " +
+    "the flags worth asking about — eleven sections, every line carrying its " +
+    "citation back to a page. This demo replays recorded runs only, and there " +
+    "is no recording of this one.",
   [BUILTIN_TRACK_RECORD]:
     "Track Record Grid builds one row per prior fund from the track-record " +
     "workbook, then reconciles each reported TVPI against DPI plus RVPI and " +
@@ -171,9 +170,9 @@ const FUND_NAMES: Record<string, string> = {
 function unrecordedRefusal(workflowId: string): string {
   return (
     UNRECORDED_REFUSALS[workflowId] ??
-    "That workflow is one of this fund's built-in templates, but the demo has " +
-      "no recording of it to replay. Every run you see here is a frozen real " +
-      "model pass, not a simulation."
+    "That workflow id is not one this fund workspace recognizes, so there is " +
+      "no recording to replay. Every run you see here is a frozen real model " +
+      "pass, not a simulation."
   );
 }
 

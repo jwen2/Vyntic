@@ -72,6 +72,10 @@ describe("workflow fixtures", () => {
     registerWorkflowFixtures();
   });
 
+  afterEach(() => {
+    endDemoRunReplay();
+  });
+
   it("exposes the DDQ Gap & Consistency Scan with 12 markdown columns", () => {
     expect(DEMO_DDQ_WORKFLOW.id).toBe("builtin_lp_ddq_scan");
     expect(DEMO_DDQ_WORKFLOW.name).toBe("DDQ Gap & Consistency Scan");
@@ -116,23 +120,6 @@ describe("workflow fixtures", () => {
     expect(DEMO_DDQ_RUN.cells).toHaveLength(12);
     for (const cell of DEMO_DDQ_RUN.cells) {
       expect(cell.row_key).toBe(DEMO_DDQ_ROWS[0]);
-    }
-  });
-
-  it("emits every cell against a declared column, in column order", () => {
-    expect(DEMO_DDQ_RUN.cells.map((c) => c.column_id)).toEqual(
-      DEMO_DDQ_WORKFLOW.columns.map((c) => c.id)
-    );
-    expect(DEMO_DDQ_RUN.workflow_id).toBe(DEMO_DDQ_WORKFLOW.id);
-    expect(DEMO_DDQ_RUN.deal_id).toBe(DEMO_FUND_IV_ID);
-  });
-
-  it("has every cell complete, populated, and error-free", () => {
-    expect(DEMO_DDQ_RUN.status).toBe("complete");
-    for (const cell of DEMO_DDQ_RUN.cells) {
-      expect(cell.status).toBe("complete");
-      expect(cell.error_message).toBeNull();
-      expect(cell.answer_display.length).toBeGreaterThan(0);
     }
   });
 
@@ -241,7 +228,6 @@ describe("workflow fixtures", () => {
       )!).json();
       expect(started.id, rec.workflowId).toBe(rec.run.id);
       expect(started.status, rec.workflowId).toBe("running");
-      endDemoRunReplay();
     }
   });
 

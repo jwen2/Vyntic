@@ -101,6 +101,17 @@ export function replayDemoRun(
     // from the top. Once the terminal event has fired the run has legitimately
     // completed and already disarmed; re-arming then would re-animate a run
     // opened from history, so `finished` gates it.
+    //
+    // This unconditional re-arm assumes run B's start can never land while run
+    // A's subscription is still tearing down — if it did, this would hand A's
+    // arm back over B's, and B would open as a static grid of finished answers
+    // with no error anywhere, the worst way to fail described above. That
+    // assumption holds today only because the run-start handler is reachable
+    // solely from the workflow library screen, which unmounts the run view
+    // (and with it, this subscription) before a new run can be started. A
+    // future "Run again" affordance placed on the run screen itself, letting a
+    // visitor start run B without leaving run A's view, would break this
+    // ordering and reintroduce the hazard.
     if (!finished) armDemoRunReplay(runId);
   };
 

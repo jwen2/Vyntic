@@ -29,11 +29,19 @@ describe("the recorded catalogue", () => {
   it("resolves every built-in to either a recording or a refusal", () => {
     for (const w of DEMO_CATALOGUE) {
       const recorded = RECORDING_BY_WORKFLOW.has(w.id);
-      const refused = typeof UNRECORDED_REFUSALS[w.id] === "string";
+      const refusal = UNRECORDED_REFUSALS[w.id];
+      const refused = typeof refusal === "string";
       expect(
         recorded !== refused,
         `${w.name} (${w.id}) is ${recorded && refused ? "both recorded and refused" : "neither recorded nor refused"}`
       ).toBe(true);
+      // A refusal that exists but reads as a fault (empty, or the generic
+      // fallback) is worse than no refusal at all: `unrecordedRefusal` returns
+      // it via `??`, so an empty string would ship as a 403 with nothing to
+      // read on it.
+      if (refused) {
+        expect(refusal!.length, `${w.name} (${w.id})`).toBeGreaterThan(40);
+      }
     }
   });
 
@@ -87,6 +95,10 @@ function assertRunShape(run: WorkflowRun, where: string): void {
     expect(typeof cell.answer, at).toBe("string");
     expect(cell.answer_display.length, at).toBeGreaterThan(0);
     expect(
+      cell.quality === null || cell.quality === undefined || typeof cell.quality === "object",
+      `${at} quality`
+    ).toBe(true);
+    expect(
       cell.answer_formatted === null || asShape(cell.answer_formatted) !== null,
       `${at} answer_formatted is neither null nor a tagged shape`
     ).toBe(true);
@@ -109,6 +121,18 @@ function assertRunShape(run: WorkflowRun, where: string): void {
     }
   }
 }
+
+/**
+ * The exact number of non-null citations in each recording, transcribed by
+ * counting the fixture itself (not assumed). This is the strongest single
+ * guard that a recording has not been hand-edited: recordings are frozen
+ * verbatim from a real run and are never hand-edited, so this count can only
+ * ever change by re-recording, at which point it is updated deliberately
+ * alongside the new fixture — never to make a failing test pass.
+ */
+const EXPECTED_CITATION_COUNT: Record<string, number> = {
+  builtin_lp_ddq_scan: 59,
+};
 
 describe.each(DEMO_RECORDINGS.map((r) => [r.workflow.name, r] as const))(
   "recording: %s",
@@ -134,8 +158,11 @@ describe.each(DEMO_RECORDINGS.map((r) => [r.workflow.name, r] as const))(
           }
         }
       }
-      // Every recording must actually cite something, or it is prose.
-      expect(cited, name).toBeGreaterThan(0);
+      // An exact count, not just "more than zero": this is the pin that a
+      // recording has not been hand-edited.
+      const expected = EXPECTED_CITATION_COUNT[rec.workflowId];
+      expect(expected, `${name}: no expected citation count on file`).toBeDefined();
+      expect(cited, name).toBe(expected);
     });
 
     it("runs against documents that exist in its own fund's corpus", () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { demoFetch, resetDemoRoutes } from "./transport";
 import { registerAllDemoFixtures, __resetRegistration } from "./index";
 import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID, DEMO_MANAGER_ID } from "./fixtures/entities";
@@ -107,6 +107,10 @@ describe("demo fixture coverage", () => {
     registerAllDemoFixtures();
   });
 
+  afterEach(() => {
+    endDemoRunReplay();
+  });
+
   it.each(REQUIRED_READS)("serves %s %s", async (method, path) => {
     const res = demoFetch(path, { method });
     expect(res, `missing fixture: ${method} ${path}`).not.toBeNull();
@@ -138,7 +142,6 @@ describe("demo fixture coverage", () => {
       });
       expect(res).not.toBeNull();
       expect((await res!).status).toBe(200);
-      endDemoRunReplay();
     }
   );
 
