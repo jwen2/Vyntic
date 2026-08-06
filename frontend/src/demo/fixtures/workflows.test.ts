@@ -13,10 +13,16 @@ import {
   DEMO_DDQ_RUN,
   DEMO_DDQ_WORKFLOW,
   DEMO_DDQ_ROWS,
+  endDemoRunReplay,
 } from "./workflows";
+import {
+  DEMO_CATALOGUE,
+  DEMO_RECORDINGS,
+  RECORDING_BY_WORKFLOW,
+} from "./workflowRegistry";
 import { DEMO_DOCS_BY_FILENAME, DEMO_FUND_IV_ID, DEMO_FUND_III_ID } from "./entities";
 import { asShape } from "@/lib/cellShapes";
-import type { WorkflowRun } from "@/lib/workflows";
+import type { Workflow, WorkflowRun } from "@/lib/workflows";
 
 /**
  * The recorded run is the one place a JSON import crosses into typed code, so
@@ -277,6 +283,92 @@ describe("workflow fixtures", () => {
       { method: "GET" }
     )!).json();
     expect(iiiRuns).toEqual([]);
+  });
+
+  it("lists all eight built-ins on both funds, because a real fund workspace does", async () => {
+    for (const dealId of [DEMO_FUND_IV_ID, DEMO_FUND_III_ID]) {
+      const list = await (await demoFetch(`/api/deals/${dealId}/workflows`, {
+        method: "GET",
+      })!).json();
+      expect(list, dealId).toHaveLength(8);
+      expect(list.map((w: Workflow) => w.name).sort(), dealId).toEqual(
+        [
+          "DDQ Gap & Consistency Scan",
+          "Fund Brief",
+          "Fund Commitment Memo",
+          "Fund Terms Extractor",
+          "LPA / ILPA-Alignment Review",
+          "ODD Screen",
+          "Side Letter Obligation Extractor",
+          "Track Record Grid",
+        ].sort()
+      );
+    }
+  });
+
+  it("serves any catalogue workflow by id, on either fund", async () => {
+    for (const template of DEMO_CATALOGUE) {
+      const got = await (await demoFetch(
+        `/api/deals/${DEMO_FUND_III_ID}/workflows/${template.id}`,
+        { method: "GET" }
+      )!).json();
+      expect(got.id, template.name).toBe(template.id);
+      expect(got.columns.length, template.name).toBe(template.columns.length);
+    }
+  });
+
+  it("shows a recorded run only in the workspace it was recorded in", async () => {
+    for (const rec of DEMO_RECORDINGS) {
+      const other = rec.dealId === DEMO_FUND_IV_ID ? DEMO_FUND_III_ID : DEMO_FUND_IV_ID;
+
+      const here = await (await demoFetch(
+        `/api/deals/${rec.dealId}/workflows/${rec.workflowId}/runs`,
+        { method: "GET" }
+      )!).json();
+      expect(here.map((r: WorkflowRun) => r.id), rec.workflowId).toEqual([rec.run.id]);
+
+      const there = await (await demoFetch(
+        `/api/deals/${other}/workflows/${rec.workflowId}/runs`,
+        { method: "GET" }
+      )!).json();
+      expect(there, rec.workflowId).toEqual([]);
+    }
+  });
+
+  it("shows no run history for a built-in that has no recording", async () => {
+    const unrecorded = DEMO_CATALOGUE.filter((w) => !RECORDING_BY_WORKFLOW.has(w.id));
+    expect(unrecorded.length).toBeGreaterThan(0);
+    for (const template of unrecorded) {
+      const runs = await (await demoFetch(
+        `/api/deals/${DEMO_FUND_IV_ID}/workflows/${template.id}/runs`,
+        { method: "GET" }
+      )!).json();
+      expect(runs, template.name).toEqual([]);
+    }
+  });
+
+  it("starts the run belonging to the workflow the visitor pressed Run on", async () => {
+    for (const rec of DEMO_RECORDINGS) {
+      const started = await (await demoFetch(
+        `/api/deals/${rec.dealId}/workflows/${rec.workflowId}/runs`,
+        { method: "POST", body: JSON.stringify({ document_ids: [], synthesis_questions: [] }) }
+      )!).json();
+      expect(started.id, rec.workflowId).toBe(rec.run.id);
+      expect(started.status, rec.workflowId).toBe("running");
+      endDemoRunReplay();
+    }
+  });
+
+  it("lists every recording on the deal-level run feed of its own fund", async () => {
+    for (const dealId of [DEMO_FUND_IV_ID, DEMO_FUND_III_ID]) {
+      const runs = await (await demoFetch(`/api/deals/${dealId}/runs`, {
+        method: "GET",
+      })!).json();
+      const expected = DEMO_RECORDINGS.filter((r) => r.dealId === dealId).map(
+        (r) => r.run.id
+      );
+      expect(runs.map((r: WorkflowRun) => r.id).sort(), dealId).toEqual(expected.sort());
+    }
   });
 });
 

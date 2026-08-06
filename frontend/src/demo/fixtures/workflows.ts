@@ -1,12 +1,12 @@
 import type { Workflow, WorkflowRun } from "@/lib/workflows";
 import { DemoRefusal, registerDemoRoutes } from "@/demo/transport";
-import { DEMO_FUND_IV_ID, DEMO_FUND_III_ID } from "./entities";
 import {
   DEMO_CATALOGUE,
   DEMO_RECORDINGS,
   RECORDING_BY_RUN,
   RECORDING_BY_WORKFLOW,
   workflowById,
+  type DemoRecording,
 } from "./workflowRegistry";
 
 /**
@@ -95,6 +95,24 @@ const AUTHORING_REFUSAL =
   "Creating and editing workflows needs somewhere to save them, and this demo " +
   "has no backend. The built-in DDQ gap-and-consistency scan is here to run.";
 
+/**
+ * Placeholders. Task 5 replaces every one of these with the real product
+ * copy; they exist only so this task's tests can run.
+ */
+const UNKNOWN_WORKFLOW_REFUSAL =
+  "That workflow is not one of the built-in templates this fund workspace ships with.";
+
+const UNKNOWN_RUN_REFUSAL =
+  "That run is not one of the recordings this demo replays — open a workflow and press Run.";
+
+function unrecordedRefusal(workflowId: string): string {
+  return `The ${workflowById(workflowId)?.name ?? "requested"} workflow is not recorded in this demo.`;
+}
+
+function wrongFundRefusal(rec: DemoRecording): string {
+  return `${rec.workflow.name} is recorded against another fund's workspace — open that fund to watch it run.`;
+}
+
 function refuse(message: string): never {
   throw new DemoRefusal(message);
 }
@@ -104,36 +122,52 @@ export function registerWorkflowFixtures(): void {
     {
       method: "GET",
       pattern: /^\/api\/deals\/([^/]+)\/workflows$/,
-      handler: () => [DEMO_DDQ_WORKFLOW],
+      // Both demo funds are entity_type="fund", so workflow_store.py:87-94
+      // serves them the same eight built-ins. Listing fewer would understate
+      // the product; listing all eight is what makes seven of them refuse.
+      handler: () => DEMO_CATALOGUE,
     },
     // (write refusals are registered at the end of this list)
     {
       method: "GET",
       pattern: /^\/api\/deals\/([^/]+)\/workflows\/([^/]+)$/,
-      handler: () => DEMO_DDQ_WORKFLOW,
+      handler: (m) => workflowById(m[2]) ?? refuse(UNKNOWN_WORKFLOW_REFUSAL),
     },
     {
       method: "GET",
       pattern: /^\/api\/deals\/([^/]+)\/workflows\/([^/]+)\/runs$/,
-      // Fund IV shows the recorded run as run history; Fund III has none.
-      handler: (m) => (m[1] === DEMO_FUND_IV_ID ? [DEMO_DDQ_RUN] : []),
+      // Keyed by deal, not just workflow: this is what makes Side Letters show
+      // a run on Fund III and nothing on Fund IV — context isolation as the
+      // product enforces it, not as a special case.
+      handler: (m) => {
+        const rec = RECORDING_BY_WORKFLOW.get(m[2]);
+        return rec && rec.dealId === m[1] ? [rec.run] : [];
+      },
     },
     {
       method: "GET",
       pattern: /^\/api\/runs\/([^/]+)$/,
-      // While a replay is armed or in flight this is a run in progress; every
-      // other time it is the completed recording.
-      handler: () => (replayPhase === "idle" ? DEMO_DDQ_RUN : DEMO_DDQ_RUN_QUEUED),
+      // While this run's replay is armed or in flight it is a run in progress;
+      // every other time — including while a *different* run replays — it is
+      // the completed recording.
+      handler: (m) => {
+        const rec = RECORDING_BY_RUN.get(m[1]);
+        if (!rec) return refuse(UNKNOWN_RUN_REFUSAL);
+        return isReplayInFlight(rec.run.id) ? rec.queued : rec.run;
+      },
     },
     {
       method: "POST",
       pattern: /^\/api\/deals\/([^/]+)\/workflows\/([^/]+)\/runs$/,
-      // Arms the replay. `WorkflowsView` reads only `run.id` off this response
-      // and then opens the run view, which subscribes — and that subscription
-      // is what animates.
-      handler: () => {
-        armDemoRunReplay(DEMO_DDQ_RUN.id);
-        return DEMO_DDQ_RUN_QUEUED;
+      // Arms *that workflow's* replay. `WorkflowsView` reads only `run.id` off
+      // this response and then opens the run view, which subscribes — and that
+      // subscription is what animates.
+      handler: (m) => {
+        const rec = RECORDING_BY_WORKFLOW.get(m[2]);
+        if (!rec) return refuse(unrecordedRefusal(m[2]));
+        if (rec.dealId !== m[1]) return refuse(wrongFundRefusal(rec));
+        armDemoRunReplay(rec.run.id);
+        return rec.queued;
       },
     },
     {
@@ -150,7 +184,8 @@ export function registerWorkflowFixtures(): void {
       // lib/workflows.ts, which has no deal-level run list). Registered so a
       // deal-level "recent runs" surface cannot 404 into a blank panel.
       pattern: /^\/api\/deals\/([^/]+)\/runs$/,
-      handler: (m) => (m[1] === DEMO_FUND_III_ID ? [] : [DEMO_DDQ_RUN]),
+      handler: (m) =>
+        DEMO_RECORDINGS.filter((r) => r.dealId === m[1]).map((r) => r.run),
     },
 
     // ── Writes around the run, refused in the product's own words ──
