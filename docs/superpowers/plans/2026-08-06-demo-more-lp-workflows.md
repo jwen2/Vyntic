@@ -1532,9 +1532,18 @@ export const DEMO_RECORDINGS: DemoRecording[] = [
 ];
 ```
 
-- [ ] **Step 2: Remove any newly-recorded workflow from the refusal table**
+- [ ] **Step 2: Remove every newly-recorded workflow from the refusal table**
 
-`workflowRegistry.test.ts`'s completeness test asserts each built-in is recorded **xor** refused, so a workflow that is now recorded must leave `UNRECORDED_REFUSALS`. In `workflows.ts`, delete the entries for ODD Screen, Fund Terms and LPA/ILPA if they were not there — they were not added in Task 5, so this step is a no-op unless Task 9's gate moved ODD Screen into the table.
+**This is not a no-op — it is a required edit, and the completeness guard will fail the build if you skip it.** Task 6's guard asserts each built-in is recorded **xor** refused. During Phase 1 all four Phase 2 workflows carry provisional refusals in `UNRECORDED_REFUSALS` (added in Task 6, each ending "This demo does not yet have a recorded run of it to replay"):
+
+```
+builtin_lp_fund_terms      → Fund Terms Extractor
+builtin_lp_odd_screen      → ODD Screen
+builtin_lp_lpa_review      → LPA / ILPA-Alignment Review
+builtin_lp_side_letters    → Side Letter Obligation Extractor
+```
+
+Delete from `UNRECORDED_REFUSALS` in `workflows.ts` the entry for **every** workflow you registered a recording for in Step 1 — and only those. A workflow whose recording failed the honesty gate in Tasks 9–12 keeps its provisional refusal, but rewrite that entry's closing sentence: "does not yet have a recorded run" implies one is coming, and a workflow rejected by the gate needs wording that says what the live product does instead.
 
 - [ ] **Step 3: Run the registry suite**
 
