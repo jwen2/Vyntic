@@ -1444,6 +1444,10 @@ git commit -m "chore(demo): make the recorder per-workflow"
 | 11 | LPA / ILPA-Alignment Review | `brightwater_iv` | all 7 | `recorded-lpa-ilpa-run.json` |
 | 12 | Side Letter Obligation Extractor | `brightwater_iii` | side letter only | `recorded-side-letters-run.json` |
 
+**Hard constraint on every recording: exactly one row.** `replayDemoRun` builds its dispatch list from the workflow's *columns* (`runReplay.ts`, the `byColumn` map) and emits `workflow.columns.length` cells. A recording with two or more rows would animate one row's worth of cells and leave the rest visibly stuck at `queued` for the whole run, snapping to complete only on the terminal re-fetch — in front of a prospect. It does fail a test (`runReplay.test.ts` asserts completed events equal `run.cells.length`), but the failing test is named "plays the run it was asked for", so the message will not point at the cause.
+
+This is why Side Letter Obligations (Task 12) is recorded against the side letter **alone**: `one_doc_per_row` builds a row per document passed in, so passing all six Fund III documents would yield six rows. If you ever widen a `one_doc_per_row` recording's document list, the replay engine needs row support first — that is a separate piece of work, not a config change.
+
 For each:
 
 - [ ] **Step 1: Back up the dev database**
