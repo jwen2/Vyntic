@@ -9,6 +9,7 @@ import {
   endDemoRunReplay,
 } from "./fixtures/workflows";
 import { DEMO_FLAG_KEY } from "./mode";
+import { DEMO_RECORDINGS } from "./fixtures/workflowRegistry";
 import {
   subscribeRun,
   type RunStreamEvent,
@@ -22,7 +23,7 @@ const RUN_WALL_MS = Date.parse(DEMO_DDQ_RUN.completed_at!) - RUN_START_MS;
 
 function collect(): { events: RunStreamEvent[]; stop: () => void } {
   const events: RunStreamEvent[] = [];
-  const stop = replayDemoRun((e) => events.push(e));
+  const stop = replayDemoRun(DEMO_DDQ_RUN.id, (e) => events.push(e));
   return { events, stop };
 }
 
@@ -48,7 +49,7 @@ describe("replayDemoRun", () => {
   });
 
   describe("armed — a run the visitor just started", () => {
-    beforeEach(() => armDemoRunReplay());
+    beforeEach(() => armDemoRunReplay(DEMO_DDQ_RUN.id));
 
     it("opens with a snapshot of a running run whose 12 cells are all queued", () => {
       const { events } = collect();
@@ -128,7 +129,9 @@ describe("replayDemoRun", () => {
       DEMO_DDQ_WORKFLOW.columns.push(ghost);
       try {
         // A re-recording that loses a column must not quietly animate 11 cells.
-        expect(() => replayDemoRun(() => {})).toThrow(/ghost-column-not-in-the-recording/);
+        expect(() => replayDemoRun(DEMO_DDQ_RUN.id, () => {})).toThrow(
+          /ghost-column-not-in-the-recording/
+        );
       } finally {
         DEMO_DDQ_WORKFLOW.columns.pop();
       }
@@ -464,5 +467,62 @@ describe("subscribeRun demo guard", () => {
     expect(events).toEqual([]);
     expect(errors).toHaveLength(1);
     stop();
+  });
+});
+
+describe("recording isolation", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resetDemoRoutes();
+    registerWorkflowFixtures();
+    endDemoRunReplay();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    endDemoRunReplay();
+    sessionStorage.clear();
+  });
+
+  it("plays the run it was asked for, not whichever was recorded first", () => {
+    for (const rec of DEMO_RECORDINGS) {
+      endDemoRunReplay();
+      armDemoRunReplay(rec.run.id);
+      const events: RunStreamEvent[] = [];
+      const stop = replayDemoRun(rec.run.id, (e) => events.push(e));
+      vi.advanceTimersByTime(120_000);
+      stop();
+
+      const last = events[events.length - 1];
+      expect(last.type, rec.workflowId).toBe("run");
+      if (last.type !== "run") throw new Error("unreachable");
+      expect(last.run_id, rec.workflowId).toBe(rec.run.id);
+      expect(
+        cellEvents(events, "complete").length,
+        rec.workflowId
+      ).toBe(rec.run.cells.length);
+    }
+  });
+
+  it("does not animate a run that was not the one armed", () => {
+    // The assertion the registry exists to protect. With one recording this is
+    // vacuous on the cross-workflow axis but still pins the arm's identity
+    // check: arming a run id and subscribing to a different one must not play.
+    const [first] = DEMO_RECORDINGS;
+    armDemoRunReplay("some-other-run-id");
+
+    const events: RunStreamEvent[] = [];
+    const stop = replayDemoRun(first.run.id, (e) => events.push(e));
+    vi.advanceTimersByTime(120_000);
+    stop();
+
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("snapshot");
+  });
+
+  it("throws rather than inventing a run for an unknown id", () => {
+    expect(() => replayDemoRun("not-a-recorded-run", () => {})).toThrow(
+      /not-a-recorded-run/
+    );
   });
 });

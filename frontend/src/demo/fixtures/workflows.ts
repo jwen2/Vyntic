@@ -43,15 +43,23 @@ export const DEMO_DDQ_ROWS: string[] = ddq.rows;
  */
 type ReplayPhase = "idle" | "armed" | "replaying";
 let replayPhase: ReplayPhase = "idle";
+/**
+ * Which run was armed. With five recordings the phase alone is not enough:
+ * arming the ODD screen must not make Side Letters animate, and a
+ * `GET /api/runs/:id` for a run nobody started must still hand back its
+ * finished recording while another run is mid-replay.
+ */
+let armedRunId: string | null = null;
 
-/** Called by the run-start route: the visitor pressed Run. */
-export function armDemoRunReplay(): void {
+/** Called by the run-start route: the visitor pressed Run on this run. */
+export function armDemoRunReplay(runId: string): void {
   replayPhase = "armed";
+  armedRunId = runId;
 }
 
-/** Called once by `replayDemoRun`; true only for a just-started run. */
-export function consumeDemoRunReplayArm(): boolean {
-  if (replayPhase !== "armed") return false;
+/** Called once by `replayDemoRun`; true only for the run that was just started. */
+export function consumeDemoRunReplayArm(runId: string): boolean {
+  if (replayPhase !== "armed" || armedRunId !== runId) return false;
   replayPhase = "replaying";
   return true;
 }
@@ -59,6 +67,12 @@ export function consumeDemoRunReplayArm(): boolean {
 /** Called when the replay finishes or is torn down. Idempotent. */
 export function endDemoRunReplay(): void {
   replayPhase = "idle";
+  armedRunId = null;
+}
+
+/** True while this specific run is armed or mid-replay. */
+export function isReplayInFlight(runId: string): boolean {
+  return replayPhase !== "idle" && armedRunId === runId;
 }
 
 /**
@@ -118,7 +132,7 @@ export function registerWorkflowFixtures(): void {
       // and then opens the run view, which subscribes — and that subscription
       // is what animates.
       handler: () => {
-        armDemoRunReplay();
+        armDemoRunReplay(DEMO_DDQ_RUN.id);
         return DEMO_DDQ_RUN_QUEUED;
       },
     },

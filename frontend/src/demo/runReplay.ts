@@ -1,12 +1,10 @@
 import type { RunStreamEvent, TabularCell } from "@/lib/workflows";
 import {
-  DEMO_DDQ_RUN,
-  DEMO_DDQ_RUN_QUEUED,
-  DEMO_DDQ_WORKFLOW,
   armDemoRunReplay,
   consumeDemoRunReplayArm,
   endDemoRunReplay,
 } from "./fixtures/workflows";
+import { RECORDING_BY_RUN } from "./fixtures/workflowRegistry";
 
 /**
  * Used only if the recording's timestamps stop making sense — a re-recording
@@ -48,14 +46,14 @@ function asRunning(cell: TabularCell): TabularCell {
 }
 
 /**
- * Replays the recorded DDQ Gap & Consistency Scan as a live-looking stream.
+ * Replays a recorded run as a live-looking stream.
  *
  * The schedule is not invented: every event fires at its real offset from
- * `run.started_at`, so the replay takes the 6.75 s the run actually took and
- * reproduces the executor's concurrency of 4 for free — four cells start
- * together, and each of the remaining eight starts as an earlier one finishes.
- * That overlap is why completions arrive out of column order, and it is the
- * part that makes the animation read as genuine rather than as a progress bar.
+ * `run.started_at`, so the replay takes the wall clock the run actually took
+ * and reproduces the executor's concurrency for free — cells start together,
+ * and each later one starts as an earlier one finishes. That overlap is why
+ * completions arrive out of column order, and it is the part that makes the
+ * animation read as genuine rather than as a progress bar.
  *
  * Only a run the visitor just started animates. Opening the same run from
  * history emits one snapshot of the finished recording, because that is what
@@ -63,8 +61,20 @@ function asRunning(cell: TabularCell): TabularCell {
  *
  * Returns a cleanup function with the same contract as `subscribeRun`.
  */
-export function replayDemoRun(onEvent: (event: RunStreamEvent) => void): () => void {
-  const armed = consumeDemoRunReplayArm();
+export function replayDemoRun(
+  runId: string,
+  onEvent: (event: RunStreamEvent) => void
+): () => void {
+  const recording = RECORDING_BY_RUN.get(runId);
+  if (!recording) {
+    throw new Error(
+      `Demo replay: no recording for run "${runId}". The run-start route and ` +
+        `the registry have drifted apart.`
+    );
+  }
+  const { run, queued, workflow } = recording;
+
+  const armed = consumeDemoRunReplayArm(runId);
   let cancelled = false;
   let finished = false;
   const timers: ReturnType<typeof setTimeout>[] = [];
@@ -91,11 +101,11 @@ export function replayDemoRun(onEvent: (event: RunStreamEvent) => void): () => v
     // from the top. Once the terminal event has fired the run has legitimately
     // completed and already disarmed; re-arming then would re-animate a run
     // opened from history, so `finished` gates it.
-    if (!finished) armDemoRunReplay();
+    if (!finished) armDemoRunReplay(runId);
   };
 
   if (!armed) {
-    schedule(0, () => onEvent({ type: "snapshot", run: DEMO_DDQ_RUN }));
+    schedule(0, () => onEvent({ type: "snapshot", run }));
     return cleanup;
   }
 
@@ -103,21 +113,21 @@ export function replayDemoRun(onEvent: (event: RunStreamEvent) => void): () => v
   // does not would animate an 11-cell grid with no error anywhere — a demo that
   // quietly shows less than it promises. A drifted re-recording should stop the
   // replay dead so it is caught in development, not in front of a prospect.
-  const byColumn = new Map(DEMO_DDQ_RUN.cells.map((cell) => [cell.column_id, cell]));
-  const dispatched = DEMO_DDQ_WORKFLOW.columns.map((column): TabularCell => {
+  const byColumn = new Map(run.cells.map((cell) => [cell.column_id, cell]));
+  const dispatched = workflow.columns.map((column): TabularCell => {
     const cell = byColumn.get(column.id);
     if (!cell) {
       throw new Error(
-        `Demo replay: the recorded run has no cell for workflow column ` +
-          `"${column.label}" (${column.id}). The recording and DEMO_DDQ_WORKFLOW ` +
-          `have drifted apart — re-record the run or fix the column list.`
+        `Demo replay: the recorded run for "${workflow.name}" has no cell for ` +
+          `workflow column "${column.label}" (${column.id}). The recording and ` +
+          `the catalogue have drifted apart — re-record the run.`
       );
     }
     return cell;
   });
 
-  const base = Date.parse(DEMO_DDQ_RUN.started_at);
-  schedule(0, () => onEvent({ type: "snapshot", run: DEMO_DDQ_RUN_QUEUED }));
+  const base = Date.parse(run.started_at);
+  schedule(0, () => onEvent({ type: "snapshot", run: queued }));
 
   let lastAt = 0;
   dispatched.forEach((cell, index) => {
@@ -130,7 +140,7 @@ export function replayDemoRun(onEvent: (event: RunStreamEvent) => void): () => v
   });
 
   const runDoneAt = Math.max(
-    offsetMs(DEMO_DDQ_RUN.completed_at, base, lastAt + FALLBACK_STEP_MS),
+    offsetMs(run.completed_at, base, lastAt + FALLBACK_STEP_MS),
     lastAt
   );
   schedule(runDoneAt, () => {
@@ -138,7 +148,7 @@ export function replayDemoRun(onEvent: (event: RunStreamEvent) => void): () => v
     // canonical run, which must now resolve to the completed recording.
     finished = true;
     endDemoRunReplay();
-    onEvent({ type: "run", run_id: DEMO_DDQ_RUN.id, status: "complete" });
+    onEvent({ type: "run", run_id: run.id, status: "complete" });
   });
 
   return cleanup;

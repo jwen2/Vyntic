@@ -405,7 +405,7 @@ export function subscribeRun(
     let cancelled = false;
     void import("@/demo/runReplay").then(({ replayDemoRun }) => {
       if (cancelled) return;
-      stop = replayDemoRun(onEvent);
+      stop = replayDemoRun(runId, onEvent);
     });
     return () => {
       cancelled = true;
