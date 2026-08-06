@@ -1571,12 +1571,18 @@ Add to `REQUIRED_READS`, one pair per recording:
 
 The per-recording run-start pin from Task 6, Step 6 is `it.each` over `DEMO_RECORDINGS`, so it picks the new recordings up with no edit.
 
-- [ ] **Step 5: Full suite**
+- [ ] **Step 5: Disarm between loop iterations, not just after the test**
+
+Two tests loop over `DEMO_RECORDINGS` starting a run per iteration: `coverage.test.ts`'s `"still starts the %s run rather than refusing it"` and `workflows.test.ts`'s `"starts the run belonging to the workflow the visitor pressed Run on"`. Their `endDemoRunReplay()` lives in `afterEach`, which fires once per test — correct with one recording, latent fragility with five: iteration 2 arms its run while iteration 1's is still armed, and `armDemoRunReplay` overwrites unconditionally.
+
+Add an explicit `endDemoRunReplay()` at the end of each loop body in both tests, keeping the `afterEach` as the backstop. Without this the loops still pass, but they stop proving that each run-start arms *its own* recording — which is the property the whole registry exists to protect.
+
+- [ ] **Step 6: Full suite**
 
 Run: `cd frontend && npm test`
 Expected: PASS. In particular `runReplay.test.ts`'s `"plays the run it was asked for"` now iterates five recordings, and `"does not animate a run that was not the one armed"` is no longer vacuous.
 
-- [ ] **Step 6: Re-measure the bundle**
+- [ ] **Step 7: Re-measure the bundle**
 
 ```bash
 cd frontend && npx tsc --noEmit && npm run build
@@ -1584,11 +1590,11 @@ cd frontend && npx tsc --noEmit && npm run build
 
 Compare the entry chunk against Task 7's baseline. It should be **unchanged** — the recordings are behind the dynamic import in `lib/workflows.ts:405`. The demo chunk grows by roughly the total JSON size (the spec estimates 200–300 kB). If the *entry* chunk grew, a static import leaked the recordings into it — find it and restore the dynamic boundary.
 
-- [ ] **Step 7: Drive the demo in a browser**
+- [ ] **Step 8: Drive the demo in a browser**
 
 Use the `frontend:verify` skill. On Fund IV, run each of ODD Screen, Fund Terms Extractor and LPA/ILPA-Alignment Review; on Fund III, run Side Letter Obligations. Each must animate to a populated grid with working citation chips. Confirm that running one and then opening another from history does not re-animate the wrong grid.
 
-- [ ] **Step 8: Update the spec's status and commit**
+- [ ] **Step 9: Update the spec's status and commit**
 
 Set the spec header's `**Status:**` to `Implemented`, noting how many of the four recordings shipped.
 
