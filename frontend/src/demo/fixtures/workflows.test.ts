@@ -176,9 +176,10 @@ describe("workflow fixtures", () => {
   it("builds each column prompt around the upper-cased section name", () => {
     const firm = DEMO_DDQ_WORKFLOW.columns[0];
     expect(firm.label).toBe("Firm & Ownership");
-    // An `&` label proves the whole name is upper-cased, not just its first
-    // word — and pins `columnPrompt`'s `toUpperCase()`, which is otherwise
-    // unasserted and can be deleted without failing a test.
+    // Was pinning a transcribed `columnPrompt()` helper; now it pins the real
+    // seeded prompt (workflow_seed_lp.py:26), which upper-cases the whole
+    // section name. An `&` label proves it is the whole name, not just the
+    // first word.
     expect(firm.prompt).toContain("FIRM & OWNERSHIP");
     expect(firm.prompt).not.toContain("Firm & Ownership");
     for (const column of DEMO_DDQ_WORKFLOW.columns) {
