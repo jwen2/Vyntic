@@ -954,9 +954,9 @@ node -e "require('./frontend/src/demo/fixtures/recorded-workflows.json').forEach
 ```
 
 ```ts
-const BUILTIN_FUND_BRIEF = "<id from the catalogue>";
-const BUILTIN_TRACK_RECORD = "<id from the catalogue>";
-const BUILTIN_COMMITMENT_MEMO = "<id from the catalogue>";
+const BUILTIN_FUND_BRIEF = "builtin_lp_fund_brief";
+const BUILTIN_TRACK_RECORD = "builtin_lp_track_record";
+const BUILTIN_COMMITMENT_MEMO = "builtin_lp_commitment_memo";
 ```
 
 Then replace the two helper functions:
@@ -1219,7 +1219,7 @@ Keep everything else in `workflows.test.ts`: the golden column table, the row/ce
 const RUN_ID = "0a15ef21994743d88de18935351392eb";
 const WORKFLOW_ID = "builtin_lp_ddq_scan";
 /** A built-in the demo lists but does not record — its Run must still answer. */
-const UNRECORDED_WORKFLOW_ID = "<Fund Brief id from the catalogue>";
+const UNRECORDED_WORKFLOW_ID = "builtin_lp_fund_brief";
 ```
 
 - [ ] **Step 5: Add the new required reads**
