@@ -1,6 +1,10 @@
 import type { Workflow, WorkflowRun } from "@/lib/workflows";
 import catalogue from "./recorded-workflows.json";
 import ddqScanRun from "./recorded-ddq-scan-run.json";
+import fundTermsRun from "./recorded-fund-terms-run.json";
+import oddScreenRun from "./recorded-odd-screen-run.json";
+import lpaIlpaRun from "./recorded-lpa-ilpa-run.json";
+import sideLettersRun from "./recorded-side-letters-run.json";
 
 /**
  * The eight LP built-ins, frozen from a real
@@ -85,7 +89,13 @@ function recording(raw: unknown): DemoRecording {
  * demo needs no LLM, no key and no backend at runtime — but reads as genuine,
  * because it is. Never hand-edit the JSON.
  */
-export const DEMO_RECORDINGS: DemoRecording[] = [recording(ddqScanRun)];
+export const DEMO_RECORDINGS: DemoRecording[] = [
+  recording(ddqScanRun),
+  recording(fundTermsRun),
+  recording(oddScreenRun),
+  recording(lpaIlpaRun),
+  recording(sideLettersRun),
+];
 
 export const RECORDING_BY_WORKFLOW = new Map(
   DEMO_RECORDINGS.map((r) => [r.workflowId, r])

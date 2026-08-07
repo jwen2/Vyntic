@@ -19,10 +19,6 @@ import { DEMO_FUND_IV_ID, DEMO_FUND_III_ID } from "./entities";
 const DDQ_WORKFLOW_ID = "builtin_lp_ddq_scan";
 const BUILTIN_FUND_BRIEF = "builtin_lp_fund_brief";
 const BUILTIN_TRACK_RECORD = "builtin_lp_track_record";
-const BUILTIN_FUND_TERMS = "builtin_lp_fund_terms";
-const BUILTIN_ODD_SCREEN = "builtin_lp_odd_screen";
-const BUILTIN_LPA_REVIEW = "builtin_lp_lpa_review";
-const BUILTIN_SIDE_LETTERS = "builtin_lp_side_letters";
 const BUILTIN_COMMITMENT_MEMO = "builtin_lp_commitment_memo";
 
 const ddq = RECORDING_BY_WORKFLOW.get(DDQ_WORKFLOW_ID);
@@ -110,14 +106,14 @@ const UNKNOWN_RUN_REFUSAL =
   "That run is not one of the recordings this demo replays — open a workflow and press Run.";
 
 /**
- * The seven built-ins the demo lists but cannot run today. Each refusal
- * describes the workflow's real output rather than saying "not available",
- * because a prospect reading it is deciding whether the product does that at
- * all. Three of these are permanent — Fund Brief, Track Record Grid and Fund
- * Commitment Memo answer through a different surface than the grids this demo
- * replays. The other four (Fund Terms, ODD Screen, LPA Review, Side Letters)
- * are unrecorded rather than un-recordable: Phase 2 of this plan replays them
- * too, and recording one deletes its entry here.
+ * The three built-ins the demo lists but cannot run. All three are permanent:
+ * Fund Brief, Track Record Grid and Fund Commitment Memo answer through a
+ * different surface than the tabular grids this demo replays, so no recording
+ * would make them runnable here.
+ *
+ * Each refusal describes the workflow's real output rather than saying "not
+ * available", because a prospect reading it is deciding whether the product
+ * does that at all.
  *
  * Keyed by workflow id. `workflowRegistry.test.ts` asserts every catalogue
  * entry is either recorded or in this table, so a ninth built-in appearing in
@@ -135,25 +131,6 @@ export const UNRECORDED_REFUSALS: Record<string, string> = {
     "workbook, then reconciles each reported TVPI against DPI plus RVPI and " +
     "flags the ones that do not tie. It is investment diligence rather than " +
     "operational, and this demo replays the operational runs.",
-  [BUILTIN_FUND_TERMS]:
-    "Fund Terms Extractor pulls the fund's headline economic terms — " +
-    "management fee, carry, hurdle, waterfall type, GP commitment and the " +
-    "rest — into one row, flagging where a term reads differently across the " +
-    "LPA and the PPM. This demo does not yet have a recorded run of it to " +
-    "replay.",
-  [BUILTIN_ODD_SCREEN]:
-    "ODD Screen runs the operational due-diligence checklist — valuation " +
-    "policy, service providers, IT and cybersecurity among the eight " +
-    "sections — and rates each Clean, Monitor, or Red flag. This demo does " +
-    "not yet have a recorded run of it to replay.",
-  [BUILTIN_LPA_REVIEW]:
-    "LPA / ILPA-Alignment Review measures the fund's LPA clauses against the " +
-    "ILPA principles and rates each LP-favorable, Market, GP-favorable, or " +
-    "Silent. This demo does not yet have a recorded run of it to replay.",
-  [BUILTIN_SIDE_LETTERS]:
-    "Side Letter Obligation Extractor reads one side-letter document and " +
-    "extracts its per-LP obligations, a row per document. This demo does " +
-    "not yet have a recorded run of it to replay.",
   [BUILTIN_COMMITMENT_MEMO]:
     "The Fund Commitment Memo is a four-stage assistant workflow: it drafts, " +
     "pauses at analyst checkpoints for your edits, and exports a Word memo. " +

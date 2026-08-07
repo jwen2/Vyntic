@@ -132,6 +132,10 @@ function assertRunShape(run: WorkflowRun, where: string): void {
  */
 const EXPECTED_CITATION_COUNT: Record<string, number> = {
   builtin_lp_ddq_scan: 59,
+  builtin_lp_fund_terms: 17,
+  builtin_lp_odd_screen: 22,
+  builtin_lp_lpa_review: 10,
+  builtin_lp_side_letters: 19,
 };
 
 describe.each(DEMO_RECORDINGS.map((r) => [r.workflow.name, r] as const))(

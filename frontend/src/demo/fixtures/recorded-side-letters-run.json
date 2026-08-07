@@ -1,0 +1,351 @@
+{
+  "id": "ab75806a5092485a9ff122e8d76e525e",
+  "workflow_id": "builtin_lp_side_letters",
+  "deal_id": "brightwater_iii",
+  "run_number": 4,
+  "status": "complete",
+  "document_ids": [
+    "brightwater_iii_ec78209e"
+  ],
+  "started_by": 1,
+  "started_at": "2026-08-07T14:49:41.799817",
+  "completed_at": "2026-08-07T14:49:44.452115",
+  "cells": [
+    {
+      "id": "b224605bb2e7437d801ed72f0d72e373",
+      "run_id": "ab75806a5092485a9ff122e8d76e525e",
+      "row_key": "brightwater_iii_ec78209e",
+      "column_id": "36d71bb878af4ae0a5ef3d273226c7e6",
+      "status": "complete",
+      "answer": "* Management fee reduction of **ten basis points per annum** for Glenmoor’s **$25,000,000** commitment (Section 1) [Source 1].\n* Most Favored Nations (MFN) election right for terms granted to Limited Partners committing **$50,000,000 or less** (Section 2) [Source 1].\n* Pro-rata co-investment opportunity for portfolio investments requiring **more than $75,000,000** of aggregate equity capital (Section 3) [Source 2].\n* Quarterly reports provided within **45 days** after quarter-end (Section 4) [Source 2].\n* Annual audited financial statements provided within **120 days** after fiscal year-end (Section 4) [Source 2].\n* Excuse right for investments in **tobacco or controlled substances** upon **ten business days'** written notice (Section 5) [Source 3].\n* Consent to transfers to affiliates shall not be unreasonably withheld, conditioned, or delayed, subject to legal, tax, and regulatory limitations (Section 6) [Source 3].\n* Annual ESG report covering portfolio-level metrics (Section 7) [Source 4].",
+      "answer_formatted": null,
+      "answer_display": "* Management fee reduction of **ten basis points per annum** for Glenmoor’s **$25,000,000** commitment (Section 1) [Source 1].\n* Most Favored Nations (MFN) election right for terms granted to Limited Partners committing **$50,000,000 or less** (Section 2) [Source 1].\n* Pro-rata co-investment opportunity for portfolio investments requiring **more than $75,000,000** of aggregate equity capital (Section 3) [Source 2].\n* Quarterly reports provided within **45 days** after quarter-end (Section 4) [Source 2].\n* Annual audited financial statements provided within **120 days** after fiscal year-end (Section 4) [Source 2].\n* Excuse right for investments in **tobacco or controlled substances** upon **ten business days'** written notice (Section 5) [Source 3].\n* Consent to transfers to affiliates shall not be unreasonably withheld, conditioned, or delayed, subject to legal, tax, and regulatory limitations (Section 6) [Source 3].\n* Annual ESG report covering portfolio-level metrics (Section 7) [Source 4].",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "quality": null,
+      "model": "gemini-3.1-flash-lite",
+      "fallback": false,
+      "duration_ms": 1296,
+      "error_message": null,
+      "started_at": "2026-08-07T14:49:41.863301",
+      "completed_at": "2026-08-07T14:49:43.201777"
+    },
+    {
+      "id": "0144af19ff87480d8feb1040ea4e38de",
+      "run_id": "ab75806a5092485a9ff122e8d76e525e",
+      "row_key": "brightwater_iii_ec78209e",
+      "column_id": "1f2d8936fabb4bf9a021845fcea2d7b9",
+      "status": "complete",
+      "answer": "{\"pairs\": [{\"key\": \"Fee: [Source 1]\", \"value\": 1, \"unit\": \"obligation\"}, {\"key\": \"MFN: [Source 1]\", \"value\": 1, \"unit\": \"obligation\"}, {\"key\": \"Co-invest: [Source 2]\", \"value\": 1, \"unit\": \"obligation\"}, {\"key\": \"Reporting: [Source 2]\", \"value\": 1, \"unit\": \"obligation\"}, {\"key\": \"Transfer: [Source 3]\", \"value\": 1, \"unit\": \"obligation\"}, {\"key\": \"Excuse: [Source 3]\", \"value\": 1, \"unit\": \"obligation\"}, {\"key\": \"Regulatory: [Source 4]\", \"value\": 0, \"unit\": \"obligation\"}]}",
+      "answer_formatted": {
+        "kind": "kv",
+        "pairs": [
+          {
+            "key": "Fee: [Source 1]",
+            "value": 1,
+            "unit": "obligation"
+          },
+          {
+            "key": "MFN: [Source 1]",
+            "value": 1,
+            "unit": "obligation"
+          },
+          {
+            "key": "Co-invest: [Source 2]",
+            "value": 1,
+            "unit": "obligation"
+          },
+          {
+            "key": "Reporting: [Source 2]",
+            "value": 1,
+            "unit": "obligation"
+          },
+          {
+            "key": "Transfer: [Source 3]",
+            "value": 1,
+            "unit": "obligation"
+          },
+          {
+            "key": "Excuse: [Source 3]",
+            "value": 1,
+            "unit": "obligation"
+          },
+          {
+            "key": "Regulatory: [Source 4]",
+            "value": 0,
+            "unit": "obligation"
+          }
+        ]
+      },
+      "answer_display": "- Fee: [Source 1]: 1 obligation\n- MFN: [Source 1]: 1 obligation\n- Co-invest: [Source 2]: 1 obligation\n- Reporting: [Source 2]: 1 obligation\n- Transfer: [Source 3]: 1 obligation\n- Excuse: [Source 3]: 1 obligation\n- Regulatory: [Source 4]: 0 obligation",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "quality": null,
+      "model": "gemini-3.1-flash-lite",
+      "fallback": false,
+      "duration_ms": 1061,
+      "error_message": null,
+      "started_at": "2026-08-07T14:49:41.901639",
+      "completed_at": "2026-08-07T14:49:43.006447"
+    },
+    {
+      "id": "d36f471d97c249be88fc93014ef71073",
+      "run_id": "ab75806a5092485a9ff122e8d76e525e",
+      "row_key": "brightwater_iii_ec78209e",
+      "column_id": "c1c656b232504d08a445e5e0121511f3",
+      "status": "complete",
+      "answer": "| Metric | Detail |\n| --- | --- |\n| MFN SCOPE | Better economic, reporting, transfer or governance terms granted to any Limited Partner committing $50,000,000 or less [Source 1] |\n| Election mechanics | Exercisable within 30 days after final close [Source 1] |\n| Notice deadlines | |\n| Carve-outs | Subject to customary exclusions [Source 1] |",
+      "answer_formatted": null,
+      "answer_display": "| Metric | Detail |\n| --- | --- |\n| MFN SCOPE | Better economic, reporting, transfer or governance terms granted to any Limited Partner committing $50,000,000 or less [Source 1] |\n| Election mechanics | Exercisable within 30 days after final close [Source 1] |\n| Notice deadlines | |\n| Carve-outs | Subject to customary exclusions [Source 1] |",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "quality": null,
+      "model": "gemini-3.1-flash-lite",
+      "fallback": false,
+      "duration_ms": 2125,
+      "error_message": null,
+      "started_at": "2026-08-07T14:49:41.927179",
+      "completed_at": "2026-08-07T14:49:44.097768"
+    },
+    {
+      "id": "71a8ae1a687842acbf942d0c0c16c8a8",
+      "run_id": "ab75806a5092485a9ff122e8d76e525e",
+      "row_key": "brightwater_iii_ec78209e",
+      "column_id": "504c0842b45848d191ab7d4a4b46218f",
+      "status": "complete",
+      "answer": "| Obligation | Timing | Trigger | Owner | Section |\n| :--- | :--- | :--- | :--- | :--- |\n| MFN election | Within 30 days after final close [Source 1] | Granting better term to LP committing $50M or less [Source 1] | Glenmoor [Source 1] | 2. Most Favored Nations [Source 1] |\n| Co-investment offer | Commercially reasonable efforts [Source 2] | Investment requiring >$75M aggregate equity [Source 2] | General Partner [Source 2] | 3. Co-Investment Opportunity [Source 2] |\n| Quarterly reports | Within 45 days after quarter-end [Source 2] | Quarterly end [Source 2] | General Partner [Source 2] | 4. Reporting [Source 2] |\n| Annual audited financials | Within 120 days after fiscal year-end [Source 2] | Fiscal year-end [Source 2] | General Partner [Source 2] | 4. Reporting [Source 2] |\n| Excuse Right notice | At least 10 business days prior [Source 3] | Investment in tobacco or controlled substances [Source 3] | Glenmoor [Source 3] | 5. Excuse Right [Source 3] |\n| Annual ESG report | Annually [Source 4] | N/A | General Partner [Source 4] | 7. Annual ESG Report [Source 4] |",
+      "answer_formatted": null,
+      "answer_display": "| Obligation | Timing | Trigger | Owner | Section |\n| :--- | :--- | :--- | :--- | :--- |\n| MFN election | Within 30 days after final close [Source 1] | Granting better term to LP committing $50M or less [Source 1] | Glenmoor [Source 1] | 2. Most Favored Nations [Source 1] |\n| Co-investment offer | Commercially reasonable efforts [Source 2] | Investment requiring >$75M aggregate equity [Source 2] | General Partner [Source 2] | 3. Co-Investment Opportunity [Source 2] |\n| Quarterly reports | Within 45 days after quarter-end [Source 2] | Quarterly end [Source 2] | General Partner [Source 2] | 4. Reporting [Source 2] |\n| Annual audited financials | Within 120 days after fiscal year-end [Source 2] | Fiscal year-end [Source 2] | General Partner [Source 2] | 4. Reporting [Source 2] |\n| Excuse Right notice | At least 10 business days prior [Source 3] | Investment in tobacco or controlled substances [Source 3] | Glenmoor [Source 3] | 5. Excuse Right [Source 3] |\n| Annual ESG report | Annually [Source 4] | N/A | General Partner [Source 4] | 7. Annual ESG Report [Source 4] |",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "quality": null,
+      "model": "gemini-3.1-flash-lite",
+      "fallback": false,
+      "duration_ms": 1438,
+      "error_message": null,
+      "started_at": "2026-08-07T14:49:41.943293",
+      "completed_at": "2026-08-07T14:49:43.457743"
+    },
+    {
+      "id": "30eb0ab1ab974e9ea71bfb63d076d57d",
+      "run_id": "ab75806a5092485a9ff122e8d76e525e",
+      "row_key": "brightwater_iii_ec78209e",
+      "column_id": "3e230c1962064e39af058cffb9e88f2f",
+      "status": "complete",
+      "answer": "{  \"pairs\": [\n    {\n      \"key\": \"Ongoing\",\n      \"value\": \"Management fee reduction of 10bps [Source 1]; Quarterly reports within 45 days of quarter-end [Source 2]; Annual audited financial statements within 120 days of fiscal year-end [Source 2]; Annual ESG reporting [Source 4]; Potential co-investment opportunities for deals >$75M [Source 2]; MFN election right for commitments <=$50M [Source 1]; Excuse rights for tobacco/controlled substances [Source 3]; Consent for affiliate transfers [Source 3]\",\n \"unit\": \"N/A\"\n    },\n    {\n      \"key\": \"One-time\",\n \"value\": \"Not found\", \"unit\": \"N/A\"\n    }\n  ]\n}",
+      "answer_formatted": {
+        "kind": "kv",
+        "pairs": [
+          {
+            "key": "Ongoing",
+            "value": "Management fee reduction of 10bps [Source 1]; Quarterly reports within 45 days of quarter-end [Source 2]; Annual audited financial statements within 120 days of fiscal year-end [Source 2]; Annual ESG reporting [Source 4]; Potential co-investment opportunities for deals >$75M [Source 2]; MFN election right for commitments <=$50M [Source 1]; Excuse rights for tobacco/controlled substances [Source 3]; Consent for affiliate transfers [Source 3]",
+            "unit": "N/A"
+          },
+          {
+            "key": "One-time",
+            "value": "Not found",
+            "unit": "N/A"
+          }
+        ]
+      },
+      "answer_display": "- Ongoing: Management fee reduction of 10bps [Source 1]; Quarterly reports within 45 days of quarter-end [Source 2]; Annual audited financial statements within 120 days of fiscal year-end [Source 2]; Annual ESG reporting [Source 4]; Potential co-investment opportunities for deals >$75M [Source 2]; MFN election right for commitments <=$50M [Source 1]; Excuse rights for tobacco/controlled substances [Source 3]; Consent for affiliate transfers [Source 3] N/A\n- One-time: Not found N/A",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "quality": null,
+      "model": "gemini-3.1-flash-lite",
+      "fallback": false,
+      "duration_ms": 1358,
+      "error_message": null,
+      "started_at": "2026-08-07T14:49:43.020007",
+      "completed_at": "2026-08-07T14:49:44.423880"
+    },
+    {
+      "id": "995426f65fd44235b8e6ee8ebc87762c",
+      "run_id": "ab75806a5092485a9ff122e8d76e525e",
+      "row_key": "brightwater_iii_ec78209e",
+      "column_id": "34e17128225e43fd990531e0b32162f3",
+      "status": "complete",
+      "answer": "* Quarterly report delivery within 45 days after quarter-end [Source 2]\n* Annual audited financial statement delivery within 120 days after fiscal year-end [Source 2]\n* Annual ESG report covering portfolio-level metrics [Source 4]",
+      "answer_formatted": {
+        "kind": "list",
+        "items": [
+          {
+            "text": "Quarterly report delivery within 45 days after quarter-end [Source 2]"
+          },
+          {
+            "text": "Annual audited financial statement delivery within 120 days after fiscal year-end [Source 2]"
+          },
+          {
+            "text": "Annual ESG report covering portfolio-level metrics [Source 4]"
+          }
+        ],
+        "ordered": false
+      },
+      "answer_display": "- Quarterly report delivery within 45 days after quarter-end [Source 2]\n- Annual audited financial statement delivery within 120 days after fiscal year-end [Source 2]\n- Annual ESG report covering portfolio-level metrics [Source 4]",
+      "citations": [
+        null,
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        null,
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "quality": null,
+      "model": "gemini-3.1-flash-lite",
+      "fallback": false,
+      "duration_ms": 657,
+      "error_message": null,
+      "started_at": "2026-08-07T14:49:43.222415",
+      "completed_at": "2026-08-07T14:49:43.913696"
+    }
+  ],
+  "stage_outputs": []
+}
