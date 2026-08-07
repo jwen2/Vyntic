@@ -6,6 +6,7 @@ import {
   singleQuestionStream,
 } from "@/lib/api";
 import AnswerText from "@/components/dd/AnswerText";
+import { isDemoMode } from "@/demo/mode";
 import { useTheme } from "@/components/ThemeProvider";
 import { ACCENT, tint } from "@/components/dd/types";
 import Button from "@/components/ui/Button";
@@ -31,6 +32,16 @@ const DEAL_PROMPTS = [
 
 // Suggested-research cards per entity type: a scannable title + blurb over each prompt.
 type PromptCard = { title: string; blurb: string; chips: string[]; prompt: string };
+
+/**
+ * Demo mode only. `ready` with an empty list is a workspace the run skipped;
+ * it carries the deal it resolved for, so switching funds reads as loading
+ * again without an effect having to write the state back.
+ */
+type DemoCardState =
+  | { status: "loading" }
+  | { status: "ready"; dealId: string; cards: PromptCard[] }
+  | { status: "failed" };
 
 // Buyout deal cards (entity_type="deal").
 const DEAL_CARDS: PromptCard[] = [
@@ -161,6 +172,42 @@ export default function DealAssistantPanel({
   const controllerRef = useRef<AbortController | null>(null);
   const newChatMountedRef = useRef(false);
   const lastPendingSignalRef = useRef<number>(pendingPromptSignal ?? 0);
+  // Demo mode answers a fixed set of questions, so the empty state offers that
+  // set instead of the generic prompts. Loaded dynamically for the same reason
+  // the SSE intercept is: the fixtures stay out of the production module graph,
+  // and with the flag off this effect returns before importing anything.
+  //
+  // The state is three-way rather than `PromptCard[] | null`, because "not
+  // loaded yet" and "loaded, and this fund has none" have to render
+  // differently, and neither may fall through to the generic cards: the demo
+  // cannot answer those prompts, so offering them invites a click that lands on
+  // the off-script fallback. `null` means the flag is off.
+  const [demoCards, setDemoCards] = useState<DemoCardState | null>(() =>
+    isDemoMode() ? { status: "loading" } : null
+  );
+
+  useEffect(() => {
+    if (!isDemoMode()) return;
+    let cancelled = false;
+    void import("@/demo/fixtures/chat")
+      .then(({ demoPromptCardsFor }) => {
+        if (cancelled) return;
+        setDemoCards({
+          status: "ready",
+          dealId: deal.deal_id,
+          cards: demoPromptCardsFor(deal.deal_id),
+        });
+      })
+      .catch(() => {
+        // Silently keeping the generic cards here would be the worst outcome:
+        // they look like the demo's own suggestions and answer off-script.
+        if (cancelled) return;
+        setDemoCards({ status: "failed" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [deal.deal_id]);
 
   const selectedDocs = useMemo(
     () => documents.filter((doc) => selectedDocIds.includes(doc.doc_id)),
@@ -560,6 +607,11 @@ export default function DealAssistantPanel({
                 docCount={documents.length}
                 loading={false}
                 isFund={deal.entity_type === "fund"}
+                demoCards={
+                  demoCards?.status === "ready" && demoCards.dealId !== deal.deal_id
+                    ? { status: "loading" }
+                    : demoCards
+                }
                 onPrompt={submit}
                 onProactiveScan={onProactiveScan}
                 composer={renderComposer()}
@@ -642,6 +694,7 @@ function InitialAssistantState({
   docCount,
   loading,
   isFund,
+  demoCards,
   onPrompt,
   onProactiveScan,
   composer,
@@ -649,12 +702,28 @@ function InitialAssistantState({
   docCount: number;
   loading: boolean;
   isFund: boolean;
+  /** Demo mode only; `null` when the flag is off. */
+  demoCards?: DemoCardState | null;
   onPrompt: (prompt: string) => void;
   onProactiveScan?: () => void;
   composer?: ReactNode;
 }) {
   const scanTitle = isFund ? "Run Fund Brief" : "Run Proactive Scan";
-  const cards = isFund ? FUND_CARDS : DEAL_CARDS;
+  // In demo mode the generic cards are never a fallback — see the state comment
+  // above. Anything other than a resolved, non-empty demo set renders no grid.
+  const cards = demoCards
+    ? demoCards.status === "ready"
+      ? demoCards.cards
+      : []
+    : isFund
+      ? FUND_CARDS
+      : DEAL_CARDS;
+  const demoNote =
+    demoCards?.status === "failed"
+      ? "Couldn't load the demo's suggested questions. You can still ask a question above."
+      : demoCards?.status === "ready" && demoCards.cards.length === 0
+        ? "No suggested questions for this fund — the demo's recorded set covers Fund IV."
+        : null;
   return (
     <div style={{ minHeight: "calc(100vh - 280px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 640, textAlign: "center" }}>
@@ -675,13 +744,25 @@ function InitialAssistantState({
 
         {composer && <div style={{ marginBottom: 26, textAlign: "left" }}>{composer}</div>}
 
-        <div className="font-mono-plex text-t3" style={{
-          fontSize: 10, fontWeight: 600,
-          textTransform: "uppercase", letterSpacing: "0.16em",
-          marginBottom: 12, textAlign: "center",
-        }}>
-          Try asking Vyntic to…
-        </div>
+        {/* Off-demo `cards` is a non-empty constant, so the heading only ever
+            hides in demo mode — while the fixtures load, in a workspace whose
+            questions were not recorded, or if the chunk failed. The note below
+            covers the last two; the load is left blank rather than explained,
+            because it resolves in a frame. */}
+        {demoNote && (
+          <div className="text-t3" style={{ font: "var(--text-sm)", textAlign: "center" }}>
+            {demoNote}
+          </div>
+        )}
+        {cards.length > 0 && (
+          <div className="font-mono-plex text-t3" style={{
+            fontSize: 10, fontWeight: 600,
+            textTransform: "uppercase", letterSpacing: "0.16em",
+            marginBottom: 12, textAlign: "center",
+          }}>
+            Try asking Vyntic to…
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, opacity: loading ? 0.55 : 1 }}>
           {cards.map((card) => (
             <button

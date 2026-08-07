@@ -1,9 +1,14 @@
 import { sseStream } from "./sse";
+import { isDemoMode, DEMO_TOKEN } from "@/demo/mode";
+import { demoFetch } from "@/demo/transport";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 const TOKEN_KEY = "vyntic_auth_token";
 
 export function getAuthToken(): string | null {
+  // AuthProvider skips getMe() entirely when this returns null, so demo mode
+  // needs a non-null sentinel. It never reaches a server.
+  if (isDemoMode()) return DEMO_TOKEN;
   return localStorage.getItem(TOKEN_KEY);
 }
 
@@ -60,6 +65,20 @@ export function errorDetailFromText(text: string, status: number): string {
 }
 
 async function fetchWrapper(url: string, options: RequestInit = {}): Promise<Response> {
+  if (isDemoMode()) {
+    const mocked = demoFetch(url, options);
+    if (mocked) return mocked;
+    if (import.meta.env.DEV) {
+      console.error(
+        `[demo] no fixture for ${options.method || "GET"} ${url} — this surface will break`
+      );
+    }
+    return new Response(JSON.stringify({ detail: "Not available in demo" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
 
@@ -477,11 +496,30 @@ interface UploadOptions {
   onUploadProgress?: (percent: number) => void;
 }
 
+/**
+ * Uploads are the one request in the app that never passes through
+ * `fetchWrapper` — `XMLHttpRequest` is used for its upload-progress events, so
+ * the demo transport cannot intercept it the way it intercepts every other
+ * call. Without this guard a demo visitor's file leaves the browser for a real
+ * backend (verified: the survey caught it hitting the dev proxy).
+ *
+ * The upload controls are hidden in demo mode too; this is the backstop, so a
+ * control added later cannot reopen the escape. It rejects rather than
+ * resolving: a faked success would leave a document that never appears — no
+ * ingestion, no extraction — which reads as a bug rather than a boundary.
+ */
+export const DEMO_UPLOAD_REFUSAL =
+  "Uploading documents isn't part of this demo — it serves a fixed, " +
+  "pre-ingested corpus. In the live product this file would be parsed, " +
+  "indexed and citable within minutes.";
+
 function xhrUpload<T>(
   url: string,
   form: FormData,
   options: UploadOptions = {}
 ): Promise<T> {
+  if (isDemoMode()) return Promise.reject(new Error(DEMO_UPLOAD_REFUSAL));
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);

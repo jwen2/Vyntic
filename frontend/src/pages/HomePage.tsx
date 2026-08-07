@@ -10,6 +10,7 @@ import {
   deleteDocument,
   listDocuments,
 } from "@/lib/api";
+import { isDemoMode } from "@/demo/mode";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import HomeTopBar from "@/components/home/HomeTopBar";
@@ -55,6 +56,13 @@ export default function HomePage() {
   } | null>(null);
   const agenticEnabled = import.meta.env.VITE_AGENTIC !== "0";
   const { theme, toggleTheme } = useTheme();
+  /**
+   * The demo serves a fixed corpus. Creating, deleting and uploading are hidden
+   * rather than faked: a delete that appears to work and then reappears on
+   * reload, or an upload whose document never gains a page or a citation, reads
+   * as a broken product rather than as a boundary of the demo.
+   */
+  const demo = isDemoMode();
 
   const filteredDeals = useMemo(() => {
     if (!dealSearch.trim()) return deals;
@@ -186,7 +194,7 @@ export default function HomePage() {
         documentTotal={documentTotal}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onAddDeal={user?.is_admin ? () => setShowAddDeal(true) : undefined}
+        onAddDeal={user?.is_admin && !demo ? () => setShowAddDeal(true) : undefined}
         onOpenDeals={() => setMobileDealsOpen(true)}
         onOpenPortfolio={() => navigate("/portfolio")}
         onLogout={handleLogout}
@@ -215,7 +223,7 @@ export default function HomePage() {
             search={dealSearch}
             onSearch={setDealSearch}
             onSelectDeal={(deal) => setSelectedDealId(deal.deal_id)}
-            onDeleteDeal={setConfirmDeleteDeal}
+            onDeleteDeal={demo ? undefined : setConfirmDeleteDeal}
             onUpdateDeal={editDeal}
             uploading={dealsLoading}
             uploadProgressByDeal={uploadProgressByDeal}
@@ -233,7 +241,7 @@ export default function HomePage() {
                 search={dealSearch}
                 onSearch={setDealSearch}
                 onSelectDeal={(deal) => setSelectedDealId(deal.deal_id)}
-                onDeleteDeal={setConfirmDeleteDeal}
+                onDeleteDeal={demo ? undefined : setConfirmDeleteDeal}
                 onUpdateDeal={editDeal}
                 uploading={dealsLoading}
                 uploadProgressByDeal={uploadProgressByDeal}
@@ -346,7 +354,7 @@ export default function HomePage() {
                       </Button>
                     </div>
 
-                    {user?.is_admin && (
+                    {user?.is_admin && !demo && (
                       <>
                         <Button
                           variant="secondary"
@@ -465,7 +473,7 @@ export default function HomePage() {
                   dealId={selectedDeal.deal_id}
                   documents={documents}
                   onViewDocument={handleViewDocument}
-                  onDeleteDocument={handleDeleteDocument}
+                  onDeleteDocument={demo ? undefined : handleDeleteDocument}
                   activeCitationId={activeCitation?.id ?? null}
                   onInspectCitation={(citation, id) =>
                     setActiveCitation((prev) =>

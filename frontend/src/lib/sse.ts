@@ -8,6 +8,7 @@
  * endpoint authenticated by a short-lived query token, not a POST.)
  */
 import { ApiError, errorDetailFromText, getAuthToken } from "./api";
+import { isDemoMode } from "@/demo/mode";
 
 export interface SseHandlers<T> {
   onEvent: (event: T) => void;
@@ -21,6 +22,33 @@ export function sseStream<T>(
   handlers: SseHandlers<T>
 ): AbortController {
   const controller = new AbortController();
+
+  if (isDemoMode()) {
+    // Dynamic import keeps the chat fixtures out of the module graph for
+    // everyone who never opens the demo. The AbortController has to be returned
+    // synchronously, so the fixture stream is wired once the import resolves and
+    // an abort that beats it simply stops it from starting.
+    void import("@/demo/fixtures/chat")
+      .then(({ demoSseStream }) => {
+        if (controller.signal.aborted) return;
+        const inner = demoSseStream(url, body, {
+          // `event` is unknown here, exactly as the parsed payload is on the
+          // live path below — this is the same boundary cast, not a new one.
+          onEvent: (event) => handlers.onEvent(event as T),
+          onFinish: handlers.onFinish,
+          onError: handlers.onError,
+        });
+        controller.signal.addEventListener("abort", () => inner.abort());
+      })
+      .catch((err: unknown) => {
+        // A stale deploy or a blocked chunk rejects this import. Without a
+        // handler the rejection goes nowhere and the caller's spinner runs
+        // forever, which reads as a hung model rather than a failed fetch.
+        if (controller.signal.aborted) return;
+        handlers.onError?.(err instanceof Error ? err : new Error(String(err)));
+      });
+    return controller;
+  }
 
   (async () => {
     try {

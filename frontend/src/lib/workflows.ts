@@ -6,6 +6,7 @@
  * Mirrors Pydantic schemas in backend/app/models/workflow.py and workflow_run.py.
  */
 import { request, requestRaw, type Citation } from "./api";
+import { isDemoMode } from "@/demo/mode";
 import type { ColumnFormat } from "./matrixColumnConfig";
 
 export type WorkflowType = "assistant" | "tabular";
@@ -395,6 +396,23 @@ export function subscribeRun(
   onEvent: (event: RunStreamEvent) => void,
   onError?: (err: Event) => void
 ): () => void {
+  if (isDemoMode()) {
+    // Dynamic import keeps the replay engine out of the module graph for
+    // everyone who never opens the demo. The cleanup function must be returned
+    // synchronously, so the stream is wired once the import resolves and a
+    // teardown that beats it simply cancels.
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    void import("@/demo/runReplay").then(({ replayDemoRun }) => {
+      if (cancelled) return;
+      stop = replayDemoRun(onEvent);
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }
+
   let source: EventSource | null = null;
   let closed = false;
 

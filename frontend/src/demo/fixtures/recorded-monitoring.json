@@ -1,0 +1,574 @@
+{
+  "recorded_at": "2026-08-05",
+  "deal_id": "brightwater_iii",
+  "verify_period": "Q2 2026",
+  "notices": [
+    {
+      "id": "94d3905d484045fc820b4ef4b52a6662",
+      "deal_id": "brightwater_iii",
+      "doc_id": "brightwater_iii_25c17aae",
+      "kind": "call",
+      "amount": 1875000.0,
+      "currency": "USD",
+      "due_date": "2026-07-27 [Source 1]",
+      "period": null,
+      "purpose": "The capital call is for the acquisition of a new platform, Project Cardinal [Source 1].",
+      "status": "confirmed",
+      "outstanding_before": 4375000.0,
+      "citations": [
+        {
+          "source_file": "brightwater_iii_capital_call_07.pdf",
+          "page": 1,
+          "text_snippet": "| Item                                          | Amount / Detail                                        |\n|-----------------------------------------------|--------------------------------------------------------|\n| Investor                                      | Glenmoor University Endowment                          |\n| Commitment                                    | $25,000,000                                            |\n| Call percentage                               | 7.5%                                                   |\n| Capital call amount                           | $1,875,000                                             |\n| Purpose                                       | New platform acquisition: Project Cardinal             |\n| Remaining unfunded commitment after this call | $4,375,000                                             |\n| Wire bank                                     | Anchorstone Bank, N.A. (fictional)                     |\n| Account name                                  | Brightwater Capital Partners III, L.P. Capital Account |\n| ABA / account                                 | 000000000 / 000123456789                               |",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ]
+    },
+    {
+      "id": "cbd82aada20847dd8de3125ff4a135ff",
+      "deal_id": "brightwater_iii",
+      "doc_id": "brightwater_iii_f71c5a0e",
+      "kind": "distribution",
+      "amount": 1400000.0,
+      "currency": "USD",
+      "due_date": "2026-08-03 [Source 1]",
+      "period": null,
+      "purpose": "The distribution represents partial proceeds from a dividend recapitalization and working-capital release at a Fund III portfolio company, consisting of both return of capital and realized gain. [Source 1]",
+      "status": "confirmed",
+      "outstanding_before": null,
+      "citations": [
+        {
+          "source_file": "brightwater_iii_distribution_03.pdf",
+          "page": 1,
+          "text_snippet": "| Distribution Component   | Amount     |\n|--------------------------|------------|\n| Return of capital        | $950,000   |\n| Realized gain            | $450,000   |\n| Total distribution       | $1,400,000 |\n\n| Investor       | Glenmoor University Endowment                                      |\n|----------------|--------------------------------------------------------------------|\n| Payment date   | August 3, 2026                                                     |\n| Payment method | Wire transfer to bank instructions on file                         |\n| Tax note       | Tax reporting will be provided with annual Schedule K-1 materials. |",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ]
+    }
+  ],
+  "obligations": [
+    {
+      "id": "b7a37c3fb88749dc8c22c9442f9f2cde",
+      "deal_id": "brightwater_iii",
+      "doc_id": "brightwater_iii_ec78209e",
+      "category": "coinvest",
+      "text": "The General Partner must use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity for any portfolio investment requiring over $75,000,000 of aggregate equity capital [Source 2].",
+      "section_ref": "3",
+      "cadence": "ongoing",
+      "verify_hint": "Track all deal activity exceeding $75M in equity to confirm co-investment opportunities were presented.",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "status": "active",
+      "latest_check": {
+        "id": "ac1da2efde2749f0ba9819e9f5794e2e",
+        "obligation_id": "b7a37c3fb88749dc8c22c9442f9f2cde",
+        "period": "Q2 2026",
+        "verdict": "unclear",
+        "llm_verdict": "unclear",
+        "rationale": "While the quarterly reporting package lists the fair value of four portfolio companies [Source 4][Source 5][Source 6][Source 7], it does not disclose the aggregate equity capital deployed for these investments or whether any new deal activity occurred during the quarter that would trigger the $75,000,000 co-investment threshold. Consequently, there is insufficient information to verify compliance with the side-letter obligation.",
+        "citations": [
+          null,
+          null,
+          null,
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 3,
+            "text_snippet": "| Company              | Sector                            | Fund III fair value   | Quarterly update                                                                                           |\n|----------------------|-----------------------------------|-----------------------|------------------------------------------------------------------------------------------------------------|\n| Amerin Gauge Systems | Engineered measurement components | $132.0 million        | Revenue increased 6.4% year-over-year, with margin expansion from procurement savings and mix improvement. |",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          },
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 4,
+            "text_snippet": "| Company               | Sector                            | Fund III fair value   | Quarterly update                                                                                                     |\n|-----------------------|-----------------------------------|-----------------------|----------------------------------------------------------------------------------------------------------------------|\n| Caldera Flow Controls | Specialty valves and flow control | $188.5 million        | Management completed a plant consolidation plan and continues to pursue add-on opportunities in aftermarket service. |",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          },
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 5,
+            "text_snippet": "| Company               | Sector                      | Fund III fair value   | Quarterly update                                                                                 |\n|-----------------------|-----------------------------|-----------------------|--------------------------------------------------------------------------------------------------|\n| Northline Fabrication | Precision metal fabrication | $96.0 million         | Order backlog remains above underwriting case, though customer concentration is being monitored. |",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          },
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 6,
+            "text_snippet": "| Company                | Sector                       | Fund III fair value   | Quarterly update                                                                                          |\n|------------------------|------------------------------|-----------------------|-----------------------------------------------------------------------------------------------------------|\n| Vantage Field Services | Facility compliance services | $165.5 million        | Route density and technician utilization improved during the quarter following dispatch software rollout. |",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          }
+        ],
+        "confirmed": false
+      }
+    },
+    {
+      "id": "bc2bc06fa47244baa8c49d1716a8f914",
+      "deal_id": "brightwater_iii",
+      "doc_id": "brightwater_iii_ec78209e",
+      "category": "excuse",
+      "text": "Glenmoor has the right to be excused from participating in investments where the primary business is tobacco or controlled substances upon ten business days' notice [Source 3].",
+      "section_ref": "5",
+      "cadence": "ongoing",
+      "verify_hint": "Review the investment pipeline or deal memos to identify potential tobacco or controlled substance assets and confirm the opt-out process.",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "status": "active",
+      "latest_check": {
+        "id": "8b3ab286086840cc8c7d193a2183f0b0",
+        "obligation_id": "bc2bc06fa47244baa8c49d1716a8f914",
+        "period": "Q2 2026",
+        "verdict": "unclear",
+        "llm_verdict": "unclear",
+        "rationale": "The provided reporting package details financial performance and operational updates for existing portfolio companies but does not disclose the fund's investment pipeline, new deal memos, or specific procedures regarding the tobacco and controlled substances opt-out process. Consequently, there is insufficient evidence to confirm whether the General Partner has identified such assets or honored the notice requirements for potential exclusions.",
+        "citations": [],
+        "confirmed": false
+      }
+    },
+    {
+      "id": "030ac107d79242f88efe2783c7f95fd4",
+      "deal_id": "brightwater_iii",
+      "doc_id": "brightwater_iii_ec78209e",
+      "category": "fee",
+      "text": "The General Partner shall reduce the management fee by ten basis points per annum for Glenmoor University Endowment's $25,000,000 commitment [Source 1].",
+      "section_ref": "1",
+      "cadence": "ongoing",
+      "verify_hint": "Confirm the management fee calculation in the capital call notices or quarterly statements reflects the 10bps reduction.",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "status": "active",
+      "latest_check": {
+        "id": "9d6ba7832e8841c390f195dade9ed927",
+        "obligation_id": "030ac107d79242f88efe2783c7f95fd4",
+        "period": "Q2 2026",
+        "verdict": "compliant",
+        "llm_verdict": "compliant",
+        "rationale": "The Q2 2026 management fee allocation of $118,750 is explicitly stated to reflect the 1.90% annual management fee rate applicable under Glenmoor's side letter [Source 8]. This confirms the application of the 10 basis point reduction against the standard 2.00% rate for the $25,000,000 commitment [Source 1][Source 8].",
+        "citations": [
+          {
+            "source_file": "glenmoor_fund_iii_pcap_q2_2026.pdf",
+            "page": 1,
+            "text_snippet": "| Metric                   | Amount      |\n|--------------------------|-------------|\n| Commitment               | $25,000,000 |\n| Paid-in / called capital | $18,750,000 |\n| Percent called           | 75.0%       |\n| Cumulative distributions | $6,200,000  |\n| NAV / remaining value    | $21,400,000 |\n| DPI                      | 0.33x       |\n| RVPI                     | 1.14x       |\n| TVPI                     | 1.47x       |\n\n| Q2 2026 Activity               | Amount      |\n|--------------------------------|-------------|\n| Beginning capital account      | $20,900,000 |\n| Capital contributions          | $0          |\n| Distributions                  | $0          |\n| Management fee allocation      | ($118,750)  |\n| Partnership expense allocation | ($66,250)   |\n| Carried interest accrual       | ($315,000)  |\n| Net unrealized appreciation    | $1,000,000  |\n| Ending capital account / NAV   | $21,400,000 |",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 7,
+            "text_snippet": "4. Capital Account and Fee Disclosure\n\nGlenmoor's Q2 management fee allocation was $118,750, reflecting the 1.90% annual management fee rate applicable under Glenmoor's side letter. The standard rate for similarly situated investors before the discount is 2.00% per annum.\n\nNo capital contributions o",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          }
+        ],
+        "confirmed": false
+      }
+    },
+    {
+      "id": "e8b3668280774391848cc47924b97455",
+      "deal_id": "brightwater_iii",
+      "doc_id": "brightwater_iii_ec78209e",
+      "category": "mfn",
+      "text": "Glenmoor holds an MFN election right for any better economic, reporting, transfer, or governance terms granted to other Limited Partners committing $50,000,000 or less [Source 1].",
+      "section_ref": "2",
+      "cadence": "one_time",
+      "verify_hint": "Review all subsequent side letters issued to other LPs committing $50M or less to ensure parity.",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "status": "active",
+      "latest_check": {
+        "id": "af5847f142b0477eaa7cd598c8667ac9",
+        "obligation_id": "e8b3668280774391848cc47924b97455",
+        "period": "Q2 2026",
+        "verdict": "unclear",
+        "llm_verdict": "unclear",
+        "rationale": "The provided reporting package discloses the application of Glenmoor’s 1.90% management fee rate [Source 1][Source 8] but does not contain information regarding side letters or economic terms granted to other Limited Partners. Consequently, there is no data available to verify whether parity has been maintained with other LPs committing $50,000,000 or less.",
+        "citations": [
+          {
+            "source_file": "glenmoor_fund_iii_pcap_q2_2026.pdf",
+            "page": 1,
+            "text_snippet": "| Metric                   | Amount      |\n|--------------------------|-------------|\n| Commitment               | $25,000,000 |\n| Paid-in / called capital | $18,750,000 |\n| Percent called           | 75.0%       |\n| Cumulative distributions | $6,200,000  |\n| NAV / remaining value    | $21,400,000 |\n| DPI                      | 0.33x       |\n| RVPI                     | 1.14x       |\n| TVPI                     | 1.47x       |\n\n| Q2 2026 Activity               | Amount      |\n|--------------------------------|-------------|\n| Beginning capital account      | $20,900,000 |\n| Capital contributions          | $0          |\n| Distributions                  | $0          |\n| Management fee allocation      | ($118,750)  |\n| Partnership expense allocation | ($66,250)   |\n| Carried interest accrual       | ($315,000)  |\n| Net unrealized appreciation    | $1,000,000  |\n| Ending capital account / NAV   | $21,400,000 |",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 7,
+            "text_snippet": "4. Capital Account and Fee Disclosure\n\nGlenmoor's Q2 management fee allocation was $118,750, reflecting the 1.90% annual management fee rate applicable under Glenmoor's side letter. The standard rate for similarly situated investors before the discount is 2.00% per annum.\n\nNo capital contributions o",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          }
+        ],
+        "confirmed": false
+      }
+    },
+    {
+      "id": "b5b567899e7842a797ef9f6987db7f8f",
+      "deal_id": "brightwater_iii",
+      "doc_id": "brightwater_iii_ec78209e",
+      "category": "reporting",
+      "text": "The General Partner shall provide quarterly reports within 45 days after quarter-end and annual audited financial statements within 120 days after fiscal year-end [Source 2].",
+      "section_ref": "4",
+      "cadence": "ongoing",
+      "verify_hint": "Monitor receipt dates of quarterly and annual reports against the stipulated deadlines.",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "status": "active",
+      "latest_check": {
+        "id": "2c427e5956ec4adebd5e104b81738f91",
+        "obligation_id": "b5b567899e7842a797ef9f6987db7f8f",
+        "period": "Q2 2026",
+        "verdict": "unclear",
+        "llm_verdict": "unclear",
+        "rationale": "While the quarterly report for the period ending June 30, 2026, is dated August 29, 2026 [Source 2], the provided documents do not specify the date this report was delivered to the investor. Consequently, it is impossible to verify if the delivery occurred within the 45-day deadline stipulated in the side-letter obligation.",
+        "citations": [
+          null,
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 1,
+            "text_snippet": "1. GP Letter\n\nThis quarterly report for Brightwater Capital Partners III, L.P. is dated August 29, 2026 and covers the quarter ended June 30, 2026.\n\nFund III continued to focus on portfolio operating initiatives, add-on acquisition sourcing and liquidity management during the quarter. Public-market ",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          }
+        ],
+        "confirmed": false
+      }
+    },
+    {
+      "id": "a5db0aa6e5de4c3a87d6be97608a24f2",
+      "deal_id": "brightwater_iii",
+      "doc_id": "brightwater_iii_ec78209e",
+      "category": "reporting",
+      "text": "The General Partner must provide an annual ESG report covering portfolio-level metrics [Source 4].",
+      "section_ref": "7",
+      "cadence": "ongoing",
+      "verify_hint": "Confirm receipt of the annual ESG report following fiscal year-end.",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "status": "active",
+      "latest_check": {
+        "id": "627f0599c77e4009a462fa2a70a22efd",
+        "obligation_id": "a5db0aa6e5de4c3a87d6be97608a24f2",
+        "period": "Q2 2026",
+        "verdict": "unclear",
+        "llm_verdict": "unclear",
+        "rationale": "The provided reporting package focuses on capital account activity and portfolio updates but does not include an annual ESG report or any mention of ESG-related metrics [Source 2][Source 4]. Consequently, there is insufficient information to determine if the General Partner has fulfilled the annual ESG reporting obligation.",
+        "citations": [
+          null,
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 1,
+            "text_snippet": "1. GP Letter\n\nThis quarterly report for Brightwater Capital Partners III, L.P. is dated August 29, 2026 and covers the quarter ended June 30, 2026.\n\nFund III continued to focus on portfolio operating initiatives, add-on acquisition sourcing and liquidity management during the quarter. Public-market ",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          },
+          null,
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 3,
+            "text_snippet": "| Company              | Sector                            | Fund III fair value   | Quarterly update                                                                                           |\n|----------------------|-----------------------------------|-----------------------|------------------------------------------------------------------------------------------------------------|\n| Amerin Gauge Systems | Engineered measurement components | $132.0 million        | Revenue increased 6.4% year-over-year, with margin expansion from procurement savings and mix improvement. |",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          }
+        ],
+        "confirmed": false
+      }
+    },
+    {
+      "id": "85d1794b677146228ec6703ec11220e0",
+      "deal_id": "brightwater_iii",
+      "doc_id": "brightwater_iii_ec78209e",
+      "category": "transfer",
+      "text": "The General Partner shall not unreasonably withhold, condition, or delay consent for transfers made by Glenmoor to its affiliates [Source 3].",
+      "section_ref": "6",
+      "cadence": "ongoing",
+      "verify_hint": "Ensure that any proposed affiliate transfer is processed without undue delay or unreasonable conditions.",
+      "citations": [
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 1,
+          "text_snippet": "Brightwater Capital Partners III, L.P.\n\nSide Letter with Glenmoor University Endowment | Vyntic token: side_letter\n\nThis side letter is entered into by Brightwater Capital Partners III GP, LLC, as general partner of Brightwater Capital Partners III, L.P., and Glenmoor University Endowment.\n\n1. Manag",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 2,
+          "text_snippet": "3. Co-Investment Opportunity\n\nFor any portfolio investment requiring more than $75,000,000 of aggregate equity capital from the Fund and affiliated vehicles, the General Partner shall use commercially reasonable efforts to offer Glenmoor a pro-rata co-investment opportunity.\n\nCo-Investment Opportuni",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 3,
+          "text_snippet": "5. Excuse Right\n\nUpon at least ten business days' written notice, Glenmoor may be excused from participation in investments whose primary business is tobacco or controlled substances.\n\nExcuse Right procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel w",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        },
+        {
+          "source_file": "glenmoor_fund_iii_side_letter.pdf",
+          "page": 4,
+          "text_snippet": "7. Annual ESG Report\n\nThe General Partner shall provide an annual ESG report covering portfolio-level metrics reasonably available to the General Partner.\n\nAnnual ESG Report procedures are documented in internal memoranda, reviewed by finance, legal and compliance personnel where applicable, and ret",
+          "deal_id": "brightwater_iii",
+          "kind": "extracted",
+          "span_label": null
+        }
+      ],
+      "status": "active",
+      "latest_check": {
+        "id": "7f158a322c904a03b28e937daf754a84",
+        "obligation_id": "85d1794b677146228ec6703ec11220e0",
+        "period": "Q2 2026",
+        "verdict": "unclear",
+        "llm_verdict": "unclear",
+        "rationale": "The provided reporting package focuses on financial performance, capital account balances, and portfolio company updates, but contains no information regarding any transfer requests made by Glenmoor during the period [Source 2][Source 8]. Consequently, there is no evidence available to assess whether the General Partner processed affiliate transfers in accordance with the side-letter obligation.",
+        "citations": [
+          null,
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 1,
+            "text_snippet": "1. GP Letter\n\nThis quarterly report for Brightwater Capital Partners III, L.P. is dated August 29, 2026 and covers the quarter ended June 30, 2026.\n\nFund III continued to focus on portfolio operating initiatives, add-on acquisition sourcing and liquidity management during the quarter. Public-market ",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            "source_file": "brightwater_iii_quarterly_q2_2026.pdf",
+            "page": 7,
+            "text_snippet": "4. Capital Account and Fee Disclosure\n\nGlenmoor's Q2 management fee allocation was $118,750, reflecting the 1.90% annual management fee rate applicable under Glenmoor's side letter. The standard rate for similarly situated investors before the discount is 2.00% per annum.\n\nNo capital contributions o",
+            "deal_id": "brightwater_iii",
+            "kind": "extracted",
+            "span_label": null
+          }
+        ],
+        "confirmed": false
+      }
+    }
+  ]
+}

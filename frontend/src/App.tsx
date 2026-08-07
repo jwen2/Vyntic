@@ -4,11 +4,13 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ThemeProvider from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import DemoBanner from "@/components/DemoBanner";
 
 // Route-level code splitting: landing visitors shouldn't download
 // react-markdown or the workspace surfaces just to read the marketing page.
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const LoginPage = lazy(() => import("@/pages/LoginPage"));
+const DemoGate = lazy(() => import("@/pages/DemoGate"));
 const HomePage = lazy(() => import("@/pages/HomePage"));
 const DealWorkspacePage = lazy(() => import("@/pages/DealWorkspacePage"));
 const ManagerPage = lazy(() => import("@/pages/ManagerPage"));
@@ -45,12 +47,16 @@ export default function App() {
           navigate to /login without a full page reload. */}
       <BrowserRouter>
         <AuthProvider>
+          {/* Above ErrorBoundary on purpose: if a page throws, the visitor
+              must still be told they are in a demo and still be able to leave. */}
+          <DemoBanner />
           <ErrorBoundary>
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/landing" element={<Navigate to="/" replace />} />
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/demo" element={<DemoGate />} />
                 <Route
                   path="/app"
                   element={

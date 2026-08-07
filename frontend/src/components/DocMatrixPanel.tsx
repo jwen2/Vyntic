@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { DocumentMetadata, Citation } from "@/lib/api";
+import { isDemoMode } from "@/demo/mode";
 import DocumentViewer from "./DocumentViewer";
 import ConfirmDialog from "./ConfirmDialog";
 import { useDocMatrix } from "./docmatrix/useDocMatrix";
@@ -34,6 +35,13 @@ export default function DocMatrixPanel({
 }: Props) {
   const matrix = useDocMatrix(dealId, documents);
   const { columns, cells, sortConfig } = matrix;
+  /**
+   * The demo has no recording for this surface, so it shows the hero's note
+   * instead of the grid — including when `useDocMatrix` restores columns from a
+   * previous *real* session's localStorage, which would otherwise put a live
+   * ask bar and per-cell retry buttons back on screen.
+   */
+  const demo = isDemoMode();
 
   // ── UI chrome (kept out of the hook) ──
   const [gridSearchOpen, setGridSearchOpen] = useState(false);
@@ -152,11 +160,12 @@ export default function DocMatrixPanel({
 
   return (
     <div className="space-y-2 p-4">
-      {columns.length === 0 ? (
+      {demo || columns.length === 0 ? (
         <MatrixAskHero
           documents={documents}
           onAddQuery={matrix.addQuery}
           onAddTemplate={matrix.addTemplateColumn}
+          demo={demo}
         />
       ) : (
         <>

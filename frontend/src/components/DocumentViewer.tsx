@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { getDocumentViewToken } from "@/lib/api";
+import { buildDocumentViewUrl } from "@/demo/docUrl";
 import CitationSnippet from "./dd/CitationSnippet";
 
 interface Props {
@@ -49,11 +50,7 @@ export default function DocumentViewer({
     };
   }, [dealId, filename]);
 
-  const params = new URLSearchParams();
-  if (viewToken) params.set("token", viewToken);
-  if (isExcel && page > 0) params.set("sheet", String(Math.max(0, page - 1)));
-  const query = params.toString();
-  const viewUrl = `/api/deals/${encodeURIComponent(dealId)}/documents/${encodeURIComponent(filename)}/view${query ? `?${query}` : ""}`;
+  const viewUrl = buildDocumentViewUrl(dealId, filename, viewToken, isExcel, page);
   const locatorLabel = isExcel ? "Sheet" : "Page";
 
   // role/focus-trap/restore via the shared hook; Escape stays global below

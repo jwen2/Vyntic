@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { DocumentMetadata } from "@/lib/api";
+import { disableDemoMode, enableDemoMode } from "@/demo/mode";
 import DocumentsModal from "./DocumentsModal";
 
 const baseProps = {
@@ -79,5 +81,61 @@ describe("DocumentsModal uploads", () => {
       (screen.getByRole("button", { name: "Uploading" }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
+  });
+});
+
+const lpa: DocumentMetadata = {
+  doc_id: "brightwater_iv_272f20ae",
+  deal_id: "brightwater_iv",
+  filename: "brightwater_iv_lpa.pdf",
+  page_count: 20,
+  chunk_count: 38,
+  doc_category: "lpa",
+  period: null,
+  scope: "entity",
+};
+
+describe("DocumentsModal deletion", () => {
+  afterEach(() => {
+    cleanup();
+    disableDemoMode();
+    vi.clearAllMocks();
+  });
+
+  it("offers a delete control per document outside demo mode", () => {
+    render(<DocumentsModal {...baseProps} documents={[lpa]} />);
+
+    expect(
+      screen.getByRole("button", { name: "Delete brightwater_iv_lpa.pdf" }),
+    ).toBeTruthy();
+    expect(screen.getByText(/Deletion removes the document/)).toBeTruthy();
+  });
+
+  // Hidden, not faked: the demo's documents come from fixtures, so a delete
+  // that appeared to work would undo itself on reload — and the recorded run
+  // still cites the file that vanished.
+  it("hides the delete control and its warning in demo mode", () => {
+    enableDemoMode();
+    render(<DocumentsModal {...baseProps} documents={[lpa]} />);
+
+    expect(
+      screen.queryByRole("button", { name: "Delete brightwater_iv_lpa.pdf" }),
+    ).toBeNull();
+    expect(screen.queryByText(/Deletion removes the document/)).toBeNull();
+    // The row itself still renders — only the destructive affordance is gone.
+    expect(screen.getByText("brightwater_iv_lpa.pdf")).toBeTruthy();
+  });
+
+  it("hides the upload control in demo mode when the parent still passes one", () => {
+    enableDemoMode();
+    render(
+      <DocumentsModal
+        {...baseProps}
+        documents={[lpa]}
+        onUploadDocuments={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Add documents" })).toBeNull();
   });
 });
