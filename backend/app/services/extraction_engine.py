@@ -18,7 +18,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.agents.llm import get_last_meta, stream_with_fallback
 from app.agents.prompts import SINGLE_DEAL_SYSTEM
 from app.models.query import Citation
-from app.utils.citations import build_context_string, extract_citations
+from app.utils.citations import (
+    build_context_string,
+    extract_citations,
+    should_blank_ungrounded,
+)
 
 
 @dataclass
@@ -49,8 +53,10 @@ async def run_extraction(
     - `page_context_chunks` optionally enriches citation snippets with
       same-page context (header-only Docling tables); it never affects
       [Source N] index mapping.
-    - `require_citations=True` blanks a non-empty answer that carries no
-      valid citation (tabular grounding rule).
+    - `require_citations=True` blanks a non-empty answer that makes an
+      affirmative claim with no valid citation (tabular grounding rule). An
+      answer that only reports missing information is kept — it has nothing
+      to cite by design.
     - `on_token` receives each streamed token for SSE forwarding.
     """
     if not chunks and empty_context_placeholder is None:
@@ -75,7 +81,7 @@ async def run_extraction(
         page_context_chunks=page_context_chunks,
     )
     cleaned = cleaned.strip()
-    if require_citations and cleaned and not any(c is not None for c in citations):
+    if require_citations and should_blank_ungrounded(cleaned, citations):
         cleaned, citations = "", []
 
     meta = get_last_meta()

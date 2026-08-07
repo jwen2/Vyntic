@@ -205,6 +205,54 @@ _ABSENT_FINDING_MARKERS = (
 )
 
 
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])(\s+)")
+
+
+def is_absent_finding_only(answer: str) -> bool:
+    """True when every sentence reports missing information.
+
+    Such an answer legitimately carries no citation — `_strip_absent_finding_
+    citations` guarantees it, since citations may not support a negative. The
+    `require_citations` rule must therefore not mistake it for an ungrounded
+    claim and discard it.
+
+    "Every sentence", not "any": a paragraph that states a fact and then notes
+    one gap is an affirmative answer and still needs a source.
+    """
+    text = re.sub(r"\[Source\s+\d+\]", "", answer)
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+|\n+", text) if s.strip()]
+    if not sentences:
+        return False
+    return all(
+        any(marker in s.lower() for marker in _ABSENT_FINDING_MARKERS)
+        for s in sentences
+    )
+
+
+def should_blank_ungrounded(cleaned: str, citations: list) -> bool:
+    """Whether to discard `cleaned` for lacking support (tabular grounding rule).
+
+    Discard only an *affirmative* claim with no citation. A report that the
+    documents do not cover something is a valid finding with nothing to cite;
+    blanking it renders "the LPA has no key-person clause" identically to a
+    failed extraction, which is strictly worse than saying nothing.
+    """
+    if not cleaned:
+        return False
+    if any(c is not None for c in citations):
+        return False
+    return not is_absent_finding_only(cleaned)
+
+
+def _has_valid_source(text: str, num_chunks: int) -> bool:
+    """Whether `text` carries at least one in-range [Source N] marker."""
+    normalized = _normalize_source_patterns(text)
+    return any(
+        0 <= int(m.group(1)) - 1 < num_chunks
+        for m in re.finditer(r"\[Source\s+(\d+)\]", normalized)
+    )
+
+
 _TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$")
 
 
@@ -285,16 +333,38 @@ def _strip_absent_finding_citations(answer: str) -> str:
 
     Citations should only support affirmative findings. A sentence saying the
     documents 'do not disclose X' or a value of 'Not found' must not carry a
-    [Source N]. We scan line-by-line; if any absent-finding marker appears in
-    the line (case-insensitive), we strip every [Source N] from that line.
+    [Source N].
+
+    Scoped per sentence, not per line. LLM prose is paragraph-shaped — a whole
+    paragraph arrives as one line — so a line-scoped strip lets a trailing
+    "...the replacement period is not disclosed" remove the sources from every
+    affirmative claim beside it, leaving a well-grounded answer looking
+    ungrounded.
     """
-    lines = answer.split("\n")
     out: list[str] = []
-    for line in lines:
-        lowered = line.lower()
-        if any(marker in lowered for marker in _ABSENT_FINDING_MARKERS):
-            line = _drop_citations(line)
-        out.append(line)
+    for line in answer.split("\n"):
+        # re.split with a capturing group keeps the separators, so rejoining
+        # reproduces the line's original spacing exactly.
+        parts = _SENTENCE_SPLIT_RE.split(line)
+        rebuilt = []
+        prev_absent = False
+        for part in parts:
+            bare = re.sub(r"\[Source\s+\d+\]", "", part).strip()
+            if not bare and part.strip():
+                # Citations trailing the closing period ("...disclosed. [Source 1]")
+                # split off as their own fragment. They support the sentence
+                # before them, so they inherit its verdict.
+                absent = prev_absent
+            else:
+                absent = any(
+                    marker in part.lower() for marker in _ABSENT_FINDING_MARKERS
+                )
+                if bare:
+                    prev_absent = absent
+            if absent:
+                part = _drop_citations(part)
+            rebuilt.append(part)
+        out.append("".join(rebuilt))
     return "\n".join(out)
 
 
@@ -466,8 +536,26 @@ def extract_citations(
 
     # Defensive: strip citations from places they should never appear
     # (table cells and sentences describing absent / unavailable info).
-    answer = _strip_table_cell_citations(answer)
-    answer = _strip_absent_finding_citations(answer)
+    #
+    # Both are *cosmetic* — they govern where a citation may appear, not
+    # whether the answer is supported. Neither may remove an answer's last
+    # source: the tabular path discards an affirmative answer that carries no
+    # citation, so a stripper that zeroes them out silently destroys a fully
+    # grounded answer. The canonical case is a table-only answer, which the
+    # tabular prompt actively asks for — every [Source N] sits in a cell, the
+    # cell strip removes all of them, and the answer is thrown away.
+    #
+    # So: strip, and keep the result only if grounding survived. An answer
+    # that is purely an absent finding is exempt — it is *meant* to end up
+    # with no citations, and `should_blank_ungrounded` lets it through.
+    stripped = _strip_absent_finding_citations(_strip_table_cell_citations(answer))
+    would_unground = (
+        _has_valid_source(answer, len(retrieved_chunks))
+        and not _has_valid_source(stripped, len(retrieved_chunks))
+        and not is_absent_finding_only(answer)
+    )
+    if not would_unground:
+        answer = stripped
 
     # First strip any hallucinated source references
     cleaned = strip_invalid_sources(answer, len(retrieved_chunks))
