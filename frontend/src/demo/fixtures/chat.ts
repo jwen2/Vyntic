@@ -331,6 +331,106 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
     // LPA p5, p7, p6, p3, p12; PPM p2; pitchbook p6; DDQ p6; ADV p10; PPM p11.
     citations: cited(WF_DDQ_SCAN, COL_TERMS, [5, 7, 6, 3, 12, 42, 58, 26, 72, 51]),
   },
+  {
+    question: "What conflicts of interest are disclosed?",
+    dealId: DEMO_FUND_IV_ID,
+    blurb: "Affiliated service providers, the broker-dealer, and how expenses get allocated.",
+    anchors: [
+      "conflict",
+      "conflicts",
+      "conflicts of interest",
+      "broker dealer",
+      "brightwater securities",
+      "affiliated",
+      "affiliate",
+      "related party",
+    ],
+    support: ["disclosed", "interest", "allocation", "expenses", "affiliates"],
+    // Condensed from the ODD Screen run's Conflicts of interest cell. One
+    // sentence of that cell is deliberately dropped: it stated the 50% fee
+    // offset while citing brightwater_iv_ddq.pdf p7, which reads "100% fee
+    // offset" — a citation pointing at the page that refutes the sentence
+    // above it. Deleting it is condensation; keeping it would hand a prospect
+    // a chip that opens a contradiction.
+    answer:
+      "The Firm addresses potential conflicts through its compliance manual, advisory " +
+      "committee process, and allocation policy [Source 1]. Affiliated service providers " +
+      "are described as generally limited to the General Partner and management company " +
+      "[Source 1].\n\n" +
+      "The Form ADV discloses that Brightwater Securities, LLC, an affiliated " +
+      "broker-dealer under common control with the Manager, may receive transaction fees " +
+      "or placement-related compensation in connection with portfolio company " +
+      "transactions [Source 2].\n\n" +
+      "In 2023 the Firm received an SEC deficiency letter regarding documentation of " +
+      "expense allocation, which was subsequently remediated through enhanced procedures " +
+      "and training [Source 3]. Broken-deal expenses are allocated among participating " +
+      "vehicles based on the opportunity pursued and the benefits expected [Source 4].",
+    // DDQ p12, Form ADV p6, Form ADV p10, DDQ p13.
+    citations: cited(WF_ODD_SCREEN, COL_ODD_CONFLICTS, [32, 68, 72, 33]),
+  },
+  {
+    question: "Who are the fund's service providers?",
+    dealId: DEMO_FUND_IV_ID,
+    blurb: "Auditor, administrator and counsel — and the two the documents never name.",
+    anchors: [
+      "service provider",
+      "service providers",
+      "auditor",
+      "administrator",
+      "custodian",
+      "fund counsel",
+      "prime broker",
+      "who audits",
+    ],
+    support: ["provider", "audit", "administration", "counsel", "outsourced"],
+    // "Not found" is kept verbatim from the recording rather than rewritten as
+    // "not disclosed": the run reports what it could not find, and the ability
+    // to say so at all is what the require_citations fix restored. Softening it
+    // into a claim about the documents would be adding a finding.
+    answer:
+      "From the DDQ's service-provider section [Source 1]:\n\n" +
+      "- **Auditor:** Huxley Markham & Co. LLP\n" +
+      "- **Administrator:** North Pier Fund Services\n" +
+      "- **Fund counsel:** Alder & Finch LLP\n" +
+      "- **Custodian:** Not found\n" +
+      "- **Prime broker:** Not found\n\n" +
+      "The last two are not an omission in this answer — the extraction found no " +
+      "statement of either in the documents it read.",
+    // DDQ p14.
+    citations: cited(WF_ODD_SCREEN, COL_ODD_PROVIDERS, [34]),
+  },
+  {
+    question: "Where does the LPA lean GP-favorable?",
+    dealId: DEMO_FUND_IV_ID,
+    blurb: "The ILPA-alignment review's two GP-favorable ratings, both on one clause.",
+    anchors: [
+      "gp favorable",
+      "gp-favorable",
+      "ilpa",
+      "indemnification",
+      "exculpation",
+      "fiduciary duty",
+      "lpa lean",
+    ],
+    support: ["lpa", "clause", "alignment", "favorable", "principles"],
+    // Both GP-favorable ratings in the LPA / ILPA-Alignment Review rest on the
+    // same Section 17 clause, so this answer cites it once and says so, rather
+    // than quoting it twice as two findings.
+    answer:
+      "The ILPA-alignment review rates most of the LPA at market — economics, key " +
+      "person, GP removal, LPAC powers, transfers and reporting. Two columns come back " +
+      "**GP-favorable**, and both rest on the same clause.\n\n" +
+      "Section 17: \"The Partnership shall indemnify the General Partner, Manager and " +
+      "covered persons to the fullest extent permitted by law for actions taken in good " +
+      "faith on behalf of the Partnership.\" [Source 1]\n\n" +
+      "The review reads that scope as broad protection for the General Partner and its " +
+      "affiliates — common in private equity agreements, but GP-favorable relative to " +
+      "ILPA-aligned provisions that limit indemnification to gross negligence, willful " +
+      "misconduct or bad faith [Source 1]. The fiduciary-duty column returns the same " +
+      "rating on the same clause.",
+    // LPA p17.
+    citations: cited(WF_LPA_REVIEW, COL_LPA_INDEMNITY, [17]),
+  },
 ];
 
 /** Short display tag for a corpus filename, used on the suggestion cards. */

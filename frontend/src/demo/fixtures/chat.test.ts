@@ -13,14 +13,19 @@ import {
   demoPromptCardsFor,
   demoSseStream,
   matchDemoQuestion,
+  questionsFor,
 } from "./chat";
-import { DEMO_DDQ_RUN } from "./workflows";
+import { DEMO_RECORDINGS } from "./workflowRegistry";
 import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID } from "./entities";
 
 const CHAT_URL = `/api/deals/${DEMO_FUND_IV_ID}/query/stream`;
 
-/** Every citation object the recorded run emitted, flattened and de-nulled. */
-const RECORDED_CITATIONS = DEMO_DDQ_RUN.cells
+/**
+ * Every citation object any recorded run emitted, flattened and de-nulled.
+ * Chat answers now draw from multiple recordings (DDQ scan, ODD screen, LPA /
+ * ILPA review, …), so this has to span all of them, not just the DDQ scan.
+ */
+const RECORDED_CITATIONS = DEMO_RECORDINGS.flatMap((r) => r.run.cells)
   .flatMap((cell) => cell.citations)
   .filter((citation) => citation !== null);
 
@@ -37,9 +42,13 @@ afterEach(() => {
 });
 
 describe("demo chat question set", () => {
-  it("ships between five and six questions", () => {
-    expect(DEMO_QUESTIONS.length).toBeGreaterThanOrEqual(5);
-    expect(DEMO_QUESTIONS.length).toBeLessThanOrEqual(6);
+  it("ships eight questions, all of them Fund IV's", () => {
+    // Explicit rather than a range: adding a card should be a deliberate act,
+    // and every card is a claim this demo makes to a prospect. Task 4 raises
+    // this to eight and three once Fund III has a set.
+    expect(questionsFor(DEMO_FUND_IV_ID)).toHaveLength(8);
+    expect(questionsFor(DEMO_FUND_III_ID)).toHaveLength(0);
+    expect(DEMO_QUESTIONS).toHaveLength(8);
   });
 
   it("cites only citations the recorded run actually produced", () => {
@@ -87,12 +96,16 @@ describe("demo chat question set", () => {
 
   it("asserts no finding the recorded run contradicts", () => {
     const prose = DEMO_QUESTIONS.map((q) => `${q.question} ${q.answer}`.toLowerCase()).join(" ");
-    // The recording found the DDQ/PPM/pitchbook *consistent* on fees and found
-    // no affiliated broker-dealer. Both are real in the corpus, but the fixture
-    // does not contain them, so the demo must not claim them.
+    // The recording found the DDQ/PPM/pitchbook *consistent* on fees. That
+    // finding is real in the corpus but the fixture does not contain it (see
+    // the fee-offset answer's deliberately dropped sentence), so it stays
+    // asserted here.
+    //
+    // The broker-dealer / Brightwater Securities half of this guard is gone:
+    // per the conflicts reversal above, the ODD Screen recording *does* name
+    // it, citing brightwater_adv_part2a.pdf p6 directly, so asserting its
+    // absence would now fail against a finding the fixture is right to make.
     expect(prose).not.toContain("100% fee offset");
-    expect(prose).not.toContain("brightwater securities");
-    expect(prose).not.toContain("broker-dealer");
   });
 
   it("never tells a prospect the documents agree on the fee terms", () => {
@@ -108,18 +121,25 @@ describe("demo chat question set", () => {
     expect(prose).not.toMatch(/terms are consistent/i);
   });
 
-  it("offers no conflicts-of-interest question at all", () => {
-    // Form ADV p6 discloses Brightwater Securities, LLC — an affiliated
-    // broker-dealer that "may receive transaction fees". The recorded run cited
-    // every ADV page except p6 and reported the manager's denial instead, so
-    // every conflicts question is a landmine no rephrasing defuses.
-    expect(matchDemoQuestion("what conflicts of interest are disclosed", DEMO_FUND_IV_ID)).toBeNull();
+  it("answers the conflicts question by naming the affiliated broker-dealer", () => {
+    // REVERSAL, 2026-08-08. This test previously asserted the opposite, on the
+    // ground that "the recorded run cited every ADV page except p6 and reported
+    // the manager's denial instead". That ground is gone: the ODD Screen
+    // recording cites brightwater_adv_part2a.pdf p6 directly and names
+    // Brightwater Securities, LLC. The fixture can now disclose what the corpus
+    // discloses, which is what the prohibition existed to protect.
+    const conflicts = matchDemoQuestion(
+      "what conflicts of interest are disclosed",
+      DEMO_FUND_IV_ID
+    );
+    expect(conflicts).not.toBeNull();
+    expect(conflicts!.answer).toContain("Brightwater Securities");
     expect(
-      matchDemoQuestion("what conflicts of interest exist with brightwater securities", DEMO_FUND_IV_ID)
-    ).toBeNull();
-    expect(matchDemoQuestion("are there affiliated service providers", DEMO_FUND_IV_ID)).toBeNull();
-    const titles = DEMO_QUESTIONS.map((q) => q.question.toLowerCase()).join(" ");
-    expect(titles).not.toContain("conflict");
+      conflicts!.citations.some(
+        (c) => c.source_file === "brightwater_adv_part2a.pdf" && c.page === 6
+      ),
+      "the broker-dealer claim must cite the page that discloses it"
+    ).toBe(true);
   });
 
   it("attaches no citation to a page that does not support its claim", () => {
@@ -187,9 +207,14 @@ describe("matchDemoQuestion", () => {
     // policy" — an anchor of the Level 3 answer. If the prefix were not
     // stripped, ticking that document would make *any* off-script question in
     // the chat come back as a confident, well-cited valuation answer.
+    //
+    // (Not "who is the fund administrator": Task 3 added a service-providers
+    // question whose anchors include "administrator", so that phrase now
+    // legitimately matches on its own words and no longer isolates the prefix
+    // as the thing under test.)
     const scoped =
       'Focus on these document(s): "brightwater_valuation_policy.pdf".\n\n' +
-      "who is the fund administrator";
+      "who prepares the fund's tax returns";
     expect(matchDemoQuestion(scoped, DEMO_FUND_IV_ID)).toBeNull();
   });
 
@@ -206,7 +231,9 @@ describe("matchDemoQuestion", () => {
       matchDemoQuestion("what is the valuation of the largest portfolio company", DEMO_FUND_IV_ID)
     ).toBeNull();
     expect(matchDemoQuestion("how many partners are on the team", DEMO_FUND_IV_ID)).toBeNull();
-    expect(matchDemoQuestion("who audits the fund", DEMO_FUND_IV_ID)).toBeNull();
+    // Not "who audits the fund": Task 3's service-providers question anchors on
+    // the phrase "who audits", so that wording now legitimately matches.
+    expect(matchDemoQuestion("are there any other operational gaps", DEMO_FUND_IV_ID)).toBeNull();
   });
 
   it("does not match on a substring of a longer word", () => {
