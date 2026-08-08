@@ -20,22 +20,29 @@ import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID } from "./entities";
 
 const CHAT_URL = `/api/deals/${DEMO_FUND_IV_ID}/query/stream`;
 
-/**
- * Every citation object any recorded run emitted, flattened and de-nulled.
- * Chat answers now draw from multiple recordings (DDQ scan, ODD screen, LPA /
- * ILPA review, …), so this has to span all of them, not just the DDQ scan.
- */
-const RECORDED_CITATIONS = DEMO_RECORDINGS.flatMap((r) => r.run.cells)
-  .flatMap((cell) => cell.citations)
-  .filter((citation) => citation !== null);
-
 function citationKey(source_file: string, page: number, text_snippet: string): string {
   return `${source_file}|${page}|${text_snippet}`;
 }
 
-const RECORDED_KEYS = new Set(
-  RECORDED_CITATIONS.map((c) => citationKey(c.source_file, c.page, c.text_snippet))
-);
+/**
+ * Every citation object each recorded run emitted, keyed and bucketed by the
+ * *recording's* dealId, not flattened across all of them. Chat answers now
+ * draw from multiple recordings (DDQ scan, ODD screen, LPA / ILPA review,
+ * Side Letters, …), and Side Letters is recorded against Fund III with
+ * Glenmoor citations — a flat set would accept a Fund III citation on a Fund
+ * IV answer, which is exactly the cross-fund context leak CLAUDE.md invariant
+ * 2 forbids, just laundered through a chat citation instead of a
+ * context-assembly bug. Bucketing by dealId is what keeps that closed as Task
+ * 4 adds Fund III answers citing Side Letters for real.
+ */
+const KEYS_BY_DEAL = new Map<string, Set<string>>();
+for (const r of DEMO_RECORDINGS) {
+  const keys = KEYS_BY_DEAL.get(r.dealId) ?? new Set<string>();
+  for (const c of r.run.cells.flatMap((cell) => cell.citations)) {
+    if (c) keys.add(citationKey(c.source_file, c.page, c.text_snippet));
+  }
+  KEYS_BY_DEAL.set(r.dealId, keys);
+}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -51,11 +58,17 @@ describe("demo chat question set", () => {
     expect(DEMO_QUESTIONS).toHaveLength(8);
   });
 
-  it("cites only citations the recorded run actually produced", () => {
+  it("cites only citations a recording of the answer's own fund actually produced", () => {
     for (const q of DEMO_QUESTIONS) {
       expect(q.citations.length).toBeGreaterThan(0);
+      const keys = KEYS_BY_DEAL.get(q.dealId);
+      expect(keys, `no recording for dealId ${q.dealId}`).toBeDefined();
       for (const c of q.citations) {
-        expect(RECORDED_KEYS.has(citationKey(c.source_file, c.page, c.text_snippet))).toBe(true);
+        expect(
+          keys!.has(citationKey(c.source_file, c.page, c.text_snippet)),
+          `${q.question}: [${c.source_file} p${c.page}] must come from a recording made in ` +
+            `dealId ${q.dealId}, not merely any recording`
+        ).toBe(true);
       }
     }
   });

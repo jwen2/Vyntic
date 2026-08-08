@@ -5,23 +5,23 @@
  * fixed set surfaced as suggested cards, and tells the truth about anything
  * else. Two rules make that honest rather than merely canned:
  *
- *  1. Every answer is condensed from a cell of the recorded DDQ Gap &
- *     Consistency Scan (`recorded-ddq-scan-run.json`) — the same run the grid
- *     replays. Chat therefore cannot contradict the grid, because it is the
- *     grid's own output. Findings that are real in the corpus but that the
- *     recorded run did not make (the 100% vs 50% fee-offset contradiction, the
- *     affiliated broker-dealer) are deliberately absent: the demo must never
- *     present a finding its fixture does not contain.
+ *  1. Every answer is condensed from a cell of a recorded run — the DDQ Gap &
+ *     Consistency Scan (`recorded-ddq-scan-run.json`, the same run the grid
+ *     replays), the ODD Screen, or the LPA / ILPA-Alignment Review, named
+ *     against each answer's `cited()` call. Chat therefore cannot contradict
+ *     a grid, because it is a grid's own output. A finding that is real in the
+ *     corpus but that no recorded run made — the 100% vs 50% fee-offset
+ *     contradiction — is deliberately absent: the demo must never present a
+ *     finding its fixture does not contain. (The affiliated broker-dealer is
+ *     the opposite case: the ODD Screen recording does cite it, at
+ *     `brightwater_adv_part2a.pdf` p6, so the conflicts answer does too.)
  *
- *     That cuts the other way too, and it is the sharper edge. Where the run
+ *     That cuts the other way too, and it is the sharper edge. Where a run
  *     concluded the documents *agree* on something the corpus in fact
  *     contradicts, repeating the conclusion turns a silent miss into an active
  *     false statement — and a prospect who opens the DDQ this demo itself
- *     serves finds the contradiction in a page. So the recording's affirmative
- *     consistency verdicts on fees are deleted rather than quoted, and the
- *     conflicts-of-interest question is not offered at all: the run cited every
- *     Form ADV page except p6, the one disclosing the affiliated broker-dealer,
- *     which no rephrasing of the answer makes safe to ask.
+ *     serves finds the contradiction in a page. So the DDQ scan's affirmative
+ *     consistency verdict on fees is deleted rather than quoted.
  *  2. Citations are not authored. `cited()` lifts the recorded `Citation`
  *     objects straight out of the run by their `[Source N]` number, so every
  *     `source_file` / `page` / `text_snippet` triple is one the product itself
@@ -266,15 +266,6 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
     // Valuation policy p4, p2, p3; DDQ p8.
     citations: cited(WF_DDQ_SCAN, COL_VALUATION, [76, 74, 75, 28]),
   },
-  // No conflicts-of-interest question. The recorded Conflicts cell answered
-  // with the DDQ's denial — the Firm "does not expect Fund IV to rely on
-  // affiliated service providers" — citing Form ADV p3, p4, p9 and p10: every
-  // ADV page except p6, which discloses that "Brightwater Securities, LLC is an
-  // affiliated broker-dealer" that "may receive transaction fees". Requalifying
-  // the answer as reported speech would not help: the whole subject of the card
-  // is conflicts, and the corpus's largest conflict is the one the run missed,
-  // so every phrasing of the question walks a prospect onto p6. Five questions
-  // the recording answered well beat six with a trap in them.
   {
     // Not "…and do the documents agree?": the answer no longer renders a
     // verdict on that, because the run's verdict was wrong (see below).
