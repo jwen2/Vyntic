@@ -124,7 +124,6 @@ if (!workflow)
 console.log(`${workflowName}: ${workflow.id} (${workflow.columns.length} columns)`);
 
 const docs = await api(`/deals/${DEAL_ID}/documents`, {}, token);
-console.log(`documents in context: ${docs.length}`);
 
 const selected =
   config.documents === "all"

@@ -1,7 +1,10 @@
 # More LP Workflows in the Demo
 
 **Date:** 2026-08-06
-**Status:** Approved, ready for implementation planning
+**Status:** Implemented — all four recordings shipped, so five of the eight built-ins run in the demo and three refuse permanently (Fund Brief, Track Record Grid, Fund Commitment Memo).
+
+> **One deviation from the scope below.** Getting the four recordings needed a **backend fix**, not just frontend work. All four were rejected on the first attempt with permanently blank cells; the cause was cosmetic citation-stripping in `citations.py` discarding grounded answers, and a truthful "not found" being unable to survive `require_citations` at all. That is a real product defect — an absent clause was indistinguishable from a failed extraction for every user, not just the demo — so it was fixed rather than worked around. Re-recorded against the fixed backend, every run completed in a single pass with no retries.
+
 **Scope:** Extend demo mode from one runnable workflow to five, and list the full LP built-in catalogue. Frontend-only, no backend changes.
 **Builds on:** `2026-08-03-demo-mode-odd-design.md` (PR #126, branch `feat/demo-mode-odd`). The fixture transport, replay engine and coverage guard this spec extends exist only there.
 

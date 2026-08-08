@@ -22,6 +22,16 @@ import { endDemoRunReplay } from "./fixtures/workflows";
  */
 const RUN_ID = "0a15ef21994743d88de18935351392eb";
 const WORKFLOW_ID = "builtin_lp_ddq_scan";
+/**
+ * The other four recordings, by run id. Written out rather than derived from
+ * `DEMO_RECORDINGS` for the same reason the paths below are: this list is a
+ * claim about what the app fetches, and a re-recording that changes an id
+ * should have to say so here.
+ */
+const ODD_SCREEN_RUN_ID = "80141680eb1740d18ae12096e008b4ab";
+const FUND_TERMS_RUN_ID = "14594d233bf8448a9e11d0c5c4503023";
+const LPA_REVIEW_RUN_ID = "46155d902a324367be6f9c32a3adb474";
+const SIDE_LETTERS_RUN_ID = "ab75806a5092485a9ff122e8d76e525e";
 /** A built-in the demo lists but does not record — its Run must still answer. */
 const UNRECORDED_WORKFLOW_ID = "builtin_lp_fund_brief";
 
@@ -62,6 +72,16 @@ const REQUIRED_READS: [string, string][] = [
   ["GET", `/api/deals/${DEMO_FUND_III_ID}/side-letters/obligations`],
   ["GET", `/api/runs/${RUN_ID}`],
   ["GET", `/api/runs/${RUN_ID}/stream-token`],
+  // Every recording is reachable from its workflow's run history, so each one
+  // is a run detail the app fetches and a stream token it mints.
+  ["GET", `/api/runs/${ODD_SCREEN_RUN_ID}`],
+  ["GET", `/api/runs/${ODD_SCREEN_RUN_ID}/stream-token`],
+  ["GET", `/api/runs/${FUND_TERMS_RUN_ID}`],
+  ["GET", `/api/runs/${FUND_TERMS_RUN_ID}/stream-token`],
+  ["GET", `/api/runs/${LPA_REVIEW_RUN_ID}`],
+  ["GET", `/api/runs/${LPA_REVIEW_RUN_ID}/stream-token`],
+  ["GET", `/api/runs/${SIDE_LETTERS_RUN_ID}`],
+  ["GET", `/api/runs/${SIDE_LETTERS_RUN_ID}/stream-token`],
   ["GET", "/api/managers"],
   ["GET", `/api/managers/${DEMO_MANAGER_ID}`],
   ["GET", `/api/managers/${DEMO_MANAGER_ID}/funds`],
@@ -144,6 +164,26 @@ describe("demo fixture coverage", () => {
       expect((await res!).status).toBe(200);
     }
   );
+
+  /**
+   * The list above is hand-maintained, which is what let four recordings land
+   * with no coverage entry. This is the tripwire: a new recording must appear
+   * in `REQUIRED_READS` or fail here, rather than being swept by a suite that
+   * only ever checks the ids it was told about.
+   */
+  it("pins a run detail read for every recording the demo can play", () => {
+    const covered = new Set(
+      REQUIRED_READS.filter(([, path]) => /^\/api\/runs\/[^/]+$/.test(path)).map(
+        ([, path]) => path.split("/").pop()
+      )
+    );
+    for (const rec of DEMO_RECORDINGS) {
+      expect(
+        covered.has(rec.run.id),
+        `${rec.workflow.name} (run ${rec.run.id}) has no REQUIRED_READS entry`
+      ).toBe(true);
+    }
+  });
 
   it("leaves genuinely unknown paths unmatched, rather than inventing data", () => {
     // The fallback exists so an unfixtured surface fails loudly in dev. A

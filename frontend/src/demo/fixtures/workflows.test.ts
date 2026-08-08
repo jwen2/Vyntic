@@ -228,6 +228,11 @@ describe("workflow fixtures", () => {
       )!).json();
       expect(started.id, rec.workflowId).toBe(rec.run.id);
       expect(started.status, rec.workflowId).toBe("running");
+      // Disarm inside the loop, not just in `afterEach`: `armDemoRunReplay`
+      // overwrites unconditionally, so without this every iteration after the
+      // first starts with the previous run still armed and the test stops
+      // proving that a run-start arms *its own* recording.
+      endDemoRunReplay();
     }
   });
 
@@ -272,6 +277,38 @@ describe("run identity at the route level", () => {
     })!).json();
 
     expect(fetched.status).toBe("complete");
+  });
+
+  /**
+   * The same guard with two *real* recordings, which is the shape a visitor
+   * produces: press Run on one workflow, then open another workflow's finished
+   * run from its history while the first is still animating. The started run
+   * must read as in progress and the other as the completed recording it is —
+   * a regression here shows up as a finished grid stuck at 0 cells.
+   */
+  it("keeps a started run and a browsed run apart while both are in play", async () => {
+    const [started, browsed] = DEMO_RECORDINGS;
+    expect(browsed, "needs two recordings to be meaningful").toBeDefined();
+    expect(browsed.run.id).not.toBe(started.run.id);
+
+    await demoFetch(`/api/deals/${started.dealId}/workflows/${started.workflowId}/runs`, {
+      method: "POST",
+      body: JSON.stringify({ document_ids: [], synthesis_questions: [] }),
+    });
+
+    const inFlight = await (await demoFetch(`/api/runs/${started.run.id}`, {
+      method: "GET",
+    })!).json();
+    const other = await (await demoFetch(`/api/runs/${browsed.run.id}`, {
+      method: "GET",
+    })!).json();
+
+    expect(inFlight.status, started.workflowId).toBe("running");
+    expect(other.status, browsed.workflowId).toBe("complete");
+    expect(
+      other.cells.every((c: { status: string }) => c.status === "complete"),
+      "the browsed run came back queued — the arm leaked across recordings"
+    ).toBe(true);
   });
 });
 
