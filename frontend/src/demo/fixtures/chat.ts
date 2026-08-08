@@ -29,11 +29,13 @@
  */
 import type { Citation, QueryStreamEvent } from "@/lib/api";
 import type { SseHandlers } from "@/lib/sse";
-import { DEMO_FUND_IV_ID } from "./entities";
+import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID } from "./entities";
 import { DEMO_DDQ_RUN } from "./workflows";
 
 export interface DemoAnswer {
   question: string;
+  /** The workspace this question belongs to. It answers in no other. */
+  dealId: string;
   /** One-line card copy. */
   blurb: string;
   /** Distinctive phrases — one match selects this answer. */
@@ -108,6 +110,7 @@ function cited(columnId: string, sourceNumbers: readonly number[]): Citation[] {
 export const DEMO_QUESTIONS: DemoAnswer[] = [
   {
     question: "Has any senior investment professional left the firm?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "Cross-check the DDQ's team answer against the Form ADV, PPM and pitchbook.",
     anchors: [
       "roache",
@@ -141,6 +144,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
   },
   {
     question: "Has the manager had any regulatory issues?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "Regulatory history in the Form ADV — and what the marketing documents leave out.",
     anchors: [
       "deficiency",
@@ -174,6 +178,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
   },
   {
     question: "What are the gaps in the firm's cybersecurity program?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "What the DDQ concedes about SOC 2 and testing cadence.",
     anchors: [
       "soc 2",
@@ -206,6 +211,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
   },
   {
     question: "How does the valuation policy handle Level 3 assets?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "Valuation governance, and how often an outside party sees the marks.",
     anchors: [
       "level 3",
@@ -251,6 +257,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
     // Not "…and do the documents agree?": the answer no longer renders a
     // verdict on that, because the run's verdict was wrong (see below).
     question: "What are the fund's economic terms?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "Fees, carry, offset and removal — read across the LPA, PPM, pitchbook and DDQ.",
     // "fees" and "fee structure" are anchors, not support words: "what are the
     // fees" is close to the single most likely thing a prospect types, and as
@@ -328,6 +335,7 @@ export function demoDocLabel(filename: string): string {
 
 export interface DemoPromptCard {
   title: string;
+  dealId: string;
   blurb: string;
   chips: string[];
   prompt: string;
@@ -340,19 +348,19 @@ export interface DemoPromptCard {
  */
 export const DEMO_PROMPT_CARDS: DemoPromptCard[] = DEMO_QUESTIONS.map((q) => ({
   title: q.question,
+  dealId: q.dealId,
   blurb: q.blurb,
   chips: [...new Set(q.citations.map((c) => demoDocLabel(c.source_file)))].slice(0, 3),
   prompt: q.question,
 }));
 
 /**
- * Cards for a workspace — empty outside Fund IV, which is the only entity the
- * run was recorded against. Offering these questions in a sibling fund would
- * invite a click that can only answer off-script, or worse, answer with
- * documents that fund's context never contains.
+ * Cards for a workspace. A fund with no recorded material gets none rather
+ * than a borrowed set: offering another fund's questions invites a click that
+ * can only answer off-script.
  */
 export function demoPromptCardsFor(dealId: string): DemoPromptCard[] {
-  return dealId === DEMO_FUND_IV_ID ? DEMO_PROMPT_CARDS : [];
+  return DEMO_PROMPT_CARDS.filter((card) => card.dealId === dealId);
 }
 
 // ── Matching ──────────────────────────────────────────────────────────────
@@ -368,23 +376,40 @@ const MIN_SUPPORT_HITS = 2;
 const DOC_SCOPE_PREFIX = /^focus on these document\(s\):[\s\S]*?\n\n/i;
 
 /**
- * Funds in the demo corpus other than Fund IV, the only one the run was
- * recorded against.
+ * Fund names that identify a *workspace* in the demo. A question naming a fund
+ * other than the one being asked in is refused, whatever else it matches.
  *
- * `demoSseStream` already refuses to answer *inside* a sibling fund's
- * workspace, but that gate covers the workspace you are standing in, not the
- * fund you are asking about. "What is the management fee for Fund III?", typed
- * in Fund IV, would otherwise come back with Fund IV's 2.0% — a different
- * fund's economics, cited to Fund IV's LPA, in an answer that never says so.
+ * This has to be relative rather than a fixed list. "What is the management fee
+ * for Fund III?", typed in Fund IV, would otherwise come back with Fund IV's
+ * 2.0% — a different fund's economics, cited to Fund IV's LPA, in an answer
+ * that never says so. The mirror image is just as wrong, and a fixed
+ * Fund-IV-centric list gets it backwards the moment Fund III can answer at all.
  */
-const OTHER_FUND_MENTIONS = [
-  "fund i",
-  "fund ii",
-  "fund iii",
-  "fund 1",
-  "fund 2",
-  "fund 3",
-] as const;
+const FUND_MENTIONS: Record<string, readonly string[]> = {
+  [DEMO_FUND_IV_ID]: ["fund iv", "fund 4", "fourth fund"],
+  [DEMO_FUND_III_ID]: ["fund iii", "fund 3", "third fund"],
+};
+
+/**
+ * Funds the corpus refers to but the demo has no workspace for. Named in any
+ * workspace, they are always someone else's fund.
+ */
+const UNRECORDED_FUND_MENTIONS = ["fund i", "fund ii", "fund 1", "fund 2"] as const;
+
+/**
+ * True if the question names a fund that is not the one being asked in.
+ *
+ * `normalize` pads with spaces, so "fund i" cannot match inside "fund iii" —
+ * that padding is what makes this list safe to write shortest-first.
+ */
+function mentionsAnotherFund(asked: string, dealId: string): boolean {
+  if (hits(asked, UNRECORDED_FUND_MENTIONS) > 0) return true;
+  for (const [id, phrases] of Object.entries(FUND_MENTIONS)) {
+    if (id === dealId) continue;
+    if (hits(asked, phrases) > 0) return true;
+  }
+  return false;
+}
 
 /** Space-delimited, punctuation-free, so `includes` matches whole words only. */
 function normalize(text: string): string {
@@ -399,6 +424,11 @@ function hits(haystack: string, phrases: readonly string[]): number {
   return n;
 }
 
+/** Every question belonging to a workspace. Empty for a fund with no set. */
+export function questionsFor(dealId: string): DemoAnswer[] {
+  return DEMO_QUESTIONS.filter((q) => q.dealId === dealId);
+}
+
 /**
  * Selects the canned answer for a question, or null if there isn't one.
  *
@@ -409,21 +439,22 @@ function hits(haystack: string, phrases: readonly string[]): number {
  * "committee", "compliance") never selects an answer on its own: either a
  * distinctive anchor phrase appears, or at least two topic words do.
  *
- * A question that names a fund other than Fund IV is refused outright, whatever
- * else it matches.
+ * A question that names a fund other than the one being asked in is refused
+ * outright, whatever else it matches.
  */
-export function matchDemoQuestion(text: string): DemoAnswer | null {
+export function matchDemoQuestion(text: string, dealId: string): DemoAnswer | null {
   const asked = normalize(text.replace(DOC_SCOPE_PREFIX, ""));
   if (asked.trim() === "") return null;
-  if (hits(asked, OTHER_FUND_MENTIONS) > 0) return null;
+  if (mentionsAnotherFund(asked, dealId)) return null;
 
-  for (const q of DEMO_QUESTIONS) {
+  const candidates = questionsFor(dealId);
+  for (const q of candidates) {
     if (normalize(q.question) === asked) return q;
   }
 
   let best: DemoAnswer | null = null;
   let bestScore = 0;
-  for (const q of DEMO_QUESTIONS) {
+  for (const q of candidates) {
     const anchorHits = hits(asked, q.anchors);
     const supportHits = hits(asked, q.support);
     if (anchorHits === 0 && supportHits < MIN_SUPPORT_HITS) continue;
@@ -518,10 +549,10 @@ export function demoSseStream(
 
   const dealId = match[1];
   const question = questionFromBody(body);
-  // The recording ran against Fund IV. Answering inside a sibling fund would
-  // cite Fund IV's DDQ, PPM and pitchbook from a workspace whose context, in
-  // the real product, never contains them (CLAUDE.md invariant 2).
-  const matched = dealId === DEMO_FUND_IV_ID ? matchDemoQuestion(question) : null;
+  // Which questions answer here is now a property of the question set, not of
+  // this line: a fund with no recorded material has no questions, so every
+  // ask in it falls through to the honest fallback.
+  const matched = matchDemoQuestion(question, dealId);
   const answer = matched?.answer ?? OFF_SCRIPT_ANSWER;
   const citations: Citation[] = matched?.citations ?? [];
 

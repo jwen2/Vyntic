@@ -75,11 +75,11 @@ describe("demo chat question set", () => {
   });
 
   it("covers the findings the recorded run actually made", () => {
-    expect(matchDemoQuestion("what about roache")).not.toBeNull();
-    expect(matchDemoQuestion("has there been a deficiency letter")).not.toBeNull();
-    expect(matchDemoQuestion("do they have a soc 2 report")).not.toBeNull();
-    expect(matchDemoQuestion("how are level 3 assets reviewed")).not.toBeNull();
-    expect(matchDemoQuestion("what is the fee offset")).not.toBeNull();
+    expect(matchDemoQuestion("what about roache", DEMO_FUND_IV_ID)).not.toBeNull();
+    expect(matchDemoQuestion("has there been a deficiency letter", DEMO_FUND_IV_ID)).not.toBeNull();
+    expect(matchDemoQuestion("do they have a soc 2 report", DEMO_FUND_IV_ID)).not.toBeNull();
+    expect(matchDemoQuestion("how are level 3 assets reviewed", DEMO_FUND_IV_ID)).not.toBeNull();
+    expect(matchDemoQuestion("what is the fee offset", DEMO_FUND_IV_ID)).not.toBeNull();
   });
 
   it("asserts no finding the recorded run contradicts", () => {
@@ -98,7 +98,7 @@ describe("demo chat question set", () => {
     // Repeating the recording's "consistent" conclusion would convert a silent
     // miss into an active false statement — worse in front of an LP, who can
     // open the DDQ this demo itself ships and see the contradiction.
-    const terms = matchDemoQuestion("what is the fee offset");
+    const terms = matchDemoQuestion("what is the fee offset", DEMO_FUND_IV_ID);
     expect(terms).not.toBeNull();
     expect(terms!.answer).not.toMatch(/consistent/i);
     const prose = DEMO_QUESTIONS.map((q) => `${q.question} ${q.answer}`).join(" ");
@@ -110,17 +110,17 @@ describe("demo chat question set", () => {
     // broker-dealer that "may receive transaction fees". The recorded run cited
     // every ADV page except p6 and reported the manager's denial instead, so
     // every conflicts question is a landmine no rephrasing defuses.
-    expect(matchDemoQuestion("what conflicts of interest are disclosed")).toBeNull();
+    expect(matchDemoQuestion("what conflicts of interest are disclosed", DEMO_FUND_IV_ID)).toBeNull();
     expect(
-      matchDemoQuestion("what conflicts of interest exist with brightwater securities")
+      matchDemoQuestion("what conflicts of interest exist with brightwater securities", DEMO_FUND_IV_ID)
     ).toBeNull();
-    expect(matchDemoQuestion("are there affiliated service providers")).toBeNull();
+    expect(matchDemoQuestion("are there affiliated service providers", DEMO_FUND_IV_ID)).toBeNull();
     const titles = DEMO_QUESTIONS.map((q) => q.question.toLowerCase()).join(" ");
     expect(titles).not.toContain("conflict");
   });
 
   it("attaches no citation to a page that does not support its claim", () => {
-    const valuation = matchDemoQuestion("how are level 3 assets reviewed");
+    const valuation = matchDemoQuestion("how are level 3 assets reviewed", DEMO_FUND_IV_ID);
     expect(valuation).not.toBeNull();
     // PPM p6 is "Portfolio Construction"; its only quarterly reference is to the
     // *investment* committee, and no PPM page supports the valuation cadence.
@@ -135,7 +135,7 @@ describe("demo chat question set", () => {
     // descriptive, so the plainest phrasings must reach it. Answering "what is
     // the fee offset" while refusing "what are the fees" is exactly backwards.
     for (const asked of ["what are the fees", "how much are the fees", "what is the fee structure"]) {
-      expect(matchDemoQuestion(asked), asked).not.toBeNull();
+      expect(matchDemoQuestion(asked, DEMO_FUND_IV_ID), asked).not.toBeNull();
     }
   });
 
@@ -143,31 +143,33 @@ describe("demo chat question set", () => {
     // The dealId gate in demoSseStream covers the workspace you are standing
     // in, not the fund you are asking about. Fund IV's economics are not Fund
     // III's, and the demo ships no Fund III recording.
-    expect(matchDemoQuestion("what is the management fee for fund iii")).toBeNull();
-    expect(matchDemoQuestion("carried interest in fund iii")).toBeNull();
-    expect(matchDemoQuestion("gp commitment for fund iii")).toBeNull();
-    expect(matchDemoQuestion("what were the fees in fund ii")).toBeNull();
-    expect(matchDemoQuestion("did anyone leave the firm during fund i")).toBeNull();
+    expect(matchDemoQuestion("what is the management fee for fund iii", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("carried interest in fund iii", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("gp commitment for fund iii", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("what were the fees in fund ii", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("did anyone leave the firm during fund i", DEMO_FUND_IV_ID)).toBeNull();
     // Naming Fund IV, the fund the run was recorded against, still answers.
-    expect(matchDemoQuestion("what is the management fee for fund iv")).not.toBeNull();
+    expect(matchDemoQuestion("what is the management fee for fund iv", DEMO_FUND_IV_ID)).not.toBeNull();
   });
 });
 
 describe("matchDemoQuestion", () => {
   it("matches a canned question verbatim", () => {
     const q = DEMO_QUESTIONS[0];
-    expect(matchDemoQuestion(q.question)?.answer).toBe(q.answer);
+    expect(matchDemoQuestion(q.question, DEMO_FUND_IV_ID)?.answer).toBe(q.answer);
   });
 
   it("matches case-insensitively and ignores surrounding whitespace", () => {
     const q = DEMO_QUESTIONS[0].question;
-    expect(matchDemoQuestion(`  ${q.toUpperCase()}  `)).not.toBeNull();
+    expect(matchDemoQuestion(`  ${q.toUpperCase()}  `, DEMO_FUND_IV_ID)).not.toBeNull();
   });
 
   it("matches through the composer's document-scope prefix", () => {
     const scoped =
       'Focus on these document(s): "brightwater_iv_ddq.pdf".\n\nwhat about roache';
-    expect(matchDemoQuestion(scoped)).toBe(matchDemoQuestion("what about roache"));
+    expect(matchDemoQuestion(scoped, DEMO_FUND_IV_ID)).toBe(
+      matchDemoQuestion("what about roache", DEMO_FUND_IV_ID)
+    );
   });
 
   it("never lets the document-scope prefix answer a question nobody asked", () => {
@@ -178,27 +180,45 @@ describe("matchDemoQuestion", () => {
     const scoped =
       'Focus on these document(s): "brightwater_valuation_policy.pdf".\n\n' +
       "who is the fund administrator";
-    expect(matchDemoQuestion(scoped)).toBeNull();
+    expect(matchDemoQuestion(scoped, DEMO_FUND_IV_ID)).toBeNull();
   });
 
   it("returns null for off-script input", () => {
-    expect(matchDemoQuestion("what is the weather in Chicago")).toBeNull();
-    expect(matchDemoQuestion("")).toBeNull();
-    expect(matchDemoQuestion("   ")).toBeNull();
+    expect(matchDemoQuestion("what is the weather in Chicago", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("   ", DEMO_FUND_IV_ID)).toBeNull();
   });
 
   it("does not answer a question it only shares one broad topic word with", () => {
     // "valuation" alone must not pull in the Level 3 answer: that answer would
     // be confidently wrong here, which is the one failure this demo cannot have.
-    expect(matchDemoQuestion("what is the valuation of the largest portfolio company")).toBeNull();
-    expect(matchDemoQuestion("how many partners are on the team")).toBeNull();
-    expect(matchDemoQuestion("who audits the fund")).toBeNull();
+    expect(
+      matchDemoQuestion("what is the valuation of the largest portfolio company", DEMO_FUND_IV_ID)
+    ).toBeNull();
+    expect(matchDemoQuestion("how many partners are on the team", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("who audits the fund", DEMO_FUND_IV_ID)).toBeNull();
   });
 
   it("does not match on a substring of a longer word", () => {
     // " mark " must not fire on "marketing"; " sec " must not fire on "second".
-    expect(matchDemoQuestion("send me the marketing deck")).toBeNull();
-    expect(matchDemoQuestion("what happened in the second quarter")).toBeNull();
+    expect(matchDemoQuestion("send me the marketing deck", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("what happened in the second quarter", DEMO_FUND_IV_ID)).toBeNull();
+  });
+
+  it("answers only inside the workspace the question belongs to", () => {
+    // Every question today is Fund IV's. Asked from Fund III, each must fall
+    // back rather than cite Fund IV's DDQ, PPM and pitchbook into a workspace
+    // whose context never contains them (CLAUDE.md invariant 2).
+    for (const q of DEMO_QUESTIONS) {
+      expect(matchDemoQuestion(q.question, q.dealId), q.question).not.toBeNull();
+      const otherFund =
+        q.dealId === DEMO_FUND_IV_ID ? DEMO_FUND_III_ID : DEMO_FUND_IV_ID;
+      expect(matchDemoQuestion(q.question, otherFund), q.question).toBeNull();
+    }
+  });
+
+  it("returns null for a workspace with no question set at all", () => {
+    expect(matchDemoQuestion("what is the management fee", "no_such_deal")).toBeNull();
   });
 });
 
@@ -206,19 +226,23 @@ describe("DEMO_PROMPT_CARDS", () => {
   it("offers one card per question, submitting the question verbatim", () => {
     expect(DEMO_PROMPT_CARDS.length).toBe(DEMO_QUESTIONS.length);
     for (const card of DEMO_PROMPT_CARDS) {
-      expect(matchDemoQuestion(card.prompt)).not.toBeNull();
+      expect(matchDemoQuestion(card.prompt, card.dealId)).not.toBeNull();
       expect(card.title.length).toBeGreaterThan(0);
       expect(card.blurb.length).toBeGreaterThan(0);
       expect(card.chips.length).toBeGreaterThan(0);
     }
   });
 
-  it("offers the question set in Fund IV only", () => {
-    // The run was recorded against Fund IV. A card clicked in a sibling fund
-    // could only answer off-script, or worse, cite documents that workspace's
-    // context never contains (CLAUDE.md invariant 2).
-    expect(demoPromptCardsFor(DEMO_FUND_IV_ID)).toEqual(DEMO_PROMPT_CARDS);
-    expect(demoPromptCardsFor(DEMO_FUND_III_ID)).toEqual([]);
+  it("offers each fund only its own cards", () => {
+    // A card clicked in a sibling fund could only answer off-script, or worse,
+    // cite documents that workspace's context never contains (invariant 2).
+    const fourth = demoPromptCardsFor(DEMO_FUND_IV_ID);
+    const third = demoPromptCardsFor(DEMO_FUND_III_ID);
+    expect(fourth.length).toBeGreaterThan(0);
+    for (const card of fourth) expect(card.dealId).toBe(DEMO_FUND_IV_ID);
+    for (const card of third) expect(card.dealId).toBe(DEMO_FUND_III_ID);
+    expect(fourth.length + third.length).toBe(DEMO_PROMPT_CARDS.length);
+    expect(demoPromptCardsFor("no_such_deal")).toEqual([]);
   });
 });
 
