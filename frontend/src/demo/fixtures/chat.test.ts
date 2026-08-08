@@ -3,10 +3,13 @@ import type { DocMatrixEvent, QueryStreamEvent } from "@/lib/api";
 import { docMatrixStream } from "@/lib/api";
 import { disableDemoMode, enableDemoMode } from "../mode";
 import {
+  COL_ODD_CONFLICTS,
   DEMO_PROMPT_CARDS,
   DEMO_QUESTIONS,
   DOC_MATRIX_UNAVAILABLE,
   OFF_SCRIPT_ANSWER,
+  WF_ODD_SCREEN,
+  cited,
   demoPromptCardsFor,
   demoSseStream,
   matchDemoQuestion,
@@ -137,6 +140,13 @@ describe("demo chat question set", () => {
     for (const asked of ["what are the fees", "how much are the fees", "what is the fee structure"]) {
       expect(matchDemoQuestion(asked, DEMO_FUND_IV_ID), asked).not.toBeNull();
     }
+  });
+
+  it("lifts citations out of whichever recording the answer came from", () => {
+    // The guard against a re-recording that renumbers sources: this must throw
+    // in development rather than quietly strip citations off a live screen.
+    expect(() => cited(WF_ODD_SCREEN, "not-a-column", [1])).toThrow(/drifted apart/);
+    expect(() => cited(WF_ODD_SCREEN, COL_ODD_CONFLICTS, [999])).toThrow(/Source 999/);
   });
 
   it("falls back on a question that names a fund the run was not recorded against", () => {

@@ -30,7 +30,7 @@
 import type { Citation, QueryStreamEvent } from "@/lib/api";
 import type { SseHandlers } from "@/lib/sse";
 import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID } from "./entities";
-import { DEMO_DDQ_RUN } from "./workflows";
+import { RECORDING_BY_WORKFLOW } from "./workflowRegistry";
 
 export interface DemoAnswer {
   question: string;
@@ -61,17 +61,28 @@ export const OFF_SCRIPT_ANSWER =
   "product the same question runs against your own documents, and every sentence " +
   "resolves back to a page.";
 
-// Column ids of the built-in `builtin_lp_ddq_scan` workflow. Per CLAUDE.md
-// invariant 4 these are stable across startup reconciliation.
+/**
+ * Recordings the chat answers are condensed from, and the columns within them.
+ * Built-in workflow and column ids are stable across startup reconciliation
+ * (CLAUDE.md invariant 4), so naming them here cannot drift silently — and
+ * `cited` throws if one stops resolving.
+ */
+export const WF_DDQ_SCAN = "builtin_lp_ddq_scan";
+export const WF_ODD_SCREEN = "builtin_lp_odd_screen";
+export const WF_LPA_REVIEW = "builtin_lp_lpa_review";
+export const WF_SIDE_LETTERS = "builtin_lp_side_letters";
+
 const COL_TEAM = "68558a7e665548a28536c1b7f2a13314"; // Team & Succession
 const COL_TERMS = "a01ad37a06444c348b93de7cecd96e5f"; // Fund Terms & Economics
 const COL_VALUATION = "9814f84441844e788e44523b2002848c"; // Valuation Policy
 const COL_COMPLIANCE = "9f181791b2a247a59135123e8b7de3d0"; // Compliance & Regulatory
 const COL_IT = "b778bec0d4c84fb6b3ecc85a1c24f3fb"; // IT & Cybersecurity
-// The run's Conflicts of Interest column (1b2486ce7b1b4480b5c2af0913241e38) is
-// deliberately not surfaced in chat — see the note above the question list.
-
-const CELL_BY_COLUMN = new Map(DEMO_DDQ_RUN.cells.map((cell) => [cell.column_id, cell]));
+export const COL_ODD_CONFLICTS = "c0ee1cfab63f474b9fb58a484d39c63c";
+const COL_ODD_PROVIDERS = "f4a0afc4a62e453595b1570b444fb4fe";
+const COL_LPA_INDEMNITY = "bc3b63ca80b846428f0cea876b1a9e4d";
+const COL_SL_OBLIGATIONS = "36d71bb878af4ae0a5ef3d273226c7e6";
+const COL_SL_DEADLINES = "504c0842b45848d191ab7d4a4b46218f";
+const COL_SL_MFN = "c1c656b232504d08a445e5e0121511f3";
 
 /**
  * Lifts recorded citations by their `[Source N]` number, in the order the chat
@@ -87,11 +98,22 @@ const CELL_BY_COLUMN = new Map(DEMO_DDQ_RUN.cells.map((cell) => [cell.column_id,
  * must fail a test in development, not quietly strip the citations off a
  * prospect's screen.
  */
-function cited(columnId: string, sourceNumbers: readonly number[]): Citation[] {
-  const cell = CELL_BY_COLUMN.get(columnId);
+export function cited(
+  workflowId: string,
+  columnId: string,
+  sourceNumbers: readonly number[]
+): Citation[] {
+  const recording = RECORDING_BY_WORKFLOW.get(workflowId);
+  if (!recording) {
+    throw new Error(
+      `Demo chat: no recording for workflow ${workflowId}. ` +
+        "The registry and the chat fixtures have drifted apart."
+    );
+  }
+  const cell = recording.run.cells.find((c) => c.column_id === columnId);
   if (!cell) {
     throw new Error(
-      `Demo chat: the recorded run has no cell for column ${columnId}. ` +
+      `Demo chat: the recorded ${workflowId} run has no cell for column ${columnId}. ` +
         "The recording and the chat fixtures have drifted apart."
     );
   }
@@ -140,7 +162,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "as a current Partner and Head of Value Creation if he ceased employment in " +
       "February 2026?",
     // Form ADV p2, PPM p4, pitchbook p4, DDQ p2.
-    citations: cited(COL_TEAM, [64, 44, 56, 22]),
+    citations: cited(WF_DDQ_SCAN, COL_TEAM, [64, 44, 56, 22]),
   },
   {
     question: "Has the manager had any regulatory issues?",
@@ -174,7 +196,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "- Has the Firm undergone any regulatory examinations or received any other " +
       "deficiency letters since the 2023 matter?",
     // Form ADV p10, DDQ p9.
-    citations: cited(COL_COMPLIANCE, [72, 29]),
+    citations: cited(WF_DDQ_SCAN, COL_COMPLIANCE, [72, 29]),
   },
   {
     question: "What are the gaps in the firm's cybersecurity program?",
@@ -207,7 +229,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "- Can the Firm provide the last three years of penetration testing results, or a " +
       "summary of any historical cybersecurity incidents?",
     // DDQ p10, PPM p11.
-    citations: cited(COL_IT, [30, 51]),
+    citations: cited(WF_DDQ_SCAN, COL_IT, [30, 51]),
   },
   {
     question: "How does the valuation policy handle Level 3 assets?",
@@ -242,7 +264,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "- What specific \"material events\" trigger an ad-hoc valuation review outside the " +
       "quarterly cycle [Source 2]?",
     // Valuation policy p4, p2, p3; DDQ p8.
-    citations: cited(COL_VALUATION, [76, 74, 75, 28]),
+    citations: cited(WF_DDQ_SCAN, COL_VALUATION, [76, 74, 75, 28]),
   },
   // No conflicts-of-interest question. The recorded Conflicts cell answered
   // with the DDQ's denial — the Firm "does not expect Fund IV to rely on
@@ -307,7 +329,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "documentation of expense allocation [Source 9], which bears on the judgment " +
       "applied to fee offsets and expense allocation described in the PPM [Source 10].",
     // LPA p5, p7, p6, p3, p12; PPM p2; pitchbook p6; DDQ p6; ADV p10; PPM p11.
-    citations: cited(COL_TERMS, [5, 7, 6, 3, 12, 42, 58, 26, 72, 51]),
+    citations: cited(WF_DDQ_SCAN, COL_TERMS, [5, 7, 6, 3, 12, 42, 58, 26, 72, 51]),
   },
 ];
 
