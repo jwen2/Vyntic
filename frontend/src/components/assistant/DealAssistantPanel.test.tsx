@@ -170,8 +170,9 @@ describe("DealAssistantPanel empty state in demo mode", () => {
     // `DEMO_QUESTIONS` if the set changes.
     renderFor(DEMO_FUND_III_ID, "Brightwater Capital Partners III");
 
-    const [firstFundIIIQuestion] = questionsFor(DEMO_FUND_III_ID);
-    expect(await screen.findByText(firstFundIIIQuestion.question)).toBeTruthy();
+    for (const q of questionsFor(DEMO_FUND_III_ID)) {
+      expect(await screen.findByText(q.question)).toBeTruthy();
+    }
     expect(screen.queryByText(GENERIC_CARD_TITLE)).toBeNull();
     expect(screen.queryByText(/no suggested questions for this fund/i)).toBeNull();
   });

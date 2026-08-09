@@ -143,6 +143,11 @@ describe("demo chat question set", () => {
     // resolves. This is the narrow pin for the one contradiction the corpus
     // deliberately plants.
     for (const q of DEMO_QUESTIONS) {
+      // Deliberately no trailing \b after "offset": the recording's own
+      // phrasing is "…offsetting the management fee", and a well-meaning
+      // tidy-up to \boffset\b would stop matching that and silently narrow
+      // this guard. Known gap: a spelled-out figure ("fifty percent") is not
+      // caught either — only digit-percent forms are.
       const statesOffsetFigure = /\b(50|100)\s?%[^.]{0,60}offset|offset[^.]{0,60}\b(50|100)\s?%/i.test(
         q.answer
       );
@@ -208,8 +213,11 @@ describe("demo chat question set", () => {
 
   it("falls back on a question that names a fund the run was not recorded against", () => {
     // The dealId gate in demoSseStream covers the workspace you are standing
-    // in, not the fund you are asking about. Fund IV's economics are not Fund
-    // III's, and the demo ships no Fund III recording.
+    // in, not the fund you are asking about. Asked inside Fund IV, naming any
+    // other fund refuses outright via mentionsAnotherFund — regardless of
+    // whether that other fund has a recording of its own (Fund III now does),
+    // because Fund IV's economics are never the right answer to a question
+    // about a sibling fund.
     expect(matchDemoQuestion("what is the management fee for fund iii", DEMO_FUND_IV_ID)).toBeNull();
     expect(matchDemoQuestion("carried interest in fund iii", DEMO_FUND_IV_ID)).toBeNull();
     expect(matchDemoQuestion("gp commitment for fund iii", DEMO_FUND_IV_ID)).toBeNull();
@@ -335,9 +343,11 @@ describe("matchDemoQuestion", () => {
   });
 
   it("answers only inside the workspace the question belongs to", () => {
-    // Every question today is Fund IV's. Asked from Fund III, each must fall
-    // back rather than cite Fund IV's DDQ, PPM and pitchbook into a workspace
-    // whose context never contains them (CLAUDE.md invariant 2).
+    // Every question belongs to exactly one fund. Asked from its own
+    // workspace it answers; asked from the sibling workspace it must fall
+    // back, rather than cite one fund's documents (Fund IV's DDQ, PPM and
+    // pitchbook, or Fund III's side letter) into a context that never
+    // contains them (CLAUDE.md invariant 2).
     for (const q of DEMO_QUESTIONS) {
       expect(matchDemoQuestion(q.question, q.dealId), q.question).not.toBeNull();
       const otherFund =

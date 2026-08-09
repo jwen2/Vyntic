@@ -722,7 +722,7 @@ function InitialAssistantState({
     demoCards?.status === "failed"
       ? "Couldn't load the demo's suggested questions. You can still ask a question above."
       : demoCards?.status === "ready" && demoCards.cards.length === 0
-        ? "No suggested questions for this fund — the demo's recorded set covers Fund IV."
+        ? "No suggested questions for this fund — this demo answers only a fixed set of recorded questions, and this workspace isn't part of it."
         : null;
   return (
     <div style={{ minHeight: "calc(100vh - 280px)", display: "flex", alignItems: "center", justifyContent: "center" }}>

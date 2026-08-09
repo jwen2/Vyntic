@@ -343,6 +343,15 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
     // offset" — a citation pointing at the page that refutes the sentence
     // above it. Deleting it is condensation; keeping it would hand a prospect
     // a chip that opens a contradiction.
+    //
+    // "under common control with the Manager" and "in connection with
+    // portfolio company transactions" are not in the cell's own answer text —
+    // the cell just says Brightwater Securities "may receive transaction fees
+    // or placement-related compensation" [Source 68]. Both clauses are
+    // verbatim in that citation's snippet (ADV p6), so nothing here is
+    // unverifiable; the boundary between "condensed from the cell" and
+    // "condensed from its citation" was crossed deliberately for this one
+    // answer, not missed.
     answer:
       "The Firm addresses potential conflicts through its compliance manual, advisory " +
       "committee process, and allocation policy [Source 1]. Affiliated service providers " +
@@ -416,9 +425,9 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "faith on behalf of the Partnership.\" [Source 1]\n\n" +
       "The review reads that scope as broad protection for the General Partner and its " +
       "affiliates — common in private equity agreements, but GP-favorable relative to " +
-      "ILPA-aligned provisions that limit indemnification to gross negligence, willful " +
-      "misconduct or bad faith [Source 1]. The fiduciary-duty column returns the same " +
-      "rating on the same clause.",
+      "ILPA-aligned provisions that often seek to limit indemnification to gross " +
+      "negligence, willful misconduct or bad faith [Source 1]. The fiduciary-duty column " +
+      "returns the same rating on the same clause.",
     // LPA p17.
     citations: cited(WF_LPA_REVIEW, COL_LPA_INDEMNITY, [17]),
   },
@@ -436,7 +445,7 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
     ],
     support: ["letter", "commitment", "terms", "glenmoor", "rights"],
     answer:
-      "The Glenmoor side letter to Brightwater Capital Partners III carries eight " +
+      "The Glenmoor side letter to Brightwater Capital Partners III carries these " +
       "obligations:\n\n" +
       "- Management fee reduction of **ten basis points per annum** on Glenmoor's " +
       "$25,000,000 commitment (Section 1) [Source 1]\n" +
@@ -598,7 +607,9 @@ const UNRECORDED_FUND_MENTIONS = ["fund i", "fund ii", "fund 1", "fund 2"] as co
  * True if the question names a fund that is not the one being asked in.
  *
  * `normalize` pads with spaces, so "fund i" cannot match inside "fund iii" —
- * that padding is what makes this list safe to write shortest-first.
+ * that padding, not list order, is what makes it safe for `UNRECORDED_FUND_MENTIONS`
+ * to list the shorter names first: `hits()` checks every phrase rather than
+ * stopping at the first match, so nothing here depends on ordering.
  */
 function mentionsAnotherFund(asked: string, dealId: string): boolean {
   if (hits(asked, UNRECORDED_FUND_MENTIONS) > 0) return true;
