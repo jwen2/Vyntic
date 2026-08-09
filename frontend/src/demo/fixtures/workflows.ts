@@ -1,117 +1,32 @@
-import type { Workflow, WorkflowColumn, WorkflowRun } from "@/lib/workflows";
+import type { Workflow, WorkflowRun } from "@/lib/workflows";
 import { DemoRefusal, registerDemoRoutes } from "@/demo/transport";
+import {
+  DEMO_CATALOGUE,
+  DEMO_RECORDINGS,
+  RECORDING_BY_RUN,
+  RECORDING_BY_WORKFLOW,
+  workflowById,
+  type DemoRecording,
+} from "./workflowRegistry";
 import { DEMO_FUND_IV_ID, DEMO_FUND_III_ID } from "./entities";
-import recorded from "./recorded-ddq-scan-run.json";
 
 /**
- * The DDQ Gap & Consistency Scan run recorded against the real Brightwater
- * corpus with a real model (scripts/record_demo_run.mjs, run 0a15ef21). Frozen
- * verbatim so the demo needs no LLM, no key and no backend at runtime — but
- * reads as genuine, because it is. Never hand-edit the JSON: recording rather
- * than authoring is what makes its 59 citations correct by construction.
- *
- * This cast is the one place a JSON import crosses into typed code. It is
- * checked at runtime by the field-by-field walker in workflows.test.ts, so a
- * re-recording that changes the API shape fails a test rather than a surface.
+ * The DDQ Gap & Consistency Scan, kept as named exports because it is the
+ * demo's centrepiece and several tests pin it by name. Both now come out of the
+ * registry: the workflow is the recorded catalogue entry rather than a
+ * hand-built object, and the 12 column ids and prompts are the database's own.
  */
-export const DEMO_DDQ_RUN = recorded as unknown as WorkflowRun;
+const DDQ_WORKFLOW_ID = "builtin_lp_ddq_scan";
+const BUILTIN_FUND_BRIEF = "builtin_lp_fund_brief";
+const BUILTIN_TRACK_RECORD = "builtin_lp_track_record";
+const BUILTIN_COMMITMENT_MEMO = "builtin_lp_commitment_memo";
 
-/**
- * One row, run one-click. `multi_doc_synthesis` built-ins default their single
- * row label to the workflow name when no synthesis questions are supplied
- * (routes_workflow_runs.py:116-120) — that default is what was recorded.
- */
-export const DEMO_DDQ_ROWS: string[] = ["DDQ Gap & Consistency Scan"];
+const ddq = RECORDING_BY_WORKFLOW.get(DDQ_WORKFLOW_ID);
+if (!ddq) throw new Error("Demo fixtures: the DDQ scan recording is missing.");
 
-/**
- * Mirrors the built-in from workflow_seed_lp.py:25. Column ids are the real
- * `builtin_lp_ddq_scan` ids read from the seeded database; per CLAUDE.md
- * invariant 4 built-in column ids are stable across startup reconciliation, so
- * hardcoding them keeps `cell.column_id` resolving without inferring order from
- * the recorded cell sequence.
- *
- * All 12 columns are `markdown` with no tags — this workflow has no enum
- * column, so there is no Clean/Monitor/Red flag badge to stage.
- */
-const DDQ_COLUMNS: ReadonlyArray<readonly [id: string, label: string]> = [
-  ["4223f1f6938a46b9aa0be66a6044bf05", "Firm & Ownership"],
-  ["68558a7e665548a28536c1b7f2a13314", "Team & Succession"],
-  ["ef3ececba4894d829463c407cb2cd156", "Track Record"],
-  ["dd0188ff630d467d9941ccf80d34a740", "Investment Strategy & Process"],
-  ["a01ad37a06444c348b93de7cecd96e5f", "Fund Terms & Economics"],
-  ["9814f84441844e788e44523b2002848c", "Valuation Policy"],
-  ["9f181791b2a247a59135123e8b7de3d0", "Compliance & Regulatory"],
-  ["b778bec0d4c84fb6b3ecc85a1c24f3fb", "IT & Cybersecurity"],
-  ["f9b31fbd5a8842e0b1f339e5a456c7bd", "ESG"],
-  ["8495ea4a16a74d1ca73fe891d5a8f9e5", "LP Base & References"],
-  ["1b2486ce7b1b4480b5c2af0913241e38", "Conflicts of Interest"],
-  ["634bbe4f41a84ce0b63d01a9b26bdbda", "Service Providers"],
-] as const;
-
-/** Every column shares one prompt with the section name substituted in. */
-function columnPrompt(label: string): string {
-  return (
-    `Review the ${label.toUpperCase()} section across the DDQ and supporting materials. ` +
-    "Summarize the answers, flag skipped or evasive responses, identify contradictions " +
-    "with the PPM or pitchbook, and propose focused follow-up questions. Include " +
-    '[Source N] citations for every supported claim; write "Not found" when the ' +
-    "documents do not cover the section."
-  );
-}
-
-const DDQ_WORKFLOW_COLUMNS: WorkflowColumn[] = DDQ_COLUMNS.map(([id, label], index) => ({
-  id,
-  order_index: index + 1,
-  label,
-  prompt: columnPrompt(label),
-  format: "markdown",
-  tags: null,
-  is_derived: false,
-  formula: null,
-}));
-
-export const DEMO_DDQ_WORKFLOW: Workflow = {
-  id: "builtin_lp_ddq_scan",
-  deal_id: null,
-  entity_type: "fund",
-  name: "DDQ Gap & Consistency Scan",
-  description: "ILPA DDQ coverage, evasions, contradictions, and follow-up questions",
-  type: "tabular",
-  row_source: "multi_doc_synthesis",
-  output_format: "excel",
-  is_builtin: true,
-  cloned_from: null,
-  created_by: null,
-  created_at: "2026-07-29T13:38:11.609493",
-  updated_at: "2026-07-29T13:38:11.609493",
-  stages: [],
-  columns: DDQ_WORKFLOW_COLUMNS,
-  variables: [],
-};
-
-/**
- * The same run as the visitor sees it the instant they press Run: the grid is
- * already 1 x 12, but no cell has an answer yet. `runReplay` opens its stream
- * with this and the run-start route hands it back, so the shape of the grid
- * never changes mid-animation — only its contents.
- */
-export const DEMO_DDQ_RUN_QUEUED: WorkflowRun = {
-  ...DEMO_DDQ_RUN,
-  status: "running",
-  completed_at: null,
-  cells: DEMO_DDQ_RUN.cells.map((cell) => ({
-    ...cell,
-    status: "queued",
-    answer: "",
-    answer_display: "",
-    answer_formatted: null,
-    citations: [],
-    quality: null,
-    duration_ms: 0,
-    started_at: null,
-    completed_at: null,
-  })),
-};
+export const DEMO_DDQ_WORKFLOW: Workflow = ddq.workflow;
+export const DEMO_DDQ_RUN: WorkflowRun = ddq.run;
+export const DEMO_DDQ_ROWS: string[] = ddq.rows;
 
 /**
  * Whether the recorded run should animate.
@@ -131,15 +46,23 @@ export const DEMO_DDQ_RUN_QUEUED: WorkflowRun = {
  */
 type ReplayPhase = "idle" | "armed" | "replaying";
 let replayPhase: ReplayPhase = "idle";
+/**
+ * Which run was armed. With five recordings the phase alone is not enough:
+ * arming the ODD screen must not make Side Letters animate, and a
+ * `GET /api/runs/:id` for a run nobody started must still hand back its
+ * finished recording while another run is mid-replay.
+ */
+let armedRunId: string | null = null;
 
-/** Called by the run-start route: the visitor pressed Run. */
-export function armDemoRunReplay(): void {
+/** Called by the run-start route: the visitor pressed Run on this run. */
+export function armDemoRunReplay(runId: string): void {
   replayPhase = "armed";
+  armedRunId = runId;
 }
 
-/** Called once by `replayDemoRun`; true only for a just-started run. */
-export function consumeDemoRunReplayArm(): boolean {
-  if (replayPhase !== "armed") return false;
+/** Called once by `replayDemoRun`; true only for the run that was just started. */
+export function consumeDemoRunReplayArm(runId: string): boolean {
+  if (replayPhase !== "armed" || armedRunId !== runId) return false;
   replayPhase = "replaying";
   return true;
 }
@@ -147,6 +70,12 @@ export function consumeDemoRunReplayArm(): boolean {
 /** Called when the replay finishes or is torn down. Idempotent. */
 export function endDemoRunReplay(): void {
   replayPhase = "idle";
+  armedRunId = null;
+}
+
+/** True while this specific run is armed or mid-replay. */
+export function isReplayInFlight(runId: string): boolean {
+  return replayPhase !== "idle" && armedRunId === runId;
 }
 
 /**
@@ -167,7 +96,75 @@ const EXPORT_REFUSAL =
 
 const AUTHORING_REFUSAL =
   "Creating and editing workflows needs somewhere to save them, and this demo " +
-  "has no backend. The built-in DDQ gap-and-consistency scan is here to run.";
+  "has no backend. The built-in LP templates are all listed, and the recorded " +
+  "ones are here to run.";
+
+const UNKNOWN_WORKFLOW_REFUSAL =
+  "That workflow is not one of the built-in templates this fund workspace ships with.";
+
+const UNKNOWN_RUN_REFUSAL =
+  "That run is not one of the recordings this demo replays — open a workflow and press Run.";
+
+/**
+ * The three built-ins the demo lists but cannot run. All three are permanent:
+ * Fund Brief, Track Record Grid and Fund Commitment Memo answer through a
+ * different surface than the tabular grids this demo replays, so no recording
+ * would make them runnable here.
+ *
+ * Each refusal describes the workflow's real output rather than saying "not
+ * available", because a prospect reading it is deciding whether the product
+ * does that at all.
+ *
+ * Keyed by workflow id. `workflowRegistry.test.ts` asserts every catalogue
+ * entry is either recorded or in this table, so a ninth built-in appearing in
+ * the backend fails the build instead of shipping as a dead button.
+ */
+export const UNRECORDED_REFUSALS: Record<string, string> = {
+  [BUILTIN_FUND_BRIEF]:
+    "The Fund Brief workflow writes the one-screen summary an IC reads before " +
+    "a commitment vote: manager and strategy, fund terms, track record, and " +
+    "the flags worth asking about — eleven sections, every line carrying its " +
+    "citation back to a page. This demo replays recorded runs only, and there " +
+    "is no recording of this one.",
+  [BUILTIN_TRACK_RECORD]:
+    "Track Record Grid builds one row per prior fund from the track-record " +
+    "workbook, then reconciles each reported TVPI against DPI plus RVPI and " +
+    "flags the ones that do not tie. It is investment diligence rather than " +
+    "operational, and this demo replays the operational runs.",
+  [BUILTIN_COMMITMENT_MEMO]:
+    "The Fund Commitment Memo is a four-stage assistant workflow: it drafts, " +
+    "pauses at analyst checkpoints for your edits, and exports a Word memo. " +
+    "That is a different surface from the grids this demo replays, not a " +
+    "longer one.",
+};
+
+/** Fund display names, for refusals that tell the visitor where to go. */
+const FUND_NAMES: Record<string, string> = {
+  [DEMO_FUND_IV_ID]: "Brightwater Capital Partners IV",
+  [DEMO_FUND_III_ID]: "Brightwater Capital Partners III",
+};
+
+function unrecordedRefusal(workflowId: string): string {
+  return (
+    UNRECORDED_REFUSALS[workflowId] ??
+    "That workflow id is not one this fund workspace recognizes, so there is " +
+      "no recording to replay. Every run you see here is a frozen real model " +
+      "pass, not a simulation."
+  );
+}
+
+/**
+ * The catalogue lists all eight workflows on both funds, so pressing Run on a
+ * workflow recorded elsewhere has to answer. Wording turns the refusal into
+ * navigation: it names the workspace to open.
+ */
+function wrongFundRefusal(rec: DemoRecording): string {
+  return (
+    `${rec.workflow.name} is recorded against ${FUND_NAMES[rec.dealId]} — ` +
+    `open that workspace to watch it run. Runs stay inside the fund whose ` +
+    `documents they read, exactly as they do in the product.`
+  );
+}
 
 function refuse(message: string): never {
   throw new DemoRefusal(message);
@@ -178,36 +175,52 @@ export function registerWorkflowFixtures(): void {
     {
       method: "GET",
       pattern: /^\/api\/deals\/([^/]+)\/workflows$/,
-      handler: () => [DEMO_DDQ_WORKFLOW],
+      // Both demo funds are entity_type="fund", so workflow_store.py:87-94
+      // serves them the same eight built-ins. Listing fewer would understate
+      // the product; listing all eight is what makes seven of them refuse.
+      handler: () => DEMO_CATALOGUE,
     },
     // (write refusals are registered at the end of this list)
     {
       method: "GET",
       pattern: /^\/api\/deals\/([^/]+)\/workflows\/([^/]+)$/,
-      handler: () => DEMO_DDQ_WORKFLOW,
+      handler: (m) => workflowById(m[2]) ?? refuse(UNKNOWN_WORKFLOW_REFUSAL),
     },
     {
       method: "GET",
       pattern: /^\/api\/deals\/([^/]+)\/workflows\/([^/]+)\/runs$/,
-      // Fund IV shows the recorded run as run history; Fund III has none.
-      handler: (m) => (m[1] === DEMO_FUND_IV_ID ? [DEMO_DDQ_RUN] : []),
+      // Keyed by deal, not just workflow: this is what makes Side Letters show
+      // a run on Fund III and nothing on Fund IV — context isolation as the
+      // product enforces it, not as a special case.
+      handler: (m) => {
+        const rec = RECORDING_BY_WORKFLOW.get(m[2]);
+        return rec && rec.dealId === m[1] ? [rec.run] : [];
+      },
     },
     {
       method: "GET",
       pattern: /^\/api\/runs\/([^/]+)$/,
-      // While a replay is armed or in flight this is a run in progress; every
-      // other time it is the completed recording.
-      handler: () => (replayPhase === "idle" ? DEMO_DDQ_RUN : DEMO_DDQ_RUN_QUEUED),
+      // While this run's replay is armed or in flight it is a run in progress;
+      // every other time — including while a *different* run replays — it is
+      // the completed recording.
+      handler: (m) => {
+        const rec = RECORDING_BY_RUN.get(m[1]);
+        if (!rec) return refuse(UNKNOWN_RUN_REFUSAL);
+        return isReplayInFlight(rec.run.id) ? rec.queued : rec.run;
+      },
     },
     {
       method: "POST",
       pattern: /^\/api\/deals\/([^/]+)\/workflows\/([^/]+)\/runs$/,
-      // Arms the replay. `WorkflowsView` reads only `run.id` off this response
-      // and then opens the run view, which subscribes — and that subscription
-      // is what animates.
-      handler: () => {
-        armDemoRunReplay();
-        return DEMO_DDQ_RUN_QUEUED;
+      // Arms *that workflow's* replay. `WorkflowsView` reads only `run.id` off
+      // this response and then opens the run view, which subscribes — and that
+      // subscription is what animates.
+      handler: (m) => {
+        const rec = RECORDING_BY_WORKFLOW.get(m[2]);
+        if (!rec) return refuse(unrecordedRefusal(m[2]));
+        if (rec.dealId !== m[1]) return refuse(wrongFundRefusal(rec));
+        armDemoRunReplay(rec.run.id);
+        return rec.queued;
       },
     },
     {
@@ -224,7 +237,8 @@ export function registerWorkflowFixtures(): void {
       // lib/workflows.ts, which has no deal-level run list). Registered so a
       // deal-level "recent runs" surface cannot 404 into a blank panel.
       pattern: /^\/api\/deals\/([^/]+)\/runs$/,
-      handler: (m) => (m[1] === DEMO_FUND_III_ID ? [] : [DEMO_DDQ_RUN]),
+      handler: (m) =>
+        DEMO_RECORDINGS.filter((r) => r.dealId === m[1]).map((r) => r.run),
     },
 
     // ── Writes around the run, refused in the product's own words ──

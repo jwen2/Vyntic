@@ -26,26 +26,67 @@ import { writeFileSync } from "node:fs";
 // Default to 127.0.0.1 rather than localhost to avoid IPv6 resolution issues
 // on some Windows setups.
 const BASE = process.env.VYNTIC_API || "http://127.0.0.1:8000";
-const [email, password, workflowName = "DDQ Gap & Consistency Scan"] = process.argv.slice(2);
-const DEAL_ID = "brightwater_iv";
+const argv = process.argv.slice(2);
+const CATALOGUE_MODE = argv.includes("--catalogue");
+const [email, password, workflowName = "DDQ Gap & Consistency Scan"] = argv.filter(
+  (a) => a !== "--catalogue"
+);
+const CATALOGUE_OUT = "frontend/src/demo/fixtures/recorded-workflows.json";
 
-const OUTPUTS = {
-  "DDQ Gap & Consistency Scan": "frontend/src/demo/fixtures/recorded-ddq-scan-run.json",
-  "ODD Screen": "frontend/src/demo/fixtures/recorded-odd-run.json",
+/**
+ * Which corpus each recording reads, and where it lands.
+ *
+ * `documents: "all"` is the multi_doc_synthesis default — the whole fund
+ * corpus, as the Run dialog offers it. Side Letter Obligations is
+ * one_doc_per_row: it builds a row per document passed in, so passing all six
+ * Fund III documents would yield six rows, five of them "Not found". Choosing
+ * one document is what the Run dialog is for.
+ */
+const RECORDINGS = {
+  "DDQ Gap & Consistency Scan": {
+    dealId: "brightwater_iv",
+    documents: "all",
+    out: "frontend/src/demo/fixtures/recorded-ddq-scan-run.json",
+  },
+  "ODD Screen": {
+    dealId: "brightwater_iv",
+    documents: "all",
+    out: "frontend/src/demo/fixtures/recorded-odd-screen-run.json",
+  },
+  "Fund Terms Extractor": {
+    dealId: "brightwater_iv",
+    documents: "all",
+    out: "frontend/src/demo/fixtures/recorded-fund-terms-run.json",
+  },
+  "LPA / ILPA-Alignment Review": {
+    dealId: "brightwater_iv",
+    documents: "all",
+    out: "frontend/src/demo/fixtures/recorded-lpa-ilpa-run.json",
+  },
+  "Side Letter Obligation Extractor": {
+    dealId: "brightwater_iii",
+    documents: ["glenmoor_fund_iii_side_letter.pdf"],
+    out: "frontend/src/demo/fixtures/recorded-side-letters-run.json",
+  },
 };
 
 if (!email || !password) {
   console.error(
-    "usage: node scripts/record_demo_run.mjs <email> <password> [workflow-name]"
+    "usage: node scripts/record_demo_run.mjs <email> <password> [workflow-name]\n" +
+      "       node scripts/record_demo_run.mjs <email> <password> --catalogue"
   );
   process.exit(1);
 }
 
-const out = OUTPUTS[workflowName];
-if (!out) {
-  console.error(`no output path configured for workflow "${workflowName}"`);
+const config = CATALOGUE_MODE ? null : RECORDINGS[workflowName];
+if (!CATALOGUE_MODE && !config) {
+  console.error(
+    `no recording configured for "${workflowName}". Known: ${Object.keys(RECORDINGS).join(", ")}`
+  );
   process.exit(1);
 }
+const DEAL_ID = config ? config.dealId : "brightwater_iv";
+const out = CATALOGUE_MODE ? CATALOGUE_OUT : config.out;
 
 async function api(path, init = {}, token) {
   const headers = { "Content-Type": "application/json", ...(init.headers || {}) };
@@ -62,20 +103,44 @@ const { access_token: token } = await api("/auth/login", {
 });
 
 const workflows = await api(`/deals/${DEAL_ID}/workflows`, {}, token);
+
+if (CATALOGUE_MODE) {
+  // Both demo funds are entity_type="fund", so workflow_store.py:87-94 serves
+  // them the same eight built-ins — one dump covers both workspaces.
+  const builtins = workflows.filter((w) => w.is_builtin);
+  if (builtins.length !== 8)
+    throw new Error(
+      `expected 8 built-in fund workflows, got ${builtins.length} — ` +
+        `workflow_seed_lp.py changed, or the DB is not reconciled`
+    );
+  writeFileSync(out, JSON.stringify(builtins, null, 2));
+  console.log(`wrote ${out} — ${builtins.length} templates`);
+  process.exit(0);
+}
+
 const workflow = workflows.find((w) => w.name === workflowName);
 if (!workflow)
   throw new Error(`"${workflowName}" template not found — is workflow_seed_lp reconciled?`);
 console.log(`${workflowName}: ${workflow.id} (${workflow.columns.length} columns)`);
 
 const docs = await api(`/deals/${DEAL_ID}/documents`, {}, token);
-console.log(`documents in context: ${docs.length}`);
+
+const selected =
+  config.documents === "all"
+    ? docs
+    : config.documents.map((filename) => {
+        const doc = docs.find((d) => d.filename === filename);
+        if (!doc) throw new Error(`document "${filename}" not in ${DEAL_ID}'s corpus`);
+        return doc;
+      });
+console.log(`documents in context: ${selected.length} of ${docs.length}`);
 
 let run = await api(
   `/deals/${DEAL_ID}/workflows/${workflow.id}/runs`,
   {
     method: "POST",
     body: JSON.stringify({
-      document_ids: docs.map((d) => d.doc_id),
+      document_ids: selected.map((d) => d.doc_id),
       // One-click: no synthesis_questions, so the backend creates a single row
       // labelled with the workflow name.
       synthesis_questions: [],

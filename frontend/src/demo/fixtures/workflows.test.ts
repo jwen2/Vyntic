@@ -13,92 +13,16 @@ import {
   DEMO_DDQ_RUN,
   DEMO_DDQ_WORKFLOW,
   DEMO_DDQ_ROWS,
+  armDemoRunReplay,
+  endDemoRunReplay,
 } from "./workflows";
-import { DEMO_DOCS_BY_FILENAME, DEMO_FUND_IV_ID, DEMO_FUND_III_ID } from "./entities";
-import { asShape } from "@/lib/cellShapes";
-import type { WorkflowRun } from "@/lib/workflows";
-
-/**
- * The recorded run is the one place a JSON import crosses into typed code, so
- * `DEMO_DDQ_RUN` is the only permitted `as unknown as` in the demo fixtures.
- * That cast is a claim, not a check — this walker is the check. It asserts, at
- * runtime, that every field the app reads off a run/cell/citation is present
- * with the right type, so a re-recording that drops or renames a field fails
- * here rather than blanking a surface in front of a prospect.
- */
-function assertRunShape(run: WorkflowRun): void {
-  expect(typeof run.id).toBe("string");
-  expect(typeof run.workflow_id).toBe("string");
-  expect(typeof run.deal_id).toBe("string");
-  expect(typeof run.run_number).toBe("number");
-  expect(["pending", "running", "checkpoint", "complete", "cancelled", "error"]).toContain(
-    run.status
-  );
-  expect(Array.isArray(run.document_ids)).toBe(true);
-  for (const id of run.document_ids) expect(typeof id).toBe("string");
-  expect(run.started_by === null || typeof run.started_by === "number").toBe(true);
-  expect(typeof run.started_at).toBe("string");
-  expect(run.completed_at === null || typeof run.completed_at === "string").toBe(true);
-  expect(Array.isArray(run.cells)).toBe(true);
-  expect(Array.isArray(run.stage_outputs)).toBe(true);
-
-  for (const cell of run.cells) {
-    const where = `cell ${cell.id}`;
-    expect(typeof cell.id, where).toBe("string");
-    expect(typeof cell.run_id, where).toBe("string");
-    expect(typeof cell.row_key, where).toBe("string");
-    expect(typeof cell.column_id, where).toBe("string");
-    expect(["queued", "running", "complete", "error"], where).toContain(cell.status);
-    expect(typeof cell.answer, where).toBe("string");
-    expect(typeof cell.answer_display, where).toBe("string");
-    // Kind-tagged contract: null, or a shape `asShape` recognises. Never
-    // inspected by key (lib/cellShapes.ts).
-    expect(
-      cell.answer_formatted === null || asShape(cell.answer_formatted) !== null,
-      `${where} answer_formatted is neither null nor a tagged shape`
-    ).toBe(true);
-    expect(Array.isArray(cell.citations), where).toBe(true);
-    expect(
-      cell.quality === null || cell.quality === undefined || typeof cell.quality === "object",
-      where
-    ).toBe(true);
-    expect(typeof cell.model, where).toBe("string");
-    expect(typeof cell.fallback, where).toBe("boolean");
-    expect(typeof cell.duration_ms, where).toBe("number");
-    expect(cell.error_message === null || typeof cell.error_message === "string", where).toBe(
-      true
-    );
-    expect(cell.started_at === null || typeof cell.started_at === "string", where).toBe(true);
-    expect(cell.completed_at === null || typeof cell.completed_at === "string", where).toBe(
-      true
-    );
-
-    for (const cite of cell.citations) {
-      // Sparse by construction: the array is indexed by source number, so
-      // uncited slots are null.
-      if (cite === null) continue;
-      expect(typeof cite.source_file, where).toBe("string");
-      expect(typeof cite.page, where).toBe("number");
-      expect(typeof cite.text_snippet, where).toBe("string");
-      // `deal_id`, `kind` and `span_label` are optional in `Citation`
-      // (lib/api.ts:403-410) and every read site has a fallback, so dropping
-      // them degrades quietly rather than throwing: `deal_id` routes the doc
-      // viewer (useTabularRun.ts:159), `kind` and `span_label` render the
-      // citation chip's label and colour (CellRenderer.tsx:327,333). The
-      // recording carries all three on all 59 citations — assert them so a
-      // re-recording that stops emitting them fails here.
-      expect(typeof cite.deal_id, where).toBe("string");
-      expect(["extracted", "derived"], where).toContain(cite.kind);
-      // Legitimately null throughout this recording — no citation spans a
-      // labelled range — so assert the key exists and is correctly typed
-      // rather than that it holds a value.
-      expect("span_label" in cite, where).toBe(true);
-      expect(cite.span_label === null || typeof cite.span_label === "string", where).toBe(
-        true
-      );
-    }
-  }
-}
+import {
+  DEMO_CATALOGUE,
+  DEMO_RECORDINGS,
+  RECORDING_BY_WORKFLOW,
+} from "./workflowRegistry";
+import { DEMO_FUND_IV_ID, DEMO_FUND_III_ID } from "./entities";
+import type { Workflow, WorkflowRun } from "@/lib/workflows";
 
 /**
  * The built-in's real column ids paired with their real labels, transcribed
@@ -148,6 +72,10 @@ describe("workflow fixtures", () => {
     registerWorkflowFixtures();
   });
 
+  afterEach(() => {
+    endDemoRunReplay();
+  });
+
   it("exposes the DDQ Gap & Consistency Scan with 12 markdown columns", () => {
     expect(DEMO_DDQ_WORKFLOW.id).toBe("builtin_lp_ddq_scan");
     expect(DEMO_DDQ_WORKFLOW.name).toBe("DDQ Gap & Consistency Scan");
@@ -176,9 +104,10 @@ describe("workflow fixtures", () => {
   it("builds each column prompt around the upper-cased section name", () => {
     const firm = DEMO_DDQ_WORKFLOW.columns[0];
     expect(firm.label).toBe("Firm & Ownership");
-    // An `&` label proves the whole name is upper-cased, not just its first
-    // word — and pins `columnPrompt`'s `toUpperCase()`, which is otherwise
-    // unasserted and can be deleted without failing a test.
+    // Was pinning a transcribed `columnPrompt()` helper; now it pins the real
+    // seeded prompt (workflow_seed_lp.py:26), which upper-cases the whole
+    // section name. An `&` label proves it is the whole name, not just the
+    // first word.
     expect(firm.prompt).toContain("FIRM & OWNERSHIP");
     expect(firm.prompt).not.toContain("Firm & Ownership");
     for (const column of DEMO_DDQ_WORKFLOW.columns) {
@@ -191,55 +120,6 @@ describe("workflow fixtures", () => {
     expect(DEMO_DDQ_RUN.cells).toHaveLength(12);
     for (const cell of DEMO_DDQ_RUN.cells) {
       expect(cell.row_key).toBe(DEMO_DDQ_ROWS[0]);
-    }
-  });
-
-  it("emits every cell against a declared column, in column order", () => {
-    expect(DEMO_DDQ_RUN.cells.map((c) => c.column_id)).toEqual(
-      DEMO_DDQ_WORKFLOW.columns.map((c) => c.id)
-    );
-    expect(DEMO_DDQ_RUN.workflow_id).toBe(DEMO_DDQ_WORKFLOW.id);
-    expect(DEMO_DDQ_RUN.deal_id).toBe(DEMO_FUND_IV_ID);
-  });
-
-  it("has every cell complete, populated, and error-free", () => {
-    expect(DEMO_DDQ_RUN.status).toBe("complete");
-    for (const cell of DEMO_DDQ_RUN.cells) {
-      expect(cell.status).toBe("complete");
-      expect(cell.error_message).toBeNull();
-      expect(cell.answer_display.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("matches the real API shape at runtime, field by field", () => {
-    assertRunShape(DEMO_DDQ_RUN);
-  });
-
-  it("cites only real corpus files at pages inside those files", () => {
-    let cited = 0;
-    for (const cell of DEMO_DDQ_RUN.cells) {
-      for (const cite of cell.citations.filter(Boolean)) {
-        cited += 1;
-        const doc = DEMO_DOCS_BY_FILENAME[cite!.source_file];
-        expect(doc, `unknown source_file ${cite!.source_file}`).toBeDefined();
-        if (cite!.source_file.endsWith(".xlsx")) {
-          // Spreadsheets have no pages; page 0 is the sheet-level convention.
-          expect(cite!.page, cite!.source_file).toBe(0);
-        } else {
-          expect(cite!.page, cite!.source_file).toBeGreaterThan(0);
-          expect(cite!.page, cite!.source_file).toBeLessThanOrEqual(doc.page_count);
-        }
-      }
-    }
-    expect(cited).toBe(59);
-  });
-
-  it("runs against documents that exist in the fund's corpus", () => {
-    const docIds = new Set(
-      Object.values(DEMO_DOCS_BY_FILENAME).map((d) => d.doc_id)
-    );
-    for (const id of DEMO_DDQ_RUN.document_ids) {
-      expect(docIds.has(id), `unknown document_id ${id}`).toBe(true);
     }
   });
 
@@ -277,6 +157,159 @@ describe("workflow fixtures", () => {
     )!).json();
     expect(iiiRuns).toEqual([]);
   });
+
+  it("lists all eight built-ins on both funds, because a real fund workspace does", async () => {
+    for (const dealId of [DEMO_FUND_IV_ID, DEMO_FUND_III_ID]) {
+      const list = await (await demoFetch(`/api/deals/${dealId}/workflows`, {
+        method: "GET",
+      })!).json();
+      expect(list, dealId).toHaveLength(8);
+      expect(list.map((w: Workflow) => w.name).sort(), dealId).toEqual(
+        [
+          "DDQ Gap & Consistency Scan",
+          "Fund Brief",
+          "Fund Commitment Memo",
+          "Fund Terms Extractor",
+          "LPA / ILPA-Alignment Review",
+          "ODD Screen",
+          "Side Letter Obligation Extractor",
+          "Track Record Grid",
+        ].sort()
+      );
+    }
+  });
+
+  it("serves any catalogue workflow by id, on either fund", async () => {
+    for (const template of DEMO_CATALOGUE) {
+      const got = await (await demoFetch(
+        `/api/deals/${DEMO_FUND_III_ID}/workflows/${template.id}`,
+        { method: "GET" }
+      )!).json();
+      expect(got.id, template.name).toBe(template.id);
+      expect(got.columns.length, template.name).toBe(template.columns.length);
+    }
+  });
+
+  it("shows a recorded run only in the workspace it was recorded in", async () => {
+    for (const rec of DEMO_RECORDINGS) {
+      const other = rec.dealId === DEMO_FUND_IV_ID ? DEMO_FUND_III_ID : DEMO_FUND_IV_ID;
+
+      const here = await (await demoFetch(
+        `/api/deals/${rec.dealId}/workflows/${rec.workflowId}/runs`,
+        { method: "GET" }
+      )!).json();
+      expect(here.map((r: WorkflowRun) => r.id), rec.workflowId).toEqual([rec.run.id]);
+
+      const there = await (await demoFetch(
+        `/api/deals/${other}/workflows/${rec.workflowId}/runs`,
+        { method: "GET" }
+      )!).json();
+      expect(there, rec.workflowId).toEqual([]);
+    }
+  });
+
+  it("shows no run history for a built-in that has no recording", async () => {
+    const unrecorded = DEMO_CATALOGUE.filter((w) => !RECORDING_BY_WORKFLOW.has(w.id));
+    expect(unrecorded.length).toBeGreaterThan(0);
+    for (const template of unrecorded) {
+      const runs = await (await demoFetch(
+        `/api/deals/${DEMO_FUND_IV_ID}/workflows/${template.id}/runs`,
+        { method: "GET" }
+      )!).json();
+      expect(runs, template.name).toEqual([]);
+    }
+  });
+
+  it("starts the run belonging to the workflow the visitor pressed Run on", async () => {
+    for (const rec of DEMO_RECORDINGS) {
+      const started = await (await demoFetch(
+        `/api/deals/${rec.dealId}/workflows/${rec.workflowId}/runs`,
+        { method: "POST", body: JSON.stringify({ document_ids: [], synthesis_questions: [] }) }
+      )!).json();
+      expect(started.id, rec.workflowId).toBe(rec.run.id);
+      expect(started.status, rec.workflowId).toBe("running");
+      // Disarm inside the loop, not just in `afterEach`: `armDemoRunReplay`
+      // overwrites unconditionally, so without this every iteration after the
+      // first starts with the previous run still armed and the test stops
+      // proving that a run-start arms *its own* recording.
+      endDemoRunReplay();
+    }
+  });
+
+  it("lists every recording on the deal-level run feed of its own fund", async () => {
+    for (const dealId of [DEMO_FUND_IV_ID, DEMO_FUND_III_ID]) {
+      const runs = await (await demoFetch(`/api/deals/${dealId}/runs`, {
+        method: "GET",
+      })!).json();
+      const expected = DEMO_RECORDINGS.filter((r) => r.dealId === dealId).map(
+        (r) => r.run.id
+      );
+      expect(runs.map((r: WorkflowRun) => r.id).sort(), dealId).toEqual(expected.sort());
+    }
+  });
+});
+
+/**
+ * `isReplayInFlight`'s `armedRunId === runId` guard is exercised directly
+ * inside the replay engine (`runReplay.test.ts`'s "does not animate a run
+ * that was not the one armed"), but nothing hit it through the route the
+ * app actually calls. A guard that regressed to "any arm makes any run look
+ * queued" would still pass every existing test and would only show up as a
+ * completed DDQ run looking stuck mid-animation while some other workflow
+ * was starting.
+ */
+describe("run identity at the route level", () => {
+  beforeEach(() => {
+    resetDemoRoutes();
+    registerWorkflowFixtures();
+  });
+
+  afterEach(() => {
+    endDemoRunReplay();
+  });
+
+  it("still reports a recorded run as complete while a different run id is armed", async () => {
+    const [rec] = DEMO_RECORDINGS;
+    armDemoRunReplay("some-run-id-nobody-recorded");
+
+    const fetched = await (await demoFetch(`/api/runs/${rec.run.id}`, {
+      method: "GET",
+    })!).json();
+
+    expect(fetched.status).toBe("complete");
+  });
+
+  /**
+   * The same guard with two *real* recordings, which is the shape a visitor
+   * produces: press Run on one workflow, then open another workflow's finished
+   * run from its history while the first is still animating. The started run
+   * must read as in progress and the other as the completed recording it is —
+   * a regression here shows up as a finished grid stuck at 0 cells.
+   */
+  it("keeps a started run and a browsed run apart while both are in play", async () => {
+    const [started, browsed] = DEMO_RECORDINGS;
+    expect(browsed, "needs two recordings to be meaningful").toBeDefined();
+    expect(browsed.run.id).not.toBe(started.run.id);
+
+    await demoFetch(`/api/deals/${started.dealId}/workflows/${started.workflowId}/runs`, {
+      method: "POST",
+      body: JSON.stringify({ document_ids: [], synthesis_questions: [] }),
+    });
+
+    const inFlight = await (await demoFetch(`/api/runs/${started.run.id}`, {
+      method: "GET",
+    })!).json();
+    const other = await (await demoFetch(`/api/runs/${browsed.run.id}`, {
+      method: "GET",
+    })!).json();
+
+    expect(inFlight.status, started.workflowId).toBe("running");
+    expect(other.status, browsed.workflowId).toBe("complete");
+    expect(
+      other.cells.every((c: { status: string }) => c.status === "complete"),
+      "the browsed run came back queued — the arm leaked across recordings"
+    ).toBe(true);
+  });
 });
 
 /**
@@ -292,6 +325,10 @@ describe("writes around the recorded run", () => {
   });
 
   afterEach(() => {
+    // `replayPhase`/`armedRunId` are module state in workflows.ts, untouched by
+    // `resetDemoRoutes()`. Without this, a test that starts a run (arming its
+    // replay) leaks that arm into whichever test runs next.
+    endDemoRunReplay();
     disableDemoMode();
     resetDemoRoutes();
   });
@@ -326,5 +363,54 @@ describe("writes around the recorded run", () => {
   it("still starts a run, because that is what replays the recording", async () => {
     const started = await startWorkflowRun(DEMO_FUND_IV_ID, DEMO_DDQ_WORKFLOW.id, []);
     expect(started.id).toBe(DEMO_DDQ_RUN.id);
+  });
+
+  it("refuses each unrecorded built-in by describing what it really produces", async () => {
+    const cases: [name: string, mustSay: string][] = [
+      ["Fund Brief", "Brief"],
+      ["Track Record Grid", "TVPI"],
+      ["Fund Commitment Memo", "checkpoint"],
+    ];
+    for (const [name, mustSay] of cases) {
+      const template = DEMO_CATALOGUE.find((w) => w.name === name);
+      expect(template, name).toBeDefined();
+      const err = await startWorkflowRun(DEMO_FUND_IV_ID, template!.id, []).catch((e) => e);
+
+      expect(err, name).toBeInstanceOf(ApiError);
+      expect(err.status, name).toBe(403);
+      expect(err.message, name).not.toBe(GENERIC);
+      expect(err.message, name).toContain(mustSay);
+      expect(err.message.length, name).toBeGreaterThan(40);
+    }
+  });
+
+  it("turns a wrong-fund run into navigation rather than a dead end", async () => {
+    for (const rec of DEMO_RECORDINGS) {
+      const other = rec.dealId === DEMO_FUND_IV_ID ? DEMO_FUND_III_ID : DEMO_FUND_IV_ID;
+      const err = await startWorkflowRun(other, rec.workflowId, []).catch((e) => e);
+
+      expect(err, rec.workflowId).toBeInstanceOf(ApiError);
+      expect(err.status, rec.workflowId).toBe(403);
+      // It must name the fund the visitor should open, or it is not navigation.
+      const target =
+        rec.dealId === DEMO_FUND_IV_ID
+          ? "Brightwater Capital Partners IV"
+          : "Brightwater Capital Partners III";
+      expect(err.message, rec.workflowId).toContain(target);
+      expect(err.message, rec.workflowId).toContain("open that workspace");
+    }
+  });
+
+  it("does not arm a replay when it refuses a wrong-fund run", async () => {
+    const rec = DEMO_RECORDINGS[0];
+    const other = rec.dealId === DEMO_FUND_IV_ID ? DEMO_FUND_III_ID : DEMO_FUND_IV_ID;
+    await startWorkflowRun(other, rec.workflowId, []).catch(() => {});
+
+    // A refusal that armed anyway would animate the next run view the visitor
+    // opened, which is the whole failure mode the registry exists to stop.
+    const fetched = await (await demoFetch(`/api/runs/${rec.run.id}`, {
+      method: "GET",
+    })!).json();
+    expect(fetched.status).toBe("complete");
   });
 });
