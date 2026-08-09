@@ -422,6 +422,89 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
     // LPA p17.
     citations: cited(WF_LPA_REVIEW, COL_LPA_INDEMNITY, [17]),
   },
+  {
+    question: "What did we negotiate in our side letter?",
+    dealId: DEMO_FUND_III_ID,
+    blurb: "Every obligation in the Glenmoor side letter, by section.",
+    anchors: [
+      "side letter",
+      "negotiate",
+      "negotiated",
+      "our obligations",
+      "obligations",
+      "what did we get",
+    ],
+    support: ["letter", "commitment", "terms", "glenmoor", "rights"],
+    answer:
+      "The Glenmoor side letter to Brightwater Capital Partners III carries eight " +
+      "obligations:\n\n" +
+      "- Management fee reduction of **ten basis points per annum** on Glenmoor's " +
+      "$25,000,000 commitment (Section 1) [Source 1]\n" +
+      "- **MFN election right** for terms granted to Limited Partners committing " +
+      "$50,000,000 or less (Section 2) [Source 1]\n" +
+      "- Pro-rata **co-investment** opportunity for investments requiring more than " +
+      "$75,000,000 of aggregate equity capital (Section 3) [Source 2]\n" +
+      "- **Quarterly reports** within 45 days after quarter-end (Section 4) [Source 2]\n" +
+      "- **Annual audited financials** within 120 days after fiscal year-end " +
+      "(Section 4) [Source 2]\n" +
+      "- **Excuse right** for tobacco or controlled substances, on ten business days' " +
+      "written notice (Section 5) [Source 3]\n" +
+      "- Consent to **affiliate transfers** not to be unreasonably withheld (Section 6) " +
+      "[Source 3]\n" +
+      "- **Annual ESG report** covering portfolio-level metrics (Section 7) [Source 4]",
+    // Side letter p1, p2, p3, p4.
+    citations: cited(WF_SIDE_LETTERS, COL_SL_OBLIGATIONS, [1, 2, 3, 4]),
+  },
+  {
+    question: "What are our deadlines, and what triggers them?",
+    dealId: DEMO_FUND_III_ID,
+    blurb: "The clock on each obligation, who owns it, and what starts it running.",
+    anchors: [
+      "deadline",
+      "deadlines",
+      "trigger",
+      "triggers",
+      "due date",
+      "how long do we have",
+      "45 days",
+      "30 days",
+    ],
+    support: ["timing", "notice", "owner", "quarterly", "annual"],
+    answer:
+      "- **MFN election** — within 30 days after final close, triggered by a better " +
+      "term being granted to an LP committing $50M or less. Glenmoor's to exercise " +
+      "[Source 1]\n" +
+      "- **Co-investment offer** — commercially reasonable efforts, triggered by an " +
+      "investment requiring more than $75M of aggregate equity. General Partner " +
+      "[Source 2]\n" +
+      "- **Quarterly reports** — within 45 days after each quarter-end. General Partner " +
+      "[Source 2]\n" +
+      "- **Annual audited financials** — within 120 days after fiscal year-end. General " +
+      "Partner [Source 2]\n" +
+      "- **Excuse-right notice** — at least 10 business days before an investment in " +
+      "tobacco or controlled substances. Glenmoor's to give [Source 3]\n" +
+      "- **Annual ESG report** — annually, no stated trigger. General Partner [Source 4]",
+    // Side letter p1, p2, p3, p4.
+    citations: cited(WF_SIDE_LETTERS, COL_SL_DEADLINES, [1, 2, 3, 4]),
+  },
+  {
+    question: "What does our MFN actually cover?",
+    dealId: DEMO_FUND_III_ID,
+    blurb: "Scope, election window and carve-outs on the most-favoured-nations right.",
+    anchors: ["mfn", "most favored nation", "most favoured nation", "better terms"],
+    support: ["election", "scope", "carve", "commitment", "threshold"],
+    // The recorded cell's "Notice deadlines" row is empty; it is dropped rather
+    // than filled in, because nothing in the document supports a value.
+    answer:
+      "**Scope:** better economic, reporting, transfer or governance terms granted to " +
+      "any Limited Partner committing $50,000,000 or less [Source 1].\n\n" +
+      "**Election mechanics:** exercisable within 30 days after final close " +
+      "[Source 1].\n\n" +
+      "**Carve-outs:** subject to customary exclusions [Source 1] — the side letter " +
+      "does not enumerate them, and the extraction reports no notice-deadline term.",
+    // Side letter p1.
+    citations: cited(WF_SIDE_LETTERS, COL_SL_MFN, [1]),
+  },
 ];
 
 /** Short display tag for a corpus filename, used on the suggestion cards. */
@@ -441,6 +524,8 @@ export function demoDocLabel(filename: string): string {
       return "Valuation policy";
     case "brightwater_track_record.xlsx":
       return "Track record";
+    case "glenmoor_fund_iii_side_letter.pdf":
+      return "Side letter";
     default:
       return filename;
   }

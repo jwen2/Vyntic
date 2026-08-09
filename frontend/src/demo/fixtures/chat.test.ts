@@ -10,6 +10,7 @@ import {
   OFF_SCRIPT_ANSWER,
   WF_ODD_SCREEN,
   cited,
+  demoDocLabel,
   demoPromptCardsFor,
   demoSseStream,
   matchDemoQuestion,
@@ -49,13 +50,12 @@ afterEach(() => {
 });
 
 describe("demo chat question set", () => {
-  it("ships eight questions, all of them Fund IV's", () => {
+  it("ships eight questions on Fund IV and three on Fund III", () => {
     // Explicit rather than a range: adding a card should be a deliberate act,
-    // and every card is a claim this demo makes to a prospect. Task 4 raises
-    // this to eight and three once Fund III has a set.
+    // and every card is a claim this demo makes to a prospect.
     expect(questionsFor(DEMO_FUND_IV_ID)).toHaveLength(8);
-    expect(questionsFor(DEMO_FUND_III_ID)).toHaveLength(0);
-    expect(DEMO_QUESTIONS).toHaveLength(8);
+    expect(questionsFor(DEMO_FUND_III_ID)).toHaveLength(3);
+    expect(DEMO_QUESTIONS).toHaveLength(11);
   });
 
   it("cites only citations a recording of the answer's own fund actually produced", () => {
@@ -193,6 +193,24 @@ describe("demo chat question set", () => {
     expect(matchDemoQuestion("did anyone leave the firm during fund i", DEMO_FUND_IV_ID)).toBeNull();
     // Naming Fund IV, the fund the run was recorded against, still answers.
     expect(matchDemoQuestion("what is the management fee for fund iv", DEMO_FUND_IV_ID)).not.toBeNull();
+  });
+
+  it("answers Fund III out of its own side letter, and nothing else", () => {
+    for (const q of questionsFor(DEMO_FUND_III_ID)) {
+      expect(q.citations.length, q.question).toBeGreaterThan(0);
+      for (const citation of q.citations) {
+        // Fund III's workspace contains one recorded document. Citing any
+        // Fund IV file here would be a context-isolation break, not a typo.
+        expect(citation.source_file, q.question).toBe("glenmoor_fund_iii_side_letter.pdf");
+        expect(citation.deal_id, q.question).toBe(DEMO_FUND_III_ID);
+      }
+    }
+  });
+
+  it("labels the side letter for the card chips", () => {
+    // Without a case the chip shows the raw filename, which is the only place
+    // in the demo a visitor would ever see one.
+    expect(demoDocLabel("glenmoor_fund_iii_side_letter.pdf")).toBe("Side letter");
   });
 });
 
