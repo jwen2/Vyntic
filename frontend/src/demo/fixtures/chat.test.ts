@@ -195,6 +195,26 @@ describe("demo chat question set", () => {
     expect(matchDemoQuestion("what is the management fee for fund iv", DEMO_FUND_IV_ID)).not.toBeNull();
   });
 
+  it("refuses a Fund-IV-naming question asked from inside Fund III", () => {
+    // The mirror direction of the gate above, and untestable before this task:
+    // Fund III had no questions of its own, so every one of its candidates was
+    // an empty list and `mentionsAnotherFund` never got to run on a real
+    // question asked *into* Fund III. It still can't be reached through the
+    // all-answers loop either — none of the eight Fund IV questions name a
+    // fund, so this has to be asserted directly. A backwards fund-mention
+    // list would pass every other test in this file and only fail here.
+    expect(
+      matchDemoQuestion("what did fund iv negotiate in its side letter", DEMO_FUND_III_ID)
+    ).toBeNull();
+    // Same question with the fund name removed: it is Fund III's own canned
+    // question, and still answers. That pairing is what proves the fund name
+    // caused the refusal above, rather than the phrasing simply being
+    // off-script.
+    expect(
+      matchDemoQuestion("what did we negotiate in our side letter", DEMO_FUND_III_ID)
+    ).not.toBeNull();
+  });
+
   it("answers Fund III out of its own side letter, and nothing else", () => {
     for (const q of questionsFor(DEMO_FUND_III_ID)) {
       expect(q.citations.length, q.question).toBeGreaterThan(0);
