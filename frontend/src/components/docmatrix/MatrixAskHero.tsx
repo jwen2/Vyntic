@@ -88,12 +88,13 @@ export default function MatrixAskHero({ documents, onAddQuery, onAddTemplate, de
               nothing.
             </p>
             <p className="mt-2 text-t3">
-              The recorded work lives in the{" "}
-              <strong className="text-t2">Brightwater Capital Partners IV</strong> workspace, one
-              click away under <strong className="text-t2">Analyze</strong>:{" "}
+              The recorded work lives in the two{" "}
+              <strong className="text-t2">Brightwater</strong> fund workspaces, one click away
+              under <strong className="text-t2">Analyze</strong>:{" "}
               <strong className="text-t2">Agent</strong> answers a fixed set of questions with real
-              citations, and <strong className="text-t2">Workflows</strong> replays a DDQ
-              gap-and-consistency scan across its documents.
+              citations, and <strong className="text-t2">Workflows</strong> replays five recorded
+              runs across their documents — from the DDQ gap-and-consistency scan to side-letter
+              obligations.
             </p>
           </div>
         ) : (
