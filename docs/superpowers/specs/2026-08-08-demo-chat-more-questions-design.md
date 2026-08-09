@@ -1,7 +1,7 @@
 # More Demo Chat Questions, and a Question Set for Fund III
 
 **Date:** 2026-08-08
-**Status:** Approved, ready for implementation planning
+**Status:** Implemented — eleven questions ship, eight on Fund IV and three on Fund III, which had none before. Verified in a browser: the conflicts answer names the affiliated broker-dealer and cites ADV p.6, every Fund III citation resolves to the Glenmoor side letter, and a Fund IV question asked inside Fund III returns the off-script fallback rather than Fund IV's economics.
 **Scope:** Widen the demo's Agent-tab question set from five cards to eleven, and give Fund III its first question set. Frontend fixtures only — no backend changes, no new recordings, no new corpus documents.
 **Builds on:** `2026-08-06-demo-more-lp-workflows-design.md` (PR #127). The four recordings it added are the entire source of new material here.
 
