@@ -134,6 +134,30 @@ describe("demo chat question set", () => {
     expect(prose).not.toMatch(/terms are consistent/i);
   });
 
+  it("never cites the page that refutes a fee-offset figure it states", () => {
+    // This has now gone wrong twice in recordings: an answer states 50% and
+    // cites brightwater_iv_ddq.pdf p7 as support, but p7 reads "100% fee
+    // offset". The claim is right and the attribution is not, so a prospect
+    // clicking the chip lands on the page that contradicts the sentence above
+    // it. Mechanical citation checks miss this entirely — the citation
+    // resolves. This is the narrow pin for the one contradiction the corpus
+    // deliberately plants.
+    for (const q of DEMO_QUESTIONS) {
+      const statesOffsetFigure = /\b(50|100)\s?%[^.]{0,60}offset|offset[^.]{0,60}\b(50|100)\s?%/i.test(
+        q.answer
+      );
+      if (!statesOffsetFigure) continue;
+      const citesDdqPage7 = q.citations.some(
+        (c) => c.source_file === "brightwater_iv_ddq.pdf" && c.page === 7
+      );
+      expect(
+        citesDdqPage7,
+        `"${q.question}" states a fee-offset figure while citing DDQ p7, which ` +
+          "states the opposing figure"
+      ).toBe(false);
+    }
+  });
+
   it("answers the conflicts question by naming the affiliated broker-dealer", () => {
     // REVERSAL, 2026-08-08. This test previously asserted the opposite, on the
     // ground that "the recorded run cited every ADV page except p6 and reported
@@ -231,6 +255,23 @@ describe("demo chat question set", () => {
     // Without a case the chip shows the raw filename, which is the only place
     // in the demo a visitor would ever see one.
     expect(demoDocLabel("glenmoor_fund_iii_side_letter.pdf")).toBe("Side letter");
+  });
+
+  it("stamps every Fund IV citation with Fund IV's own deal_id", () => {
+    // The citation-provenance guard above ties a citation's (source_file, page,
+    // text_snippet) triple to the *recording* it came from, bucketed by that
+    // recording's own dealId — it never reads the citation object's own
+    // `deal_id` field. The Fund III equivalent of that field check, above,
+    // covers only Fund III's three questions. A citation whose content matches
+    // a Fund IV recording but whose own `deal_id` field names another fund —
+    // the shape CLAUDE.md invariant 2's manager-shared-document relaxation
+    // could one day produce inside a recording — would slip past every other
+    // guard in this file undetected.
+    for (const q of questionsFor(DEMO_FUND_IV_ID)) {
+      for (const c of q.citations) {
+        expect(c.deal_id, q.question).toBe(DEMO_FUND_IV_ID);
+      }
+    }
   });
 });
 
