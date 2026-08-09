@@ -5,23 +5,23 @@
  * fixed set surfaced as suggested cards, and tells the truth about anything
  * else. Two rules make that honest rather than merely canned:
  *
- *  1. Every answer is condensed from a cell of the recorded DDQ Gap &
- *     Consistency Scan (`recorded-ddq-scan-run.json`) — the same run the grid
- *     replays. Chat therefore cannot contradict the grid, because it is the
- *     grid's own output. Findings that are real in the corpus but that the
- *     recorded run did not make (the 100% vs 50% fee-offset contradiction, the
- *     affiliated broker-dealer) are deliberately absent: the demo must never
- *     present a finding its fixture does not contain.
+ *  1. Every answer is condensed from a cell of a recorded run — the DDQ Gap &
+ *     Consistency Scan (`recorded-ddq-scan-run.json`, the same run the grid
+ *     replays), the ODD Screen, or the LPA / ILPA-Alignment Review, named
+ *     against each answer's `cited()` call. Chat therefore cannot contradict
+ *     a grid, because it is a grid's own output. A finding that is real in the
+ *     corpus but that no recorded run made — the 100% vs 50% fee-offset
+ *     contradiction — is deliberately absent: the demo must never present a
+ *     finding its fixture does not contain. (The affiliated broker-dealer is
+ *     the opposite case: the ODD Screen recording does cite it, at
+ *     `brightwater_adv_part2a.pdf` p6, so the conflicts answer does too.)
  *
- *     That cuts the other way too, and it is the sharper edge. Where the run
+ *     That cuts the other way too, and it is the sharper edge. Where a run
  *     concluded the documents *agree* on something the corpus in fact
  *     contradicts, repeating the conclusion turns a silent miss into an active
  *     false statement — and a prospect who opens the DDQ this demo itself
- *     serves finds the contradiction in a page. So the recording's affirmative
- *     consistency verdicts on fees are deleted rather than quoted, and the
- *     conflicts-of-interest question is not offered at all: the run cited every
- *     Form ADV page except p6, the one disclosing the affiliated broker-dealer,
- *     which no rephrasing of the answer makes safe to ask.
+ *     serves finds the contradiction in a page. So the DDQ scan's affirmative
+ *     consistency verdict on fees is deleted rather than quoted.
  *  2. Citations are not authored. `cited()` lifts the recorded `Citation`
  *     objects straight out of the run by their `[Source N]` number, so every
  *     `source_file` / `page` / `text_snippet` triple is one the product itself
@@ -29,11 +29,13 @@
  */
 import type { Citation, QueryStreamEvent } from "@/lib/api";
 import type { SseHandlers } from "@/lib/sse";
-import { DEMO_FUND_IV_ID } from "./entities";
-import { DEMO_DDQ_RUN } from "./workflows";
+import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID } from "./entities";
+import { RECORDING_BY_WORKFLOW } from "./workflowRegistry";
 
 export interface DemoAnswer {
   question: string;
+  /** The workspace this question belongs to. It answers in no other. */
+  dealId: string;
   /** One-line card copy. */
   blurb: string;
   /** Distinctive phrases — one match selects this answer. */
@@ -59,17 +61,28 @@ export const OFF_SCRIPT_ANSWER =
   "product the same question runs against your own documents, and every sentence " +
   "resolves back to a page.";
 
-// Column ids of the built-in `builtin_lp_ddq_scan` workflow. Per CLAUDE.md
-// invariant 4 these are stable across startup reconciliation.
+/**
+ * Recordings the chat answers are condensed from, and the columns within them.
+ * Built-in workflow and column ids are stable across startup reconciliation
+ * (CLAUDE.md invariant 4), so naming them here cannot drift silently — and
+ * `cited` throws if one stops resolving.
+ */
+export const WF_DDQ_SCAN = "builtin_lp_ddq_scan";
+export const WF_ODD_SCREEN = "builtin_lp_odd_screen";
+export const WF_LPA_REVIEW = "builtin_lp_lpa_review";
+export const WF_SIDE_LETTERS = "builtin_lp_side_letters";
+
 const COL_TEAM = "68558a7e665548a28536c1b7f2a13314"; // Team & Succession
 const COL_TERMS = "a01ad37a06444c348b93de7cecd96e5f"; // Fund Terms & Economics
 const COL_VALUATION = "9814f84441844e788e44523b2002848c"; // Valuation Policy
 const COL_COMPLIANCE = "9f181791b2a247a59135123e8b7de3d0"; // Compliance & Regulatory
 const COL_IT = "b778bec0d4c84fb6b3ecc85a1c24f3fb"; // IT & Cybersecurity
-// The run's Conflicts of Interest column (1b2486ce7b1b4480b5c2af0913241e38) is
-// deliberately not surfaced in chat — see the note above the question list.
-
-const CELL_BY_COLUMN = new Map(DEMO_DDQ_RUN.cells.map((cell) => [cell.column_id, cell]));
+export const COL_ODD_CONFLICTS = "c0ee1cfab63f474b9fb58a484d39c63c";
+const COL_ODD_PROVIDERS = "f4a0afc4a62e453595b1570b444fb4fe";
+const COL_LPA_INDEMNITY = "bc3b63ca80b846428f0cea876b1a9e4d";
+const COL_SL_OBLIGATIONS = "36d71bb878af4ae0a5ef3d273226c7e6";
+const COL_SL_DEADLINES = "504c0842b45848d191ab7d4a4b46218f";
+const COL_SL_MFN = "c1c656b232504d08a445e5e0121511f3";
 
 /**
  * Lifts recorded citations by their `[Source N]` number, in the order the chat
@@ -85,11 +98,22 @@ const CELL_BY_COLUMN = new Map(DEMO_DDQ_RUN.cells.map((cell) => [cell.column_id,
  * must fail a test in development, not quietly strip the citations off a
  * prospect's screen.
  */
-function cited(columnId: string, sourceNumbers: readonly number[]): Citation[] {
-  const cell = CELL_BY_COLUMN.get(columnId);
+export function cited(
+  workflowId: string,
+  columnId: string,
+  sourceNumbers: readonly number[]
+): Citation[] {
+  const recording = RECORDING_BY_WORKFLOW.get(workflowId);
+  if (!recording) {
+    throw new Error(
+      `Demo chat: no recording for workflow ${workflowId}. ` +
+        "The registry and the chat fixtures have drifted apart."
+    );
+  }
+  const cell = recording.run.cells.find((c) => c.column_id === columnId);
   if (!cell) {
     throw new Error(
-      `Demo chat: the recorded run has no cell for column ${columnId}. ` +
+      `Demo chat: the recorded ${workflowId} run has no cell for column ${columnId}. ` +
         "The recording and the chat fixtures have drifted apart."
     );
   }
@@ -108,6 +132,7 @@ function cited(columnId: string, sourceNumbers: readonly number[]): Citation[] {
 export const DEMO_QUESTIONS: DemoAnswer[] = [
   {
     question: "Has any senior investment professional left the firm?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "Cross-check the DDQ's team answer against the Form ADV, PPM and pitchbook.",
     anchors: [
       "roache",
@@ -137,10 +162,11 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "as a current Partner and Head of Value Creation if he ceased employment in " +
       "February 2026?",
     // Form ADV p2, PPM p4, pitchbook p4, DDQ p2.
-    citations: cited(COL_TEAM, [64, 44, 56, 22]),
+    citations: cited(WF_DDQ_SCAN, COL_TEAM, [64, 44, 56, 22]),
   },
   {
     question: "Has the manager had any regulatory issues?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "Regulatory history in the Form ADV — and what the marketing documents leave out.",
     anchors: [
       "deficiency",
@@ -170,10 +196,11 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "- Has the Firm undergone any regulatory examinations or received any other " +
       "deficiency letters since the 2023 matter?",
     // Form ADV p10, DDQ p9.
-    citations: cited(COL_COMPLIANCE, [72, 29]),
+    citations: cited(WF_DDQ_SCAN, COL_COMPLIANCE, [72, 29]),
   },
   {
     question: "What are the gaps in the firm's cybersecurity program?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "What the DDQ concedes about SOC 2 and testing cadence.",
     anchors: [
       "soc 2",
@@ -202,10 +229,11 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "- Can the Firm provide the last three years of penetration testing results, or a " +
       "summary of any historical cybersecurity incidents?",
     // DDQ p10, PPM p11.
-    citations: cited(COL_IT, [30, 51]),
+    citations: cited(WF_DDQ_SCAN, COL_IT, [30, 51]),
   },
   {
     question: "How does the valuation policy handle Level 3 assets?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "Valuation governance, and how often an outside party sees the marks.",
     anchors: [
       "level 3",
@@ -236,21 +264,13 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "- What specific \"material events\" trigger an ad-hoc valuation review outside the " +
       "quarterly cycle [Source 2]?",
     // Valuation policy p4, p2, p3; DDQ p8.
-    citations: cited(COL_VALUATION, [76, 74, 75, 28]),
+    citations: cited(WF_DDQ_SCAN, COL_VALUATION, [76, 74, 75, 28]),
   },
-  // No conflicts-of-interest question. The recorded Conflicts cell answered
-  // with the DDQ's denial — the Firm "does not expect Fund IV to rely on
-  // affiliated service providers" — citing Form ADV p3, p4, p9 and p10: every
-  // ADV page except p6, which discloses that "Brightwater Securities, LLC is an
-  // affiliated broker-dealer" that "may receive transaction fees". Requalifying
-  // the answer as reported speech would not help: the whole subject of the card
-  // is conflicts, and the corpus's largest conflict is the one the run missed,
-  // so every phrasing of the question walks a prospect onto p6. Five questions
-  // the recording answered well beat six with a trap in them.
   {
     // Not "…and do the documents agree?": the answer no longer renders a
     // verdict on that, because the run's verdict was wrong (see below).
     question: "What are the fund's economic terms?",
+    dealId: DEMO_FUND_IV_ID,
     blurb: "Fees, carry, offset and removal — read across the LPA, PPM, pitchbook and DDQ.",
     // "fees" and "fee structure" are anchors, not support words: "what are the
     // fees" is close to the single most likely thing a prospect types, and as
@@ -300,7 +320,199 @@ export const DEMO_QUESTIONS: DemoAnswer[] = [
       "documentation of expense allocation [Source 9], which bears on the judgment " +
       "applied to fee offsets and expense allocation described in the PPM [Source 10].",
     // LPA p5, p7, p6, p3, p12; PPM p2; pitchbook p6; DDQ p6; ADV p10; PPM p11.
-    citations: cited(COL_TERMS, [5, 7, 6, 3, 12, 42, 58, 26, 72, 51]),
+    citations: cited(WF_DDQ_SCAN, COL_TERMS, [5, 7, 6, 3, 12, 42, 58, 26, 72, 51]),
+  },
+  {
+    question: "What conflicts of interest are disclosed?",
+    dealId: DEMO_FUND_IV_ID,
+    blurb: "Affiliated service providers, the broker-dealer, and how expenses get allocated.",
+    anchors: [
+      "conflict",
+      "conflicts",
+      "conflicts of interest",
+      "broker dealer",
+      "brightwater securities",
+      "affiliated",
+      "affiliate",
+      "related party",
+    ],
+    support: ["disclosed", "interest", "allocation", "expenses", "affiliates"],
+    // Condensed from the ODD Screen run's Conflicts of interest cell. One
+    // sentence of that cell is deliberately dropped: it stated the 50% fee
+    // offset while citing brightwater_iv_ddq.pdf p7, which reads "100% fee
+    // offset" — a citation pointing at the page that refutes the sentence
+    // above it. Deleting it is condensation; keeping it would hand a prospect
+    // a chip that opens a contradiction.
+    //
+    // "under common control with the Manager" and "in connection with
+    // portfolio company transactions" are not in the cell's own answer text —
+    // the cell just says Brightwater Securities "may receive transaction fees
+    // or placement-related compensation" [Source 68]. Both clauses are
+    // verbatim in that citation's snippet (ADV p6), so nothing here is
+    // unverifiable; the boundary between "condensed from the cell" and
+    // "condensed from its citation" was crossed deliberately for this one
+    // answer, not missed.
+    answer:
+      "The Firm addresses potential conflicts through its compliance manual, advisory " +
+      "committee process, and allocation policy [Source 1]. Affiliated service providers " +
+      "are described as generally limited to the General Partner and management company " +
+      "[Source 1].\n\n" +
+      "The Form ADV discloses that Brightwater Securities, LLC, an affiliated " +
+      "broker-dealer under common control with the Manager, may receive transaction fees " +
+      "or placement-related compensation in connection with portfolio company " +
+      "transactions [Source 2].\n\n" +
+      "In 2023 the Firm received an SEC deficiency letter regarding documentation of " +
+      "expense allocation, which was subsequently remediated through enhanced procedures " +
+      "and training [Source 3]. Broken-deal expenses are allocated among participating " +
+      "vehicles based on the opportunity pursued and the benefits expected [Source 4].",
+    // DDQ p12, Form ADV p6, Form ADV p10, DDQ p13.
+    citations: cited(WF_ODD_SCREEN, COL_ODD_CONFLICTS, [32, 68, 72, 33]),
+  },
+  {
+    question: "Who are the fund's service providers?",
+    dealId: DEMO_FUND_IV_ID,
+    blurb: "Auditor, administrator and counsel — and the two the documents never name.",
+    anchors: [
+      "service provider",
+      "service providers",
+      "auditor",
+      "administrator",
+      "custodian",
+      "fund counsel",
+      "prime broker",
+      "who audits",
+    ],
+    support: ["provider", "audit", "administration", "counsel", "outsourced"],
+    // "Not found" is kept verbatim from the recording rather than rewritten as
+    // "not disclosed": the run reports what it could not find, and the ability
+    // to say so at all is what the require_citations fix restored. Softening it
+    // into a claim about the documents would be adding a finding.
+    answer:
+      "From the DDQ's service-provider section [Source 1]:\n\n" +
+      "- **Auditor:** Huxley Markham & Co. LLP\n" +
+      "- **Administrator:** North Pier Fund Services\n" +
+      "- **Fund counsel:** Alder & Finch LLP\n" +
+      "- **Custodian:** Not found\n" +
+      "- **Prime broker:** Not found\n\n" +
+      "The last two are not an omission in this answer — the extraction found no " +
+      "statement of either in the documents it read.",
+    // DDQ p14.
+    citations: cited(WF_ODD_SCREEN, COL_ODD_PROVIDERS, [34]),
+  },
+  {
+    question: "Where does the LPA lean GP-favorable?",
+    dealId: DEMO_FUND_IV_ID,
+    blurb: "The ILPA-alignment review's two GP-favorable ratings, both on one clause.",
+    anchors: [
+      "gp favorable",
+      "gp-favorable",
+      "ilpa",
+      "indemnification",
+      "exculpation",
+      "fiduciary duty",
+      "lpa lean",
+    ],
+    support: ["lpa", "clause", "alignment", "favorable", "principles"],
+    // Both GP-favorable ratings in the LPA / ILPA-Alignment Review rest on the
+    // same Section 17 clause, so this answer cites it once and says so, rather
+    // than quoting it twice as two findings.
+    answer:
+      "The ILPA-alignment review rates most of the LPA at market — economics, key " +
+      "person, GP removal, LPAC powers, transfers and reporting. Two columns come back " +
+      "**GP-favorable**, and both rest on the same clause.\n\n" +
+      "Section 17: \"The Partnership shall indemnify the General Partner, Manager and " +
+      "covered persons to the fullest extent permitted by law for actions taken in good " +
+      "faith on behalf of the Partnership.\" [Source 1]\n\n" +
+      "The review reads that scope as broad protection for the General Partner and its " +
+      "affiliates — common in private equity agreements, but GP-favorable relative to " +
+      "ILPA-aligned provisions that often seek to limit indemnification to gross " +
+      "negligence, willful misconduct or bad faith [Source 1]. The fiduciary-duty column " +
+      "returns the same rating on the same clause.",
+    // LPA p17.
+    citations: cited(WF_LPA_REVIEW, COL_LPA_INDEMNITY, [17]),
+  },
+  {
+    question: "What did we negotiate in our side letter?",
+    dealId: DEMO_FUND_III_ID,
+    blurb: "Every obligation in the Glenmoor side letter, by section.",
+    anchors: [
+      "side letter",
+      "negotiate",
+      "negotiated",
+      "our obligations",
+      "obligations",
+      "what did we get",
+    ],
+    support: ["letter", "commitment", "terms", "glenmoor", "rights"],
+    answer:
+      "The Glenmoor side letter to Brightwater Capital Partners III carries these " +
+      "obligations:\n\n" +
+      "- Management fee reduction of **ten basis points per annum** on Glenmoor's " +
+      "$25,000,000 commitment (Section 1) [Source 1]\n" +
+      "- **MFN election right** for terms granted to Limited Partners committing " +
+      "$50,000,000 or less (Section 2) [Source 1]\n" +
+      "- Pro-rata **co-investment** opportunity for investments requiring more than " +
+      "$75,000,000 of aggregate equity capital (Section 3) [Source 2]\n" +
+      "- **Quarterly reports** within 45 days after quarter-end (Section 4) [Source 2]\n" +
+      "- **Annual audited financials** within 120 days after fiscal year-end " +
+      "(Section 4) [Source 2]\n" +
+      "- **Excuse right** for tobacco or controlled substances, on ten business days' " +
+      "written notice (Section 5) [Source 3]\n" +
+      "- Consent to **affiliate transfers** not to be unreasonably withheld (Section 6) " +
+      "[Source 3]\n" +
+      "- **Annual ESG report** covering portfolio-level metrics (Section 7) [Source 4]",
+    // Side letter p1, p2, p3, p4.
+    citations: cited(WF_SIDE_LETTERS, COL_SL_OBLIGATIONS, [1, 2, 3, 4]),
+  },
+  {
+    question: "What are our deadlines, and what triggers them?",
+    dealId: DEMO_FUND_III_ID,
+    blurb: "The clock on each obligation, who owns it, and what starts it running.",
+    anchors: [
+      "deadline",
+      "deadlines",
+      "trigger",
+      "triggers",
+      "due date",
+      "how long do we have",
+      "45 days",
+      "30 days",
+    ],
+    support: ["timing", "notice", "owner", "quarterly", "annual"],
+    answer:
+      "- **MFN election** — within 30 days after final close, triggered by a better " +
+      "term being granted to an LP committing $50M or less. Glenmoor's to exercise " +
+      "[Source 1]\n" +
+      "- **Co-investment offer** — commercially reasonable efforts, triggered by an " +
+      "investment requiring more than $75M of aggregate equity. General Partner " +
+      "[Source 2]\n" +
+      "- **Quarterly reports** — within 45 days after each quarter-end. General Partner " +
+      "[Source 2]\n" +
+      "- **Annual audited financials** — within 120 days after fiscal year-end. General " +
+      "Partner [Source 2]\n" +
+      "- **Excuse-right notice** — at least 10 business days before an investment in " +
+      "tobacco or controlled substances. Glenmoor's to give [Source 3]\n" +
+      "- **Annual ESG report** — annually, no stated trigger. General Partner [Source 4]",
+    // Side letter p1, p2, p3, p4.
+    citations: cited(WF_SIDE_LETTERS, COL_SL_DEADLINES, [1, 2, 3, 4]),
+  },
+  {
+    question: "What does our MFN actually cover?",
+    dealId: DEMO_FUND_III_ID,
+    blurb: "Scope, election window and carve-outs on the most-favoured-nations right.",
+    anchors: ["mfn", "most favored nation", "most favoured nation", "better terms"],
+    support: ["election", "scope", "carve", "commitment", "threshold"],
+    // The recorded cell's "Notice deadlines" row is empty; it is dropped rather
+    // than filled in, because nothing in the document supports a value.
+    answer:
+      "**Scope:** better economic, reporting, transfer or governance terms granted to " +
+      "any Limited Partner committing $50,000,000 or less [Source 1].\n\n" +
+      "**Election mechanics:** exercisable within 30 days after final close " +
+      "[Source 1].\n\n" +
+      "**Carve-outs:** subject to customary exclusions [Source 1] — the side letter " +
+      "does not enumerate them, and the extraction reports no notice-deadline term.",
+    // Side letter p1.
+    citations: cited(WF_SIDE_LETTERS, COL_SL_MFN, [1]),
   },
 ];
 
@@ -321,6 +533,8 @@ export function demoDocLabel(filename: string): string {
       return "Valuation policy";
     case "brightwater_track_record.xlsx":
       return "Track record";
+    case "glenmoor_fund_iii_side_letter.pdf":
+      return "Side letter";
     default:
       return filename;
   }
@@ -328,6 +542,7 @@ export function demoDocLabel(filename: string): string {
 
 export interface DemoPromptCard {
   title: string;
+  dealId: string;
   blurb: string;
   chips: string[];
   prompt: string;
@@ -340,19 +555,19 @@ export interface DemoPromptCard {
  */
 export const DEMO_PROMPT_CARDS: DemoPromptCard[] = DEMO_QUESTIONS.map((q) => ({
   title: q.question,
+  dealId: q.dealId,
   blurb: q.blurb,
   chips: [...new Set(q.citations.map((c) => demoDocLabel(c.source_file)))].slice(0, 3),
   prompt: q.question,
 }));
 
 /**
- * Cards for a workspace — empty outside Fund IV, which is the only entity the
- * run was recorded against. Offering these questions in a sibling fund would
- * invite a click that can only answer off-script, or worse, answer with
- * documents that fund's context never contains.
+ * Cards for a workspace. A fund with no recorded material gets none rather
+ * than a borrowed set: offering another fund's questions invites a click that
+ * can only answer off-script.
  */
 export function demoPromptCardsFor(dealId: string): DemoPromptCard[] {
-  return dealId === DEMO_FUND_IV_ID ? DEMO_PROMPT_CARDS : [];
+  return DEMO_PROMPT_CARDS.filter((card) => card.dealId === dealId);
 }
 
 // ── Matching ──────────────────────────────────────────────────────────────
@@ -368,23 +583,42 @@ const MIN_SUPPORT_HITS = 2;
 const DOC_SCOPE_PREFIX = /^focus on these document\(s\):[\s\S]*?\n\n/i;
 
 /**
- * Funds in the demo corpus other than Fund IV, the only one the run was
- * recorded against.
+ * Fund names that identify a *workspace* in the demo. A question naming a fund
+ * other than the one being asked in is refused, whatever else it matches.
  *
- * `demoSseStream` already refuses to answer *inside* a sibling fund's
- * workspace, but that gate covers the workspace you are standing in, not the
- * fund you are asking about. "What is the management fee for Fund III?", typed
- * in Fund IV, would otherwise come back with Fund IV's 2.0% — a different
- * fund's economics, cited to Fund IV's LPA, in an answer that never says so.
+ * This has to be relative rather than a fixed list. "What is the management fee
+ * for Fund III?", typed in Fund IV, would otherwise come back with Fund IV's
+ * 2.0% — a different fund's economics, cited to Fund IV's LPA, in an answer
+ * that never says so. The mirror image is just as wrong, and a fixed
+ * Fund-IV-centric list gets it backwards the moment Fund III can answer at all.
  */
-const OTHER_FUND_MENTIONS = [
-  "fund i",
-  "fund ii",
-  "fund iii",
-  "fund 1",
-  "fund 2",
-  "fund 3",
-] as const;
+const FUND_MENTIONS: Record<string, readonly string[]> = {
+  [DEMO_FUND_IV_ID]: ["fund iv", "fund 4", "fourth fund"],
+  [DEMO_FUND_III_ID]: ["fund iii", "fund 3", "third fund"],
+};
+
+/**
+ * Funds the corpus refers to but the demo has no workspace for. Named in any
+ * workspace, they are always someone else's fund.
+ */
+const UNRECORDED_FUND_MENTIONS = ["fund i", "fund ii", "fund 1", "fund 2"] as const;
+
+/**
+ * True if the question names a fund that is not the one being asked in.
+ *
+ * `normalize` pads with spaces, so "fund i" cannot match inside "fund iii" —
+ * that padding, not list order, is what makes it safe for `UNRECORDED_FUND_MENTIONS`
+ * to list the shorter names first: `hits()` checks every phrase rather than
+ * stopping at the first match, so nothing here depends on ordering.
+ */
+function mentionsAnotherFund(asked: string, dealId: string): boolean {
+  if (hits(asked, UNRECORDED_FUND_MENTIONS) > 0) return true;
+  for (const [id, phrases] of Object.entries(FUND_MENTIONS)) {
+    if (id === dealId) continue;
+    if (hits(asked, phrases) > 0) return true;
+  }
+  return false;
+}
 
 /** Space-delimited, punctuation-free, so `includes` matches whole words only. */
 function normalize(text: string): string {
@@ -399,6 +633,11 @@ function hits(haystack: string, phrases: readonly string[]): number {
   return n;
 }
 
+/** Every question belonging to a workspace. Empty for a fund with no set. */
+export function questionsFor(dealId: string): DemoAnswer[] {
+  return DEMO_QUESTIONS.filter((q) => q.dealId === dealId);
+}
+
 /**
  * Selects the canned answer for a question, or null if there isn't one.
  *
@@ -409,21 +648,22 @@ function hits(haystack: string, phrases: readonly string[]): number {
  * "committee", "compliance") never selects an answer on its own: either a
  * distinctive anchor phrase appears, or at least two topic words do.
  *
- * A question that names a fund other than Fund IV is refused outright, whatever
- * else it matches.
+ * A question that names a fund other than the one being asked in is refused
+ * outright, whatever else it matches.
  */
-export function matchDemoQuestion(text: string): DemoAnswer | null {
+export function matchDemoQuestion(text: string, dealId: string): DemoAnswer | null {
   const asked = normalize(text.replace(DOC_SCOPE_PREFIX, ""));
   if (asked.trim() === "") return null;
-  if (hits(asked, OTHER_FUND_MENTIONS) > 0) return null;
+  if (mentionsAnotherFund(asked, dealId)) return null;
 
-  for (const q of DEMO_QUESTIONS) {
+  const candidates = questionsFor(dealId);
+  for (const q of candidates) {
     if (normalize(q.question) === asked) return q;
   }
 
   let best: DemoAnswer | null = null;
   let bestScore = 0;
-  for (const q of DEMO_QUESTIONS) {
+  for (const q of candidates) {
     const anchorHits = hits(asked, q.anchors);
     const supportHits = hits(asked, q.support);
     if (anchorHits === 0 && supportHits < MIN_SUPPORT_HITS) continue;
@@ -518,10 +758,10 @@ export function demoSseStream(
 
   const dealId = match[1];
   const question = questionFromBody(body);
-  // The recording ran against Fund IV. Answering inside a sibling fund would
-  // cite Fund IV's DDQ, PPM and pitchbook from a workspace whose context, in
-  // the real product, never contains them (CLAUDE.md invariant 2).
-  const matched = dealId === DEMO_FUND_IV_ID ? matchDemoQuestion(question) : null;
+  // Which questions answer here is now a property of the question set, not of
+  // this line: a fund with no recorded material has no questions, so every
+  // ask in it falls through to the honest fallback.
+  const matched = matchDemoQuestion(question, dealId);
   const answer = matched?.answer ?? OFF_SCRIPT_ANSWER;
   const citations: Citation[] = matched?.citations ?? [];
 

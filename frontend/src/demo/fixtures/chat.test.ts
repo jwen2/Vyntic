@@ -3,47 +3,72 @@ import type { DocMatrixEvent, QueryStreamEvent } from "@/lib/api";
 import { docMatrixStream } from "@/lib/api";
 import { disableDemoMode, enableDemoMode } from "../mode";
 import {
+  COL_ODD_CONFLICTS,
   DEMO_PROMPT_CARDS,
   DEMO_QUESTIONS,
   DOC_MATRIX_UNAVAILABLE,
   OFF_SCRIPT_ANSWER,
+  WF_ODD_SCREEN,
+  cited,
+  demoDocLabel,
   demoPromptCardsFor,
   demoSseStream,
   matchDemoQuestion,
+  questionsFor,
 } from "./chat";
-import { DEMO_DDQ_RUN } from "./workflows";
+import { DEMO_RECORDINGS } from "./workflowRegistry";
 import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID } from "./entities";
 
 const CHAT_URL = `/api/deals/${DEMO_FUND_IV_ID}/query/stream`;
-
-/** Every citation object the recorded run emitted, flattened and de-nulled. */
-const RECORDED_CITATIONS = DEMO_DDQ_RUN.cells
-  .flatMap((cell) => cell.citations)
-  .filter((citation) => citation !== null);
 
 function citationKey(source_file: string, page: number, text_snippet: string): string {
   return `${source_file}|${page}|${text_snippet}`;
 }
 
-const RECORDED_KEYS = new Set(
-  RECORDED_CITATIONS.map((c) => citationKey(c.source_file, c.page, c.text_snippet))
-);
+/**
+ * Every citation object each recorded run emitted, keyed and bucketed by the
+ * *recording's* dealId, not flattened across all of them. Chat answers now
+ * draw from multiple recordings (DDQ scan, ODD screen, LPA / ILPA review,
+ * Side Letters, …), and Side Letters is recorded against Fund III with
+ * Glenmoor citations — a flat set would accept a Fund III citation on a Fund
+ * IV answer, which is exactly the cross-fund context leak CLAUDE.md invariant
+ * 2 forbids, just laundered through a chat citation instead of a
+ * context-assembly bug. Bucketing by dealId is what keeps that closed as Task
+ * 4 adds Fund III answers citing Side Letters for real.
+ */
+const KEYS_BY_DEAL = new Map<string, Set<string>>();
+for (const r of DEMO_RECORDINGS) {
+  const keys = KEYS_BY_DEAL.get(r.dealId) ?? new Set<string>();
+  for (const c of r.run.cells.flatMap((cell) => cell.citations)) {
+    if (c) keys.add(citationKey(c.source_file, c.page, c.text_snippet));
+  }
+  KEYS_BY_DEAL.set(r.dealId, keys);
+}
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe("demo chat question set", () => {
-  it("ships between five and six questions", () => {
-    expect(DEMO_QUESTIONS.length).toBeGreaterThanOrEqual(5);
-    expect(DEMO_QUESTIONS.length).toBeLessThanOrEqual(6);
+  it("ships eight questions on Fund IV and three on Fund III", () => {
+    // Explicit rather than a range: adding a card should be a deliberate act,
+    // and every card is a claim this demo makes to a prospect.
+    expect(questionsFor(DEMO_FUND_IV_ID)).toHaveLength(8);
+    expect(questionsFor(DEMO_FUND_III_ID)).toHaveLength(3);
+    expect(DEMO_QUESTIONS).toHaveLength(11);
   });
 
-  it("cites only citations the recorded run actually produced", () => {
+  it("cites only citations a recording of the answer's own fund actually produced", () => {
     for (const q of DEMO_QUESTIONS) {
       expect(q.citations.length).toBeGreaterThan(0);
+      const keys = KEYS_BY_DEAL.get(q.dealId);
+      expect(keys, `no recording for dealId ${q.dealId}`).toBeDefined();
       for (const c of q.citations) {
-        expect(RECORDED_KEYS.has(citationKey(c.source_file, c.page, c.text_snippet))).toBe(true);
+        expect(
+          keys!.has(citationKey(c.source_file, c.page, c.text_snippet)),
+          `${q.question}: [${c.source_file} p${c.page}] must come from a recording made in ` +
+            `dealId ${q.dealId}, not merely any recording`
+        ).toBe(true);
       }
     }
   });
@@ -75,21 +100,25 @@ describe("demo chat question set", () => {
   });
 
   it("covers the findings the recorded run actually made", () => {
-    expect(matchDemoQuestion("what about roache")).not.toBeNull();
-    expect(matchDemoQuestion("has there been a deficiency letter")).not.toBeNull();
-    expect(matchDemoQuestion("do they have a soc 2 report")).not.toBeNull();
-    expect(matchDemoQuestion("how are level 3 assets reviewed")).not.toBeNull();
-    expect(matchDemoQuestion("what is the fee offset")).not.toBeNull();
+    expect(matchDemoQuestion("what about roache", DEMO_FUND_IV_ID)).not.toBeNull();
+    expect(matchDemoQuestion("has there been a deficiency letter", DEMO_FUND_IV_ID)).not.toBeNull();
+    expect(matchDemoQuestion("do they have a soc 2 report", DEMO_FUND_IV_ID)).not.toBeNull();
+    expect(matchDemoQuestion("how are level 3 assets reviewed", DEMO_FUND_IV_ID)).not.toBeNull();
+    expect(matchDemoQuestion("what is the fee offset", DEMO_FUND_IV_ID)).not.toBeNull();
   });
 
   it("asserts no finding the recorded run contradicts", () => {
     const prose = DEMO_QUESTIONS.map((q) => `${q.question} ${q.answer}`.toLowerCase()).join(" ");
-    // The recording found the DDQ/PPM/pitchbook *consistent* on fees and found
-    // no affiliated broker-dealer. Both are real in the corpus, but the fixture
-    // does not contain them, so the demo must not claim them.
+    // The recording found the DDQ/PPM/pitchbook *consistent* on fees. That
+    // finding is real in the corpus but the fixture does not contain it (see
+    // the fee-offset answer's deliberately dropped sentence), so it stays
+    // asserted here.
+    //
+    // The broker-dealer / Brightwater Securities half of this guard is gone:
+    // per the conflicts reversal above, the ODD Screen recording *does* name
+    // it, citing brightwater_adv_part2a.pdf p6 directly, so asserting its
+    // absence would now fail against a finding the fixture is right to make.
     expect(prose).not.toContain("100% fee offset");
-    expect(prose).not.toContain("brightwater securities");
-    expect(prose).not.toContain("broker-dealer");
   });
 
   it("never tells a prospect the documents agree on the fee terms", () => {
@@ -98,29 +127,65 @@ describe("demo chat question set", () => {
     // Repeating the recording's "consistent" conclusion would convert a silent
     // miss into an active false statement — worse in front of an LP, who can
     // open the DDQ this demo itself ships and see the contradiction.
-    const terms = matchDemoQuestion("what is the fee offset");
+    const terms = matchDemoQuestion("what is the fee offset", DEMO_FUND_IV_ID);
     expect(terms).not.toBeNull();
     expect(terms!.answer).not.toMatch(/consistent/i);
     const prose = DEMO_QUESTIONS.map((q) => `${q.question} ${q.answer}`).join(" ");
     expect(prose).not.toMatch(/terms are consistent/i);
   });
 
-  it("offers no conflicts-of-interest question at all", () => {
-    // Form ADV p6 discloses Brightwater Securities, LLC — an affiliated
-    // broker-dealer that "may receive transaction fees". The recorded run cited
-    // every ADV page except p6 and reported the manager's denial instead, so
-    // every conflicts question is a landmine no rephrasing defuses.
-    expect(matchDemoQuestion("what conflicts of interest are disclosed")).toBeNull();
+  it("never cites the page that refutes a fee-offset figure it states", () => {
+    // This has now gone wrong twice in recordings: an answer states 50% and
+    // cites brightwater_iv_ddq.pdf p7 as support, but p7 reads "100% fee
+    // offset". The claim is right and the attribution is not, so a prospect
+    // clicking the chip lands on the page that contradicts the sentence above
+    // it. Mechanical citation checks miss this entirely — the citation
+    // resolves. This is the narrow pin for the one contradiction the corpus
+    // deliberately plants.
+    for (const q of DEMO_QUESTIONS) {
+      // Deliberately no trailing \b after "offset": the recording's own
+      // phrasing is "…offsetting the management fee", and a well-meaning
+      // tidy-up to \boffset\b would stop matching that and silently narrow
+      // this guard. Known gap: a spelled-out figure ("fifty percent") is not
+      // caught either — only digit-percent forms are.
+      const statesOffsetFigure = /\b(50|100)\s?%[^.]{0,60}offset|offset[^.]{0,60}\b(50|100)\s?%/i.test(
+        q.answer
+      );
+      if (!statesOffsetFigure) continue;
+      const citesDdqPage7 = q.citations.some(
+        (c) => c.source_file === "brightwater_iv_ddq.pdf" && c.page === 7
+      );
+      expect(
+        citesDdqPage7,
+        `"${q.question}" states a fee-offset figure while citing DDQ p7, which ` +
+          "states the opposing figure"
+      ).toBe(false);
+    }
+  });
+
+  it("answers the conflicts question by naming the affiliated broker-dealer", () => {
+    // REVERSAL, 2026-08-08. This test previously asserted the opposite, on the
+    // ground that "the recorded run cited every ADV page except p6 and reported
+    // the manager's denial instead". That ground is gone: the ODD Screen
+    // recording cites brightwater_adv_part2a.pdf p6 directly and names
+    // Brightwater Securities, LLC. The fixture can now disclose what the corpus
+    // discloses, which is what the prohibition existed to protect.
+    const conflicts = matchDemoQuestion(
+      "what conflicts of interest are disclosed",
+      DEMO_FUND_IV_ID
+    );
+    expect(conflicts).not.toBeNull();
+    expect(conflicts!.answer).toContain("Brightwater Securities");
     expect(
-      matchDemoQuestion("what conflicts of interest exist with brightwater securities")
-    ).toBeNull();
-    expect(matchDemoQuestion("are there affiliated service providers")).toBeNull();
-    const titles = DEMO_QUESTIONS.map((q) => q.question.toLowerCase()).join(" ");
-    expect(titles).not.toContain("conflict");
+      conflicts!.citations.some(
+        (c) => c.source_file === "brightwater_adv_part2a.pdf" && c.page === 6
+      ),
+      "the broker-dealer claim must cite the page that discloses it"
+    ).toBe(true);
   });
 
   it("attaches no citation to a page that does not support its claim", () => {
-    const valuation = matchDemoQuestion("how are level 3 assets reviewed");
+    const valuation = matchDemoQuestion("how are level 3 assets reviewed", DEMO_FUND_IV_ID);
     expect(valuation).not.toBeNull();
     // PPM p6 is "Portfolio Construction"; its only quarterly reference is to the
     // *investment* committee, and no PPM page supports the valuation cadence.
@@ -135,39 +200,106 @@ describe("demo chat question set", () => {
     // descriptive, so the plainest phrasings must reach it. Answering "what is
     // the fee offset" while refusing "what are the fees" is exactly backwards.
     for (const asked of ["what are the fees", "how much are the fees", "what is the fee structure"]) {
-      expect(matchDemoQuestion(asked), asked).not.toBeNull();
+      expect(matchDemoQuestion(asked, DEMO_FUND_IV_ID), asked).not.toBeNull();
     }
+  });
+
+  it("lifts citations out of whichever recording the answer came from", () => {
+    // The guard against a re-recording that renumbers sources: this must throw
+    // in development rather than quietly strip citations off a live screen.
+    expect(() => cited(WF_ODD_SCREEN, "not-a-column", [1])).toThrow(/drifted apart/);
+    expect(() => cited(WF_ODD_SCREEN, COL_ODD_CONFLICTS, [999])).toThrow(/Source 999/);
   });
 
   it("falls back on a question that names a fund the run was not recorded against", () => {
     // The dealId gate in demoSseStream covers the workspace you are standing
-    // in, not the fund you are asking about. Fund IV's economics are not Fund
-    // III's, and the demo ships no Fund III recording.
-    expect(matchDemoQuestion("what is the management fee for fund iii")).toBeNull();
-    expect(matchDemoQuestion("carried interest in fund iii")).toBeNull();
-    expect(matchDemoQuestion("gp commitment for fund iii")).toBeNull();
-    expect(matchDemoQuestion("what were the fees in fund ii")).toBeNull();
-    expect(matchDemoQuestion("did anyone leave the firm during fund i")).toBeNull();
+    // in, not the fund you are asking about. Asked inside Fund IV, naming any
+    // other fund refuses outright via mentionsAnotherFund — regardless of
+    // whether that other fund has a recording of its own (Fund III now does),
+    // because Fund IV's economics are never the right answer to a question
+    // about a sibling fund.
+    expect(matchDemoQuestion("what is the management fee for fund iii", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("carried interest in fund iii", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("gp commitment for fund iii", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("what were the fees in fund ii", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("did anyone leave the firm during fund i", DEMO_FUND_IV_ID)).toBeNull();
     // Naming Fund IV, the fund the run was recorded against, still answers.
-    expect(matchDemoQuestion("what is the management fee for fund iv")).not.toBeNull();
+    expect(matchDemoQuestion("what is the management fee for fund iv", DEMO_FUND_IV_ID)).not.toBeNull();
+  });
+
+  it("refuses a Fund-IV-naming question asked from inside Fund III", () => {
+    // The mirror direction of the gate above, and untestable before this task:
+    // Fund III had no questions of its own, so every one of its candidates was
+    // an empty list and `mentionsAnotherFund` never got to run on a real
+    // question asked *into* Fund III. It still can't be reached through the
+    // all-answers loop either — none of the eight Fund IV questions name a
+    // fund, so this has to be asserted directly. A backwards fund-mention
+    // list would pass every other test in this file and only fail here.
+    expect(
+      matchDemoQuestion("what did fund iv negotiate in its side letter", DEMO_FUND_III_ID)
+    ).toBeNull();
+    // Same question with the fund name removed: it is Fund III's own canned
+    // question, and still answers. That pairing is what proves the fund name
+    // caused the refusal above, rather than the phrasing simply being
+    // off-script.
+    expect(
+      matchDemoQuestion("what did we negotiate in our side letter", DEMO_FUND_III_ID)
+    ).not.toBeNull();
+  });
+
+  it("answers Fund III out of its own side letter, and nothing else", () => {
+    for (const q of questionsFor(DEMO_FUND_III_ID)) {
+      expect(q.citations.length, q.question).toBeGreaterThan(0);
+      for (const citation of q.citations) {
+        // Fund III's workspace contains one recorded document. Citing any
+        // Fund IV file here would be a context-isolation break, not a typo.
+        expect(citation.source_file, q.question).toBe("glenmoor_fund_iii_side_letter.pdf");
+        expect(citation.deal_id, q.question).toBe(DEMO_FUND_III_ID);
+      }
+    }
+  });
+
+  it("labels the side letter for the card chips", () => {
+    // Without a case the chip shows the raw filename, which is the only place
+    // in the demo a visitor would ever see one.
+    expect(demoDocLabel("glenmoor_fund_iii_side_letter.pdf")).toBe("Side letter");
+  });
+
+  it("stamps every Fund IV citation with Fund IV's own deal_id", () => {
+    // The citation-provenance guard above ties a citation's (source_file, page,
+    // text_snippet) triple to the *recording* it came from, bucketed by that
+    // recording's own dealId — it never reads the citation object's own
+    // `deal_id` field. The Fund III equivalent of that field check, above,
+    // covers only Fund III's three questions. A citation whose content matches
+    // a Fund IV recording but whose own `deal_id` field names another fund —
+    // the shape CLAUDE.md invariant 2's manager-shared-document relaxation
+    // could one day produce inside a recording — would slip past every other
+    // guard in this file undetected.
+    for (const q of questionsFor(DEMO_FUND_IV_ID)) {
+      for (const c of q.citations) {
+        expect(c.deal_id, q.question).toBe(DEMO_FUND_IV_ID);
+      }
+    }
   });
 });
 
 describe("matchDemoQuestion", () => {
   it("matches a canned question verbatim", () => {
     const q = DEMO_QUESTIONS[0];
-    expect(matchDemoQuestion(q.question)?.answer).toBe(q.answer);
+    expect(matchDemoQuestion(q.question, DEMO_FUND_IV_ID)?.answer).toBe(q.answer);
   });
 
   it("matches case-insensitively and ignores surrounding whitespace", () => {
     const q = DEMO_QUESTIONS[0].question;
-    expect(matchDemoQuestion(`  ${q.toUpperCase()}  `)).not.toBeNull();
+    expect(matchDemoQuestion(`  ${q.toUpperCase()}  `, DEMO_FUND_IV_ID)).not.toBeNull();
   });
 
   it("matches through the composer's document-scope prefix", () => {
     const scoped =
       'Focus on these document(s): "brightwater_iv_ddq.pdf".\n\nwhat about roache';
-    expect(matchDemoQuestion(scoped)).toBe(matchDemoQuestion("what about roache"));
+    expect(matchDemoQuestion(scoped, DEMO_FUND_IV_ID)).toBe(
+      matchDemoQuestion("what about roache", DEMO_FUND_IV_ID)
+    );
   });
 
   it("never lets the document-scope prefix answer a question nobody asked", () => {
@@ -175,30 +307,57 @@ describe("matchDemoQuestion", () => {
     // policy" — an anchor of the Level 3 answer. If the prefix were not
     // stripped, ticking that document would make *any* off-script question in
     // the chat come back as a confident, well-cited valuation answer.
+    //
+    // (Not "who is the fund administrator": Task 3 added a service-providers
+    // question whose anchors include "administrator", so that phrase now
+    // legitimately matches on its own words and no longer isolates the prefix
+    // as the thing under test.)
     const scoped =
       'Focus on these document(s): "brightwater_valuation_policy.pdf".\n\n' +
-      "who is the fund administrator";
-    expect(matchDemoQuestion(scoped)).toBeNull();
+      "who prepares the fund's tax returns";
+    expect(matchDemoQuestion(scoped, DEMO_FUND_IV_ID)).toBeNull();
   });
 
   it("returns null for off-script input", () => {
-    expect(matchDemoQuestion("what is the weather in Chicago")).toBeNull();
-    expect(matchDemoQuestion("")).toBeNull();
-    expect(matchDemoQuestion("   ")).toBeNull();
+    expect(matchDemoQuestion("what is the weather in Chicago", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("   ", DEMO_FUND_IV_ID)).toBeNull();
   });
 
   it("does not answer a question it only shares one broad topic word with", () => {
     // "valuation" alone must not pull in the Level 3 answer: that answer would
     // be confidently wrong here, which is the one failure this demo cannot have.
-    expect(matchDemoQuestion("what is the valuation of the largest portfolio company")).toBeNull();
-    expect(matchDemoQuestion("how many partners are on the team")).toBeNull();
-    expect(matchDemoQuestion("who audits the fund")).toBeNull();
+    expect(
+      matchDemoQuestion("what is the valuation of the largest portfolio company", DEMO_FUND_IV_ID)
+    ).toBeNull();
+    expect(matchDemoQuestion("how many partners are on the team", DEMO_FUND_IV_ID)).toBeNull();
+    // Not "who audits the fund": Task 3's service-providers question anchors on
+    // the phrase "who audits", so that wording now legitimately matches.
+    expect(matchDemoQuestion("are there any other operational gaps", DEMO_FUND_IV_ID)).toBeNull();
   });
 
   it("does not match on a substring of a longer word", () => {
     // " mark " must not fire on "marketing"; " sec " must not fire on "second".
-    expect(matchDemoQuestion("send me the marketing deck")).toBeNull();
-    expect(matchDemoQuestion("what happened in the second quarter")).toBeNull();
+    expect(matchDemoQuestion("send me the marketing deck", DEMO_FUND_IV_ID)).toBeNull();
+    expect(matchDemoQuestion("what happened in the second quarter", DEMO_FUND_IV_ID)).toBeNull();
+  });
+
+  it("answers only inside the workspace the question belongs to", () => {
+    // Every question belongs to exactly one fund. Asked from its own
+    // workspace it answers; asked from the sibling workspace it must fall
+    // back, rather than cite one fund's documents (Fund IV's DDQ, PPM and
+    // pitchbook, or Fund III's side letter) into a context that never
+    // contains them (CLAUDE.md invariant 2).
+    for (const q of DEMO_QUESTIONS) {
+      expect(matchDemoQuestion(q.question, q.dealId), q.question).not.toBeNull();
+      const otherFund =
+        q.dealId === DEMO_FUND_IV_ID ? DEMO_FUND_III_ID : DEMO_FUND_IV_ID;
+      expect(matchDemoQuestion(q.question, otherFund), q.question).toBeNull();
+    }
+  });
+
+  it("returns null for a workspace with no question set at all", () => {
+    expect(matchDemoQuestion("what is the management fee", "no_such_deal")).toBeNull();
   });
 });
 
@@ -206,19 +365,23 @@ describe("DEMO_PROMPT_CARDS", () => {
   it("offers one card per question, submitting the question verbatim", () => {
     expect(DEMO_PROMPT_CARDS.length).toBe(DEMO_QUESTIONS.length);
     for (const card of DEMO_PROMPT_CARDS) {
-      expect(matchDemoQuestion(card.prompt)).not.toBeNull();
+      expect(matchDemoQuestion(card.prompt, card.dealId)).not.toBeNull();
       expect(card.title.length).toBeGreaterThan(0);
       expect(card.blurb.length).toBeGreaterThan(0);
       expect(card.chips.length).toBeGreaterThan(0);
     }
   });
 
-  it("offers the question set in Fund IV only", () => {
-    // The run was recorded against Fund IV. A card clicked in a sibling fund
-    // could only answer off-script, or worse, cite documents that workspace's
-    // context never contains (CLAUDE.md invariant 2).
-    expect(demoPromptCardsFor(DEMO_FUND_IV_ID)).toEqual(DEMO_PROMPT_CARDS);
-    expect(demoPromptCardsFor(DEMO_FUND_III_ID)).toEqual([]);
+  it("offers each fund only its own cards", () => {
+    // A card clicked in a sibling fund could only answer off-script, or worse,
+    // cite documents that workspace's context never contains (invariant 2).
+    const fourth = demoPromptCardsFor(DEMO_FUND_IV_ID);
+    const third = demoPromptCardsFor(DEMO_FUND_III_ID);
+    expect(fourth.length).toBeGreaterThan(0);
+    for (const card of fourth) expect(card.dealId).toBe(DEMO_FUND_IV_ID);
+    for (const card of third) expect(card.dealId).toBe(DEMO_FUND_III_ID);
+    expect(fourth.length + third.length).toBe(DEMO_PROMPT_CARDS.length);
+    expect(demoPromptCardsFor("no_such_deal")).toEqual([]);
   });
 });
 
