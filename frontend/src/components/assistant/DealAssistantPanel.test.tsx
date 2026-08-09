@@ -4,7 +4,7 @@ import DealAssistantPanel from "./DealAssistantPanel";
 import type { ConversationEntry, Deal } from "@/lib/api";
 import { DEMO_FLAG_KEY } from "@/demo/mode";
 import { DEMO_FUND_III_ID, DEMO_FUND_IV_ID } from "@/demo/fixtures/entities";
-import { DEMO_QUESTIONS } from "@/demo/fixtures/chat";
+import { DEMO_QUESTIONS, questionsFor } from "@/demo/fixtures/chat";
 
 const deal: Deal = {
   deal_id: "hillpath_fund_iv",
@@ -161,11 +161,30 @@ describe("DealAssistantPanel empty state in demo mode", () => {
     expect(screen.queryByText(GENERIC_CARD_TITLE)).toBeNull();
   });
 
-  it("tells a visitor when a fund's questions are not part of the demo", async () => {
+  it("shows Fund III's own three cards, and none of the generic ones", async () => {
+    // REVERSAL, 2026-08-08. This test used to assert Fund III had no cards at
+    // all, on the ground that "the run was recorded against Fund IV only".
+    // That ground is gone: Fund IV's side-letter recording gave Fund III its
+    // own three-question set. Asserted against the fixture's own question
+    // text (not a hardcoded string) so this cannot silently desync from
+    // `DEMO_QUESTIONS` if the set changes.
     renderFor(DEMO_FUND_III_ID, "Brightwater Capital Partners III");
 
-    // The run was recorded against Fund IV only, so this workspace correctly
-    // has no cards — but a bare composer with nothing to click reads as broken.
+    const [firstFundIIIQuestion] = questionsFor(DEMO_FUND_III_ID);
+    expect(await screen.findByText(firstFundIIIQuestion.question)).toBeTruthy();
+    expect(screen.queryByText(GENERIC_CARD_TITLE)).toBeNull();
+    expect(screen.queryByText(/no suggested questions for this fund/i)).toBeNull();
+  });
+
+  it("tells a visitor when a workspace has no recorded question set at all", async () => {
+    // Both demo funds carry cards now, so no real workspace exercises the
+    // empty-state branch anymore. It is still live code — InitialAssistantState
+    // renders this note whenever demoPromptCardsFor(dealId) comes back empty —
+    // and it exists so a bare composer with nothing to click doesn't read as
+    // broken, so this drives it directly against a deal id the demo has no
+    // recording for, rather than quietly losing the coverage.
+    renderFor("no_such_deal", "Unrecorded Fund");
+
     expect(await screen.findByText(/no suggested questions for this fund/i)).toBeTruthy();
     expect(screen.queryByText(GENERIC_CARD_TITLE)).toBeNull();
   });
